@@ -238,4 +238,5 @@ public class ServiceOfferingDaoImpl extends GenericDaoBase<ServiceOfferingVO, Lo
 
         return dummyoffering;
     }
+
 }
