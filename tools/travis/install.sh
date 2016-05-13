@@ -34,12 +34,12 @@ if [ $MOD -ne 0 ]; then
  fi
 fi
 
-export MAVEN_OPTS="-Xmx2048m -XX:MaxPermSize=500m -Djava.security.egd=file:/dev/./urandom"
+export MAVEN_OPTS="-Xmx2048m -XX:MaxPermSize=800m -Djava.security.egd=file:/dev/./urandom"
 
 if [ $TEST_SEQUENCE_NUMBER -eq 1 ]; then
-   mvn -Pdeveloper,systemvm -Dsimulator clean install -T4 | egrep "Building|Tests|SUCCESS|FAILURE"
+   mvn -Pdeveloper,systemvm -Dsimulator clean install -T4
 else
-   mvn -Pdeveloper -Dsimulator clean install -DskipTests=true -T4 | egrep "Building|Tests|SUCCESS|FAILURE"
+   mvn -Pdeveloper -Dsimulator clean install -DskipTests=true -T4
 fi
 
 # Install mysql-connector-python

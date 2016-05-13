@@ -20,6 +20,13 @@
     <version>4.10.0-SNAPSHOT</version>
   </parent>
 
+  <repositories>
+    <repository>
+      <id>juniper-contrail</id>
+      <url>http://juniper.github.io/contrail-maven/snapshots</url>
+    </repository>
+  </repositories>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.cloudstack</groupId>
@@ -980,6 +987,7 @@
         </dependency>
       </dependencies>
     </profile>
+    <!--
     <profile>
       <id>f5</id>
       <activation>
@@ -995,6 +1003,7 @@
         </dependency>
       </dependencies>
     </profile>
+    -->
     <profile>
       <id>nuagevsp</id>
       <activation>
