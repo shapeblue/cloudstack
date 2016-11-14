@@ -813,6 +813,9 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
         volumeDetails.put(DiskTO.STORAGE_PORT, String.valueOf(storagePoolVO.getPort()));
         volumeDetails.put(DiskTO.IQN, volumeVO.get_iScsiName());
 
+        volumeDetails.put(DiskTO.PATH, volumeVO.getPath());
+        volumeDetails.put(DiskTO.VOLUME_SIZE, String.valueOf(volumeVO.getSize()));
+
         ChapInfo chapInfo = _volumeService.getChapInfo(volumeInfo, volumeInfo.getDataStore());
 
         if (chapInfo != null) {
