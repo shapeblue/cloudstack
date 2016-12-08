@@ -3243,7 +3243,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         // Check templates permissions
-        _accountMgr.checkAccess(owner, AccessType.UseEntry, false, template);
+        Account templateOwner = _accountMgr.getAccount(template.getAccountId());
+        if(caller.getAccountId() != templateOwner.getAccountId()){
+            _accountMgr.checkAccess(owner, AccessType.UseEntry, false, template);
+        }
 
         // check if the user data is correct
         validateUserData(userData, httpmethod);
