@@ -45,9 +45,13 @@ def merge(dbag, ip):
     if ip['nw_type'] == 'control':
         dbag[ip['device']] = [ip]
     else:
-        if index != -1:
-            dbag[ip['device']][index] = ip
+        if ip['add']:
+            if index != -1:
+                dbag[ip['device']][index] = ip
+            else:
+                dbag.setdefault(ip['device'], []).append(ip)
         else:
-            dbag.setdefault(ip['device'], []).append(ip)
+            if index != -1:
+                del(dbag[ip['device']][index])
 
     return dbag
