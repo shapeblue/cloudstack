@@ -78,7 +78,8 @@ function packaging() {
             DEFREL="-D_rel SNAPSHOT"
         fi
     else
-        REALVER="$VERSION"
+        REALVER=$(echo "$VERSION" | cut -d '-' -f 1)
+	VERSION=$REALVER
         if [ -n "$4" ] ; then
             DEFREL="-D_rel $4"
         else
