@@ -106,6 +106,10 @@ class CsAddress(CsDataBag):
                 ip.setAddress(address)
                 logging.info("Address found in DataBag ==> %s" % address)
 
+                if not address['add'] and not ip.configured():
+                    logging.info("Skipping %s as the add flag is set to %s " % (address['public_ip'], address['add']))
+                    continue
+
                 if ip.configured():
                     logging.info(
                         "Address %s on device %s already configured", ip.ip(), dev)
@@ -659,7 +663,10 @@ class CsIP:
         gw = interface.get_gateway()
         logging.info("Interface has the following gateway ==> %s", gw)
 
-        if bag['nw_type'] == "guest" and rip == gw:
+        guest_gw = self.config.cmdline().get_guest_gw()
+        logging.info("Interface has the following gateway ==> %s", guest_gw)
+
+        if bag['nw_type'] == "guest" and (rip == gw or rip == guest_gw):
             return True
         return False
 
