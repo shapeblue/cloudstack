@@ -497,7 +497,7 @@ class CsSite2SiteVpn(CsDataBag):
     def configure_ipsec(self, obj):
         leftpeer = obj['local_public_ip']
         rightpeer = obj['peer_gateway_ip']
-        peerlist = obj['peer_guest_cidr_list'].lstrip().rstrip().replace(',', ' ')
+        peerlist = obj['peer_guest_cidr_list'].replace(' ', '')
         vpnconffile = "%s/ipsec.vpn-%s.conf" % (self.VPNCONFDIR, rightpeer)
         vpnsecretsfile = "%s/ipsec.vpn-%s.secrets" % (self.VPNCONFDIR, rightpeer)
         ikepolicy=obj['ike_policy'].replace(';','-')

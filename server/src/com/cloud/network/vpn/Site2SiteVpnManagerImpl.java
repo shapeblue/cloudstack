@@ -190,10 +190,10 @@ public class Site2SiteVpnManagerImpl extends ManagerBase implements Site2SiteVpn
         String ipsecPsk = cmd.getIpsecPsk();
         String ikePolicy = cmd.getIkePolicy();
         String espPolicy = cmd.getEspPolicy();
-        if (!NetUtils.isValidS2SVpnPolicy(ikePolicy)) {
-            throw new InvalidParameterValueException("The customer gateway IKE policy " + ikePolicy + " is invalid!");
+        if (!NetUtils.isValidS2SVpnPolicy("ike", ikePolicy)) {
+            throw new InvalidParameterValueException("The customer gateway IKE policy " + ikePolicy + " is invalid!  Verify the required Diffie Hellman (DH) group is specified.");
         }
-        if (!NetUtils.isValidS2SVpnPolicy(espPolicy)) {
+        if (!NetUtils.isValidS2SVpnPolicy("esp", espPolicy)) {
             throw new InvalidParameterValueException("The customer gateway ESP policy " + espPolicy + " is invalid!");
         }
         Long ikeLifetime = cmd.getIkeLifetime();
@@ -444,10 +444,10 @@ public class Site2SiteVpnManagerImpl extends ManagerBase implements Site2SiteVpn
         String ipsecPsk = cmd.getIpsecPsk();
         String ikePolicy = cmd.getIkePolicy();
         String espPolicy = cmd.getEspPolicy();
-        if (!NetUtils.isValidS2SVpnPolicy(ikePolicy)) {
-            throw new InvalidParameterValueException("The customer gateway IKE policy" + ikePolicy + " is invalid!");
+        if (!NetUtils.isValidS2SVpnPolicy("ike", ikePolicy)) {
+            throw new InvalidParameterValueException("The customer gateway IKE policy" + ikePolicy + " is invalid!  Verify the required Diffie Hellman (DH) group is specified.");
         }
-        if (!NetUtils.isValidS2SVpnPolicy(espPolicy)) {
+        if (!NetUtils.isValidS2SVpnPolicy("esp", espPolicy)) {
             throw new InvalidParameterValueException("The customer gateway ESP policy" + espPolicy + " is invalid!");
         }
         Long ikeLifetime = cmd.getIkeLifetime();
