@@ -219,24 +219,10 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
                 initiatorGroup = DateraUtil.getInitiatorGroup(conn, initiatorGroupName);
             }
 
-            //check if we have an initiator for the host
-            String iqn = host.getStorageUrl();
-
-            DateraObject.Initiator initiator = DateraUtil.getInitiator(conn, iqn);
-
-            //initiator not found, create it
-            if (initiator == null) {
-
-                String initiatorName = DateraUtil.INITIATOR_PREFIX + "-" + host.getUuid();
-                initiator = DateraUtil.createInitiator(conn, initiatorName, iqn);
-            }
-
-            Preconditions.checkNotNull(initiator);
             Preconditions.checkNotNull(initiatorGroup);
 
-            if (!DateraUtil.isInitiatorPresentInGroup(initiator, initiatorGroup)){
-                DateraUtil.addInitiatorToGroup(conn, initiator.getPath(), initiatorGroupName);
-            }
+            // We create an initiator for every host in this cluster and add it to the initator group
+            addClusterHostsToInitiatorGroup(conn, clusterId, initiatorGroupName);
 
             //assgin the initiatorgroup to appInstance
             if (!isInitiatorGroupAssignedToAppInstance(conn, initiatorGroup, appInstance)) {
@@ -251,6 +237,33 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
         } finally {
             lock.unlock();
             lock.releaseRef();
+        }
+    }
+
+    private void addClusterHostsToInitiatorGroup(DateraObject.DateraConnection conn, long clusterId, String initiatorGroupName) throws DateraObject.DateraError, UnsupportedEncodingException {
+
+        List<HostVO> clusterHosts = _hostDao.findByClusterId(clusterId);
+        DateraObject.InitiatorGroup initiatorGroup = DateraUtil.getInitiatorGroup(conn, initiatorGroupName);
+
+        for (HostVO host : clusterHosts) {
+
+            //check if we have an initiator for the host
+            String iqn = host.getStorageUrl();
+
+            DateraObject.Initiator initiator = DateraUtil.getInitiator(conn, iqn);
+
+            //initiator not found, create it
+            if (initiator == null) {
+
+                String initiatorName = DateraUtil.INITIATOR_PREFIX + "-" + host.getUuid();
+                initiator = DateraUtil.createInitiator(conn, initiatorName, iqn);
+            }
+
+            Preconditions.checkNotNull(initiator);
+
+            if (!DateraUtil.isInitiatorPresentInGroup(initiator, initiatorGroup)) {
+                DateraUtil.addInitiatorToGroup(conn, initiator.getPath(), initiatorGroupName);
+            }
         }
     }
 
