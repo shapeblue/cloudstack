@@ -660,7 +660,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
                     Preconditions.checkNotNull(appInstance);
 
                     //update IOPS
-                    if (volumeInfo.getMaxIops() != appInstance.getTotalIops()) {
+                    if (volumeInfo.getMaxIops() != null && volumeInfo.getMaxIops() != appInstance.getTotalIops()) {
                         int newIops = Ints.checkedCast(volumeInfo.getMaxIops());
                         DateraUtil.updateAppInstanceIops(conn, appInstanceName, newIops);
                     }

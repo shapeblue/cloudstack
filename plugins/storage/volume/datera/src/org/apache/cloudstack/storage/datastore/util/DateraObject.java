@@ -239,7 +239,9 @@ public class DateraObject {
 
         public int getTotalIops() {
             StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME) ;
-            return storageInstance.getVolume().getPerformancePolicy().getTotalIops();
+            PerformancePolicy performancePolicy = storageInstance.getVolume().getPerformancePolicy();
+
+            return performancePolicy == null? -1 : performancePolicy.getTotalIops();
         }
 
         public String getName() {
