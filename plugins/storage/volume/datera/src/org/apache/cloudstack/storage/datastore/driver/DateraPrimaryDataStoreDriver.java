@@ -60,6 +60,8 @@ import org.apache.cloudstack.engine.subsystem.api.storage.TemplateInfo;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
 import org.apache.cloudstack.framework.async.AsyncCompletionCallback;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.storage.command.CommandResult;
 import org.apache.cloudstack.storage.command.CreateObjectAnswer;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
@@ -78,10 +80,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
+public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Configurable {
     private static final Logger s_logger = Logger.getLogger(DateraPrimaryDataStoreDriver.class);
     private static final int s_lockTimeInSeconds = 300;
     private static final int s_lowestHypervisorSnapshotReserve = 10;
+    private static final int KBPS_MULTIPLIER = 4; //4k blocks
 
     @Inject private ClusterDao _clusterDao;
     @Inject private ClusterDetailsDao _clusterDetailsDao;
@@ -96,6 +99,10 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
     @Inject private VolumeDetailsDao volumeDetailsDao;
     @Inject private SnapshotDetailsDao snapshotDetailsDao;
     @Inject private VolumeDataFactory volumeDataFactory;
+
+    private static final ConfigKey<Float> MaxIopsScalingFactor = new ConfigKey<Float>("Advanced", Float.class, "storage.managedstorage.datera.iops.fator", "1.0",
+            "The amount by which to scale the bandwidth when applying Datera.", true, ConfigKey.Scope.Zone);
+
     /**
      * Returns a map which lists the capabilities that this storage device can offer. Currently supported
      * STORAGE_SYSTEM_SNAPSHOT: Has the ability to create native snapshots
@@ -660,9 +667,9 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
                     Preconditions.checkNotNull(appInstance);
 
                     //update IOPS
-                    if (volumeInfo.getMaxIops() != null && volumeInfo.getMaxIops() != appInstance.getTotalIops()) {
+                    if (volumeInfo.getMaxIops() != null && volumeInfo.getMaxIops() != toIops(appInstance.getTotalBandwidthKiBps())) {
                         int newIops = Ints.checkedCast(volumeInfo.getMaxIops());
-                        DateraUtil.updateAppInstanceIops(conn, appInstanceName, newIops);
+                        DateraUtil.updateAppInstanceIops(conn, appInstanceName, toBandwidthKiBps(newIops));
                     }
 
                     // refresh appInstance
@@ -707,6 +714,19 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
         return appInstance.getIqn();
     }
 
+    private Long toIops(Integer totalBandwidthKiBps) {
+
+        if (totalBandwidthKiBps == null) {
+            return null;
+        }
+
+        return (long) (Math.round(totalBandwidthKiBps / (KBPS_MULTIPLIER * MaxIopsScalingFactor.value())) + 1);
+    }
+
+    private int toBandwidthKiBps(int iops) {
+        return Math.round(iops * KBPS_MULTIPLIER * MaxIopsScalingFactor.value());
+    }
+
     /**
      * Helper function  to create a Datera app instance. Throws an exception if unsuccessful
      * @param conn      Datera connection
@@ -734,7 +754,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
         long volumeSizeBytes = getDataObjectSizeIncludingHypervisorSnapshotReserve(volumeInfo, _storagePoolDao.findById(storagePoolId));
         int volumeSizeGb = DateraUtil.bytesToGb(volumeSizeBytes);
 
-        return DateraUtil.createAppInstance(conn, getAppInstanceName(volumeInfo), volumeSizeGb, maxIops, replicas);
+        return DateraUtil.createAppInstance(conn, getAppInstanceName(volumeInfo), volumeSizeGb, toBandwidthKiBps(maxIops), replicas);
     }
 
     /**
@@ -765,7 +785,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
                 if (volumeInfo.getMaxIops() != null) {
 
                     int totalIops = Math.min(DateraUtil.MAX_IOPS, Ints.checkedCast(volumeInfo.getMaxIops()));
-                    DateraUtil.updateAppInstanceIops(conn, clonedAppInstanceName, totalIops);
+                    DateraUtil.updateAppInstanceIops(conn, clonedAppInstanceName, toBandwidthKiBps(totalIops));
                     appInstance = DateraUtil.getAppInstance(conn, clonedAppInstanceName);
                 }
 
@@ -802,7 +822,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
 
             int totalIops = Math.min(DateraUtil.MAX_IOPS, Ints.checkedCast(volumeInfo.getMaxIops()));
 
-            DateraUtil.updateAppInstanceIops(conn, clonedAppInstanceName, totalIops);
+            DateraUtil.updateAppInstanceIops(conn, clonedAppInstanceName, toBandwidthKiBps(totalIops));
             appInstance = DateraUtil.getAppInstance(conn, clonedAppInstanceName);
         }
 
@@ -905,7 +925,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
             int replicaCount = getNumReplicas(storagePoolId);
 
             DateraObject.AppInstance appInstance = DateraUtil.createAppInstance(conn, getAppInstanceName(templateInfo),
-                    templateSizeGb, templateIops, replicaCount);
+                    templateSizeGb, toBandwidthKiBps(templateIops), replicaCount);
 
             if (appInstance == null) {
                 throw new CloudRuntimeException("Unable to create Template volume " + templateInfo.getId());
@@ -1103,7 +1123,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
 
                 String appInstanceName = getAppInstanceName(snapshotInfo);
                 DateraObject.AppInstance snapshotAppInstance = DateraUtil.createAppInstance(conn, appInstanceName,
-                        volumeSizeGb, DateraUtil.MAX_IOPS, getNumReplicas(storagePoolId));
+                        volumeSizeGb, toBandwidthKiBps(DateraUtil.MAX_IOPS), getNumReplicas(storagePoolId));
 
                 snapshotObjectTo.setPath(snapshotAppInstance.getName());
                 String iqnPath = DateraUtil.generateIqnPath(snapshotAppInstance.getIqn());
@@ -1367,8 +1387,8 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
                     DateraUtil.updateAppInstanceSize(conn, appInstanceName, Ints.checkedCast(newSize));
                 }
 
-                if (payload.newMaxIops != null && appInstance.getTotalIops() != payload.newMaxIops) {
-                    DateraUtil.updateAppInstanceIops(conn, appInstanceName, Ints.checkedCast(payload.newMaxIops));
+                if (payload.newMaxIops != null && toIops(appInstance.getTotalBandwidthKiBps()) != payload.newMaxIops) {
+                    DateraUtil.updateAppInstanceIops(conn, appInstanceName, toBandwidthKiBps(Ints.checkedCast(payload.newMaxIops)));
                 }
 
                 appInstance = DateraUtil.getAppInstance(conn, appInstanceName);
@@ -1545,5 +1565,15 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
         }
 
         return volumeSize;
+    }
+
+    @Override
+    public String getConfigComponentName() {
+        return DateraPrimaryDataStoreDriver.class.getSimpleName();
+    }
+
+    @Override
+    public ConfigKey<?>[] getConfigKeys() {
+        return new ConfigKey<?>[] {MaxIopsScalingFactor};
     }
 }

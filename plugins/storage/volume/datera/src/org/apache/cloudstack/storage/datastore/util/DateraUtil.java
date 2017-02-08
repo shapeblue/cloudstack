@@ -183,7 +183,7 @@ public class DateraUtil {
 
     }
 
-    public static DateraObject.PerformancePolicy createAppInstancePerformancePolicy(DateraObject.DateraConnection conn, String appInstanceName, int totalIops) throws UnsupportedEncodingException, DateraObject.DateraError {
+    public static DateraObject.PerformancePolicy createAppInstancePerformancePolicy(DateraObject.DateraConnection conn, String appInstanceName, int totalBandwidthKiBps) throws UnsupportedEncodingException, DateraObject.DateraError {
 
         HttpPost url = new HttpPost(generateApiUrl(
                 "app_instances", appInstanceName,
@@ -191,7 +191,7 @@ public class DateraUtil {
                 "volumes", DateraObject.DEFAULT_VOLUME_NAME,
                 "performance_policy"));
 
-        DateraObject.PerformancePolicy performancePolicy = new DateraObject.PerformancePolicy(totalIops);
+        DateraObject.PerformancePolicy performancePolicy = new DateraObject.PerformancePolicy(totalBandwidthKiBps);
 
         url.setEntity(new StringEntity(gson.toJson(performancePolicy)));
 
@@ -200,10 +200,10 @@ public class DateraUtil {
         return gson.fromJson(response, DateraObject.PerformancePolicy.class);
     }
 
-    public static void updateAppInstanceIops(DateraObject.DateraConnection conn, String appInstance, int totalIops) throws UnsupportedEncodingException, DateraObject.DateraError {
+    public static void updateAppInstanceIops(DateraObject.DateraConnection conn, String appInstance, int totalBandWidthKiBps) throws UnsupportedEncodingException, DateraObject.DateraError {
 
         if (getAppInstancePerformancePolicy(conn, appInstance) == null) {
-                createAppInstancePerformancePolicy(conn, appInstance, totalIops);
+                createAppInstancePerformancePolicy(conn, appInstance, totalBandWidthKiBps);
         } else {
 
             HttpPut url = new HttpPut(generateApiUrl(
@@ -212,11 +212,15 @@ public class DateraUtil {
                     "volumes", DateraObject.DEFAULT_VOLUME_NAME,
                     "performance_policy"));
 
-            DateraObject.PerformancePolicy performancePolicy = new DateraObject.PerformancePolicy(totalIops);
+            DateraObject.PerformancePolicy performancePolicy = new DateraObject.PerformancePolicy(totalBandWidthKiBps);
 
             url.setEntity(new StringEntity(gson.toJson(performancePolicy)));
             executeApiRequest(conn, url);
         }
+    }
+
+    private static int toBandwidth(int totalIops) {
+        return totalIops;
     }
 
     public static void updateAppInstanceSize(DateraObject.DateraConnection conn, String appInstanceName, int newSize) throws UnsupportedEncodingException, DateraObject.DateraError {
@@ -260,9 +264,9 @@ public class DateraUtil {
         return pollVolumeAvailable(conn, name);
     }
 
-    public static DateraObject.AppInstance createAppInstance(DateraObject.DateraConnection conn, String name, int size, int totalIops, int replicaCount) throws UnsupportedEncodingException, DateraObject.DateraError {
+    public static DateraObject.AppInstance createAppInstance(DateraObject.DateraConnection conn, String name, int size, int totalBandwidthKiBps, int replicaCount) throws UnsupportedEncodingException, DateraObject.DateraError {
 
-        DateraObject.AppInstance appInstance = new DateraObject.AppInstance(name, size, totalIops, replicaCount);
+        DateraObject.AppInstance appInstance = new DateraObject.AppInstance(name, size, totalBandwidthKiBps, replicaCount);
         StringEntity appInstanceEntity = new StringEntity(gson.toJson(appInstance));
 
         return createAppInstance(conn, name, appInstanceEntity);

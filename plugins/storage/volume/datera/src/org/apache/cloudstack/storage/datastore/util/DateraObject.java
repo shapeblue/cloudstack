@@ -111,16 +111,16 @@ public class DateraObject {
 
     public static class PerformancePolicy {
 
-        @SerializedName("total_iops_max")
-        private Integer totalIops;
+       @SerializedName("total_bandwidth_max")
+        private Integer totalBandwidth;
 
 
-        public PerformancePolicy(int totalIops) {
-            this.totalIops = totalIops;
+        public PerformancePolicy(int totalBandwidthKiBps) {
+            this.totalBandwidth = totalBandwidthKiBps;
         }
 
-        public Integer getTotalIops() {
-            return totalIops;
+        public Integer getTotalBandwidth() {
+            return totalBandwidth;
         }
     }
 
@@ -139,11 +139,11 @@ public class DateraObject {
         @SerializedName("op_state")
         private String opState;
 
-        public Volume(int size, int totalIops, int replicaCount) {
+        public Volume(int size, int totalBandwidthKiBps, int replicaCount) {
             this.name = DEFAULT_VOLUME_NAME;
             this.size = size;
             this.replicaCount = replicaCount;
-            this.performancePolicy = new PerformancePolicy(totalIops);
+            this.performancePolicy = new PerformancePolicy(totalBandwidthKiBps);
         }
 
         public Volume(Integer newSize) {
@@ -173,8 +173,8 @@ public class DateraObject {
         private Map<String, Volume> volumes;
         private Access access;
 
-        public StorageInstance(int size, int totalIops, int replicaCount) {
-            Volume volume = new Volume(size, totalIops, replicaCount);
+        public StorageInstance(int size, int totalBandWidthKiBps, int replicaCount) {
+            Volume volume = new Volume(size, totalBandWidthKiBps, replicaCount);
             volumes = new HashMap<String, Volume>();
             volumes.put(DEFAULT_VOLUME_NAME, volume);
         }
@@ -214,9 +214,9 @@ public class DateraObject {
         private Boolean force;
 
 
-        public AppInstance(String name, int size, int totalIops, int replicaCount) {
+        public AppInstance(String name, int size, int totalBandwidthKiBps, int replicaCount) {
             this.name = name;
-            StorageInstance storageInstance = new StorageInstance(size, totalIops, replicaCount);
+            StorageInstance storageInstance = new StorageInstance(size, totalBandwidthKiBps, replicaCount);
             this.storageInstances = new HashMap<String, StorageInstance>();
             this.storageInstances.put(DEFAULT_STORAGE_NAME, storageInstance);
             this.accessControlMode = DEFAULT_ACL;
@@ -237,11 +237,19 @@ public class DateraObject {
             return storageInstance.getAccess().getIqn();
         }
 
-        public int getTotalIops() {
+        // Commenting this out because we are using bandwidth instead for now
+        /* public int getTotalIops() {
             StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME) ;
             PerformancePolicy performancePolicy = storageInstance.getVolume().getPerformancePolicy();
 
             return performancePolicy == null? -1 : performancePolicy.getTotalIops();
+        }*/
+
+        public int getTotalBandwidthKiBps() {
+            StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME) ;
+            PerformancePolicy performancePolicy = storageInstance.getVolume().getPerformancePolicy();
+
+            return performancePolicy == null? -1 : performancePolicy.getTotalBandwidth();
         }
 
         public String getName() {
