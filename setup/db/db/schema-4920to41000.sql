@@ -126,6 +126,7 @@ NULL DEFAULT '1' COMMENT 'True if the detail can be displayed to the end user' A
 
 ALTER TABLE `snapshots` ADD COLUMN `location_type` VARCHAR(32) COMMENT 'Location of snapshot (ex. Primary)';
 
+
 -- Database change for CLOUDSTACK-8746 (VM Snapshotting implementation for KVM)
 UPDATE `cloud`.`hypervisor_capabilities` SET `vm_snapshot_enabled` = 1 WHERE `hypervisor_type` ='KVM' AND `hypervisor_version` = 'default';
 
@@ -229,3 +230,9 @@ JOIN `cloud`.`service_offering` o ON (v.service_offering_id = o.id)
 JOIN `cloud`.`vm_snapshots` s ON (s.service_offering_id = o.id AND s.vm_id = v.id)
 WHERE (o.cpu is null AND o.speed IS NULL AND o.ram_size IS NULL) AND
 (d.name = 'cpuNumber' OR d.name = 'cpuSpeed' OR d.name = 'memory');
+
+INSERT INTO `cloud`.`hypervisor_capabilities`(
+	uuid, hypervisor_type, hypervisor_version, max_guests_limit, max_data_volumes_limit, storage_motion_supported)
+values 
+  	(UUID(), 'XenServer', '7.0.0', 500, 13, 1);
+
