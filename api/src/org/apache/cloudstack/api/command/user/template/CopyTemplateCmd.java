@@ -18,6 +18,7 @@ package org.apache.cloudstack.api.command.user.template;
 
 import java.util.List;
 
+import com.cloud.dc.DataCenter;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
@@ -111,7 +112,7 @@ public class CopyTemplateCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventDescription() {
-        return  "copying template: " + getId() + " from zone: " + getSourceZoneId() + " to zone: " + getDestinationZoneId();
+        return  "copying template: " + this._uuidMgr.getUuid(VirtualMachineTemplate.class,getId()) + " from zone: " + this._uuidMgr.getUuid(DataCenter.class,getSourceZoneId()) + " to zone: " + this._uuidMgr.getUuid(DataCenter.class,getDestinationZoneId());
     }
 
     @Override

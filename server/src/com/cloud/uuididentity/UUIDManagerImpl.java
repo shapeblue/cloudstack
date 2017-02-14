@@ -21,6 +21,7 @@ import java.util.UUID;
 import javax.ejb.Local;
 import javax.inject.Inject;
 
+import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.context.CallContext;
 
 import com.cloud.exception.InvalidParameterValueException;
@@ -105,6 +106,16 @@ public class UUIDManagerImpl implements UUIDManager {
             checkUuid(customId, entityType);
             return customId;
         }
+    }
+
+    @Override
+    public <T> String getUuid(Class<T> entityType, Long customId){
+        Identity identity = (Identity) this._entityMgr.findById(entityType, customId);
+        if (identity == null) {
+            throw new InvalidParameterValueException("Unable to find UUID for id "+customId);
+        }
+        return identity.getUuid();
+
     }
 
 }
