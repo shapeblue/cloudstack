@@ -109,14 +109,6 @@ public class CreateSnapshotCmd extends BaseAsyncCreateCmd {
         return snapshotName;
     }
 
-    public String getVolumeUuid() {
-        Volume volume = _entityMgr.findById(Volume.class, getVolumeId());
-        if (volume == null) {
-            throw new InvalidParameterValueException("Unable to find volume's UUID");
-        }
-        return volume.getUuid();
-    }
-
     public Long getPolicyId() {
         if (policyId != null) {
             return policyId;
@@ -176,7 +168,7 @@ public class CreateSnapshotCmd extends BaseAsyncCreateCmd {
 
     @Override
     public String getEventDescription() {
-        return "creating snapshot for volume: " + getVolumeUuid();
+        return "creating snapshot for volume: " + this._uuidMgr.getUuid(Volume.class, getVolumeId());
     }
 
     @Override
