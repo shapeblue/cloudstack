@@ -4,7 +4,6 @@
 	size 50M
 	missingok
 	notifempty
-	delaycompress
 	compress
 	postrotate
 		/usr/sbin/invoke-rc.d rsyslog rotate > /dev/null
@@ -25,11 +24,15 @@
 /var/log/messages
 {
 	rotate 10
+<<<<<<< HEAD
 	size 50M
+=======
+	daily
+	maxsize 10M
+>>>>>>> CLOUDSTACK-9746 system-vm: logrotate config causes critical failures
 	missingok
 	notifempty
 	compress
-	delaycompress
 	sharedscripts
 	postrotate
 		/usr/sbin/invoke-rc.d rsyslog rotate > /dev/null
