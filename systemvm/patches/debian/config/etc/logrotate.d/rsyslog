@@ -24,7 +24,7 @@
 /var/log/messages
 {
 	rotate 10
-	maxsize 10M
+	size 50M
 	missingok
 	notifempty
 	compress
