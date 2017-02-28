@@ -907,8 +907,9 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                         _s2sVpnConnectionDao.persist(conn);
                         if (oldState != conn.getState()) {
                             final String title = "Site-to-site Vpn Connection to " + gw.getName() + " just switch from " + oldState + " to " + conn.getState();
-                            final String context = "Site-to-site Vpn Connection to " + gw.getName() + " on router " + router.getHostName() + "(id: " + router.getId() + ") "
-                                    + " just switch from " + oldState + " to " + conn.getState();
+                            final String context = "Site-to-site Vpn Connection to " + gw.getName() + " on router " + router.getHostName() + "(id: " + router.getUuid() + ") "
+                                    + " just switch from " + oldState + " to " + conn.getState() + ". VPC id:" + router.getVpcId() + " Domain id:" + router.getDomainId()
+                                    + " router version:" + router.getTemplateVersion();
                             s_logger.info(context);
                             _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_DOMAIN_ROUTER, router.getDataCenterId(), router.getPodIdToDeployIn(), title, context);
                         }
