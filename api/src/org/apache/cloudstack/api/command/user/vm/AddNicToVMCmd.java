@@ -19,6 +19,7 @@ package org.apache.cloudstack.api.command.user.vm;
 import java.util.ArrayList;
 import java.util.EnumSet;
 
+import com.cloud.network.Network;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
@@ -96,7 +97,7 @@ public class AddNicToVMCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventDescription() {
-        return  "Adding network " + getNetworkId() + " to user vm: " + getVmId();
+        return  "Adding network " + this._uuidMgr.getUuid(Network.class,getNetworkId()) + " to user vm: " + this._uuidMgr.getUuid(VirtualMachine.class,getVmId());
     }
 
     @Override
@@ -110,7 +111,7 @@ public class AddNicToVMCmd extends BaseAsyncCmd {
 
     @Override
     public void execute() {
-        CallContext.current().setEventDetails("Vm Id: " + getVmId() + " Network Id: " + getNetworkId());
+        CallContext.current().setEventDetails("Vm Id: " + this._uuidMgr.getUuid(VirtualMachine.class,getVmId()) + " Network Id: " + this._uuidMgr.getUuid(Network.class,getNetworkId()));
         UserVm result = _userVmService.addNicToVirtualMachine(this);
         ArrayList<VMDetails> dc = new ArrayList<VMDetails>();
         dc.add(VMDetails.valueOf("nics"));
