@@ -3,6 +3,7 @@ package org.apache.cloudstack.storage.datastore.util;
 import com.cloud.utils.StringUtils;
 import com.google.gson.annotations.SerializedName;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,12 +50,14 @@ public class DateraObject {
         private String managementIp;
         private String username;
         private String password;
+        private String token;
 
-        public DateraConnection(String managementIp, int managementPort, String username, String password) {
+        public DateraConnection(String managementIp, int managementPort, String username, String password) throws UnsupportedEncodingException, DateraError {
             this.managementPort = managementPort;
             this.managementIp = managementIp;
             this.username = username;
             this.password = password;
+            this.token = DateraUtil.login(this);
         }
 
         public int getManagementPort() {
@@ -71,6 +74,10 @@ public class DateraObject {
 
         public String getPassword() {
             return password;
+        }
+
+        public String getToken() {
+            return token;
         }
     }
 
