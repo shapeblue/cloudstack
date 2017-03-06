@@ -181,6 +181,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Param(description = "true if template contains XS/VMWare tools inorder to support dynamic scaling of VM cpu/memory")
     private Boolean isDynamicallyScalable;
 
+    @SerializedName("parenttemplateid")
+    @Param(description = "if Datadisk template, then id of the root disk template this template belongs to")
+    private String parentTemplateId;
+
     public TemplateResponse() {
         tags = new LinkedHashSet<ResourceTagResponse>();
     }
@@ -354,4 +358,9 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     public void setBits(int bits) {
         this.bits = bits;
     }
+
+    public void setParentTemplateId(String parentTemplateId) {
+        this.parentTemplateId = parentTemplateId;
+    }
+
 }
