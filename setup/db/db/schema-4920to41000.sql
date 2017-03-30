@@ -236,3 +236,6 @@ INSERT INTO `cloud`.`hypervisor_capabilities`(
 values 
   	(UUID(), 'XenServer', '7.0.0', 500, 13, 1);
 
+-- CLOUDSTACK-9827: Storage tags stored in multiple places
+DROP VIEW IF EXISTS `cloud`.`storage_tag_view`;
+
