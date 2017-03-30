@@ -100,7 +100,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
     @Inject private SnapshotDetailsDao snapshotDetailsDao;
     @Inject private VolumeDataFactory volumeDataFactory;
 
-    private static final ConfigKey<Float> MaxIopsScalingFactor = new ConfigKey<Float>("Advanced", Float.class, "storage.managedstorage.datera.iops.fator", "1.0",
+    private static final ConfigKey<Float> MaxIopsScalingFactor = new ConfigKey<Float>("Advanced", Float.class, "storage.managedstorage.datera.iops.factor", "1.0",
             "The amount by which to scale the bandwidth when applying Datera.", true, ConfigKey.Scope.Zone);
 
     /**
