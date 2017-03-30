@@ -830,6 +830,11 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         final Account account = cctxt.getCallingAccount();
         final User caller = cctxt.getCallingUser();
 
+        long startTime, endTime;
+
+        startTime = System.currentTimeMillis();
+        s_logger.info("[OrchestrateStart] Start");
+
         VMInstanceVO vm = _vmDao.findByUuid(vmUuid);
 
         final VirtualMachineGuru vmGuru = getVmGuru(vm);
@@ -862,6 +867,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         }
 
         final HypervisorGuru hvGuru = _hvGuruMgr.getGuru(vm.getHypervisorType());
+
 
         boolean canRetry = true;
         ExcludeList avoids = null;
@@ -993,13 +999,22 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     throw new ConcurrentOperationException(e1.getMessage());
                 }
 
+                endTime = System.currentTimeMillis();
+                s_logger.info(String.format("[OrchestrateStart] got a plan %d", endTime - startTime));
+
                 try {
                     if (s_logger.isDebugEnabled()) {
                         s_logger.debug("VM is being created in podId: " + vm.getPodIdToDeployIn());
                     }
+                    startTime = System.currentTimeMillis();
                     _networkMgr.prepare(vmProfile, new DeployDestination(dest.getDataCenter(), dest.getPod(), null, null), ctx);
+                    endTime = System.currentTimeMillis();
+                    s_logger.info(String.format("[OrchestrateStart] network prepare %d", endTime - startTime));
                     if (vm.getHypervisorType() != HypervisorType.BareMetal) {
+                        startTime = System.currentTimeMillis();
                         volumeMgr.prepare(vmProfile, dest);
+                        endTime = System.currentTimeMillis();
+                        s_logger.info(String.format("[OrchestrateStart] volume prepare %d", endTime - startTime));
                     }
                     //since StorageMgr succeeded in volume creation, reuse Volume for further tries until current cluster has capacity
                     if (!reuseVolume) {
@@ -1008,6 +1023,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
                     Commands cmds = null;
                     vmGuru.finalizeVirtualMachineProfile(vmProfile, dest, ctx);
+                    startTime = System.currentTimeMillis();
 
                     final VirtualMachineTO vmTO = hvGuru.implement(vmProfile);
 
@@ -1032,6 +1048,9 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     _workDao.updateStep(work, Step.Started);
 
                     startAnswer = cmds.getAnswer(StartAnswer.class);
+                    endTime = System.currentTimeMillis();
+                    s_logger.info(String.format("[OrchestrateStart] hypervisor prepare %d", endTime - startTime));
+
                     if (startAnswer != null && startAnswer.getResult()) {
                         handlePath(vmTO.getDisks(), startAnswer.getIqnToPath());
                         final String host_guid = startAnswer.getHost_guid();
