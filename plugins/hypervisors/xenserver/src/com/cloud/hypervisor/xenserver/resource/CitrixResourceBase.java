@@ -155,6 +155,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
+
 /**
  * CitrixResourceBase encapsulates the calls to the XenServer Xapi process to
  * perform the required functionalities for CloudStack.
