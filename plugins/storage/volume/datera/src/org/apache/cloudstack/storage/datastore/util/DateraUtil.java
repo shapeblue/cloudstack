@@ -98,9 +98,9 @@ public class DateraUtil {
     public static final int MIN_NUM_REPLICAS = 1;
     public static final int MAX_NUM_REPLICAS = 5;
 
-    public static final int POLL_TIMEOUT_MS = 3000;
+    public static final int POLL_TIMEOUT_MS = 1000;
     public static final String STATE_AVAILABLE = "available";
-    public static final int DEFAULT_RETRIES = 3;
+    public static final int DEFAULT_RETRIES = 6;
 
     private static Gson gson = new GsonBuilder().create();
 
@@ -623,12 +623,7 @@ public class DateraUtil {
     private static String executeApiRequest(DateraObject.DateraConnection conn, HttpRequest apiReq) throws DateraObject.DateraError {
 
         //Get the token first
-        String authToken = null;
-        try {
-            authToken = login(conn);
-        } catch (UnsupportedEncodingException e) {
-            throw new CloudRuntimeException("Unable to login to Datera " + e.getMessage());
-        }
+        String authToken = conn.getToken();
 
         if (authToken == null){
             throw new CloudRuntimeException("Unable to login to Datera: error getting auth token ");
@@ -648,6 +643,10 @@ public class DateraUtil {
         }
 
         try {
+
+            long startTime = System.currentTimeMillis();
+            String uri = request.getRequestLine().getUri();
+            String method = request.getRequestLine().getMethod();
 
             request.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_JSON);
 
@@ -671,6 +670,10 @@ public class DateraUtil {
                 }
 
             }
+
+            long endTime = System.currentTimeMillis();
+            String mesg = String.format("[Datera] %s %s took %d ms", method, uri, endTime - startTime);
+            s_logger.info(mesg);
 
         } catch (IOException e) {
             throw new CloudRuntimeException("Error while sending request to Datera. Error " + e.getMessage());
@@ -824,7 +827,13 @@ public class DateraUtil {
 
         String clusterAdminPassword = storagePoolDetail.getValue();
 
-        return new DateraObject.DateraConnection(mVip, mPort, clusterAdminUsername, clusterAdminPassword) ;
+        try {
+            return new DateraObject.DateraConnection(mVip, mPort, clusterAdminUsername, clusterAdminPassword) ;
+        } catch (DateraObject.DateraError | UnsupportedEncodingException dateraError) {
+            String errMesg = "Unable to connect to Datera";
+            s_logger.error(errMesg, dateraError);
+            throw new CloudRuntimeException(errMesg, dateraError);
+        }
     }
 
     public static boolean hostsSupport_iScsi(List<HostVO> hosts) {

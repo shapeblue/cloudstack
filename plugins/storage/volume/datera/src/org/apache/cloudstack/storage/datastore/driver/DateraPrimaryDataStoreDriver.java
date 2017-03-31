@@ -100,7 +100,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
     @Inject private SnapshotDetailsDao snapshotDetailsDao;
     @Inject private VolumeDataFactory volumeDataFactory;
 
-    private static final ConfigKey<Float> MaxIopsScalingFactor = new ConfigKey<Float>("Advanced", Float.class, "storage.managedstorage.datera.iops.fator", "1.0",
+    private static final ConfigKey<Float> MaxIopsScalingFactor = new ConfigKey<Float>("Advanced", Float.class, "storage.managedstorage.datera.iops.factor", "1.0",
             "The amount by which to scale the bandwidth when applying Datera.", true, ConfigKey.Scope.Zone);
 
     /**
@@ -341,6 +341,11 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
                 DateraUtil.pollAppInstanceAvailable(conn, appInstanceName);
             }
 
+            if (dataObject.getType().equals(DataObjectType.TEMPLATE)) {
+                //Having the template offline reduces the time taken to clone
+                DateraUtil.updateAppInstanceAdminState(conn, appInstanceName, DateraObject.AppState.OFFLINE);
+            }
+
         } catch (DateraObject.DateraError | UnsupportedEncodingException dateraError) {
             String errMesg = "Error revoking access for Volume : " + dataObject.getId();
             s_logger.warn(errMesg, dateraError);
@@ -464,13 +469,15 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
                     usedSpace += volumeSize;
                 }
                 else {
-                    DateraObject.DateraConnection conn = DateraUtil.getDateraConnection(storagePool.getId(), _storagePoolDetailsDao);
                     try {
 
+                        DateraObject.DateraConnection conn = DateraUtil.getDateraConnection(storagePool.getId(), _storagePoolDetailsDao);
                         String appInstanceName = getAppInstanceName(volumeDataFactory.getVolume(volume.getId()));
                         DateraObject.AppInstance appInstance = DateraUtil.getAppInstance(conn, appInstanceName);
                         if (appInstance != null) {
-                            usedSpace += DateraUtil.gbToBytes(appInstance.getSize());
+                            long size = DateraUtil.gbToBytes(appInstance.getSize());
+                            usedSpace += size;
+                            updateVolumeDetails(volume.getId(), size);
                         }
                     } catch (DateraObject.DateraError dateraError) {
                         String errMesg = "Error getting used bytes for storage pool : " + storagePool.getId();
@@ -977,7 +984,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
             if (dataObject.getType() == DataObjectType.VOLUME) {
                 iqn = createVolume((VolumeInfo)dataObject, dataStore.getId());
             } else if (dataObject.getType() == DataObjectType.SNAPSHOT) {
-                createTempVolume((SnapshotInfo)dataObject, dataStore.getId());
+                createTempVolume((SnapshotInfo) dataObject, dataStore.getId());
             } else if (dataObject.getType() == DataObjectType.TEMPLATE) {
                 iqn = createTemplateVolume((TemplateInfo)dataObject, dataStore.getId());
             } else {

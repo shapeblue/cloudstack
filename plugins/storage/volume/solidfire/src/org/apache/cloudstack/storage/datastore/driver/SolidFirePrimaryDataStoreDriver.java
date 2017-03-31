@@ -1345,8 +1345,12 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
             SolidFireUtil.SolidFireConnection sfConnection = SolidFireUtil.getSolidFireConnection(storagePoolId, storagePoolDetailsDao);
             SolidFireUtil.SolidFireVolume sfVolume = SolidFireUtil.getVolume(sfConnection, sfVolumeId);
 
-            verifySufficientIopsForStoragePool(storagePoolId, volumeInfo.getId(), payload.newMinIops);
-            verifySufficientBytesForStoragePool(storagePoolId, volumeInfo.getId(), payload.newSize, payload.newHypervisorSnapshotReserve);
+            long newMinIops = payload.newMinIops != null ? payload.newMinIops : sfVolume.getMinIops();
+            long newMaxIops = payload.newMaxIops != null ? payload.newMaxIops : sfVolume.getMaxIops();
+            long newSize = payload.newSize != null ? payload.newSize : volumeInfo.getSize();
+
+            verifySufficientIopsForStoragePool(storagePoolId, sfVolume, newMinIops);
+            verifySufficientBytesForStoragePool(storagePoolId, volumeInfo.getId(), newSize, payload.newHypervisorSnapshotReserve);
 
             long sfNewVolumeSize = sfVolume.getTotalSize();
 
@@ -1364,7 +1368,7 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
                     }
                 }
 
-                sfNewVolumeSize = getVolumeSizeIncludingHypervisorSnapshotReserve(payload.newSize, hsr);
+                sfNewVolumeSize = getVolumeSizeIncludingHypervisorSnapshotReserve(newSize, hsr);
             }
 
             Map<String, String> mapAttributes = new HashMap<>();
@@ -1373,12 +1377,12 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
             mapAttributes.put(SolidFireUtil.CloudStackVolumeSize, NumberFormat.getInstance().format(payload.newSize));
 
             SolidFireUtil.modifyVolume(sfConnection, sfVolumeId, sfNewVolumeSize, mapAttributes,
-                    payload.newMinIops, payload.newMaxIops, getDefaultBurstIops(storagePoolId, payload.newMaxIops));
+                    newMinIops, newMaxIops, getDefaultBurstIops(storagePoolId, newMaxIops));
 
             VolumeVO volume = volumeDao.findById(volumeInfo.getId());
 
-            volume.setMinIops(payload.newMinIops);
-            volume.setMaxIops(payload.newMaxIops);
+            volume.setMinIops(newMinIops);
+            volume.setMaxIops(newMaxIops);
             volume.setHypervisorSnapshotReserve(hsr);
 
             volumeDao.update(volume.getId(), volume);
@@ -1450,10 +1454,9 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
         }
     }
 
-    private void verifySufficientIopsForStoragePool(long storagePoolId, long volumeId, long newMinIops) {
-        VolumeVO volume = volumeDao.findById(volumeId);
+    private void verifySufficientIopsForStoragePool(long storagePoolId, SolidFireUtil.SolidFireVolume sfVolume, long newMinIops) {
 
-        long currentMinIops = volume.getMinIops();
+        long currentMinIops = sfVolume.getMinIops();
         long diffInMinIops = newMinIops - currentMinIops;
 
         // if the desire is for more IOPS
