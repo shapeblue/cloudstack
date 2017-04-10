@@ -251,6 +251,9 @@ ALTER TABLE `user_ip_address` ADD COLUMN `rule_state` VARCHAR(32) COMMENT 'stati
 ALTER TABLE `cloud`.`vm_template` ADD COLUMN `parent_template_id` bigint(20) unsigned DEFAULT NULL COMMENT 'If datadisk template, then id of the root template this template belongs to';
 
 
+
+
+
 DROP VIEW IF EXISTS `cloud`.`template_view`;
 CREATE  VIEW `template_view` AS
     SELECT

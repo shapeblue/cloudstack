@@ -18,6 +18,7 @@ package org.apache.cloudstack.api.response;
 
 import java.util.Date;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -170,7 +171,7 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     private Map details;
 
     @SerializedName(ApiConstants.BITS)
-    @Param(description="the processor bit size", since = "4.10")
+    @Param(description = "the processor bit size", since = "4.10")
     private int bits;
 
     @SerializedName(ApiConstants.SSHKEY_ENABLED)
@@ -184,6 +185,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @SerializedName("parenttemplateid")
     @Param(description = "if Datadisk template, then id of the root disk template this template belongs to")
     private String parentTemplateId;
+
+    @SerializedName("childtemplateids")
+    @Param(description = "if root disk template, then ids of the datas disk templates this template owns")
+    private  List<String> childTemplateIds;
 
     public TemplateResponse() {
         tags = new LinkedHashSet<ResourceTagResponse>();
@@ -361,6 +366,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
 
     public void setParentTemplateId(String parentTemplateId) {
         this.parentTemplateId = parentTemplateId;
+    }
+
+    public void setChildTemplateIds(List<String> childTemplateIds) {
+        this.childTemplateIds = childTemplateIds;
     }
 
 }
