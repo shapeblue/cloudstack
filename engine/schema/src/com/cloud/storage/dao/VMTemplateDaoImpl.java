@@ -138,7 +138,6 @@ public class VMTemplateDaoImpl extends GenericDaoBase<VMTemplateVO, Long> implem
 
     @Override
     public List<VMTemplateVO> listByParentTemplatetId(long parentTemplatetId) {
-        new Exception().printStackTrace();
         SearchCriteria<VMTemplateVO> sc = ParentTemplateIdSearch.create();
         sc.setParameters("parentTemplateId", parentTemplatetId);
         sc.setParameters("state", VirtualMachineTemplate.State.Active);

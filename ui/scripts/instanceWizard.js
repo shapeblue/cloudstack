@@ -376,21 +376,46 @@
 
             // Step 4: Data disk offering
             function(args) {
-                var isRequred = (args.currentData["select-template"] == "select-iso" ? true : false);
+                var isRequired = (args.currentData["select-template"] == "select-iso" ? true : false);
                 $.ajax({
                     url: createURL("listDiskOfferings"),
                     dataType: "json",
                     async: true,
                     success: function(json) {
                         diskOfferingObjs = json.listdiskofferingsresponse.diskoffering;
+                        var multiDisks = false;
+                        if (!isRequired) {
+                            $.ajax({
+                                url: createURL("listTemplates"),
+                                data: {
+                                    id: args.currentData.templateid,
+                                    templatefilter: 'all'
+                                },
+                                dataType: "json",
+                                async: false,
+                                success: function(json) {
+                                    var templateDataDisks = json.listtemplatesresponse.template[0].childtemplates;
+                                    if (templateDataDisks && Object.keys(templateDataDisks).length > 0) {
+                                        multiDisks = [];
+                                        $.each(templateDataDisks, function(uuid, name) {
+                                            multiDisks.push({
+                                                id: uuid,
+                                                label: name
+                                            });
+                                        });
+                                    }
+                                }
+                            });
+                        }
+
                         args.response.success({
-                            required: isRequred,
+                            required: isRequired,
                             customFlag: 'iscustomized', // Field determines if custom slider is shown
                             customIopsDoFlag: 'iscustomizediops',
                             data: {
                                 diskOfferings: diskOfferingObjs
                             },
-                            multiDisk: false
+                            multiDisk: multiDisks
                         });
                     }
                 });
@@ -813,6 +838,15 @@
                         });
                     }
                 }
+            }
+
+            if (args.data["disk-offerings-multi"] != null && args.data["disk-offerings-multi"].length > 0) {
+                $(args.data["disk-offerings-multi"]).each(function(index, disk) {
+                    var diskMap = {};
+                    diskMap['datadiskofferinglist[' + index + '].datadisktemplateid'] = disk.id;
+                    diskMap['datadiskofferinglist[' + index + '].diskofferingid'] = disk._diskOfferingId;
+                    $.extend(deployVmData, diskMap);
+                });
             }
 
             //step 5: select an affinity group

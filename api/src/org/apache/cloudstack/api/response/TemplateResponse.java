@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.response;
 
 import java.util.Date;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -186,9 +185,9 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Param(description = "if Datadisk template, then id of the root disk template this template belongs to")
     private String parentTemplateId;
 
-    @SerializedName("childtemplateids")
+    @SerializedName("childtemplates")
     @Param(description = "if root disk template, then ids of the datas disk templates this template owns")
-    private  List<String> childTemplateIds;
+    private  Map<String, String> childTemplates;
 
     public TemplateResponse() {
         tags = new LinkedHashSet<ResourceTagResponse>();
@@ -368,8 +367,8 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
         this.parentTemplateId = parentTemplateId;
     }
 
-    public void setChildTemplateIds(List<String> childTemplateIds) {
-        this.childTemplateIds = childTemplateIds;
+    public void setChildTemplates(Map<String, String> childTemplateIds) {
+        this.childTemplates = childTemplateIds;
     }
 
 }

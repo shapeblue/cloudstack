@@ -203,8 +203,8 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
         //set template children disks
         if (template.getHypervisorType() == HypervisorType.VMware) {
             List<VMTemplateVO> childTemplates = _vmTemplateDao.listByParentTemplatetId(template.getId());
-            List<String> childUuids  = childTemplates.stream().map(VMTemplateVO::getUuid).collect(Collectors.toList());
-            templateResponse.setChildTemplateIds(childUuids);
+            Map<String, String> childUuidNameMap  = childTemplates.stream().collect(Collectors.toMap(VMTemplateVO::getUuid, VMTemplateVO::getName));
+            templateResponse.setChildTemplates(childUuidNameMap);
         }
 
         templateResponse.setObjectName("template");
