@@ -16,97 +16,6 @@
 // under the License.
 package com.cloud.api.query;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Inject;
-
-import org.apache.cloudstack.acl.ControlledEntity.ACLType;
-import org.apache.cloudstack.affinity.AffinityGroupDomainMapVO;
-import org.apache.cloudstack.affinity.AffinityGroupResponse;
-import org.apache.cloudstack.affinity.AffinityGroupVMMapVO;
-import org.apache.cloudstack.affinity.dao.AffinityGroupDomainMapDao;
-import org.apache.cloudstack.affinity.dao.AffinityGroupVMMapDao;
-import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
-import org.apache.cloudstack.api.ResourceDetail;
-import org.apache.cloudstack.api.ResponseObject.ResponseView;
-import org.apache.cloudstack.api.command.admin.account.ListAccountsCmdByAdmin;
-import org.apache.cloudstack.api.command.admin.domain.ListDomainsCmd;
-import org.apache.cloudstack.api.command.admin.domain.ListDomainsCmdByAdmin;
-import org.apache.cloudstack.api.command.admin.host.ListHostTagsCmd;
-import org.apache.cloudstack.api.command.admin.host.ListHostsCmd;
-import org.apache.cloudstack.api.command.admin.internallb.ListInternalLBVMsCmd;
-import org.apache.cloudstack.api.command.admin.iso.ListIsosCmdByAdmin;
-import org.apache.cloudstack.api.command.admin.router.ListRoutersCmd;
-import org.apache.cloudstack.api.command.admin.storage.ListImageStoresCmd;
-import org.apache.cloudstack.api.command.admin.storage.ListSecondaryStagingStoresCmd;
-import org.apache.cloudstack.api.command.admin.storage.ListStoragePoolsCmd;
-import org.apache.cloudstack.api.command.admin.storage.ListStorageTagsCmd;
-import org.apache.cloudstack.api.command.admin.template.ListTemplatesCmdByAdmin;
-import org.apache.cloudstack.api.command.admin.user.ListUsersCmd;
-import org.apache.cloudstack.api.command.admin.vm.ListVMsCmdByAdmin;
-import org.apache.cloudstack.api.command.admin.volume.ListVolumesCmdByAdmin;
-import org.apache.cloudstack.api.command.admin.zone.ListZonesCmdByAdmin;
-import org.apache.cloudstack.api.command.user.account.ListAccountsCmd;
-import org.apache.cloudstack.api.command.user.account.ListProjectAccountsCmd;
-import org.apache.cloudstack.api.command.user.affinitygroup.ListAffinityGroupsCmd;
-import org.apache.cloudstack.api.command.user.event.ListEventsCmd;
-import org.apache.cloudstack.api.command.user.iso.ListIsosCmd;
-import org.apache.cloudstack.api.command.user.job.ListAsyncJobsCmd;
-import org.apache.cloudstack.api.command.user.offering.ListDiskOfferingsCmd;
-import org.apache.cloudstack.api.command.user.offering.ListServiceOfferingsCmd;
-import org.apache.cloudstack.api.command.user.project.ListProjectInvitationsCmd;
-import org.apache.cloudstack.api.command.user.project.ListProjectsCmd;
-import org.apache.cloudstack.api.command.user.securitygroup.ListSecurityGroupsCmd;
-import org.apache.cloudstack.api.command.user.tag.ListTagsCmd;
-import org.apache.cloudstack.api.command.user.template.ListTemplatesCmd;
-import org.apache.cloudstack.api.command.user.vm.ListVMsCmd;
-import org.apache.cloudstack.api.command.user.vmgroup.ListVMGroupsCmd;
-import org.apache.cloudstack.api.command.user.volume.ListResourceDetailsCmd;
-import org.apache.cloudstack.api.command.user.volume.ListVolumesCmd;
-import org.apache.cloudstack.api.command.user.zone.ListZonesCmd;
-import org.apache.cloudstack.api.response.AccountResponse;
-import org.apache.cloudstack.api.response.AsyncJobResponse;
-import org.apache.cloudstack.api.response.DiskOfferingResponse;
-import org.apache.cloudstack.api.response.DomainResponse;
-import org.apache.cloudstack.api.response.DomainRouterResponse;
-import org.apache.cloudstack.api.response.EventResponse;
-import org.apache.cloudstack.api.response.HostResponse;
-import org.apache.cloudstack.api.response.HostTagResponse;
-import org.apache.cloudstack.api.response.ImageStoreResponse;
-import org.apache.cloudstack.api.response.InstanceGroupResponse;
-import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.cloudstack.api.response.ProjectAccountResponse;
-import org.apache.cloudstack.api.response.ProjectInvitationResponse;
-import org.apache.cloudstack.api.response.ProjectResponse;
-import org.apache.cloudstack.api.response.ResourceDetailResponse;
-import org.apache.cloudstack.api.response.ResourceTagResponse;
-import org.apache.cloudstack.api.response.SecurityGroupResponse;
-import org.apache.cloudstack.api.response.ServiceOfferingResponse;
-import org.apache.cloudstack.api.response.StoragePoolResponse;
-import org.apache.cloudstack.api.response.StorageTagResponse;
-import org.apache.cloudstack.api.response.TemplateResponse;
-import org.apache.cloudstack.api.response.UserResponse;
-import org.apache.cloudstack.api.response.UserVmResponse;
-import org.apache.cloudstack.api.response.VolumeResponse;
-import org.apache.cloudstack.api.response.ZoneResponse;
-import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreCapabilities;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreDriver;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
-import org.apache.cloudstack.engine.subsystem.api.storage.TemplateState;
-import org.apache.cloudstack.framework.config.ConfigKey;
-import org.apache.cloudstack.framework.config.Configurable;
-import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
-import org.apache.cloudstack.query.QueryService;
-import org.apache.log4j.Logger;
-import org.springframework.stereotype.Component;
-
 import com.cloud.api.query.dao.AccountJoinDao;
 import com.cloud.api.query.dao.AffinityGroupJoinDao;
 import com.cloud.api.query.dao.AsyncJobJoinDao;
@@ -219,6 +128,95 @@ import com.cloud.vm.dao.DomainRouterDao;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.UserVmDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
+import org.apache.cloudstack.acl.ControlledEntity.ACLType;
+import org.apache.cloudstack.affinity.AffinityGroupDomainMapVO;
+import org.apache.cloudstack.affinity.AffinityGroupResponse;
+import org.apache.cloudstack.affinity.AffinityGroupVMMapVO;
+import org.apache.cloudstack.affinity.dao.AffinityGroupDomainMapDao;
+import org.apache.cloudstack.affinity.dao.AffinityGroupVMMapDao;
+import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
+import org.apache.cloudstack.api.ResourceDetail;
+import org.apache.cloudstack.api.ResponseObject.ResponseView;
+import org.apache.cloudstack.api.command.admin.account.ListAccountsCmdByAdmin;
+import org.apache.cloudstack.api.command.admin.domain.ListDomainsCmd;
+import org.apache.cloudstack.api.command.admin.domain.ListDomainsCmdByAdmin;
+import org.apache.cloudstack.api.command.admin.host.ListHostTagsCmd;
+import org.apache.cloudstack.api.command.admin.host.ListHostsCmd;
+import org.apache.cloudstack.api.command.admin.internallb.ListInternalLBVMsCmd;
+import org.apache.cloudstack.api.command.admin.iso.ListIsosCmdByAdmin;
+import org.apache.cloudstack.api.command.admin.router.ListRoutersCmd;
+import org.apache.cloudstack.api.command.admin.storage.ListImageStoresCmd;
+import org.apache.cloudstack.api.command.admin.storage.ListSecondaryStagingStoresCmd;
+import org.apache.cloudstack.api.command.admin.storage.ListStoragePoolsCmd;
+import org.apache.cloudstack.api.command.admin.storage.ListStorageTagsCmd;
+import org.apache.cloudstack.api.command.admin.template.ListTemplatesCmdByAdmin;
+import org.apache.cloudstack.api.command.admin.user.ListUsersCmd;
+import org.apache.cloudstack.api.command.admin.vm.ListVMsCmdByAdmin;
+import org.apache.cloudstack.api.command.admin.volume.ListVolumesCmdByAdmin;
+import org.apache.cloudstack.api.command.admin.zone.ListZonesCmdByAdmin;
+import org.apache.cloudstack.api.command.user.account.ListAccountsCmd;
+import org.apache.cloudstack.api.command.user.account.ListProjectAccountsCmd;
+import org.apache.cloudstack.api.command.user.affinitygroup.ListAffinityGroupsCmd;
+import org.apache.cloudstack.api.command.user.event.ListEventsCmd;
+import org.apache.cloudstack.api.command.user.iso.ListIsosCmd;
+import org.apache.cloudstack.api.command.user.job.ListAsyncJobsCmd;
+import org.apache.cloudstack.api.command.user.offering.ListDiskOfferingsCmd;
+import org.apache.cloudstack.api.command.user.offering.ListServiceOfferingsCmd;
+import org.apache.cloudstack.api.command.user.project.ListProjectInvitationsCmd;
+import org.apache.cloudstack.api.command.user.project.ListProjectsCmd;
+import org.apache.cloudstack.api.command.user.securitygroup.ListSecurityGroupsCmd;
+import org.apache.cloudstack.api.command.user.tag.ListTagsCmd;
+import org.apache.cloudstack.api.command.user.template.ListTemplatesCmd;
+import org.apache.cloudstack.api.command.user.vm.ListVMsCmd;
+import org.apache.cloudstack.api.command.user.vmgroup.ListVMGroupsCmd;
+import org.apache.cloudstack.api.command.user.volume.ListResourceDetailsCmd;
+import org.apache.cloudstack.api.command.user.volume.ListVolumesCmd;
+import org.apache.cloudstack.api.command.user.zone.ListZonesCmd;
+import org.apache.cloudstack.api.response.AccountResponse;
+import org.apache.cloudstack.api.response.AsyncJobResponse;
+import org.apache.cloudstack.api.response.DiskOfferingResponse;
+import org.apache.cloudstack.api.response.DomainResponse;
+import org.apache.cloudstack.api.response.DomainRouterResponse;
+import org.apache.cloudstack.api.response.EventResponse;
+import org.apache.cloudstack.api.response.HostResponse;
+import org.apache.cloudstack.api.response.HostTagResponse;
+import org.apache.cloudstack.api.response.ImageStoreResponse;
+import org.apache.cloudstack.api.response.InstanceGroupResponse;
+import org.apache.cloudstack.api.response.ListResponse;
+import org.apache.cloudstack.api.response.ProjectAccountResponse;
+import org.apache.cloudstack.api.response.ProjectInvitationResponse;
+import org.apache.cloudstack.api.response.ProjectResponse;
+import org.apache.cloudstack.api.response.ResourceDetailResponse;
+import org.apache.cloudstack.api.response.ResourceTagResponse;
+import org.apache.cloudstack.api.response.SecurityGroupResponse;
+import org.apache.cloudstack.api.response.ServiceOfferingResponse;
+import org.apache.cloudstack.api.response.StoragePoolResponse;
+import org.apache.cloudstack.api.response.StorageTagResponse;
+import org.apache.cloudstack.api.response.TemplateResponse;
+import org.apache.cloudstack.api.response.UserResponse;
+import org.apache.cloudstack.api.response.UserVmResponse;
+import org.apache.cloudstack.api.response.VolumeResponse;
+import org.apache.cloudstack.api.response.ZoneResponse;
+import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreCapabilities;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreDriver;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
+import org.apache.cloudstack.engine.subsystem.api.storage.TemplateState;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.cloudstack.query.QueryService;
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Component
 public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements QueryService, Configurable {
@@ -3146,15 +3144,16 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
                 ex.addProxyObject(template.getUuid(), "templateId");
                 throw ex;
             }
-            if (caller.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
-                Account template_acc = _accountMgr.getAccount(template.getAccountId());
-                DomainVO domain = _domainDao.findById(template_acc.getDomainId());
-                _accountMgr.checkAccess(caller, domain);
 
-
-            }// if template is not public, perform permission check here
-            else if (!template.isPublicTemplate() && caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
-                _accountMgr.checkAccess(caller, null, false, template);
+            // if template is not public, perform permission check here
+            if (!template.isPublicTemplate()) {
+                if (caller.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
+                    Account template_acc = _accountMgr.getAccount(template.getAccountId());
+                    DomainVO domain = _domainDao.findById(template_acc.getDomainId());
+                    _accountMgr.checkAccess(caller, domain);
+                } else if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
+                    _accountMgr.checkAccess(caller, null, false, template);
+                }
             }
 
             // if templateId is specified, then we will just use the id to
