@@ -617,9 +617,9 @@ public class VmwareStorageManagerImpl implements VmwareStorageManager {
 
             //  Get OVA disk details
             for (Pair<String, Boolean> ovfVolumeDetail : ovfVolumeDetails) {
-                if (ovfVolumeDetail.second()) { // ROOT disk
-                    continue;
-                }
+                //if (ovfVolumeDetail.second()) { // ROOT disk
+                //    continue;
+                //}
                 String dataDiskPath = ovfVolumeDetail.first();
                 String diskName = dataDiskPath.substring((dataDiskPath.lastIndexOf(File.separator)) + 1);
                 Pair<Long, Long> diskDetails = new OVAProcessor().getDiskDetails(ovfFilePath, diskName);
@@ -708,6 +708,16 @@ public class VmwareStorageManagerImpl implements VmwareStorageManager {
                         s_logger.error(msg);
                         throw new Exception(msg);
                     }
+                }
+                // remove ovf file as that will be created fresh
+                String ovfPath = dataDiskTemplateFolderFullPath + File.separator + ovfName + ".ovf";
+                Script command = new Script(false, "rm", _timeout, s_logger);
+                command.add(ovfPath);
+                String result = command.execute();
+                if (result != null) {
+                    String msg = "Unable to delete original OVF " + ", error msg: " + result;
+                    s_logger.error(msg);
+                    throw new Exception(msg);
                 }
             }
 

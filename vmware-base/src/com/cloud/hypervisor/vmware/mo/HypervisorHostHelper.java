@@ -1602,21 +1602,24 @@ public class HypervisorHostHelper {
                 try {
                     for (HttpNfcLeaseDeviceUrl deviceUrl : deviceUrls) {
                         String deviceKey = deviceUrl.getImportKey();
+                        s_logger.info("MDOVF importVmFromOVF deviceKey " + deviceKey);
                         for (OvfFileItem ovfFileItem : ovfImportResult.getFileItem()) {
-                            s_logger.info("MDOVF importVmFromOVF " + ovfFileItem.getPath());
+                            s_logger.info("MDOVF importVmFromOVF ovfFileItem path " + ovfFileItem.getPath());
                             if (deviceKey.equals(ovfFileItem.getDeviceId())) {
                                 String absoluteFile = ovfFile.getParent() + File.separator + ovfFileItem.getPath();
-                                String urlToPost = deviceUrl.getUrl();
-                                urlToPost = resolveHostNameInUrl(dcMo, urlToPost);
-                                s_logger.info("MDOVF importVmFromOVF urlToPost " + urlToPost + " absoluteFile " + absoluteFile + " bytesAlreadyWritten " + bytesAlreadyWritten);
-                                context.uploadVmdkFile(ovfFileItem.isCreate() ? "PUT" : "POST", urlToPost, absoluteFile, bytesAlreadyWritten, new ActionDelegate<Long>() {
-                                    @Override
-                                    public void action(Long param) {
-                                        progressReporter.reportProgress((int)(param * 100 / totalBytes));
-                                    }
-                                });
-
-                                bytesAlreadyWritten += ovfFileItem.getSize();
+                                File f = new File(absoluteFile);
+                                if (f.exists()){
+                                    String urlToPost = deviceUrl.getUrl();
+                                    urlToPost = resolveHostNameInUrl(dcMo, urlToPost);
+                                    s_logger.info("MDOVF importVmFromOVF urlToPost " + urlToPost + " absoluteFile " + absoluteFile + " bytesAlreadyWritten " + bytesAlreadyWritten);
+                                    context.uploadVmdkFile(ovfFileItem.isCreate() ? "PUT" : "POST", urlToPost, absoluteFile, bytesAlreadyWritten, new ActionDelegate<Long>() {
+                                        @Override
+                                        public void action(Long param) {
+                                            progressReporter.reportProgress((int)(param * 100 / totalBytes));
+                                        }
+                                    });
+                                    bytesAlreadyWritten += ovfFileItem.getSize();
+                                }
                             }
                         }
                     }

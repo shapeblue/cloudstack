@@ -313,7 +313,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
         }
 
         String templateUrl = secondaryStorageUrl + "/" + srcData.getPath();
-
+        s_logger.debug("MDOVA copyTemplateToPrimaryStorage templateUrl"  + templateUrl + " name " + template.getName());
         Pair<String, String> templateInfo = VmwareStorageLayoutHelper.decodeTemplateRelativePathAndNameFromUrl(secondaryStorageUrl, templateUrl, template.getName());
 
         VmwareContext context = hostService.getServiceContext(cmd);
@@ -330,6 +330,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             DatastoreMO dsMo = null;
             Pair<VirtualMachineMO, Long> vmInfo = null;
 
+            s_logger.debug("MDOVA storageUuid copyTemplateToPrimaryStorage " + storageUuid + " templateUuidName " + templateUuidName + " templateMo "  + templateMo);
             if (templateMo == null) {
                 if (s_logger.isInfoEnabled()) {
                     s_logger.info("Template " + templateInfo.second() + " is not setup yet. Set up template from secondary storage with uuid name: " + templateUuidName);
@@ -390,7 +391,6 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
             return new CopyCmdAnswer(newTemplate);
         } catch (Throwable e) {
-            e.printStackTrace();
             if (e instanceof RemoteException) {
                 hostService.invalidateServiceContext(context);
             }
