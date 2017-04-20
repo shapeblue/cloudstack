@@ -54,7 +54,7 @@ public final class CitrixModifyStoragePoolCommandWrapper extends CommandWrapper<
 
                 final String srName = command.getStoragePath() != null ? command.getStoragePath() : pool.getUuid();
                 if(CitrixResourceBase.SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value()) &&
-                        srName.contains(CitrixResourceBase.SRType.VDILUN.toString())){
+                        pool.isManaged()){
 
                     final SR sr = citrixResourceBase.getVdiLunSr(conn, pool.getHost());
                     long capacity = sr.getPhysicalSize(conn); // TODO handle this gracefully
