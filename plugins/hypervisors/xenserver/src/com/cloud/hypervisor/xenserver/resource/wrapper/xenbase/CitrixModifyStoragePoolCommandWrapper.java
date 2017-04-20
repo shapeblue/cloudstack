@@ -52,7 +52,9 @@ public final class CitrixModifyStoragePoolCommandWrapper extends CommandWrapper<
         if (add) {
             try {
 
-                if(CitrixResourceBase.SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value())){
+                final String srName = command.getStoragePath() != null ? command.getStoragePath() : pool.getUuid();
+                if(CitrixResourceBase.SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value()) &&
+                        pool.isManaged()){
 
                     final SR sr = citrixResourceBase.getVdiLunSr(conn, pool.getHost());
                     long capacity = sr.getPhysicalSize(conn); // TODO handle this gracefully
@@ -60,7 +62,6 @@ public final class CitrixModifyStoragePoolCommandWrapper extends CommandWrapper<
                     return new ModifyStoragePoolAnswer(command, capacity, capacity, tInfo);
                 }
 
-                final String srName = command.getStoragePath() != null ? command.getStoragePath() : pool.getUuid();
                 final SR sr = citrixResourceBase.getStorageRepository(conn, srName);
                 citrixResourceBase.setupHeartbeatSr(conn, sr, false);
                 final long capacity = sr.getPhysicalSize(conn);
