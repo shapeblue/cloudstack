@@ -233,6 +233,8 @@ public class EventTypes {
 
     // Snapshots
     public static final String EVENT_SNAPSHOT_CREATE = "SNAPSHOT.CREATE";
+    public static final String EVENT_SNAPSHOT_ON_PRIMARY = "SNAPSHOT.ON_PRIMARY";
+    public static final String EVENT_SNAPSHOT_OFF_PRIMARY = "SNAPSHOT.OFF_PRIMARY";
     public static final String EVENT_SNAPSHOT_DELETE = "SNAPSHOT.DELETE";
     public static final String EVENT_SNAPSHOT_REVERT = "SNAPSHOT.REVERT";
     public static final String EVENT_SNAPSHOT_POLICY_CREATE = "SNAPSHOTPOLICY.CREATE";

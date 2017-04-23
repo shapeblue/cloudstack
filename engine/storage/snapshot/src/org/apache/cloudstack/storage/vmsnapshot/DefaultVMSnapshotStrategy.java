@@ -148,6 +148,9 @@ public class DefaultVMSnapshotStrategy extends ManagerBase implements VMSnapshot
             answer = (CreateVMSnapshotAnswer)agentMgr.send(hostId, ccmd);
             if (answer != null && answer.getResult()) {
                 processAnswer(vmSnapshotVO, userVm, answer, hostId);
+                for (VolumeObjectTO volumeTO: answer.getVolumeTOs()){
+                    s_logger.info("IR24 finalizeCreate name=" + volumeTO.getName() + ", size=" + volumeTO.getSize() + ", " + volumeTO.getVolumeType());
+                }
                 s_logger.debug("Create vm snapshot " + vmSnapshot.getName() + " succeeded for vm: " + userVm.getInstanceName());
                 result = true;
 
