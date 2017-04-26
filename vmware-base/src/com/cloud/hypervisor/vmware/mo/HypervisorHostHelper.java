@@ -1705,6 +1705,7 @@ public class HypervisorHostHelper {
         s_logger.info("MDOVA ovfPath ovfFile " + ovfFile);
         for (OvfFileItem ovfFileItem : ovfImportResult.getFileItem()) {
             String absFile = ovfFile.getParent() + File.separator + ovfFileItem.getPath();
+            s_logger.info("MDOVA ovfPath absFile " + absFile);
             files.add(absFile);
         }
 
@@ -1730,6 +1731,7 @@ public class HypervisorHostHelper {
                 if ((osDiskSeqNumber == 0 && diskCount == 0) || osDiskSeqNumber == deviceCount) {
                     osDisk = true;
                 }
+                s_logger.info("MDOVA ovfPath diskCount " + diskCount);
                 Pair<String, Boolean> ovfVolumeInfo = new Pair<String, Boolean>(files.get(diskCount), osDisk);
                 ovfVolumeInfos.add(ovfVolumeInfo);
                 diskCount++;
