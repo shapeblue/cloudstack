@@ -131,7 +131,8 @@ public class Agent implements HandlerFactory, IAgentControl {
         _shell = shell;
         _link = null;
 
-        _connection = new NioClient("Agent", _shell.getHost(), _shell.getPort(), _shell.getWorkers(), this);
+        final String host = _shell.getHost();
+        _connection = new NioClient("Agent", host, _shell.getPort(), _shell.getWorkers(), this);
 
         Runtime.getRuntime().addShutdownHook(new ShutdownThread(this));
 
@@ -166,7 +167,8 @@ public class Agent implements HandlerFactory, IAgentControl {
             throw new ConfigurationException("Unable to configure " + _resource.getName());
         }
 
-        _connection = new NioClient("Agent", _shell.getHost(), _shell.getPort(), _shell.getWorkers(), this);
+        final String host = _shell.getHost();
+        _connection = new NioClient("Agent", host, _shell.getPort(), _shell.getWorkers(), this);
 
         // ((NioClient)_connection).setBindAddress(_shell.getPrivateIp());
 
@@ -182,7 +184,7 @@ public class Agent implements HandlerFactory, IAgentControl {
                         "agentRequest-Handler"));
 
         s_logger.info("Agent [id = " + (_id != null ? _id : "new") + " : type = " + getResourceName() + " : zone = " + _shell.getZone() + " : pod = " + _shell.getPod() +
-                " : workers = " + _shell.getWorkers() + " : host = " + _shell.getHost() + " : port = " + _shell.getPort());
+                " : workers = " + _shell.getWorkers() + " : host = " + host + " : port = " + _shell.getPort());
     }
 
     public String getVersion() {
@@ -408,12 +410,18 @@ public class Agent implements HandlerFactory, IAgentControl {
             _shell.getBackoffAlgorithm().waitBeforeRetry();
         }
 
-        _connection = new NioClient("Agent", _shell.getHost(), _shell.getPort(), _shell.getWorkers(), this);
         do {
+            _connection = new NioClient("Agent", _shell.getHost(), _shell.getPort(), _shell.getWorkers(), this);
             s_logger.info("Reconnecting...");
             try {
                 _connection.start();
             } catch (final NioConnectionException e) {
+                _connection.stop();
+                try {
+                    _connection.cleanUp();
+                } catch (final IOException ioe) {
+                    s_logger.warn("Fail to clean up old connection. " + ioe);
+                }
                 s_logger.warn("NIO Connection Exception  " + e);
                 s_logger.info("Attempted to connect to the server, but received an unexpected exception, trying again...");
             }
