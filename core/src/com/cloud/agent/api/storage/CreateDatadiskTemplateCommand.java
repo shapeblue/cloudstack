@@ -24,13 +24,15 @@ public final class CreateDatadiskTemplateCommand extends Command {
     private String path;
     private long fileSize;
     private boolean bootable;
+    private String diskId;
 
-    public CreateDatadiskTemplateCommand(DataTO dataDiskTemplate, String path, long fileSize, boolean bootable) {
+    public CreateDatadiskTemplateCommand(DataTO dataDiskTemplate, String path, String diskId, long fileSize, boolean bootable) {
         super();
         this.dataDiskTemplate = dataDiskTemplate;
         this.path = path;
         this.fileSize = fileSize;
         this.bootable = bootable;
+        this.diskId = diskId;
     }
 
     protected CreateDatadiskTemplateCommand() {
@@ -57,4 +59,13 @@ public final class CreateDatadiskTemplateCommand extends Command {
     public boolean getBootable() {
         return bootable;
     }
+
+    public String getDiskId() {
+        return diskId;
+    }
+
+    public void setDiskId(String diskId) {
+        this.diskId = diskId;
+    }
+
 }

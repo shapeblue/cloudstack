@@ -39,5 +39,5 @@ public interface ImageStoreDriver extends DataStoreDriver {
 
     List<DatadiskTO> getDatadiskTemplates(DataObject obj);
 
-    Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, boolean bootable, long fileSize, AsyncCompletionCallback<CreateCmdResult> callback);
+    Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, String diskId, boolean bootable, long fileSize, AsyncCompletionCallback<CreateCmdResult> callback);
 }

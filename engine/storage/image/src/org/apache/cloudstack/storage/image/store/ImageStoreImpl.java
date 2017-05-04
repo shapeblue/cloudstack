@@ -218,8 +218,8 @@ public class ImageStoreImpl implements ImageStoreEntity {
     }
 
     @Override
-    public Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, long fileSize, boolean bootable, AsyncCompletionCallback<CreateCmdResult> callback) {
-        return driver.createDataDiskTemplateAsync(dataDiskTemplate, path, bootable, fileSize, callback);
+    public Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, String diskId, long fileSize, boolean bootable, AsyncCompletionCallback<CreateCmdResult> callback) {
+        return driver.createDataDiskTemplateAsync(dataDiskTemplate, path, diskId, bootable, fileSize, callback);
     }
 
 }

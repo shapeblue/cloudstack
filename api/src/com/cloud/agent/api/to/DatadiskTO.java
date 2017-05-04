@@ -23,6 +23,7 @@ public class DatadiskTO {
     private long virtualSize;
     private long fileSize;
     boolean bootable;
+    private String diskId;
 
     public DatadiskTO() {
     }
@@ -32,6 +33,14 @@ public class DatadiskTO {
         this.virtualSize = virtualSize;
         this.fileSize = fileSize;
         this.bootable = bootable;
+    }
+
+    public DatadiskTO(String path, long virtualSize, long fileSize, String diskId, boolean bootable) {
+        this.path = path;
+        this.virtualSize = virtualSize;
+        this.fileSize = fileSize;
+        this.bootable = bootable;
+        this.diskId = diskId;
     }
 
     public String getPath() {
@@ -56,5 +65,13 @@ public class DatadiskTO {
 
     public boolean isBootable() {
         return bootable;
+    }
+
+    public String getDiskId() {
+        return diskId;
+    }
+
+    public void setDiskId(String diskId) {
+        this.diskId = diskId;
     }
 }

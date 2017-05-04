@@ -53,7 +53,7 @@ public class HypervisorUtilsTest {
         file.delete();
     }
 
-    @Test
+    @Test(expected=CloudRuntimeException.class)
     public void checkVolumeFileForActivityTest() throws IOException {
         System.out.print("Testing block on modified files - ");
         String filePath = "./testfileinactive";

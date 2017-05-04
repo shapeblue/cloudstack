@@ -57,7 +57,6 @@ import com.cloud.agent.api.storage.GetDatadisksCommand;
 import com.cloud.agent.api.to.DataObjectType;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.alert.AlertManager;
-import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.VolumeVO;
@@ -320,7 +319,8 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
         }
         DataStore store = obj.getDataStore();
         GetDatadisksCommand cmd = new GetDatadisksCommand(obj.getTO());
-        EndPoint ep = _defaultEpSelector.selectHypervisorHostByType(store.getScope(), HypervisorType.VMware);
+        //EndPoint ep = _defaultEpSelector.selectHypervisorHostByType(store.getScope(), HypervisorType.VMware);
+        EndPoint ep = _defaultEpSelector.select(store);
         Answer answer = null;
         if (ep == null) {
             String errMsg = "No remote endpoint to send command, check if host or ssvm is down?";
@@ -338,14 +338,15 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
     }
 
     @Override
-    public Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, boolean bootable, long fileSize, AsyncCompletionCallback<CreateCmdResult> callback) {
+    public Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, String diskId, boolean bootable, long fileSize, AsyncCompletionCallback<CreateCmdResult> callback) {
         Answer answer = null;
         String errMsg = null;
         if (s_logger.isDebugEnabled()) {
             s_logger.debug("Create Datadisk template: " + dataDiskTemplate.getId());
         }
-        CreateDatadiskTemplateCommand cmd = new CreateDatadiskTemplateCommand(dataDiskTemplate.getTO(), path, fileSize, bootable);
-        EndPoint ep = _defaultEpSelector.selectHypervisorHostByType(dataDiskTemplate.getDataStore().getScope(), HypervisorType.VMware);
+        CreateDatadiskTemplateCommand cmd = new CreateDatadiskTemplateCommand(dataDiskTemplate.getTO(), path, diskId, fileSize, bootable);
+        //EndPoint ep = _defaultEpSelector.selectHypervisorHostByType(dataDiskTemplate.getDataStore().getScope(), HypervisorType.VMware);
+        EndPoint ep = _defaultEpSelector.select(dataDiskTemplate.getDataStore());
         if (ep == null) {
             errMsg = "No remote endpoint to send command, check if host or ssvm is down?";
             s_logger.error(errMsg);

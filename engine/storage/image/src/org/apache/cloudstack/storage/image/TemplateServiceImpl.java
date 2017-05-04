@@ -733,7 +733,7 @@ public class TemplateServiceImpl implements TemplateService {
             templateVO = _templateDao.persist(templateVO);
             // Make sync call to create Datadisk templates in image store
             TemplateInfo dataDiskTemplateInfo = imageFactory.getTemplate(templateVO.getId(), imageStore);
-            AsyncCallFuture<TemplateApiResult> future = createDatadiskTemplateAsync(parentTemplate, dataDiskTemplateInfo, dataDiskTemplate.getPath(),
+            AsyncCallFuture<TemplateApiResult> future = createDatadiskTemplateAsync(parentTemplate, dataDiskTemplateInfo, dataDiskTemplate.getPath(), dataDiskTemplate.getDiskId(),
                     dataDiskTemplate.getFileSize(), dataDiskTemplate.isBootable());
             try {
                 result = future.get();
@@ -766,7 +766,7 @@ public class TemplateServiceImpl implements TemplateService {
         for (DatadiskTO dataDiskTemplate : dataDiskTemplates) {
             if (dataDiskTemplate.isBootable()) {
                 TemplateInfo templateInfo = imageFactory.getTemplate(template.getId(), imageStore);
-                AsyncCallFuture<TemplateApiResult> templateFuture = createDatadiskTemplateAsync(parentTemplate, templateInfo, dataDiskTemplate.getPath(),
+                AsyncCallFuture<TemplateApiResult> templateFuture = createDatadiskTemplateAsync(parentTemplate, templateInfo, dataDiskTemplate.getPath(), dataDiskTemplate.getDiskId(),
                         dataDiskTemplate.getFileSize(), dataDiskTemplate.isBootable());
                 try {
                     result = templateFuture.get();
@@ -1136,7 +1136,7 @@ public class TemplateServiceImpl implements TemplateService {
     }
 
     @Override
-    public AsyncCallFuture<TemplateApiResult> createDatadiskTemplateAsync(TemplateInfo parentTemplate, TemplateInfo dataDiskTemplate, String path, long fileSize, boolean bootable) {
+    public AsyncCallFuture<TemplateApiResult> createDatadiskTemplateAsync(TemplateInfo parentTemplate, TemplateInfo dataDiskTemplate, String path, String diskId, long fileSize, boolean bootable) {
         AsyncCallFuture<TemplateApiResult> future = new AsyncCallFuture<TemplateApiResult>();
         // Make an entry for Datadisk template in template_store_ref table
         DataStore store = parentTemplate.getDataStore();
@@ -1152,7 +1152,7 @@ public class TemplateServiceImpl implements TemplateService {
             AsyncCallbackDispatcher<TemplateServiceImpl, CreateCmdResult> caller = AsyncCallbackDispatcher.create(this);
             caller.setCallback(caller.getTarget().createDatadiskTemplateCallback(null, null)).setContext(context);
             ImageStoreEntity tmpltStore = (ImageStoreEntity)parentTemplate.getDataStore();
-            tmpltStore.createDataDiskTemplateAsync(dataDiskTemplate, path, fileSize, bootable, caller);
+            tmpltStore.createDataDiskTemplateAsync(dataDiskTemplate, path, diskId, fileSize, bootable, caller);
         } catch (CloudRuntimeException ex) {
             dataDiskTemplateOnStore.processEvent(ObjectInDataStoreStateMachine.Event.OperationFailed);
             TemplateApiResult result = new TemplateApiResult(dataDiskTemplate);

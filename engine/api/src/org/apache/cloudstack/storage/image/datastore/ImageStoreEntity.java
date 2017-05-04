@@ -53,5 +53,5 @@ public interface ImageStoreEntity extends DataStore, ImageStore {
 
     List<DatadiskTO> getDatadiskTemplates(DataObject obj);
 
-    Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, long fileSize, boolean bootable, AsyncCompletionCallback<CreateCmdResult> callback);
+    Void createDataDiskTemplateAsync(TemplateInfo dataDiskTemplate, String path, String diskId, long fileSize, boolean bootable, AsyncCompletionCallback<CreateCmdResult> callback);
 }
