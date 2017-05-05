@@ -38,6 +38,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.cloud.agent.api.to.DatadiskTO;
+import com.cloud.utils.exception.CloudRuntimeException;
 
 public class OVFHelper {
     private static final Logger s_logger = Logger.getLogger(OVFHelper.class);
@@ -58,18 +59,21 @@ public class OVFHelper {
                 Element file = (Element)files.item(j);
                 OVFFile of = new OVFFile();
                 of._href = file.getAttribute("ovf:href");
+                if (of._href.endsWith("vmdk") || of._href.endsWith("iso")){
                 s_logger.info("MDOVA getOVFVolumeInfo File href = " + of._href);
-                of._id = file.getAttribute("ovf:id");
-                s_logger.info("MDOVA getOVFVolumeInfo File Id = " + of._id);
-                String size = file.getAttribute("ovf:size");
-                if (size != null && !size.isEmpty()) {
-                    of._size = Long.parseLong(size);
+                    of._id = file.getAttribute("ovf:id");
+                    s_logger.info("MDOVA getOVFVolumeInfo File Id = " + of._id);
+                    String size = file.getAttribute("ovf:size");
+                    if (size != null && !size.isEmpty()) {
+                        of._size = Long.parseLong(size);
+                    }
+                    if (toggle) {
+                        of._bootable = true;
+                        toggle = !toggle;
+                    }
+                    of._iso = of._href.endsWith("iso");
+                    vf.add(of);
                 }
-                if (toggle) {
-                    of._bootable = true;
-                    toggle = !toggle;
-                }
-                vf.add(of);
             }
             for (int i = 0; i < disks.getLength(); i++) {
                 Element disk = (Element)disks.item(i);
@@ -106,15 +110,17 @@ public class OVFHelper {
 
         } catch (SAXException | IOException | ParserConfigurationException e) {
             s_logger.error("Unexpected exception caught while parsing ovf file:" + ovfFilePath, e);
+            throw new CloudRuntimeException(e);
         }
 
         List<DatadiskTO> disksTO = new ArrayList<DatadiskTO>();
         File ovfFile = new File(ovfFilePath);
         for (OVFFile of : vf) {
             OVFDisk cdisk = getDisk(of._id, vd);
+            Long capacity = cdisk == null ? of._size : cdisk._capacity;
             String dataDiskPath = ovfFile.getParent() + File.separator + of._href;
             s_logger.info("MDOVA getOVFVolumeInfo diskName = " + of._href + ", dataDiskPath = " + dataDiskPath);
-            disksTO.add(new DatadiskTO(dataDiskPath, cdisk._capacity, of._size, of._id, of._bootable));
+            disksTO.add(new DatadiskTO(dataDiskPath, capacity, of._size, of._id, of._iso, of._bootable));
         }
         return disksTO;
     }
@@ -187,6 +193,7 @@ public class OVFHelper {
             outfile.close();
         } catch (SAXException | IOException | ParserConfigurationException | TransformerException e) {
             s_logger.info("Unexpected exception caught while removing network elements from OVF:" + e.getMessage(), e);
+            throw new CloudRuntimeException(e);
         }
     }
 
@@ -205,6 +212,7 @@ public class OVFHelper {
         public String _id;
         public Long _size;
         public boolean _bootable;
+        public boolean _iso;
     }
 
     class OVFDisk {

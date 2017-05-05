@@ -239,6 +239,7 @@ import com.cloud.storage.dao.VMTemplateZoneDao;
 import com.cloud.storage.dao.VolumeDao;
 import com.cloud.storage.snapshot.SnapshotManager;
 import com.cloud.tags.dao.ResourceTagDao;
+import com.cloud.template.TemplateApiService;
 import com.cloud.template.TemplateManager;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.user.Account;
@@ -475,6 +476,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     protected VMNetworkMapDao _vmNetworkMapDao;
     @Inject
     protected IpAddressManager _ipAddrMgr;
+    @Inject
+    protected TemplateApiService _tmplService;
 
     protected ScheduledExecutorService _executor = null;
     protected ScheduledExecutorService _vmIpFetchExecutor = null;
@@ -4522,6 +4525,14 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 vm = createAdvancedVirtualMachine(zone, serviceOffering, template, cmd.getNetworkIds(), owner, name, displayName, diskOfferingId, size, group,
                         cmd.getHypervisor(), cmd.getHttpMethod(), userData, sshKeyPairName, cmd.getIpToNetworkMap(), addrs, displayVm, keyboard, cmd.getAffinityGroupIdList(), cmd.getDetails(),
                         cmd.getCustomId(), dataDiskTemplateToDiskOfferingMap);
+            }
+        }
+        // check if this templateId has a child ISO
+        List<VMTemplateVO> child_templates = _templateDao.listByParentTemplatetId(templateId);
+        for (VMTemplateVO tmpl: child_templates){
+            if (tmpl.getFormat() == Storage.ImageFormat.ISO){
+                s_logger.info("MDOV trying to attach disk to the VM " + tmpl.getId() + " vmid=" + vm.getId());
+                _tmplService.attachIso(tmpl.getId(), vm.getId());
             }
         }
         return vm;

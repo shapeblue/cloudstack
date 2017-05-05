@@ -310,7 +310,7 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         NfsTO nfsImageStore = (NfsTO)srcStore;
         String secondaryStorageUrl = nfsImageStore.getUrl();
         assert (secondaryStorageUrl != null);
-        String templateUrl = secondaryStorageUrl + "/" + srcData.getPath();
+        String templateUrl = secondaryStorageUrl + File.separator + srcData.getPath();
         Pair<String, String> templateInfo = decodeTemplateRelativePathAndNameFromUrl(secondaryStorageUrl, templateUrl, template.getName());
         String templateRelativeFolderPath = templateInfo.first();
 
@@ -327,7 +327,7 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
                 command.add("--no-same-owner");
                 command.add("--no-same-permissions");
                 command.add("-xf", srcOVAFileName);
-                command.setWorkDir(secondaryMountPoint + "/" + templateRelativeFolderPath);
+                command.setWorkDir(secondaryMountPoint + File.separator + templateRelativeFolderPath);
                 s_logger.info("Executing command: " + command.toString());
                 String result = command.execute();
                 if (result != null) {
@@ -336,13 +336,13 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
                     throw new Exception(msg);
                 }
 
-                s_logger.info("MDOVA setting permission for templatePath " + secondaryMountPoint + "/" + templateRelativeFolderPath);
+                s_logger.info("MDOVA setting permission for templatePath " + secondaryMountPoint + File.separator + templateRelativeFolderPath);
                 command = new Script("chmod", 0, s_logger);
                 command.add("-R");
-                command.add("666", secondaryMountPoint + "/" + templateRelativeFolderPath);
+                command.add("666", secondaryMountPoint + File.separator + templateRelativeFolderPath);
                 result = command.execute();
                 if (result != null) {
-                    s_logger.warn("Unable to set permissions for " + secondaryMountPoint + "/" + templateRelativeFolderPath + " due to " + result);
+                    s_logger.warn("Unable to set permissions for " + secondaryMountPoint + File.separator + templateRelativeFolderPath + " due to " + result);
                 }
             }
 
@@ -385,21 +385,18 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
             long templateId = dataDiskTemplate.getId();
             String templateUniqueName = dataDiskTemplate.getUniqueName();
             String origDisk = cmd.getPath();
-            String origTmplDirAbsolute = origDisk.substring(0, origDisk.lastIndexOf('/'));
             s_logger.info("MDOVA createdisk : origDisk=" + origDisk + ", templateUniqueName=" + templateUniqueName);
             long virtualSize = dataDiskTemplate.getSize();
-            long fileSize = cmd.getFileSize();
-            String diskId = cmd.getDiskId();
             String diskName = origDisk.substring((origDisk.lastIndexOf(File.separator)) + 1);
             long physicalSize = new File(origDisk).length();
             String newTmplDir = getTemplateRelativeDirInSecStorage(dataDiskTemplate.getAccountId(), dataDiskTemplate.getId());
-            String newTmplDirAbsolute = secondaryMountPoint + "/" + newTmplDir;
+            String newTmplDirAbsolute = secondaryMountPoint + File.separator + newTmplDir;
             s_logger.info("MDOVA createdisk : newTmplDir=" + newTmplDir + ", newTmplDirAbsolute=" + newTmplDirAbsolute);
 
-            String ovfName = diskName.substring(0, diskName.lastIndexOf("-")) + ".ovf";
-            s_logger.info("MDOVA createdisk : diskName=" + diskName + ", ovfName=" + ovfName);
+            String ovfFilePath = getOVFFilePath(origDisk);
+            s_logger.info("MDOVA createdisk : diskName=" + diskName + ", ovfFilePath=" + ovfFilePath);
             if (!cmd.getBootable()) {
-                s_logger.info("MDOVA creating non bootable data disk : diskName=" + diskName + ", ovfName=" + ovfName);
+                s_logger.info("MDOVA creating non bootable data disk : diskName=" + diskName + ", ovfFilePath=" + ovfFilePath);
                 // Create folder to hold datadisk template
                 synchronized (newTmplDir.intern()) {
                     Script command = new Script("mkdir", _timeout, s_logger);
@@ -424,7 +421,7 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
                         throw new Exception(msg);
                     }
                     command = new Script("cp", _timeout, s_logger);
-                    command.add(origTmplDirAbsolute + "/" + ovfName + ".orig");
+                    command.add(ovfFilePath + ".orig");
                     command.add(newTmplDirAbsolute);
                     result = command.execute();
                     if (result != null) {
@@ -434,32 +431,32 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
                     }
                 }
             } else {
-                // Rename original OVA
+                // Remove original OVA
                 String rootDiskTemplatePath = dataDiskTemplate.getPath();
-                String rootDiskTemplateFullPath = secondaryMountPoint + "/" + rootDiskTemplatePath;
-                s_logger.info("MDOVA rootDiskTemplatePath " + rootDiskTemplatePath + " rootDiskTemplateFullPath" + rootDiskTemplateFullPath);
+                String rootDiskTemplateFullPath = secondaryMountPoint + File.separator + rootDiskTemplatePath;
+                s_logger.info("MDOVA removing original ova rootDiskTemplateFullPath" + rootDiskTemplateFullPath);
                 synchronized (rootDiskTemplateFullPath.intern()) {
                     Script command = new Script("rm", _timeout, s_logger);
                     command.add(rootDiskTemplateFullPath);
                     String result = command.execute();
                     if (result != null) {
-                        String msg = "Unable to delete original OVA" + ", error msg: " + result;
+                        String msg = "Unable to delete original OVA" + rootDiskTemplatePath + " result=" + result;
                         s_logger.error(msg);
                     }
                 }
             }
 
             // Create OVF for the disk
-            s_logger.debug("MDOVA Creating OVF file for disk " + diskName + " in " + newTmplDirAbsolute);
-            String ovfFilePath = newTmplDirAbsolute + File.separator + ovfName;
+            String newOvfFilePath = newTmplDirAbsolute + File.separator + ovfFilePath.substring(ovfFilePath.lastIndexOf(File.separator) + 1);
+            s_logger.info("MDOVA Creating OVF file for disk " + diskName + " as " + newOvfFilePath);
             OVFHelper ovfHelper = new OVFHelper();
-            ovfHelper.rewriteOVFFile(ovfFilePath + ".orig", ovfFilePath, diskName);
+            ovfHelper.rewriteOVFFile(ovfFilePath + ".orig", newOvfFilePath, diskName);
 
             postCreatePrivateTemplate(newTmplDirAbsolute, templateId, templateUniqueName, physicalSize, virtualSize);
-            writeMetaOvaForTemplate(newTmplDirAbsolute, ovfName + ".ovf", diskName, templateUniqueName, physicalSize);
+            writeMetaOvaForTemplate(newTmplDirAbsolute, ovfFilePath.substring(ovfFilePath.lastIndexOf(File.separator) + 1), diskName, templateUniqueName, physicalSize);
 
             diskTemplate.setId(templateId);
-            diskTemplate.setPath(newTmplDir + "/" + templateUniqueName + ".ova");
+            diskTemplate.setPath(newTmplDir + File.separator + templateUniqueName + ".ova");
             diskTemplate.setSize(virtualSize);
             diskTemplate.setPhysicalSize(physicalSize);
         } catch (Exception e) {
