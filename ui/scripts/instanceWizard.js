@@ -398,10 +398,12 @@
                                     if (templateDataDisks && Object.keys(templateDataDisks).length > 0) {
                                         multiDisks = [];
                                         $.each(templateDataDisks, function(uuid, name) {
-                                            multiDisks.push({
-                                                id: uuid,
-                                                label: name
-                                            });
+                                            if (name.indexOf("DataDiskTemplate")>0){$
+                                                multiDisks.push({
+                                                    id: uuid,
+                                                    label: name
+                                                });
+                                             }
                                         });
                                     }
                                 }
