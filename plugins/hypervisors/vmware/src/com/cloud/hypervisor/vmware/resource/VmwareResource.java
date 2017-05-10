@@ -49,9 +49,9 @@ import org.apache.log4j.NDC;
 import com.google.gson.Gson;
 import com.vmware.vim25.AboutInfo;
 import com.vmware.vim25.BoolPolicy;
-import com.vmware.vim25.ClusterDasConfigInfo;
 import com.vmware.vim25.ComputeResourceSummary;
 import com.vmware.vim25.CustomFieldStringValue;
+import com.vmware.vim25.DasVmPriority;
 import com.vmware.vim25.DVPortConfigInfo;
 import com.vmware.vim25.DVPortConfigSpec;
 import com.vmware.vim25.DatastoreSummary;
@@ -702,13 +702,18 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                             "Please re-try when virtual disk is attached to a VM using SCSI controller.");
             }
 
+            if (vdisk.second() != null && !vdisk.second().toLowerCase().startsWith("scsi"))
+            {
+                s_logger.error("Unsupported disk device bus "+ vdisk.second());
+                throw new Exception("Unsupported disk device bus "+ vdisk.second());
+            }
             VirtualDisk disk = vdisk.first();
             if(vdisk.second()!=null && !vdisk.second().toLowerCase().contains("scsi"))
             {
                 s_logger.error("Unsupported disk device bus "+ vdisk.second());
                 throw new Exception("Unsupported disk device bus "+ vdisk.second());
             }
-            if((VirtualDiskFlatVer2BackingInfo)disk.getBacking()!=null && ((VirtualDiskFlatVer2BackingInfo)disk.getBacking()).getParent()!=null)
+            if ((VirtualDiskFlatVer2BackingInfo)disk.getBacking() != null && ((VirtualDiskFlatVer2BackingInfo)disk.getBacking()).getParent() != null)
             {
                 s_logger.error("Resize is not supported because Disk device has Parent "+ ((VirtualDiskFlatVer2BackingInfo)disk.getBacking()).getParent().getUuid());
                 throw new Exception("Resize is not supported because Disk device has Parent "+ ((VirtualDiskFlatVer2BackingInfo)disk.getBacking()).getParent().getUuid());
@@ -1673,6 +1678,11 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     if (vmFolderExists && vmxFileFullPath != null) { // VM can be registered only if .vmx is present.
                         registerVm(vmNameOnVcenter, dsRootVolumeIsOn);
                         vmMo = hyperHost.findVmOnHyperHost(vmInternalCSName);
+                        if (vmMo != null) {
+                            if (s_logger.isDebugEnabled()) {
+                                s_logger.debug("Found registered vm " + vmInternalCSName + " at host " + hyperHost.getHyperHostName());
+                            }
+                        }
                         tearDownVm(vmMo);
                     }else if (!hyperHost.createBlankVm(vmNameOnVcenter, vmInternalCSName, vmSpec.getCpus(), vmSpec.getMaxSpeed().intValue(),
                             getReservedCpuMHZ(vmSpec), vmSpec.getLimitCpuUse(), (int)(vmSpec.getMaxRam() / (1024 * 1024)), getReservedMemoryMb(vmSpec),
@@ -2025,10 +2035,15 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 throw new Exception("Failed to configure VM before start. vmName: " + vmInternalCSName);
             }
 
+            if (vmSpec.getType() == VirtualMachine.Type.DomainRouter) {
+                hyperHost.setRestartPriorityForVM(vmMo, DasVmPriority.HIGH.value());
+            }
+
             //For resizing root disk.
             if (rootDiskTO != null && !hasSnapshot) {
                 resizeRootDisk(vmMo, rootDiskTO, hyperHost, context);
             }
+
             //
             // Post Configuration
             //
@@ -2095,18 +2110,18 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
         Long reqSize=((VolumeObjectTO)rootDiskTO.getData()).getSize()/1024;
         VirtualDisk disk = vdisk.first();
-        if(reqSize > disk.getCapacityInKB())
+        if (reqSize > disk.getCapacityInKB())
         {
             VirtualMachineDiskInfo diskInfo = getMatchingExistingDisk(vmMo.getDiskInfoBuilder(), rootDiskTO, hyperHost, context);
             assert (diskInfo != null);
             String[] diskChain = diskInfo.getDiskChain();
 
-            if(diskChain!=null && diskChain.length>1)
+            if (diskChain != null && diskChain.length>1)
             {
                 s_logger.error("Unsupported Disk chain length "+ diskChain.length);
                 throw new Exception("Unsupported Disk chain length "+ diskChain.length);
             }
-            if(diskInfo.getDiskDeviceBusName()==null || !diskInfo.getDiskDeviceBusName().toLowerCase().contains("scsi"))
+            if (diskInfo.getDiskDeviceBusName() == null || !diskInfo.getDiskDeviceBusName().toLowerCase().startsWith("scsi"))
             {
                 s_logger.error("Unsupported root disk device bus "+ diskInfo.getDiskDeviceBusName() );
                 throw new Exception("Unsupported root disk device bus "+ diskInfo.getDiskDeviceBusName());
@@ -4883,8 +4898,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     private void fillHostDetailsInfo(VmwareContext serviceContext, Map<String, String> details) throws Exception {
         VmwareHypervisorHost hyperHost = getHyperHost(getServiceContext());
 
-        ClusterDasConfigInfo dasConfig = hyperHost.getDasConfig();
-        if (dasConfig != null && dasConfig.isEnabled() != null && dasConfig.isEnabled().booleanValue()) {
+        if (hyperHost.isHAEnabled()) {
             details.put("NativeHA", "true");
         }
     }
@@ -5138,21 +5152,23 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         final String guestMemUseStr = "summary.quickStats.guestMemoryUsage";
         final String memLimitStr = "resourceConfig.memoryAllocation.limit";
         final String memMbStr = "config.hardware.memoryMB";
+        final String allocatedCpuStr = "summary.runtime.maxCpuUsage";
 
         ObjectContent[] ocs =
-                hyperHost.getVmPropertiesOnHyperHost(new String[] {"name", numCpuStr, cpuUseStr ,guestMemUseStr ,memLimitStr ,memMbStr, instanceNameCustomField});
+                hyperHost.getVmPropertiesOnHyperHost(new String[] {"name", numCpuStr, cpuUseStr ,guestMemUseStr ,memLimitStr ,memMbStr,allocatedCpuStr ,instanceNameCustomField});
         if (ocs != null && ocs.length > 0) {
             for (ObjectContent oc : ocs) {
                 List<DynamicProperty> objProps = oc.getPropSet();
                 if (objProps != null) {
                     String name = null;
                     String numberCPUs = null;
-                    String maxCpuUsage = null;
+                    double maxCpuUsage = 0;
                     String memlimit = null;
                     String memkb = null;
                     String guestMemusage = null;
                     String vmNameOnVcenter = null;
                     String vmInternalCSName = null;
+                    double allocatedCpu = 0;
                     for (DynamicProperty objProp : objProps) {
                         if (objProp.getName().equals("name")) {
                             vmNameOnVcenter = objProp.getVal().toString();
@@ -5164,13 +5180,17 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                         }else if (objProp.getName().equals(numCpuStr)) {
                             numberCPUs = objProp.getVal().toString();
                         } else if (objProp.getName().equals(cpuUseStr)) {
-                            maxCpuUsage = objProp.getVal().toString();
+                            maxCpuUsage = NumberUtils.toDouble(objProp.getVal().toString());
                         } else if (objProp.getName().equals(memLimitStr)) {
                             memlimit = objProp.getVal().toString();
                         } else if (objProp.getName().equals(memMbStr)) {
                             memkb = objProp.getVal().toString();
+                        } else if (objProp.getName().equals(allocatedCpuStr)){
+                            allocatedCpu  = NumberUtils.toDouble(objProp.getVal().toString());
                         }
                     }
+
+                    maxCpuUsage = (maxCpuUsage/allocatedCpu)*100;
                     new VirtualMachineMO(hyperHost.getContext(), oc.getObj());
                     if (vmInternalCSName != null) {
                         name = vmInternalCSName;
@@ -5237,7 +5257,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                             }
                         }
                     }
-                    vmResponseMap.put(name, new VmStatsEntry( NumberUtils.toDouble(memkb)*1024,NumberUtils.toDouble(guestMemusage)*1024,NumberUtils.toDouble(memlimit)*1024, NumberUtils.toDouble(maxCpuUsage), networkReadKBs, networkWriteKBs, NumberUtils.toInt(numberCPUs), "vm"));
+                    vmResponseMap.put(name, new VmStatsEntry( NumberUtils.toDouble(memkb)*1024,NumberUtils.toDouble(guestMemusage)*1024,NumberUtils.toDouble(memlimit)*1024, maxCpuUsage, networkReadKBs, networkWriteKBs, NumberUtils.toInt(numberCPUs), "vm"));
                 }
             }
         }

@@ -1026,7 +1026,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         UserVmVO userVm = _userVmDao.findById(volume.getInstanceId());
 
         if (userVm != null) {
-            if(volume.getVolumeType().equals(Volume.Type.ROOT) && userVm.getPowerState()!= VirtualMachine.PowerState.PowerOff && hypervisorType == HypervisorType.VMware){
+            if (volume.getVolumeType().equals(Volume.Type.ROOT) && userVm.getPowerState()!= VirtualMachine.PowerState.PowerOff && hypervisorType == HypervisorType.VMware){
                 s_logger.error(" For ROOT volume resize VM should be in Power Off state.");
                 throw new InvalidParameterValueException("VM current state is : "+userVm.getPowerState()+ ". But VM should be in "+VirtualMachine.PowerState.PowerOff+" state.");
             }
