@@ -312,7 +312,7 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
     }
 
     @Override
-    public List<DatadiskTO> getDatadiskTemplates(DataObject obj) {
+    public List<DatadiskTO> getDataDiskTemplates(DataObject obj) {
         List<DatadiskTO> dataDiskDetails = new ArrayList<DatadiskTO>();
         if (s_logger.isDebugEnabled()) {
             s_logger.debug("Get the data disks present in the OVA template");
@@ -333,7 +333,7 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
             GetDatadisksAnswer getDatadisksAnswer = (GetDatadisksAnswer)answer;
             dataDiskDetails = getDatadisksAnswer.getDataDiskDetails(); // Details - Disk path, virtual size
         }
-        s_logger.debug("MDOVA getDatadiskTemplates dataDiskDetails " + dataDiskDetails.toString());
+        s_logger.debug("MDOVA getDataDiskTemplates dataDiskDetails " + dataDiskDetails.toString());
         return dataDiskDetails;
     }
 

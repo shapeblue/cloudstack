@@ -62,6 +62,7 @@ import org.springframework.stereotype.Component;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +106,7 @@ import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.fsm.NoTransitionException;
 import com.cloud.utils.fsm.StateMachine2;
+import com.cloud.vm.VmDetailConstants;
 
 @Component
 public class TemplateServiceImpl implements TemplateService {
@@ -715,19 +717,25 @@ public class TemplateServiceImpl implements TemplateService {
         // Get Datadisk template (if any) for OVA
         List<DatadiskTO> dataDiskTemplates = new ArrayList<DatadiskTO>();
         ImageStoreEntity tmpltStore = (ImageStoreEntity)parentTemplate.getDataStore();
-        dataDiskTemplates = tmpltStore.getDatadiskTemplates(parentTemplate);
+        dataDiskTemplates = tmpltStore.getDataDiskTemplates(parentTemplate);
         s_logger.error("MDOVA createDataDiskTemplates Found " + dataDiskTemplates.size() + " Datadisk template(s) for template: " + parentTemplate.getId());
         int diskCount = 0;
-        VMTemplateVO template = _templateDao.findById(parentTemplate.getId());
+        VMTemplateVO templateVO = _templateDao.findById(parentTemplate.getId());
         DataStore imageStore = parentTemplate.getDataStore();
+        Map<String, String> details = new HashMap<String, String>();
         for (DatadiskTO dataDiskTemplate : dataDiskTemplates) {
-            if (!dataDiskTemplate.isBootable()){
-                createChildDataDiskTemplate(dataDiskTemplate,  template,  parentTemplate,  imageStore,  diskCount++);
-            }
-            else {
-                finalizeParentTemplate(dataDiskTemplate,  template,  parentTemplate,  imageStore,  diskCount++);
+            if (!dataDiskTemplate.isBootable()) {
+                createChildDataDiskTemplate(dataDiskTemplate, templateVO, parentTemplate, imageStore, diskCount++);
+                if (!dataDiskTemplate.isIso()){
+                    details.put(VmDetailConstants.DATA_DISK_CONTROLLER, getDiskControllerDetails(dataDiskTemplate));
+                }
+            } else {
+                finalizeParentTemplate(dataDiskTemplate, templateVO, parentTemplate, imageStore, diskCount++);
+                details.put(VmDetailConstants.ROOT_DISK_CONTROLLER, getDiskControllerDetails(dataDiskTemplate));
             }
         }
+        templateVO.setDetails(details);
+        _templateDao.saveDetails(templateVO);
         return true;
     }
 
@@ -770,13 +778,13 @@ public class TemplateServiceImpl implements TemplateService {
             }
             return result.isSuccess();
         } catch (Exception e) {
-            s_logger.error("Creation of Datadisk: " + templateVO.getId() + " failed: " + result.getResult());
+            s_logger.error("Creation of Datadisk: " + templateVO.getId() + " failed: " + result.getResult(), e);
             return false;
         }
     }
 
-    private boolean finalizeParentTemplate(DatadiskTO dataDiskTemplate, VMTemplateVO template, TemplateInfo parentTemplate, DataStore imageStore, int diskCount) {
-        TemplateInfo templateInfo = imageFactory.getTemplate(template.getId(), imageStore);
+    private boolean finalizeParentTemplate(DatadiskTO dataDiskTemplate, VMTemplateVO templateVO, TemplateInfo parentTemplate, DataStore imageStore, int diskCount) {
+        TemplateInfo templateInfo = imageFactory.getTemplate(templateVO.getId(), imageStore);
         AsyncCallFuture<TemplateApiResult> templateFuture = createDatadiskTemplateAsync(parentTemplate, templateInfo, dataDiskTemplate.getPath(), dataDiskTemplate.getDiskId(),
                 dataDiskTemplate.getFileSize(), dataDiskTemplate.isBootable());
         TemplateApiResult result = null;
@@ -789,9 +797,31 @@ public class TemplateServiceImpl implements TemplateService {
             }
             return result.isSuccess();
         } catch (Exception e) {
-            s_logger.error("Creation of template: " + template.getId() + " failed: " + result.getResult());
+            s_logger.error("Creation of template: " + templateVO.getId() + " failed: " + result.getResult(), e);
             return false;
         }
+    }
+
+    private String getDiskControllerDetails(DatadiskTO dataDiskTemplate) {
+        String controller = dataDiskTemplate.getDiskController() ;
+        String controlerSubType = dataDiskTemplate.getDiskControllerSubType();
+        String details = new String();
+        if (controller != null) {
+            if (controller.contains("IDE") || controller.contains("ide")) {
+                return"ide";
+            } else if (controller.contains("SCSI") || controller.contains("scsi")) {
+                if (controlerSubType != null ){
+                    return controlerSubType;
+                }
+                else {
+                    return "lislogic";
+                }
+            }
+            else {
+                return "osdefault";
+            }
+        }
+        return details;
     }
 
     private void cleanupDatadiskTemplates(TemplateInfo parentTemplateInfo) {

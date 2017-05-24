@@ -54,13 +54,14 @@ public class OVFHelper {
             final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new File(ovfFilePath));
             NodeList disks = doc.getElementsByTagName("Disk");
             NodeList files = doc.getElementsByTagName("File");
+            NodeList items = doc.getElementsByTagName("Item");
             boolean toggle = true;
             for (int j = 0; j < files.getLength(); j++) {
                 Element file = (Element)files.item(j);
                 OVFFile of = new OVFFile();
                 of._href = file.getAttribute("ovf:href");
-                if (of._href.endsWith("vmdk") || of._href.endsWith("iso")){
-                s_logger.info("MDOVA getOVFVolumeInfo File href = " + of._href);
+                if (of._href.endsWith("vmdk") || of._href.endsWith("iso")) {
+                    s_logger.info("MDOVA getOVFVolumeInfo File href = " + of._href);
                     of._id = file.getAttribute("ovf:id");
                     s_logger.info("MDOVA getOVFVolumeInfo File Id = " + of._id);
                     String size = file.getAttribute("ovf:size");
@@ -105,6 +106,7 @@ public class OVFHelper {
                     od._capacity = od._capacity * units;
                     s_logger.info("MDOVA getOVFVolumeInfo Disk _capacity  = " + od._capacity);
                 }
+                od._controller = getControllerType(items, od._diskId);
                 vd.add(od);
             }
 
@@ -118,11 +120,85 @@ public class OVFHelper {
         for (OVFFile of : vf) {
             OVFDisk cdisk = getDisk(of._id, vd);
             Long capacity = cdisk == null ? of._size : cdisk._capacity;
+            String controller =  cdisk == null ? "" : cdisk._controller._name;
+            String controllerSubType =  cdisk == null ? "" : cdisk._controller._subType;
             String dataDiskPath = ovfFile.getParent() + File.separator + of._href;
             s_logger.info("MDOVA getOVFVolumeInfo diskName = " + of._href + ", dataDiskPath = " + dataDiskPath);
-            disksTO.add(new DatadiskTO(dataDiskPath, capacity, of._size, of._id, of._iso, of._bootable));
+            disksTO.add(new DatadiskTO(dataDiskPath, capacity, of._size, of._id, of._iso, of._bootable, controller, controllerSubType));
         }
         return disksTO;
+    }
+
+    private OVFDiskController getControllerType(final NodeList itemList, final String diskId) {
+        for (int k = 0; k < itemList.getLength(); k++) {
+            Element item = (Element)itemList.item(k);
+            NodeList cn = item.getChildNodes();
+            for (int l = 0; l < cn.getLength(); l++) {
+                if (cn.item(l) instanceof Element) {
+                    Element el = (Element)cn.item(l);
+                    if ("rasd:HostResource".equals(el.getNodeName())
+                            && (el.getTextContent().contains("ovf:/file/" + diskId) || el.getTextContent().contains("ovf:/disk/" + diskId))) {
+                        Element oe = getParentNode(itemList, item);
+                        Element voe = oe;
+                        while (oe != null) {
+                            voe = oe;
+                            oe = getParentNode(itemList, voe);
+                        }
+                        return getController(voe);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private Element getParentNode(final NodeList itemList, final Element childItem) {
+        NodeList cn = childItem.getChildNodes();
+        String parent_id = null;
+        for (int l = 0; l < cn.getLength(); l++) {
+            if (cn.item(l) instanceof Element) {
+                Element el = (Element)cn.item(l);
+                if ("rasd:Parent".equals(el.getNodeName())) {
+                    s_logger.info("MDOVA parent id " + el.getTextContent());
+                    parent_id = el.getTextContent();
+                }
+            }
+        }
+        if (parent_id != null) {
+            for (int k = 0; k < itemList.getLength(); k++) {
+                Element item = (Element)itemList.item(k);
+                NodeList child = item.getChildNodes();
+                for (int l = 0; l < child.getLength(); l++) {
+                    if (child.item(l) instanceof Element) {
+                        Element el = (Element)child.item(l);
+                        if ("rasd:InstanceID".equals(el.getNodeName()) && el.getTextContent().trim().equals(parent_id)) {
+                            s_logger.info("MDOVA matching parent entry " + el.getTextContent());
+                            return item;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private OVFDiskController getController(Element controllerItem) {
+        OVFDiskController dc = new OVFDiskController();
+        NodeList child = controllerItem.getChildNodes();
+        for (int l = 0; l < child.getLength(); l++) {
+            if (child.item(l) instanceof Element) {
+                Element el = (Element)child.item(l);
+                if ("rasd:ElementName".equals(el.getNodeName())) {
+                    s_logger.info("MDOVA controller name " + el.getTextContent());
+                    dc._name = el.getTextContent();
+                }
+                if ("rasd:ResourceSubType".equals(el.getNodeName())) {
+                    s_logger.info("MDOVA controller sub type " + el.getTextContent());
+                    dc._subType = el.getTextContent();
+                }
+            }
+        }
+        return dc;
     }
 
     public void rewriteOVFFile(final String origOvfFilePath, final String newOvfFilePath, final String diskName) {
@@ -166,7 +242,8 @@ public class OVFHelper {
                 for (int l = 0; l < cn.getLength(); l++) {
                     if (cn.item(l) instanceof Element) {
                         Element el = (Element)cn.item(l);
-                        if ("rasd:HostResource".equals(el.getNodeName()) && !(el.getTextContent().contains("ovf:/file/"+ keepdisk) || el.getTextContent().contains("ovf:/disk/"+ keepdisk))) {
+                        if ("rasd:HostResource".equals(el.getNodeName())
+                                && !(el.getTextContent().contains("ovf:/file/" + keepdisk) || el.getTextContent().contains("ovf:/disk/" + keepdisk))) {
                             s_logger.info("MDOVA to remove " + el.getTextContent());
                             toremove.add(item);
                             break;
@@ -223,6 +300,11 @@ public class OVFHelper {
         public String _diskId;
         public String _fileRef;
         public Long _populatedSize;
+        public OVFDiskController _controller;
+    }
 
+    class OVFDiskController {
+        public String _name;
+        public String _subType;
     }
 }
