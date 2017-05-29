@@ -139,6 +139,8 @@ public class VolumeServiceImpl implements VolumeService {
     @Inject
     VMTemplatePoolDao _tmpltPoolDao;
     @Inject
+    SnapshotDataStoreDao _snapshotStoreDao;
+    @Inject
     VolumeDao _volumeDao;
     @Inject
     EndPointSelector _epSelector;
@@ -385,6 +387,10 @@ public class VolumeServiceImpl implements VolumeService {
                 if (canVolumeBeRemoved(vo.getId())) {
                     s_logger.info("Volume " + vo.getId() + " is not referred anywhere, remove it from volumes table");
                     volDao.remove(vo.getId());
+                }
+                SnapshotDataStoreVO snapStoreVo = _snapshotStoreDao.findByVolume(vo.getId(), DataStoreRole.Primary);
+                if(snapStoreVo != null){
+                    _snapshotStoreDao.remove(snapStoreVo.getId());
                 }
             } else {
                 vo.processEvent(Event.OperationFailed);

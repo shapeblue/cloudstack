@@ -477,6 +477,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     protected IpAddressManager _ipAddrMgr;
 
     protected ScheduledExecutorService _executor = null;
+    protected ScheduledExecutorService _vmIpFetchExecutor = null;
     protected int _expungeInterval;
     protected int _expungeDelay;
     protected boolean _dailyOrHourly = false;
@@ -513,6 +514,9 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     static final ConfigKey<Integer> VmIpFetchThreadPoolMax = new ConfigKey<Integer>("Advanced", Integer.class, "externaldhcp.vmipFetch.threadPool.max", "10",
             "number of threads for fetching vms ip address", true);
+
+    static final ConfigKey<Integer> VmIpFetchTaskWorkers = new ConfigKey<Integer>("Advanced", Integer.class, "externaldhcp.vmipfetchtask.workers", "10",
+                        "number of worker threads for vm ip fetch task ", true);
 
 
     @Override
@@ -1648,7 +1652,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         // Check that the specified service offering ID is valid
         _itMgr.checkIfCanUpgrade(vmInstance, newServiceOffering);
 
-        ServiceOffering currentServiceOffering = _offeringDao.findByIdIncludingRemoved(vmInstance.getId(), vmInstance.getServiceOfferingId());
+        ServiceOfferingVO currentServiceOffering = _offeringDao.findByIdIncludingRemoved(vmInstance.getId(), vmInstance.getServiceOfferingId());
         int newCpu = newServiceOffering.getCpu();
         int newMemory = newServiceOffering.getRamSize();
         int newSpeed = newServiceOffering.getSpeed();
@@ -1663,6 +1667,19 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             throw new InvalidParameterValueException("Only scaling up the vm is supported, new service offering(speed=" + newSpeed + ",cpu=" + newCpu + ",memory=," + newMemory
                     + ")" + " should have at least one value(cpu/ram) greater than old value and no resource value less than older(speed=" + currentSpeed + ",cpu=" + currentCpu
                     + ",memory=," + currentMemory + ")");
+        }
+
+        _offeringDao.loadDetails(currentServiceOffering);
+        _offeringDao.loadDetails(newServiceOffering);
+
+        Map<String, String> currentDetails = currentServiceOffering.getDetails();
+        Map<String, String> newDetails = newServiceOffering.getDetails();
+        String currentVgpuType = currentDetails.get("vgpuType");
+        String newVgpuType = newDetails.get("vgpuType");
+        if(currentVgpuType != null) {
+            if(newVgpuType == null || !newVgpuType.equalsIgnoreCase(currentVgpuType)) {
+                throw new InvalidParameterValueException("Dynamic scaling of vGPU type is not supported. VM has vGPU Type: " + currentVgpuType);
+            }
         }
 
         // Check resource limits
@@ -1870,54 +1887,54 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         Transaction.execute(new TransactionCallbackWithExceptionNoReturn<ResourceAllocationException>() {
-            @Override
-            public void doInTransactionWithoutResult(TransactionStatus status) throws ResourceAllocationException {
+            @Override public void doInTransactionWithoutResult(TransactionStatus status) throws ResourceAllocationException {
 
                 Account account = _accountDao.lockRow(vm.getAccountId(), true);
 
-        // if the account is deleted, throw error
-        if (account.getRemoved() != null) {
+                // if the account is deleted, throw error
+                if (account.getRemoved() != null) {
                     throw new CloudRuntimeException("Unable to recover VM as the account is deleted");
-        }
+                }
 
-        // Get serviceOffering for Virtual Machine
+                // Get serviceOffering for Virtual Machine
                 ServiceOfferingVO serviceOffering = _serviceOfferingDao.findById(vm.getId(), vm.getServiceOfferingId());
 
-        // First check that the maximum number of UserVMs, CPU and Memory limit for the given
-        // accountId will not be exceeded
+                // First check that the maximum number of UserVMs, CPU and Memory limit for the given
+                // accountId will not be exceeded
                 resourceLimitCheck(account, vm.isDisplayVm(), new Long(serviceOffering.getCpu()), new Long(serviceOffering.getRamSize()));
 
-        _haMgr.cancelDestroy(vm, vm.getHostId());
+                _haMgr.cancelDestroy(vm, vm.getHostId());
 
-        try {
+                try {
                     if (!_itMgr.stateTransitTo(vm, VirtualMachine.Event.RecoveryRequested, null)) {
                         s_logger.debug("Unable to recover the vm because it is not in the correct state: " + vmId);
                         throw new InvalidParameterValueException("Unable to recover the vm because it is not in the correct state: " + vmId);
-            }
-        } catch (NoTransitionException e) {
+                    }
+                } catch (NoTransitionException e) {
                     throw new InvalidParameterValueException("Unable to recover the vm because it is not in the correct state: " + vmId);
-        }
+                }
 
-        // Recover the VM's disks
-        List<VolumeVO> volumes = _volsDao.findByInstance(vmId);
-        for (VolumeVO volume : volumes) {
-            if (volume.getVolumeType().equals(Volume.Type.ROOT)) {
-                // Create an event
-                Long templateId = volume.getTemplateId();
-                Long diskOfferingId = volume.getDiskOfferingId();
-                Long offeringId = null;
-                if (diskOfferingId != null) {
+                // Recover the VM's disks
+                List<VolumeVO> volumes = _volsDao.findByInstance(vmId);
+                for (VolumeVO volume : volumes) {
+                    if (volume.getVolumeType().equals(Volume.Type.ROOT)) {
+                        // Create an event
+                        Long templateId = volume.getTemplateId();
+                        Long diskOfferingId = volume.getDiskOfferingId();
+                        Long offeringId = null;
+                        if (diskOfferingId != null) {
                             DiskOfferingVO offering = _diskOfferingDao.findById(diskOfferingId);
                             if (offering != null && (offering.getType() == DiskOfferingVO.Type.Disk)) {
-                        offeringId = offering.getId();
+                                offeringId = offering.getId();
+                            }
+                        }
+                        UsageEventUtils
+                                .publishUsageEvent(EventTypes.EVENT_VOLUME_CREATE, volume.getAccountId(), volume.getDataCenterId(), volume.getId(), volume.getName(), offeringId,
+                                        templateId, volume.getSize(), Volume.class.getName(), volume.getUuid(), volume.isDisplayVolume());
                     }
                 }
-                UsageEventUtils.publishUsageEvent(EventTypes.EVENT_VOLUME_CREATE, volume.getAccountId(), volume.getDataCenterId(), volume.getId(), volume.getName(),
-                        offeringId, templateId, volume.getSize(), Volume.class.getName(), volume.getUuid(), volume.isDisplayVolume());
-            }
-        }
 
-        //Update Resource Count for the given account
+                //Update Resource Count for the given account
                 resourceCountIncrement(account.getId(), vm.isDisplayVm(), new Long(serviceOffering.getCpu()), new Long(serviceOffering.getRamSize()));
             }
         });
@@ -1951,6 +1968,11 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         _executor = Executors.newScheduledThreadPool(wrks, new NamedThreadFactory("UserVm-Scavenger"));
 
+        String vmIpWorkers = configs.get(VmIpFetchTaskWorkers.value());
+        int vmipwrks = NumbersUtil.parseInt(vmIpWorkers, 10);
+
+        _vmIpFetchExecutor =   Executors.newScheduledThreadPool(vmipwrks, new NamedThreadFactory("UserVm-ipfetch"));
+
         String aggregationRange = configs.get("usage.stats.job.aggregation.range");
         int _usageAggregationRange  = NumbersUtil.parseInt(aggregationRange, 1440);
         int HOURLY_TIME = 60;
@@ -1970,7 +1992,9 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         String value = _configDao.getValue(Config.SetVmInternalNameUsingDisplayName.key());
         _instanceNameFlag = (value == null) ? false : Boolean.parseBoolean(value);
 
-       _scaleRetry = NumbersUtil.parseInt(configs.get(Config.ScaleRetry.key()), 2);
+        _scaleRetry = NumbersUtil.parseInt(configs.get(Config.ScaleRetry.key()), 2);
+
+        _vmIpFetchThreadExecutor = Executors.newFixedThreadPool(VmIpFetchThreadPoolMax.value(), new NamedThreadFactory("vmIpFetchThread"));
 
         s_logger.info("User VM Manager is configured.");
 
@@ -1985,7 +2009,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     @Override
     public boolean start() {
         _executor.scheduleWithFixedDelay(new ExpungeTask(), _expungeInterval, _expungeInterval, TimeUnit.SECONDS);
-        _executor.scheduleWithFixedDelay(new VmIpFetchTask(), VmIpFetchWaitInterval.value(), VmIpFetchWaitInterval.value(), TimeUnit.SECONDS);
+        _vmIpFetchExecutor.scheduleWithFixedDelay(new VmIpFetchTask(), VmIpFetchWaitInterval.value(), VmIpFetchWaitInterval.value(), TimeUnit.SECONDS);
         loadVmDetailsInMapForExternalDhcpIp();
         return true;
     }
@@ -2019,6 +2043,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     @Override
     public boolean stop() {
         _executor.shutdown();
+        _vmIpFetchExecutor.shutdown();
         return true;
     }
 
@@ -2603,7 +2628,21 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             throw new InvalidParameterValueException("Unable to find service offering: " + serviceOfferingId + " corresponding to the vm");
         }
 
-        return rebootVirtualMachine(CallContext.current().getCallingUserId(), vmId);
+        UserVm userVm = rebootVirtualMachine(CallContext.current().getCallingUserId(), vmId);
+        if (userVm != null ) {
+            // update the vmIdCountMap if the vm is in advanced shared network with out services
+            final List<NicVO> nics = _nicDao.listByVmId(vmId);
+            for (NicVO nic : nics) {
+                Network network = _networkModel.getNetwork(nic.getNetworkId());
+                if (_networkModel.isSharedNetworkWithoutServices(network.getId())) {
+                    s_logger.debug("Adding vm " +vmId +" nic id "+ nic.getId() +" into vmIdCountMap as part of vm " +
+                            "reboot for vm ip fetch ");
+                    vmIdCountMap.put(nic.getId(), new VmAndCountDetails(nic.getInstanceId(), VmIpFetchTrialMax.value()));
+                }
+            }
+            return  userVm;
+        }
+        return  null;
     }
 
     @Override
@@ -3568,7 +3607,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
                 _vmDao.persist(vm);
                 for (String key : customParameters.keySet()) {
-                    vm.setDetail(key, customParameters.get(key));
+                    //handle double byte strings.
+                    vm.setDetail(key, Integer.toString(Integer.parseInt(customParameters.get(key))));
                 }
                 vm.setDetail("deployvm", "true");
                 _vmDao.saveDetails(vm);
@@ -3828,7 +3868,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     }
 
     @Override
-    public boolean finalizeStart(VirtualMachineProfile profile, long hostId, Commands cmds, ReservationContext context) {
+    public boolean  finalizeStart(VirtualMachineProfile profile, long hostId, Commands cmds, ReservationContext context) {
         UserVmVO vm = _vmDao.findById(profile.getId());
 
         Answer[] answersToCmds = cmds.getAnswers();
@@ -3915,6 +3955,21 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 s_logger.warn("Unable to restore the vm snapshot from image file to the VM: " + restoreVMSnapshotAnswer.getDetails());
             }
         }
+
+        final VirtualMachineProfile vmProfile = profile;
+        Transaction.execute(new TransactionCallbackNoReturn() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+                final UserVmVO vm = _vmDao.findById(vmProfile.getId());
+                final List<NicVO> nics = _nicDao.listByVmId(vm.getId());
+                for (NicVO nic : nics) {
+                    Network network = _networkModel.getNetwork(nic.getNetworkId());
+                    if (_networkModel.isSharedNetworkWithoutServices(network.getId())) {
+                        vmIdCountMap.put(nic.getId(), new VmAndCountDetails(nic.getInstanceId(), VmIpFetchTrialMax.value()));
+                    }
+                }
+            }
+        });
 
         return true;
     }
@@ -5855,7 +5910,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax, VmIpFetchThreadPoolMax};
+        return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax, VmIpFetchThreadPoolMax, VmIpFetchTaskWorkers};
     }
 
     @Override
