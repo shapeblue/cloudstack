@@ -90,7 +90,7 @@ public class OVFHelper {
                 s_logger.info("MDOVA getOVFVolumeInfo Disk ovf:diskId  = " + od._diskId);
                 od._fileRef = disk.getAttribute("ovf:fileRef");
                 s_logger.info("MDOVA getOVFVolumeInfo Disk ovf:fileRef  = " + od._fileRef);
-                od._populatedSize = Long.parseLong(disk.getAttribute("ovf:populatedSize"));
+                od._populatedSize = Long.parseLong(disk.getAttribute("ovf:populatedSize") == null ? "0" :  disk.getAttribute("ovf:populatedSize"));
                 s_logger.info("MDOVA getOVFVolumeInfo Disk _populatedSize  = " + od._populatedSize);
 
                 if ((od._capacity != 0) && (allocationUnits != null)) {

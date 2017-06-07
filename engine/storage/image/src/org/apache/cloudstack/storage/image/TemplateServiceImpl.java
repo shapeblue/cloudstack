@@ -60,10 +60,13 @@ import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 import javax.inject.Inject;
+
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -313,6 +316,12 @@ public class TemplateServiceImpl implements TemplateService {
                     } else {
                         // zone wide store
                         allTemplates = _templateDao.listInZoneByState(zoneId, VirtualMachineTemplate.State.Active, VirtualMachineTemplate.State.NotUploaded, VirtualMachineTemplate.State.UploadInProgress);
+                    }
+                    for (Iterator<VMTemplateVO> iter = allTemplates.listIterator(); iter.hasNext(); ) {
+                        VMTemplateVO child_template = iter.next();
+                        if (child_template.getParentTemplateId() != null) {
+                            iter.remove();
+                        }
                     }
                     List<VMTemplateVO> rtngTmplts = _templateDao.listAllSystemVMTemplates();
                     List<VMTemplateVO> defaultBuiltin = _templateDao.listDefaultBuiltinTemplates();
@@ -745,9 +754,14 @@ public class TemplateServiceImpl implements TemplateService {
         String suffix = dataDiskTemplate.isIso() ? "-IsoDiskTemplate-" : "-DataDiskTemplate-";
         TemplateType ttype = dataDiskTemplate.isIso() ? TemplateType.ISODISK : TemplateType.DATADISK;
         final long templateId = _templateDao.getNextInSequence(Long.class, "id");
-        VMTemplateVO templateVO = new VMTemplateVO(templateId, template.getName() + suffix + diskCount, format, false, false, false, ttype, template.getUrl(),
-                template.requiresHvm(), template.getBits(), template.getAccountId(), null, template.getDisplayText() + suffix, false, 0, false, template.getHypervisorType(), null,
+        long guestOsId = dataDiskTemplate.isIso() ? 1 : 0;
+        String templateName = dataDiskTemplate.isIso() ? dataDiskTemplate.getPath().substring(dataDiskTemplate.getPath().lastIndexOf(File.separator) + 1) : template.getName() + suffix + diskCount;
+        VMTemplateVO templateVO = new VMTemplateVO(templateId, templateName, format, false, false, false, ttype, template.getUrl(),
+                template.requiresHvm(), template.getBits(), template.getAccountId(), null, templateName, false, guestOsId, false, template.getHypervisorType(), null,
                 null, false, false);
+        if (dataDiskTemplate.isIso()){
+            templateVO.setUniqueName(templateName);
+        }
         templateVO.setParentTemplateId(template.getId());
         templateVO.setSize(dataDiskTemplate.getVirtualSize());
         templateVO = _templateDao.persist(templateVO);

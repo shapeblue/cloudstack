@@ -430,20 +430,6 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
                         throw new Exception(msg);
                     }
                 }
-            } else {
-                // Remove original OVA
-                String rootDiskTemplatePath = dataDiskTemplate.getPath();
-                String rootDiskTemplateFullPath = secondaryMountPoint + File.separator + rootDiskTemplatePath;
-                s_logger.info("MDOVA removing original ova rootDiskTemplateFullPath" + rootDiskTemplateFullPath);
-                synchronized (rootDiskTemplateFullPath.intern()) {
-                    Script command = new Script("rm", _timeout, s_logger);
-                    command.add(rootDiskTemplateFullPath);
-                    String result = command.execute();
-                    if (result != null) {
-                        String msg = "Unable to delete original OVA" + rootDiskTemplatePath + " result=" + result;
-                        s_logger.error(msg);
-                    }
-                }
             }
 
             // Create OVF for the disk
@@ -456,7 +442,12 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
             writeMetaOvaForTemplate(newTmplDirAbsolute, ovfFilePath.substring(ovfFilePath.lastIndexOf(File.separator) + 1), diskName, templateUniqueName, physicalSize);
 
             diskTemplate.setId(templateId);
-            diskTemplate.setPath(newTmplDir + File.separator + templateUniqueName + ".ova");
+            if (diskName.endsWith("iso")){
+                diskTemplate.setPath(newTmplDir + File.separator + diskName);
+            }
+            else {
+                diskTemplate.setPath(newTmplDir + File.separator + templateUniqueName + ".ova");
+            }
             diskTemplate.setSize(virtualSize);
             diskTemplate.setPhysicalSize(physicalSize);
         } catch (Exception e) {
@@ -526,28 +517,20 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         return "template/tmpl/" + accountId + "/" + templateId;
     }
 
-    private void postCreatePrivateTemplate(String installFullPath, long templateId, String templateName, long size, long virtualSize) throws Exception {
-
+    private void postCreatePrivateTemplate(final String installFullPath, final long templateId, final String templateName, final long size, final long virtualSize) throws Exception {
         // TODO a bit ugly here
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(installFullPath + "/template.properties"), "UTF-8"));
+        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(installFullPath + "/template.properties"), "UTF-8"));) {
             out.write("filename=" + templateName + ".ova");
             out.newLine();
-            out.write("description=");
-            out.newLine();
-            out.write("checksum=");
+            out.write("description=privateTemplate");
             out.newLine();
             out.write("hvm=false");
             out.newLine();
             out.write("size=" + size);
             out.newLine();
-            //out.write("ova=true");
-            out.write("ova=false");  //volss: the real ova file is not created
+            out.write("ova=false");
             out.newLine();
             out.write("id=" + templateId);
-            out.newLine();
-            out.write("public=false");
             out.newLine();
             out.write("ova.filename=" + templateName + ".ova");
             out.newLine();
@@ -559,14 +542,14 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
             out.newLine();
             out.write("ova.size=" + size);
             out.newLine();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
+            out.write("checksum=");
+            out.newLine();
+            out.write("public=false");
+            out.newLine();
         }
     }
 
-    private void writeMetaOvaForTemplate(String installFullPath, String ovfFilename, String vmdkFilename, String templateName, long diskSize) throws Exception {
+    private void writeMetaOvaForTemplate(final String installFullPath, final String ovfFilename, final String vmdkFilename, final String templateName, final long diskSize) throws Exception {
 
         // TODO a bit ugly here
         BufferedWriter out = null;
