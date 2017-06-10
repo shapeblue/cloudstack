@@ -3777,6 +3777,17 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 s_logger.error("VM " + tmpVm + " unexpectedly went to " + tmpVm.getState() + " state");
                 throw new ConcurrentOperationException("Failed to deploy VM "+vm);
             }
+
+            if (!cmd.getDataDiskTemplateToDiskOfferingMap().isEmpty()) {
+                List<VolumeVO> vols = _volsDao.findByInstance(tmpVm.getId());
+                for (VolumeVO vol : vols) {
+                    if (vol.getVolumeType() == Volume.Type.DATADISK) {
+                        DiskOffering doff =  _entityMgr.findById(DiskOffering.class, vol.getDiskOfferingId());
+                        _volService.resizeVolumeOnHypervisor(vol.getId(), doff.getDiskSize(), tmpVm.getHostId(), vm.getInstanceName());
+                    }
+                }
+            }
+
         } finally {
             updateVmStateForFailedVmCreation(vm.getId(), hostId);
         }
