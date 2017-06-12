@@ -395,10 +395,12 @@
                                 async: false,
                                 success: function(json) {
                                     var templateDataDisks = json.listtemplatesresponse.template[0].childtemplates;
+                                    var count = 0;
                                     if (templateDataDisks && Object.keys(templateDataDisks).length > 0) {
                                         multiDisks = [];
                                         $.each(templateDataDisks, function(uuid, name) {
                                             if (name.indexOf("DataDiskTemplate")>0){$
+                                                count = count + 1;
                                                 multiDisks.push({
                                                     id: uuid,
                                                     label: name
@@ -406,6 +408,13 @@
                                              }
                                         });
                                     }
+                                    if (count == 0){
+                                        multiDisks.push({
+                                            id: "none",
+                                            label: "Multidisk Template: No attached datadisk found"
+                                        });
+                                    }
+
                                 }
                             });
                         }
