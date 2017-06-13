@@ -521,6 +521,9 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     static final ConfigKey<Integer> VmIpFetchTaskWorkers = new ConfigKey<Integer>("Advanced", Integer.class, "externaldhcp.vmipfetchtask.workers", "10",
                         "number of worker threads for vm ip fetch task ", true);
 
+    static final ConfigKey<Boolean> AllowDeployVmIfGivenHostFails = new ConfigKey<Boolean>("Advanced", Boolean.class, "allow.deploy.vm.if.deploy.on.given.host.fails", "false",
+            "allow vm to deploy on different host if vm fails to deploy on the given host ", true);
+
 
     @Override
     public UserVmVO getVirtualMachine(long vmId) {
@@ -3636,7 +3639,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
                 _vmDao.persist(vm);
                 for (String key : customParameters.keySet()) {
-                    vm.setDetail(key, customParameters.get(key));
+                    //handle double byte strings.
+                    vm.setDetail(key, Integer.toString(Integer.parseInt(customParameters.get(key))));
                 }
                 vm.setDetail("deployvm", "true");
                 _vmDao.saveDetails(vm);
@@ -4145,9 +4149,13 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         DataCenterDeployment plan = null;
+        boolean deployOnGivenHost = false;
         if (destinationHost != null) {
             s_logger.debug("Destination Host to deploy the VM is specified, specifying a deployment plan to deploy the VM");
             plan = new DataCenterDeployment(vm.getDataCenterId(), destinationHost.getPodId(), destinationHost.getClusterId(), destinationHost.getId(), null, null);
+            if (!AllowDeployVmIfGivenHostFails.value()) {
+                deployOnGivenHost = true;
+            }
         }
 
         // Set parameters
@@ -4195,7 +4203,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         String reservationId = vmEntity.reserve(planner, plan, new ExcludeList(), Long.toString(callerUser.getId()));
-        vmEntity.deploy(reservationId, Long.toString(callerUser.getId()), params);
+        vmEntity.deploy(reservationId, Long.toString(callerUser.getId()), params, deployOnGivenHost);
 
         Pair<UserVmVO, Map<VirtualMachineProfile.Param, Object>> vmParamPair = new Pair(vm, params);
         if (vm != null && vm.isUpdateParameters()) {
@@ -5958,7 +5966,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax, VmIpFetchThreadPoolMax, VmIpFetchTaskWorkers};
+        return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax, VmIpFetchThreadPoolMax,
+                VmIpFetchTaskWorkers, AllowDeployVmIfGivenHostFails};
     }
 
     @Override
