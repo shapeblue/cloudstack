@@ -504,7 +504,10 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
                 ManagedObjectReference morPool = hyperHost.getHyperHostOwnerResourcePool();
                 ManagedObjectReference morCluster = hyperHost.getHyperHostCluster();
-                _fullCloneFlag = volume.getSize() > template.getSize() ? true : _fullCloneFlag;
+                s_logger.info("MDOVA the size of template is " + template.getSize() + " and size of volume is " + volume.getSize());
+                if (template.getSize() != null){
+                    _fullCloneFlag = volume.getSize() > template.getSize() ? true : _fullCloneFlag;
+                }
                 if (!_fullCloneFlag) {
                     createVMLinkedClone(vmTemplate, dcMo, dsMo, vmdkName, morDatastore, morPool);
                 } else {
@@ -515,7 +518,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 assert (vmMo != null);
 
                 vmdkFileBaseName = vmMo.getVmdkFileBaseNames().get(0);
-                s_logger.info("Move volume out of volume-wrapper VM ");
+                s_logger.info("Move volume out of volume-wrapper VM " + vmdkFileBaseName);
                 String[] vmwareLayoutFilePair = VmwareStorageLayoutHelper.getVmdkFilePairDatastorePath(dsMo, vmdkName, vmdkFileBaseName, VmwareStorageLayoutType.VMWARE, !_fullCloneFlag);
                 String[] legacyCloudStackLayoutFilePair = VmwareStorageLayoutHelper.getVmdkFilePairDatastorePath(dsMo, vmdkName, vmdkFileBaseName, VmwareStorageLayoutType.CLOUDSTACK_LEGACY, !_fullCloneFlag);
 
@@ -546,7 +549,12 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
             VolumeObjectTO newVol = new VolumeObjectTO();
             newVol.setPath(vmdkFileBaseName);
-            newVol.setSize(template.getSize());
+            if (template.getSize() != null){
+                newVol.setSize(template.getSize());
+            }
+            else {
+                newVol.setSize(volume.getSize());
+            }
             return new CopyCmdAnswer(newVol);
         } catch (Throwable e) {
             if (e instanceof RemoteException) {
