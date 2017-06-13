@@ -556,13 +556,19 @@
                                     $step.find('.multi-disk-select-container').remove();
                                     $step.removeClass('custom-disk-size');
 
-                                    if (args.required) {
-                                        $step.find('.section.no-thanks').hide();
-                                        $step.addClass('required');
-                                    } else {
-                                        $step.find('.section.no-thanks').show();
-                                        $step.removeClass('required');
-                                    }
+                                    if (!multiDisk){
+					    if (args.required) {
+						$step.find('.section.no-thanks').hide();
+						$step.addClass('required');
+					    } else {
+						$step.find('.section.no-thanks').show();
+						$step.removeClass('required');
+					    }
+				    }
+                                    else {
+					$step.find('.section.no-thanks').hide();
+					$step.addClass('required');
+				    }
 
                                     var $selectContainer = $step.find('.content .select-container:not(.multi-disk)');
 
@@ -592,17 +598,20 @@
 
                                             $group.appendTo($multiDiskSelect);
                                             $group.data('json-obj', disk);
+                                            if (disk.id == "none"){
+                                                 return;
+                                            }
 
                                             // Show-hide disk group selects
                                             $checkbox.click(function() {
                                                 $group.toggleClass('selected');
                                                 $group.find('.select:first input[type=radio]').click();
 
-                                                if (!$multiDiskSelect.find('input[type=checkbox]:checked').size()) {
-                                                    $step.find('.no-thanks input[type=radio]').click();
-                                                } else {
-                                                    $step.find('.no-thanks input[type=radio]').attr('checked', false);
-                                                }
+						if (!$multiDiskSelect.find('input[type=checkbox]:checked').size()) {
+						    $step.find('.no-thanks input[type=radio]').click();
+						} else {
+						    $step.find('.no-thanks input[type=radio]').attr('checked', false);
+						}
                                             });
 
                                             // Add custom disk size box

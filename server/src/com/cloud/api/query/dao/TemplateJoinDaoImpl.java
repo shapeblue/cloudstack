@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
@@ -37,10 +38,13 @@ import com.cloud.api.ApiDBUtils;
 import com.cloud.api.ApiResponseHelper;
 import com.cloud.api.query.vo.ResourceTagJoinVO;
 import com.cloud.api.query.vo.TemplateJoinVO;
+import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.TemplateType;
 import com.cloud.storage.VMTemplateHostVO;
 import com.cloud.storage.VMTemplateStorageResourceAssoc.Status;
+import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.user.Account;
 import com.cloud.user.AccountService;
@@ -59,6 +63,8 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
     private ConfigurationDao  _configDao;
     @Inject
     private AccountService _accountService;
+    @Inject
+    private VMTemplateDao _vmTemplateDao;
 
     private final SearchBuilder<TemplateJoinVO> tmpltIdPairSearch;
 
@@ -177,6 +183,10 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
         }
         templateResponse.setTemplateTag(template.getTemplateTag());
 
+        if (template.getParentTemplateId() != null) {
+            templateResponse.setParentTemplateId(template.getParentTemplateUuid());
+        }
+
         // set details map
         if (template.getDetailName() != null) {
             Map<String, String> details = new HashMap<String, String>();
@@ -188,6 +198,13 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
         long tag_id = template.getTagId();
         if (tag_id > 0) {
             addTagInformation(template, templateResponse);
+        }
+
+        //set template children disks
+        if (template.getHypervisorType() == HypervisorType.VMware) {
+            List<VMTemplateVO> childTemplates = _vmTemplateDao.listByParentTemplatetId(template.getId());
+            Map<String, String> childUuidNameMap  = childTemplates.stream().collect(Collectors.toMap(VMTemplateVO::getUuid, VMTemplateVO::getName));
+            templateResponse.setChildTemplates(childUuidNameMap);
         }
 
         templateResponse.setObjectName("template");

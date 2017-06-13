@@ -170,7 +170,7 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     private Map details;
 
     @SerializedName(ApiConstants.BITS)
-    @Param(description="the processor bit size", since = "4.10")
+    @Param(description = "the processor bit size", since = "4.10")
     private int bits;
 
     @SerializedName(ApiConstants.SSHKEY_ENABLED)
@@ -180,6 +180,14 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @SerializedName(ApiConstants.IS_DYNAMICALLY_SCALABLE)
     @Param(description = "true if template contains XS/VMWare tools inorder to support dynamic scaling of VM cpu/memory")
     private Boolean isDynamicallyScalable;
+
+    @SerializedName("parenttemplateid")
+    @Param(description = "if Datadisk template, then id of the root disk template this template belongs to")
+    private String parentTemplateId;
+
+    @SerializedName("childtemplates")
+    @Param(description = "if root disk template, then ids of the datas disk templates this template owns")
+    private  Map<String, String> childTemplates;
 
     public TemplateResponse() {
         tags = new LinkedHashSet<ResourceTagResponse>();
@@ -354,4 +362,13 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     public void setBits(int bits) {
         this.bits = bits;
     }
+
+    public void setParentTemplateId(String parentTemplateId) {
+        this.parentTemplateId = parentTemplateId;
+    }
+
+    public void setChildTemplates(Map<String, String> childTemplateIds) {
+        this.childTemplates = childTemplateIds;
+    }
+
 }
