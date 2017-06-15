@@ -310,6 +310,8 @@ import com.cloud.vm.dao.UserVmDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.cloud.vm.snapshot.VMSnapshot;
 import com.cloud.vm.snapshot.dao.VMSnapshotDao;
+import com.cloud.user.AccountManager;
+import com.cloud.network.dao.FirewallRulesDcidrsDao;
 
 public class ApiDBUtils {
     private static ManagementServer s_ms;
@@ -370,6 +372,7 @@ public class ApiDBUtils {
     static ConfigurationDao s_configDao;
     static ConsoleProxyDao s_consoleProxyDao;
     static FirewallRulesCidrsDao s_firewallCidrsDao;
+    static FirewallRulesDcidrsDao s_firewallDcidrsDao;
     static VMInstanceDao s_vmDao;
     static ResourceLimitService s_resourceLimitMgr;
     static ProjectService s_projectMgr;
@@ -541,6 +544,8 @@ public class ApiDBUtils {
     private ConsoleProxyDao consoleProxyDao;
     @Inject
     private FirewallRulesCidrsDao firewallCidrsDao;
+    @Inject
+    private FirewallRulesDcidrsDao firewalDcidrsDao;
     @Inject
     private VMInstanceDao vmDao;
     @Inject
@@ -717,6 +722,7 @@ public class ApiDBUtils {
         s_configDao = configDao;
         s_consoleProxyDao = consoleProxyDao;
         s_firewallCidrsDao = firewallCidrsDao;
+        s_firewallDcidrsDao  = firewalDcidrsDao;
         s_vmDao = vmDao;
         s_resourceLimitMgr = resourceLimitMgr;
         s_projectMgr = projectMgr;
@@ -1302,6 +1308,10 @@ public class ApiDBUtils {
         return s_firewallCidrsDao.getSourceCidrs(id);
     }
 
+    public static List<String> findFirewallDestCidrs(long id){
+        return s_firewallDcidrsDao.getDestCidrs(id);
+    }
+
     public static Account getProjectOwner(long projectId) {
         return s_projectMgr.getProjectOwner(projectId);
     }
@@ -1710,6 +1720,9 @@ public class ApiDBUtils {
 
     public static UserResponse newUserResponse(UserAccountJoinVO usr, Long domainId) {
         UserResponse response = s_userAccountJoinDao.newUserResponse(usr);
+        if(!AccountManager.UseSecretKeyInResponse.value()){
+            response.setSecretKey(null);
+        }
         // Populate user account role information
         if (usr.getAccountRoleId() != null) {
             Role role = s_roleService.findRole( usr.getAccountRoleId());
