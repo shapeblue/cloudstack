@@ -912,6 +912,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                                     + " router version:" + router.getTemplateVersion();
                             s_logger.info(context);
                             _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_DOMAIN_ROUTER, router.getDataCenterId(), router.getPodIdToDeployIn(), title, context);
+                        }
                         if (answer.isIPPresent(gw.getGatewayIp())) {
                             if (answer.isConnected(gw.getGatewayIp())) {
                                 conn.setState(Site2SiteVpnConnection.State.Connected);
