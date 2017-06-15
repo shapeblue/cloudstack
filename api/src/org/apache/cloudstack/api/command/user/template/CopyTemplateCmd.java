@@ -134,7 +134,7 @@ public class CopyTemplateCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventDescription() {
-        return  "copying template: " + this._uuidMgr.getUuid(VirtualMachineTemplate.class,getId()) + " from zone: " + this._uuidMgr.getUuid(DataCenter.class,getSourceZoneId()) 
+        return  "copying template: " + this._uuidMgr.getUuid(VirtualMachineTemplate.class,getId()) + " from zone: " + this._uuidMgr.getUuid(DataCenter.class,getSourceZoneId())
         		+ " to zone: " + this._uuidMgr.getUuid(DataCenter.class,getDestinationZoneId());
     }
 
