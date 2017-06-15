@@ -16,6 +16,7 @@
 // under the License.
 package com.cloud.api;
 
+import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.agent.api.VgpuTypesInfo;
 import com.cloud.api.query.ViewResponseHelper;
 import com.cloud.api.query.vo.AccountJoinVO;
@@ -455,7 +456,11 @@ public class ApiResponseHelper implements ResponseGenerator {
         cfgResponse.setCategory(cfg.getCategory());
         cfgResponse.setDescription(cfg.getDescription());
         cfgResponse.setName(cfg.getName());
-        cfgResponse.setValue(cfg.getValue());
+        if(cfg.isEncrypted()) {
+            cfgResponse.setValue(DBEncryptionUtil.encrypt(cfg.getValue()));
+        } else {
+            cfgResponse.setValue(cfg.getValue());
+        }
         cfgResponse.setObjectName("configuration");
 
         return cfgResponse;
@@ -1442,6 +1447,23 @@ public class ApiResponseHelper implements ResponseGenerator {
     }
 
     @Override
+    public List<TemplateResponse> createTemplateResponses(ResponseView view, VirtualMachineTemplate result,
+                                                          List<Long> zoneIds, boolean readyOnly) {
+        List<TemplateJoinVO> tvo = null;
+        if (zoneIds == null) {
+            return createTemplateResponses(view, result, (Long)null, readyOnly);
+        } else {
+            for (Long zoneId: zoneIds){
+                if (tvo == null)
+                    tvo = ApiDBUtils.newTemplateView(result, zoneId, readyOnly);
+                else
+                    tvo.addAll(ApiDBUtils.newTemplateView(result, zoneId, readyOnly));
+            }
+        }
+        return ViewResponseHelper.createTemplateResponse(view, tvo.toArray(new TemplateJoinVO[tvo.size()]));
+    }
+
+    @Override
     public List<TemplateResponse> createTemplateResponses(ResponseView view, long templateId, Long zoneId, boolean readyOnly) {
         VirtualMachineTemplate template = findTemplateById(templateId);
         return createTemplateResponses(view, template, zoneId, readyOnly);
@@ -2193,6 +2215,11 @@ public class ApiResponseHelper implements ResponseGenerator {
 
         List<String> cidrs = ApiDBUtils.findFirewallSourceCidrs(fwRule.getId());
         response.setCidrList(StringUtils.join(cidrs, ","));
+
+        if(fwRule.getTrafficType() == FirewallRule.TrafficType.Egress){
+            List<String> destCidrs = ApiDBUtils.findFirewallDestCidrs(fwRule.getId());
+            response.setDestCidr(StringUtils.join(destCidrs,","));
+        }
 
         if (fwRule.getTrafficType() == FirewallRule.TrafficType.Ingress) {
             IpAddress ip = ApiDBUtils.findIpAddressById(fwRule.getSourceIpAddressId());
