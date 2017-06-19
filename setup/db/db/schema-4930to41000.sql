@@ -233,10 +233,6 @@ JOIN `cloud`.`vm_snapshots` s ON (s.service_offering_id = o.id AND s.vm_id = v.i
 WHERE (o.cpu is null AND o.speed IS NULL AND o.ram_size IS NULL) AND
 (d.name = 'cpuNumber' OR d.name = 'cpuSpeed' OR d.name = 'memory');
 
-INSERT INTO `cloud`.`hypervisor_capabilities`(
-	uuid, hypervisor_type, hypervisor_version, max_guests_limit, max_data_volumes_limit, storage_motion_supported)
-values
-  	(UUID(), 'XenServer', '7.0.0', 500, 13, 1);
 
 -- CLOUDSTACK-9827: Storage tags stored in multiple places
 DROP VIEW IF EXISTS `cloud`.`storage_tag_view`;
