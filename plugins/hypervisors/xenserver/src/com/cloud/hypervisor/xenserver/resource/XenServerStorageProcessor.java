@@ -469,7 +469,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
                     vbd.destroy(conn);
                 }
 
-                hypervisorResource.umount(conn, vdi, cmd.isManaged());
+                hypervisorResource.umount(conn, vdi);
             }
 
             if (cmd.isManaged()) {
