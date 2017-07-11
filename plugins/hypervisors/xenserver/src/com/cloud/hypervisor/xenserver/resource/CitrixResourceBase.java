@@ -5271,8 +5271,8 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         return true;
     }
 
-    protected void umount(final Connection conn, final VDI vdi) throws XenAPIException, XmlRpcException {
-        if (SRType.VDILUN.equals(XenServerManagedStorageSrType.value())) {
+    protected void umount(final Connection conn, final VDI vdi, boolean isManaged) throws XenAPIException, XmlRpcException {
+        if (isManaged && SRType.VDILUN.equals(XenServerManagedStorageSrType.value())) {
             vdi.forget(conn);
         }
     }
