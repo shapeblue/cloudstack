@@ -154,7 +154,7 @@ public class HostJoinDaoImpl extends GenericDaoBase<HostJoinVO, Long> implements
                 Long mem = host.getMemReservedCapacity() + host.getMemUsedCapacity();
                 Long cpu = host.getCpuReservedCapacity() + host.getCpuUsedCapacity();
 
-                hostResponse.setMemoryTotal(mem);
+                hostResponse.setMemoryTotal(host.getTotalMemory());
                 Float totalMemorywithOverprovisioning=new Float((host.getTotalMemory()*ApiDBUtils.getMemOverprovisioningFactor(host.getClusterId())));
                 hostResponse.setMemWithOverprovisioning(totalMemorywithOverprovisioning.toString());
                 hostResponse.setMemoryAllocated(mem);
