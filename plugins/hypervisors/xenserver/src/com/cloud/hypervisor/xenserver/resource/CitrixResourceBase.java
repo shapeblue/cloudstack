@@ -1222,7 +1222,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                     smConfig, false, volumeSize, volumeSize, null, false, new Date(0), null);
 
         } catch (Types.XenAPIException e) {
-            if (e.shortDescription.contains("VDI could not be found")) {
+            if (e.shortDescription.contains("VDI could not be found") || ((e instanceof Types.InternalError) && ((Types.InternalError)e).message.contains("Vdi_does_not_exist"))) {
                 // We could not find a VDI, this can happen when we try to attach a newly created
                 // We return null here. For all other exceptions, we raise them
                 return null;
