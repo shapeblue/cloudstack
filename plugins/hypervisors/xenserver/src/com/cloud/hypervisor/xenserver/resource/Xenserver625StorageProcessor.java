@@ -1181,13 +1181,14 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
             final String chapInitiatorSecret = srcDetails.get(DiskTO.CHAP_INITIATOR_SECRET);
 
             if (CitrixResourceBase.SRType.VDILUN.equals(srType)) {
+                String iqn = hypervisorResource.getTargetIqn(iScsiName);
                 srcSr = hypervisorResource.getVdiLunSr(conn, storageHost);
-                srcVdi = hypervisorResource.getVDIbyLocationandSR(conn, iScsiName, srcSr);
+                srcVdi = hypervisorResource.getVDIbyLocationandSR(conn, iqn, srcSr);
 
                 if (srcVdi == null) {
                     String tempUuid = UUID.randomUUID().toString();
                     srcVdi = hypervisorResource.introduceVDI(srcSr, snapshotObjTO.getName(), snapshotObjTO.getPhysicalSize(),
-                            tempUuid, iScsiName);
+                            tempUuid, iqn);
                 }
 
             } else {
