@@ -1312,6 +1312,7 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         }
         String absoluteTemplatePath = parent + relativeTemplatePath;
         MessageDigest digest;
+        String algorithm = "MD5";
         String checksum = null;
         File f = new File(absoluteTemplatePath);
         InputStream is = null;
@@ -1322,20 +1323,24 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         }
 
         try {
-            digest = MessageDigest.getInstance("MD5");
+            // TODO handle the (new) algorithm parameter from the ComputeChecksumCommand
+            digest = MessageDigest.getInstance(algorithm);
             is = new FileInputStream(f);
             while ((read = is.read(buffer)) > 0) {
                 digest.update(buffer, 0, read);
             }
             byte[] md5sum = digest.digest();
+            // TODO make sure this is valid for all types of checksums !?!
             BigInteger bigInt = new BigInteger(1, md5sum);
+            // TODO prefix the checksum with the algorithm (e.g. "{SHA-256}00000000000000" (do experiment ;)
+            // NOTE MessageDigest has a toString() that might just do a better job then we
             checksum = bigInt.toString(16);
             if (s_logger.isDebugEnabled()) {
                 s_logger.debug("Successfully calculated checksum for file " + absoluteTemplatePath + " - " + checksum);
             }
 
         } catch (IOException e) {
-            String logMsg = "Unable to process file for MD5 - " + absoluteTemplatePath;
+            String logMsg = "Unable to process file for " + algorithm + " - " + absoluteTemplatePath;
             s_logger.error(logMsg);
             return new Answer(cmd, false, checksum);
         } catch (NoSuchAlgorithmException e) {

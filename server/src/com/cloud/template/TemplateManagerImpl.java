@@ -672,6 +672,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         return null;
     }
 
+    // TODO will have to be extended to accept an algorithm
     @Override
     public String getChecksum(DataStore store, String templatePath) {
         EndPoint ep = _epSelector.select(store);
