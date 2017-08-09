@@ -16,6 +16,34 @@
 // under the License.
 package com.cloud.test;
 
+import com.cloud.host.Status;
+import com.cloud.service.ServiceOfferingVO;
+import com.cloud.service.dao.ServiceOfferingDaoImpl;
+import com.cloud.storage.DiskOfferingVO;
+import com.cloud.storage.Storage.ProvisioningType;
+import com.cloud.storage.dao.DiskOfferingDaoImpl;
+import com.cloud.utils.PropertiesUtil;
+import com.cloud.utils.component.ComponentContext;
+import com.cloud.utils.db.DB;
+import com.cloud.utils.db.Transaction;
+import com.cloud.utils.db.TransactionCallbackWithExceptionNoReturn;
+import com.cloud.utils.db.TransactionLegacy;
+import com.cloud.utils.db.TransactionStatus;
+import com.cloud.utils.net.NfsUtils;
+import org.apache.log4j.Logger;
+import org.apache.log4j.xml.DOMConfigurator;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -32,36 +60,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
-
-import org.apache.log4j.Logger;
-import org.apache.log4j.xml.DOMConfigurator;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
-
-import com.cloud.host.Status;
-import com.cloud.service.ServiceOfferingVO;
-import com.cloud.service.dao.ServiceOfferingDaoImpl;
-import com.cloud.storage.DiskOfferingVO;
-import com.cloud.storage.dao.DiskOfferingDaoImpl;
-import com.cloud.storage.Storage.ProvisioningType;
-import com.cloud.utils.PropertiesUtil;
-import com.cloud.utils.component.ComponentContext;
-import com.cloud.utils.db.DB;
-import com.cloud.utils.db.Transaction;
-import com.cloud.utils.db.TransactionCallbackWithExceptionNoReturn;
-import com.cloud.utils.db.TransactionLegacy;
-import com.cloud.utils.db.TransactionStatus;
-import com.cloud.utils.net.NfsUtils;
 
 public class DatabaseConfig {
     private static final Logger s_logger = Logger.getLogger(DatabaseConfig.class.getName());
@@ -1022,6 +1020,18 @@ public class DatabaseConfig {
         Long iopsWriteRate = Long.parseLong(_currentObjectParams.get("iopsWriteRate"));
         if (iopsWriteRate != null && (iopsWriteRate > 0))
             diskOffering.setIopsWriteRate(iopsWriteRate);
+        Long minIopsPerGb = Long.parseLong(_currentObjectParams.get("minIopsPerGb"));
+        if (minIopsPerGb > 0)
+            diskOffering.setMinIopsPerGb(minIopsPerGb);
+        Long maxIopsPerGb = Long.parseLong(_currentObjectParams.get("maxIopsPerGb"));
+        if (maxIopsPerGb > 0)
+            diskOffering.setMaxIopsPerGb(maxIopsPerGb);
+        Long highestMinIops = Long.parseLong(_currentObjectParams.get("highestMinIops"));
+        if (highestMinIops > 0)
+            diskOffering.setHighestMinIops(highestMinIops);
+        Long highestMaxIops = Long.parseLong(_currentObjectParams.get("highestMaxIops"));
+        if (highestMaxIops > 0)
+            diskOffering.setHighestMaxIops(highestMaxIops);
 
         DiskOfferingDaoImpl offering = ComponentContext.inject(DiskOfferingDaoImpl.class);
         try {
