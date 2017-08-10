@@ -653,6 +653,10 @@ public class ApiConstants {
     public static final String OVM3_CLUSTER = "ovm3cluster";
     public static final String OVM3_VIP = "ovm3vip";
     public static final String CLEAN_UP_DETAILS = "cleanupdetails";
+    public static final String MIN_IOPS_PER_GB = "miniopspergb";
+    public static final String MAX_IOPS_PER_GB = "maxiopspergb";
+    public static final String HIGHEST_MIN_IOPS = "highestminiops";
+    public static final String HIGHEST_MAX_IOPS = "highestmaxiops";
 
     public static final String ZONE_ID_LIST = "zoneids";
     public static final String DESTINATION_ZONE_ID_LIST = "destzoneids";
