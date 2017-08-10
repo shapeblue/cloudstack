@@ -17,6 +17,7 @@
 package org.apache.cloudstack.utils.security;
 
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 
 import com.amazonaws.util.StringInputStream;
 import org.junit.Assert;
@@ -24,27 +25,44 @@ import org.junit.Test;
 
 public class DigestHelperTest {
 
-    private final String s = "01234567890123456789012345678901234567890123456789012345678901234567890123456789\n";
+    private final String INPUT_STRING = "01234567890123456789012345678901234567890123456789012345678901234567890123456789\n";
+    private final String SHA256_CHECKSUM = "{SHA-256}c6ab15af7842d23d3c06c138b53a7d09c5e351a79c4eb3c8ca8d65e5ce8900ab";
+    private final String SHA1_CHECKSUM = "{SHA-1}49e4b2f4292b63e88597c127d11bc2cc0f2ca0ff";
+    private final String MD5_CHECKSUM = "{MD5}d141a8eeaf6bba779d1d1dc5102a81c5";
+
+    @Test
+    public void check_SHA256() throws Exception {
+        InputStream is = getInputStream();
+        Assert.assertTrue(DigestHelper.check(MD5_CHECKSUM,is));
+        is.reset();
+        Assert.assertTrue(DigestHelper.check(SHA1_CHECKSUM,is));
+        is.reset();
+        Assert.assertTrue(DigestHelper.check(SHA256_CHECKSUM,is));
+    }
 
     @Test
     public void testDigestSHA256() throws Exception {
-        InputStream is = new StringInputStream(s);
+        InputStream is = getInputStream();
         String result = DigestHelper.digest("SHA-256", is);
-        Assert.assertEquals("{SHA-256}c6ab15af7842d23d3c06c138b53a7d09c5e351a79c4eb3c8ca8d65e5ce8900ab", result);
+        Assert.assertEquals(SHA256_CHECKSUM, result);
     }
 
     @Test
     public void testDigestSHA1() throws Exception {
-        InputStream is = new StringInputStream(s);
+        InputStream is = getInputStream();
         String result = DigestHelper.digest("SHA-1", is);
-        Assert.assertEquals("{SHA-1}49e4b2f4292b63e88597c127d11bc2cc0f2ca0ff", result);
+        Assert.assertEquals(SHA1_CHECKSUM, result);
     }
 
     @Test
     public void testDigestMD5() throws Exception {
-        InputStream is = new StringInputStream(s);
+        InputStream is = getInputStream();
         String result = DigestHelper.digest("MD5", is);
-        Assert.assertEquals("{MD5}d141a8eeaf6bba779d1d1dc5102a81c5", result);
+        Assert.assertEquals(MD5_CHECKSUM, result);
+    }
+
+    private InputStream getInputStream() throws UnsupportedEncodingException {
+        return new StringInputStream(INPUT_STRING);
     }
 }
 

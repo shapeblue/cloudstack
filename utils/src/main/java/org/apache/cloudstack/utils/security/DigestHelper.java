@@ -39,4 +39,12 @@ public class DigestHelper {
         checksum = '{' + digest.getAlgorithm() + '}' + bigInt.toString(16);
         return checksum;
     }
+
+    public static boolean check(String checksum, InputStream is) throws IOException, NoSuchAlgorithmException {
+        ChecksumValue toCheckAgainst = new ChecksumValue(checksum);
+        String algorithm = toCheckAgainst.getAlgorithm();
+        ChecksumValue result = new ChecksumValue(digest(algorithm,is));
+        return result.equals(toCheckAgainst);
+    }
+
 }
