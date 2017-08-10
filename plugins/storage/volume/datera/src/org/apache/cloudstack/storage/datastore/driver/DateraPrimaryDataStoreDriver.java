@@ -286,11 +286,11 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
 
     private boolean isInitiatorGroupAssignedToAppInstance(DateraObject.DateraConnection conn, DateraObject.InitiatorGroup initiatorGroup, DateraObject.AppInstance appInstance) throws DateraObject.DateraError {
 
-        Map<String, DateraObject.InitiatorGroup> assignedInitiatorGroups = DateraUtil.getAppInstanceInitiatorGroups(conn, appInstance.getName());
+        List<DateraObject.InitiatorGroup> assignedInitiatorGroups = DateraUtil.getAppInstanceInitiatorGroups(conn, appInstance.getName());
 
         Preconditions.checkNotNull(assignedInitiatorGroups);
 
-        for (DateraObject.InitiatorGroup ig : assignedInitiatorGroups.values()) {
+        for (DateraObject.InitiatorGroup ig : assignedInitiatorGroups) {
             if (initiatorGroup.getName().equals(ig.getName())) {
                 return true;
             }
@@ -398,6 +398,22 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
         }
 
         return StringUtils.join("-", name.toArray());
+    }
+
+    private String getDescription(DataObject dataObject) {
+        String desc = "CSAccountId-";
+        switch (dataObject.getType()) {
+            case VOLUME:
+                desc += Long.toString(((VolumeInfo) (dataObject)).getAccountId());
+                break;
+            case TEMPLATE:
+                desc+= Long.toString(((TemplateInfo)(dataObject)).getAccountId());
+                break;
+            case SNAPSHOT:
+                desc+= Long.toString(((SnapshotInfo)(dataObject)).getAccountId());
+                break;
+        }
+        return desc;
     }
 
     // Not being used right now as Datera doesn't support min IOPS
@@ -761,7 +777,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
         long volumeSizeBytes = getDataObjectSizeIncludingHypervisorSnapshotReserve(volumeInfo, _storagePoolDao.findById(storagePoolId));
         int volumeSizeGb = DateraUtil.bytesToGb(volumeSizeBytes);
 
-        return DateraUtil.createAppInstance(conn, getAppInstanceName(volumeInfo), volumeSizeGb, toBandwidthKiBps(maxIops), replicas);
+        return DateraUtil.createAppInstance(conn, getAppInstanceName(volumeInfo), getDescription(volumeInfo), volumeSizeGb, toBandwidthKiBps(maxIops), replicas);
     }
 
     /**
@@ -787,7 +803,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
             // Clone volume from a snapshot
             if (snapshotDetails != null && snapshotDetails.getValue() != null) {
 
-                appInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, snapshotDetails.getValue());
+                appInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, getDescription(volumeInfo), snapshotDetails.getValue());
 
                 if (volumeInfo.getMaxIops() != null) {
 
@@ -822,7 +838,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
         }
 
         //Clone the app Instance
-        appInstance = DateraUtil.cloneAppInstanceFromVolume(conn, clonedAppInstanceName, baseAppInstanceName);
+        appInstance = DateraUtil.cloneAppInstanceFromVolume(conn, clonedAppInstanceName, getDescription(volumeInfo), baseAppInstanceName);
 
 
         if (volumeInfo.getMaxIops() != null) {
@@ -873,7 +889,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
             DateraObject.AppInstance clonedAppInstance;
 
             try {
-                clonedAppInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, snapshotName);
+                clonedAppInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, getDescription(snapshotInfo), snapshotName);
             } catch (DateraObject.DateraError | UnsupportedEncodingException e) {
                 String errMesg = "Unable to create temp volume "  + csSnapshotId + "Error:" + e.getMessage();
                 s_logger.error(errMesg, e);
@@ -925,14 +941,15 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
 
         try {
 
-            long templateSizeBytes = getDataObjectSizeIncludingHypervisorSnapshotReserve(templateInfo, storagePoolDao.findById(storagePoolId));
+            long templateSizeBytes = getDataObjectSizeIncludingHypervisorSnapshotReserve(templateInfo,
+                    storagePoolDao.findById(storagePoolId));
 
             int templateSizeGb = DateraUtil.bytesToGb(templateSizeBytes);
             int templateIops = DateraUtil.MAX_IOPS;
             int replicaCount = getNumReplicas(storagePoolId);
 
             DateraObject.AppInstance appInstance = DateraUtil.createAppInstance(conn, getAppInstanceName(templateInfo),
-                    templateSizeGb, toBandwidthKiBps(templateIops), replicaCount);
+                    getDescription(templateInfo), templateSizeGb, toBandwidthKiBps(templateIops), replicaCount);
 
             if (appInstance == null) {
                 throw new CloudRuntimeException("Unable to create Template volume " + templateInfo.getId());
@@ -1130,7 +1147,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
 
                 String appInstanceName = getAppInstanceName(snapshotInfo);
                 DateraObject.AppInstance snapshotAppInstance = DateraUtil.createAppInstance(conn, appInstanceName,
-                        volumeSizeGb, toBandwidthKiBps(DateraUtil.MAX_IOPS), getNumReplicas(storagePoolId));
+                        getDescription(snapshotInfo), volumeSizeGb, toBandwidthKiBps(DateraUtil.MAX_IOPS), getNumReplicas(storagePoolId));
 
                 snapshotObjectTo.setPath(snapshotAppInstance.getName());
                 String iqnPath = DateraUtil.generateIqnPath(snapshotAppInstance.getIqn());
