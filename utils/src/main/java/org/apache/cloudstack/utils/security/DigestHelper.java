@@ -24,10 +24,9 @@ import java.security.NoSuchAlgorithmException;
 
 public class DigestHelper {
 
-    public static String digest(String algorithm, InputStream is) throws NoSuchAlgorithmException, IOException {
-        MessageDigest digest;
-        digest = MessageDigest.getInstance(algorithm);
-        String checksum = null;
+    public static ChecksumValue digest(String algorithm, InputStream is) throws NoSuchAlgorithmException, IOException {
+        MessageDigest digest = MessageDigest.getInstance(algorithm);
+        ChecksumValue checksum = null;
         byte[] buffer = new byte[8192];
         int read = 0;
         while ((read = is.read(buffer)) > 0) {
@@ -36,15 +35,30 @@ public class DigestHelper {
         byte[] md5sum = digest.digest();
         // TODO make sure this is valid for all types of checksums !?!
         BigInteger bigInt = new BigInteger(1, md5sum);
-        checksum = '{' + digest.getAlgorithm() + '}' + bigInt.toString(16);
+        checksum = new ChecksumValue(digest.getAlgorithm(), bigInt.toString(16));
         return checksum;
     }
 
     public static boolean check(String checksum, InputStream is) throws IOException, NoSuchAlgorithmException {
         ChecksumValue toCheckAgainst = new ChecksumValue(checksum);
         String algorithm = toCheckAgainst.getAlgorithm();
-        ChecksumValue result = new ChecksumValue(digest(algorithm,is));
+        ChecksumValue result = digest(algorithm,is);
         return result.equals(toCheckAgainst);
     }
 
+    public static String getPaddedDigest(String algorithm, int paddingLength, String inputString) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance(algorithm);
+        String checksum;
+        digest.reset();
+        BigInteger pwInt = new BigInteger(1, digest.digest(inputString.getBytes()));
+        String pwStr = pwInt.toString(16);
+        int padding = paddingLength - pwStr.length();
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < padding; i++) {
+            sb.append('0'); // make sure the MD5 password is 32 digits long
+        }
+        sb.append(pwStr);
+        checksum = sb.toString();
+        return checksum;
+    }
 }

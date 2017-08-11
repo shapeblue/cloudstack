@@ -23,10 +23,14 @@ import org.apache.commons.lang.StringUtils;
 public class ChecksumValue {
     String checksum;
     String algorithm = "MD5";
+    public ChecksumValue(String algorithm, String checksum) {
+        this.algorithm = algorithm;
+        this.checksum = checksum;
+    }
     public ChecksumValue(String digest) {
         digest = StringUtils.strip(digest);
-        algorithm = algorithmFromDigest(digest);
-        checksum = stripAlgorithmFromDigest(digest);
+        this.algorithm = algorithmFromDigest(digest);
+        this.checksum = stripAlgorithmFromDigest(digest);
     }
 
     @Override
@@ -57,7 +61,7 @@ public class ChecksumValue {
         return algorithm;
     }
 
-    private String stripAlgorithmFromDigest(String digest) {
+    private static String stripAlgorithmFromDigest(String digest) {
         if(StringUtils.isNotEmpty(digest)) {
             int s = digest.indexOf('{');// only assume a
             int e = digest.indexOf('}');
@@ -69,7 +73,7 @@ public class ChecksumValue {
         return digest;
     }
 
-    private String algorithmFromDigest(String digest) {
+    private static String algorithmFromDigest(String digest) {
         if(StringUtils.isNotEmpty(digest)) {
             int s = digest.indexOf('{');
             int e = digest.indexOf('}');

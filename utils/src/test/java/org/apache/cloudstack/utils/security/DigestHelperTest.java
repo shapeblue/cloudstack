@@ -51,19 +51,19 @@ public class DigestHelperTest {
 
     @Test
     public void testDigestSHA256() throws Exception {
-        String result = DigestHelper.digest("SHA-256", inputStream);
+        String result = DigestHelper.digest("SHA-256", inputStream).toString();
         Assert.assertEquals(SHA256_CHECKSUM, result);
     }
 
     @Test
     public void testDigestSHA1() throws Exception {
-        String result = DigestHelper.digest("SHA-1", inputStream);
+        String result = DigestHelper.digest("SHA-1", inputStream).toString();
         Assert.assertEquals(SHA1_CHECKSUM, result);
     }
 
     @Test
     public void testDigestMD5() throws Exception {
-        String result = DigestHelper.digest("MD5", inputStream);
+        String result = DigestHelper.digest("MD5", inputStream).toString();
         Assert.assertEquals(MD5_CHECKSUM, result);
     }
 

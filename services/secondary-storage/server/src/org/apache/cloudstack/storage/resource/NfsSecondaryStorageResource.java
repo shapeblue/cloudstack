@@ -29,7 +29,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1312,7 +1311,6 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
             parent += File.separator;
         }
         String absoluteTemplatePath = parent + relativeTemplatePath;
-        MessageDigest digest;
         String algorithm = cmd.getAlgorithm();
         File f = new File(absoluteTemplatePath);
         if (s_logger.isDebugEnabled()) {
@@ -1321,7 +1319,7 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         String checksum = null;
 
         try (InputStream is = new FileInputStream(f);){
-            checksum = DigestHelper.digest(algorithm, is);
+            checksum = DigestHelper.digest(algorithm, is).toString();
             if (s_logger.isDebugEnabled()) {
                 s_logger.debug("Successfully calculated checksum for file " + absoluteTemplatePath + " - " + checksum);
             }

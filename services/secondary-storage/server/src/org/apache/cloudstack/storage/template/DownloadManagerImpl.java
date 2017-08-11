@@ -21,10 +21,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -40,16 +38,7 @@ import java.util.concurrent.Executors;
 
 import javax.naming.ConfigurationException;
 
-import org.apache.cloudstack.storage.command.DownloadCommand;
-import org.apache.cloudstack.storage.command.DownloadCommand.ResourceType;
-import org.apache.cloudstack.storage.command.DownloadProgressCommand;
-import org.apache.cloudstack.storage.command.DownloadProgressCommand.RequestType;
-import org.apache.cloudstack.storage.resource.NfsSecondaryStorageResource;
-import org.apache.cloudstack.storage.resource.SecondaryStorageResource;
-import org.apache.log4j.Logger;
-
 import com.cloud.agent.api.storage.DownloadAnswer;
-import com.cloud.utils.net.Proxy;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.agent.api.to.S3TO;
@@ -81,9 +70,19 @@ import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.StringUtils;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.net.Proxy;
 import com.cloud.utils.script.OutputInterpreter;
 import com.cloud.utils.script.Script;
 import com.cloud.utils.storage.QCOW2Utils;
+import org.apache.cloudstack.storage.command.DownloadCommand;
+import org.apache.cloudstack.storage.command.DownloadCommand.ResourceType;
+import org.apache.cloudstack.storage.command.DownloadProgressCommand;
+import org.apache.cloudstack.storage.command.DownloadProgressCommand.RequestType;
+import org.apache.cloudstack.storage.resource.NfsSecondaryStorageResource;
+import org.apache.cloudstack.storage.resource.SecondaryStorageResource;
+import org.apache.cloudstack.utils.security.ChecksumValue;
+import org.apache.cloudstack.utils.security.DigestHelper;
+import org.apache.log4j.Logger;
 
 public class DownloadManagerImpl extends ManagerBase implements DownloadManager {
     private String _name;
@@ -315,33 +314,13 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         }
     }
 
-    private String computeCheckSum(File f) {
-        byte[] buffer = new byte[8192];
-        int read = 0;
-        MessageDigest digest;
-        String checksum = null;
-        InputStream is = null;
-        try {
-            digest = MessageDigest.getInstance("MD5");
-            is = new FileInputStream(f);
-            while ((read = is.read(buffer)) > 0) {
-                digest.update(buffer, 0, read);
-            }
-            byte[] md5sum = digest.digest();
-            BigInteger bigInt = new BigInteger(1, md5sum);
-            checksum = String.format("%032x", bigInt);
-            return checksum;
+    private ChecksumValue computeCheckSum(String algorithm, File f) {
+        try (InputStream is = new FileInputStream(f);) {
+            return DigestHelper.digest(algorithm, is);
         } catch (IOException e) {
             return null;
         } catch (NoSuchAlgorithmException e) {
             return null;
-        } finally {
-            try {
-                if (is != null)
-                    is.close();
-            } catch (IOException e) {
-                return null;
-            }
         }
     }
 
@@ -357,17 +336,12 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
             // The QCOW2 is the only format with a header,
             // and as such can be easily read.
 
-            try {
-                InputStream inputStream = td.getS3ObjectInputStream();
-
+            try (InputStream inputStream = td.getS3ObjectInputStream();){
                 dnld.setTemplatesize(QCOW2Utils.getVirtualSize(inputStream));
-
-                inputStream.close();
             }
             catch (IOException e) {
                 result = "Couldn't read QCOW2 virtual size. Error: " + e.getMessage();
             }
-
         }
         else {
             // For the other formats, both the virtual
@@ -398,11 +372,17 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         ResourceType resourceType = dnld.getResourceType();
 
         File originalTemplate = new File(td.getDownloadLocalPath());
-        String checkSum = computeCheckSum(originalTemplate);
-        if (checkSum == null) {
+        ChecksumValue oldValue = new ChecksumValue(dnld.getChecksum());
+        ChecksumValue newValue = computeCheckSum(oldValue.getAlgorithm(), originalTemplate);
+        if(! oldValue.equals(newValue)) {
+            return "checksum \"" + newValue +"\" didn't match the given value, \"" + oldValue + "\"";
+        }
+        String checksum = newValue.getChecksum();
+        if (checksum == null) {
             s_logger.warn("Something wrong happened when try to calculate the checksum of downloaded template!");
         }
-        dnld.setCheckSum(checkSum);
+
+        dnld.setCheckSum(checksum);
 
         int imgSizeGigs = (int)Math.ceil(_storage.getSize(td.getDownloadLocalPath()) * 1.0d / (1024 * 1024 * 1024));
         imgSizeGigs++; // add one just in case
@@ -437,6 +417,7 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         scr.add("-t", resourcePath);
         scr.add("-f", td.getDownloadLocalPath()); // this is the temporary
         // template file downloaded
+        // TODO need to add algorithm to the script parameters
         if (dnld.getChecksum() != null && dnld.getChecksum().length() > 1) {
             scr.add("-c", dnld.getChecksum());
         }
