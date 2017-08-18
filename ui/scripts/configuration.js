@@ -2343,6 +2343,45 @@
                                     diskIopsWriteRate: {
                                         label: 'label.disk.iops.write.rate'
                                     },
+                                    miniopspergb: {
+                                        label: 'label.disk.iops.pergb.min',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+
+                                    },
+                                    maxiopspergb: {
+                                        label: 'label.disk.iops.pergb.max',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+
+                                    },
+                                    highestminiops: {
+                                        label: 'label.disk.iops.highest.min',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+
+                                    },
+                                    highestmaxiops: {
+                                        label: 'label.disk.iops.highest.max',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+                                    },
                                     cacheMode: {
                                         label: 'label.cache.mode'
                                     },
