@@ -21,7 +21,6 @@ import com.cloud.host.Host;
 import com.cloud.host.HostVO;
 import com.cloud.utils.StringUtils;
 import com.cloud.utils.exception.CloudRuntimeException;
-import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -529,18 +528,9 @@ public class DateraUtil {
         executeApiRequest(conn, deleteAppInstanceReq);
     }
 
-    public static DateraObject.AppInstance cloneAppInstanceFromSnapshot(DateraObject.DateraConnection conn, String newAppInstanceName, String desc, String snapshotName) throws DateraObject.DateraError, UnsupportedEncodingException {
-
-        //split the snapshot name to appInstanceName and the snapshot timestamp
-        String[] tokens = snapshotName.split(":");
-        Preconditions.checkArgument(tokens.length == 2);
-
-        // A snapshot is stored in Cloudstack as <AppInstanceName>:<SnapshotTime>
-        String appInstanceName = tokens[0];
-        String snapshotTime = tokens[1];
-
+    public static DateraObject.AppInstance cloneAppInstanceFromSnapshot(DateraObject.DateraConnection conn, String newAppInstanceName, String desc, String srcAppInstanceName, String snapshotTime) throws DateraObject.DateraError, UnsupportedEncodingException {
         //get the snapshot from Datera
-        HttpGet getSnasphotReq = new HttpGet(generateApiUrl("app_instances", appInstanceName,
+        HttpGet getSnasphotReq = new HttpGet(generateApiUrl("app_instances", srcAppInstanceName,
                 "storage_instances", DateraObject.DEFAULT_STORAGE_NAME,
                 "volumes", DateraObject.DEFAULT_VOLUME_NAME,
                 "snapshots", snapshotTime));
@@ -564,16 +554,7 @@ public class DateraUtil {
         return getAppInstance(conn, newAppInstanceName);
     }
 
-    public static void deleteVolumeSnapshot(DateraObject.DateraConnection conn, String snapshotName) throws DateraObject.DateraError {
-
-        // split the snapshot name to appInstanceName and the snapshot timestamp
-        String[] tokens = snapshotName.split(":");
-        Preconditions.checkArgument(tokens.length == 2);
-
-        // A snapshot is stored in Cloudstack as <AppInstanceName>:<SnapshotTime>
-        String appInstanceName = tokens[0];
-        String snapshotTime = tokens[1];
-
+    public static void deleteVolumeSnapshot(DateraObject.DateraConnection conn, String appInstanceName, String snapshotTime) throws DateraObject.DateraError {
 
         HttpDelete deleteSnapshotReq = new HttpDelete(generateApiUrl("app_instances", appInstanceName,
                 "storage_instances", DateraObject.DEFAULT_STORAGE_NAME,

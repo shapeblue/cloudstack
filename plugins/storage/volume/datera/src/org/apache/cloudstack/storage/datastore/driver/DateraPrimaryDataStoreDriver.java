@@ -85,6 +85,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
     private static final int s_lockTimeInSeconds = 300;
     private static final int s_lowestHypervisorSnapshotReserve = 10;
     private static final int KBPS_MULTIPLIER = 4; //4k blocks
+    private static final String SEPERATOR_SNAPSHOT = "::";
 
     @Inject private ClusterDao _clusterDao;
     @Inject private ClusterDetailsDao _clusterDetailsDao;
@@ -803,7 +804,12 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
             // Clone volume from a snapshot
             if (snapshotDetails != null && snapshotDetails.getValue() != null) {
 
-                appInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, getDescription(volumeInfo), snapshotDetails.getValue());
+                String[] tokens = snapshotDetails.getValue().split(SEPERATOR_SNAPSHOT);
+                Preconditions.checkArgument(tokens.length == 2);
+                String srcAppInstanceName = tokens[0];
+                String snapshotTime = tokens[1];
+
+                appInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, getDescription(volumeInfo), srcAppInstanceName, snapshotTime);
 
                 if (volumeInfo.getMaxIops() != null) {
 
@@ -889,7 +895,12 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
             DateraObject.AppInstance clonedAppInstance;
 
             try {
-                clonedAppInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, getDescription(snapshotInfo), snapshotName);
+
+                // split the snapshot name to appInstanceName and the snapshot timestamp
+                String[] tokens = snapshotName.split(SEPERATOR_SNAPSHOT);
+                Preconditions.checkArgument(tokens.length == 2);
+
+                clonedAppInstance = DateraUtil.cloneAppInstanceFromSnapshot(conn, clonedAppInstanceName, getDescription(snapshotInfo), tokens[0], tokens[1]);
             } catch (DateraObject.DateraError | UnsupportedEncodingException e) {
                 String errMesg = "Unable to create temp volume "  + csSnapshotId + "Error:" + e.getMessage();
                 s_logger.error(errMesg, e);
@@ -1138,7 +1149,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
                     throw new CloudRuntimeException("Unable to take native snapshot for volume " +  volumeInfo.getId());
                 }
 
-                String snapshotName = baseAppInstanceName + ":" + volumeSnapshot.getTimestamp();
+                String snapshotName = baseAppInstanceName + SEPERATOR_SNAPSHOT + volumeSnapshot.getTimestamp();
                 updateSnapshotDetails(snapshotInfo.getId(), baseAppInstanceName, snapshotName, storagePoolId, baseAppInstance.getSize());
 
                 snapshotObjectTo.setPath("DateraSnapshotId=" + snapshotName);
@@ -1278,8 +1289,11 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
                 // Native snapshot being used, delete that
 
                 String snapshotName = snapshotDetails.getValue();
+                // split the snapshot name to appInstanceName and the snapshot timestamp
+                String[] tokens = snapshotName.split(SEPERATOR_SNAPSHOT);
+                Preconditions.checkArgument(tokens.length == 2);
 
-                DateraUtil.deleteVolumeSnapshot(conn, snapshotName);
+                DateraUtil.deleteVolumeSnapshot(conn, tokens[0], tokens[1]);
 
                 //check if the underlying volume needs to be deleted
                 SnapshotVO snapshot = _snapshotDao.findById(csSnapshotId);
