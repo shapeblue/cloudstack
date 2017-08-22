@@ -4,9 +4,8 @@ import com.cloud.utils.StringUtils;
 import com.google.gson.annotations.SerializedName;
 
 import java.io.UnsupportedEncodingException;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class DateraObject {
 
@@ -41,6 +40,17 @@ public class DateraObject {
 
         public boolean equals(DateraError err){
             return this.name().equals(err.getName());
+        }
+    }
+
+    public static class DateraApiResponse {
+        public String path;
+        public String version;
+        public String tenant;
+        public String data;
+
+        public String getResponseObjectString() {
+            return data;
         }
     }
 
@@ -157,6 +167,10 @@ public class DateraObject {
             this.size=newSize;
         }
 
+        public Volume(String path) {
+            this.path=path;
+        }
+
         public PerformancePolicy getPerformancePolicy() {
             return performancePolicy;
         }
@@ -177,13 +191,13 @@ public class DateraObject {
     public static class StorageInstance {
 
         private final String name = DEFAULT_STORAGE_NAME;
-        private Map<String, Volume> volumes;
+        private List<Volume> volumes;
         private Access access;
 
         public StorageInstance(int size, int totalBandWidthKiBps, int replicaCount) {
             Volume volume = new Volume(size, totalBandWidthKiBps, replicaCount);
-            volumes = new HashMap<String, Volume>();
-            volumes.put(DEFAULT_VOLUME_NAME, volume);
+            volumes = new ArrayList<>();
+            volumes.add(volume);
         }
 
         public Access getAccess(){
@@ -191,7 +205,7 @@ public class DateraObject {
         }
 
         public Volume getVolume() {
-            return volumes.get(DEFAULT_VOLUME_NAME);
+            return volumes.get(0);
         }
 
         public int getSize() {
@@ -204,6 +218,9 @@ public class DateraObject {
 
         private String name;
 
+        @SerializedName("descr")
+        private String description;
+
         @SerializedName("access_control_mode")
         private String accessControlMode;
 
@@ -211,21 +228,26 @@ public class DateraObject {
         private String createMode;
 
         @SerializedName("storage_instances")
-        private Map<String, StorageInstance> storageInstances;
+        private List<StorageInstance> storageInstances;
 
-        @SerializedName("clone_src")
-        private String cloneSrc;
+        @SerializedName("clone_volume_src")
+        private Volume cloneVolumeSrc;
+
+        @SerializedName("clone_snapshot_src")
+        private VolumeSnapshot cloneSnapshotSrc;
 
         @SerializedName("admin_state")
         private String adminState;
+
         private Boolean force;
 
 
-        public AppInstance(String name, int size, int totalBandwidthKiBps, int replicaCount) {
+        public AppInstance(String name, String description, int size, int totalBandwidthKiBps, int replicaCount) {
             this.name = name;
+            this.description = description;
             StorageInstance storageInstance = new StorageInstance(size, totalBandwidthKiBps, replicaCount);
-            this.storageInstances = new HashMap<String, StorageInstance>();
-            this.storageInstances.put(DEFAULT_STORAGE_NAME, storageInstance);
+            this.storageInstances = new ArrayList<>();
+            this.storageInstances.add(storageInstance);
             this.accessControlMode = DEFAULT_ACL;
         }
 
@@ -234,13 +256,20 @@ public class DateraObject {
             this.force = true;
         }
 
-        public AppInstance(String name, String cloneSrc) {
+        public AppInstance(String name, String description, Volume cloneSrc) {
             this.name = name;
-            this.cloneSrc = cloneSrc;
+            this.description = description;
+            this.cloneVolumeSrc = cloneSrc;
+        }
+
+        public AppInstance(String name, String description, VolumeSnapshot cloneSrc) {
+            this.name = name;
+            this.description = description;
+            this.cloneSnapshotSrc = cloneSrc;
         }
 
         public String getIqn() {
-            StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME);
+            StorageInstance storageInstance = storageInstances.get(0);
             return storageInstance.getAccess().getIqn();
         }
 
@@ -253,7 +282,7 @@ public class DateraObject {
         }*/
 
         public int getTotalBandwidthKiBps() {
-            StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME) ;
+            StorageInstance storageInstance = storageInstances.get(0) ;
             PerformancePolicy performancePolicy = storageInstance.getVolume().getPerformancePolicy();
 
             return performancePolicy == null? -1 : performancePolicy.getTotalBandwidth();
@@ -264,17 +293,17 @@ public class DateraObject {
         }
 
         public int getSize() {
-            StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME);
+            StorageInstance storageInstance = storageInstances.get(0);
             return storageInstance.getSize();
         }
 
         public String getVolumePath(){
-            StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME);
+            StorageInstance storageInstance = storageInstances.get(0);
             return storageInstance.getVolume().getPath();
         }
 
         public String getVolumeOpState(){
-            StorageInstance storageInstance = storageInstances.get(DEFAULT_STORAGE_NAME);
+            StorageInstance storageInstance = storageInstances.get(0);
             return storageInstance.getVolume().getOpState();
         }
 
@@ -308,11 +337,11 @@ public class DateraObject {
     public static class InitiatorGroup {
 
         private String name;
-        private List<String> members;
+        private List<Initiator> members;
         private String path;
         private String op;
 
-        public InitiatorGroup(String name, List<String> members) {
+        public InitiatorGroup(String name, List<Initiator> members) {
             this.name = name;
             this.members = members;
         }
@@ -330,7 +359,7 @@ public class DateraObject {
             return name;
         }
 
-        public List<String> getMembers() {
+        public List<Initiator> getMembers() {
             return members;
         }
     }
@@ -346,8 +375,11 @@ public class DateraObject {
         private String opState;
 
 
-        VolumeSnapshot(String uuid) {
-            this.uuid = uuid;
+        VolumeSnapshot() {
+        }
+
+        VolumeSnapshot(String path) {
+            this.path = path;
         }
 
         public String getTimestamp() {
