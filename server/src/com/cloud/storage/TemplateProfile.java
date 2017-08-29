@@ -16,13 +16,13 @@
 // under the License.
 package com.cloud.storage;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.Storage.TemplateType;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class TemplateProfile {
     Long userId;
@@ -51,6 +51,7 @@ public class TemplateProfile {
     Map details;
     Boolean isDynamicallyScalable;
     TemplateType templateType;
+    private long zoneId;
 
     public TemplateProfile(Long templateId, Long userId, String name, String displayText, Integer bits, Boolean passwordEnabled, Boolean requiresHvm, String url,
                            Boolean isPublic, Boolean featured, Boolean isExtractable, ImageFormat format, Long guestOsId, List<Long> zoneIdList, HypervisorType hypervisorType,
@@ -315,5 +316,9 @@ public class TemplateProfile {
 
     public void setTemplateType(TemplateType templateType) {
         this.templateType = templateType;
+    }
+
+    public long getZoneId() {
+        return zoneId;
     }
 }
