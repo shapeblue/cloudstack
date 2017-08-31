@@ -334,7 +334,7 @@ class VirtualMachine:
             self.username = services["username"]
         else:
             self.username = 'root'
-        if "password" in services:
+        if "password" not in items and "password" in services:
             self.password = services["password"]
         else:
             self.password = 'password'
