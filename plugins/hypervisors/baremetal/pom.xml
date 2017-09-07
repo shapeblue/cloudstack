@@ -53,10 +53,5 @@
             <artifactId>scribejava-apis</artifactId>
             <version>3.4.1</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.cloudstack</groupId>
-            <artifactId>cloud-plugin-hypervisor-baremetal</artifactId>
-            <version>4.10.0.0-SNAPSHOT</version>
-        </dependency>
    </dependencies>
 </project>
