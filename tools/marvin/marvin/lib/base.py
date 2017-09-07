@@ -334,10 +334,11 @@ class VirtualMachine:
             self.username = services["username"]
         else:
             self.username = 'root'
-        if "password" not in items and "password" in services:
-            self.password = services["password"]
-        else:
-            self.password = 'password'
+        if "password" not in items:
+            if "password" in services:
+                self.password = services["password"]
+            else:
+                self.password = 'password'
         if "ssh_port" in services:
             self.ssh_port = services["ssh_port"]
         else:
