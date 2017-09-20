@@ -797,7 +797,6 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
                         throw new AccountLimitException("Maximum number of public IP addresses for account: " + owner.getAccountName() + " has been exceeded.");
                     }
                 }
-
                 IPAddressVO addr = addrs.get(0);
                 addr.setSourceNat(sourceNat);
                 addr.setAllocatedTime(new Date());
@@ -815,7 +814,7 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
                 }
                 addr.setState(assign ? IpAddress.State.Allocated : IpAddress.State.Allocating);
 
-                if (vlanUse != VlanType.DirectAttached) {
+                if (assign && vlanUse != VlanType.DirectAttached) {
                     addr.setAssociatedWithNetworkId(guestNetworkId);
                     addr.setVpcId(vpcId);
                 }
@@ -1088,6 +1087,7 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
         }
     }
 
+
     @DB
     @Override
     public IpAddress allocateIp(final Account ipOwner, final boolean isSystem, Account caller, long callerUserId, final DataCenter zone, final Boolean displayIp)
@@ -1314,12 +1314,20 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
         if (zone.getNetworkType() == NetworkType.Advanced) {
             // In Advance zone allow to do IP assoc only for Isolated networks with source nat service enabled
             if (network.getGuestType() == GuestType.Isolated && !(_networkModel.areServicesSupportedInNetwork(network.getId(), Service.SourceNat))) {
+                if (releaseOnFailure && ipToAssoc != null) {
+                    s_logger.warn("Failed to associate ip address, so unassigning ip from the database " + ipToAssoc);
+                    _ipAddressDao.unassignIpAddress(ipToAssoc.getId());
+                }
                 throw new InvalidParameterValueException("In zone of type " + NetworkType.Advanced + " ip address can be associated only to the network of guest type "
                         + GuestType.Isolated + " with the " + Service.SourceNat.getName() + " enabled");
             }
 
             // In Advance zone allow to do IP assoc only for shared networks with source nat/static nat/lb/pf services enabled
             if (network.getGuestType() == GuestType.Shared && !isSharedNetworkOfferingWithServices(network.getNetworkOfferingId())) {
+                if (releaseOnFailure && ipToAssoc != null) {
+                    s_logger.warn("Failed to associate ip address, so unassigning ip from the database " + ipToAssoc);
+                    _ipAddressDao.unassignIpAddress(ipToAssoc.getId());
+                }
                 throw new InvalidParameterValueException("In zone of type " + NetworkType.Advanced + " ip address can be associated with network of guest type " + GuestType.Shared
                         + "only if at " + "least one of the services " + Service.SourceNat.getName() + "/" + Service.StaticNat.getName() + "/" + Service.Lb.getName() + "/"
                         + Service.PortForwarding.getName() + " is enabled");
@@ -1760,6 +1768,10 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
     public String acquireGuestIpAddress(Network network, String requestedIp) {
         if (requestedIp != null && requestedIp.equals(network.getGateway())) {
             s_logger.warn("Requested ip address " + requestedIp + " is used as a gateway address in network " + network);
+            return null;
+        }
+
+        if (_networkModel.listNetworkOfferingServices(network.getNetworkOfferingId()).isEmpty() && network.getCidr() == null) {
             return null;
         }
 
