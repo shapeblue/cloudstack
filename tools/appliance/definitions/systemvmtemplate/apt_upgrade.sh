@@ -20,6 +20,8 @@ set -e
 set -x
 
 function add_backports() {
+  sed -i '/cdrom/d' /etc/apt/sources.list
+  sed -i '/deb-src/d' /etc/apt/sources.list
   sed -i '/backports/d' /etc/apt/sources.list
   echo 'deb http://http.debian.net/debian wheezy-backports main' >> /etc/apt/sources.list
 }
@@ -30,6 +32,9 @@ function apt_upgrade() {
 
   add_backports
 
+  rm -fv /root/*.iso
+  apt-get -y autoremove
+  apt-get autoclean
   apt-get clean
   apt-get -q -y --force-yes update
   apt-get -q -y --force-yes upgrade
