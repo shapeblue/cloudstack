@@ -94,15 +94,26 @@ function install_packages() {
     rm -f xe-guest-utilities_6.5.0_amd64.deb
   fi
 
+  echo 'deb http://ftp.de.debian.org/debian jessie main' >> /etc/apt/sources.list
+  echo 'deb http://security.debian.org/debian-security jessie/updates main' >> /etc/apt/sources.list
+  echo 'deb http://ftp.de.debian.org/debian jessie-backports main' >> /etc/apt/sources.list
+
   # Install OpenJDK8 pkgs maintained by Azul
   apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0x219BD9C9
   echo 'deb http://repos.azulsystems.com/debian stable main' > /etc/apt/sources.list.d/zulu.list
+
   apt-get -y autoremove
   apt-get autoclean
   apt-get clean
   apt-get update
-  ${apt_get} install zulu-8
+  ${apt_get} install dnsmasq open-vm-tools qemu-guest-agent telnet uuid zulu-8
   java -version
+
+  # Install patched dnsmasq that ignores 'interface:' in configs
+  mkdir -p /opt/tftpboot
+  wget --no-check-certificate https://github.com/rhtyd/cloudstack-nonoss/raw/master/dnsmasq/dnsmasq-base_2.72-3+deb8u2_amd64.deb
+  dpkg -i dnsmasq-base_2.72-3+deb8u2_amd64.deb
+  rm -f dnsmasq-base_2.72-3+deb8u2_amd64.deb
 }
 
 return 2>/dev/null || install_packages

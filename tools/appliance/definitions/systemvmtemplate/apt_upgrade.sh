@@ -35,6 +35,7 @@ function apt_upgrade() {
   rm -fv /root/*.iso
   apt-get -y autoremove
   apt-get autoclean
+  apt-get clean
   apt-get -q -y --force-yes update
   apt-get -q -y --force-yes upgrade
 
