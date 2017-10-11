@@ -93,6 +93,10 @@ public class StoragePoolResponse extends BaseResponse {
     @Param(description = "IOPS CloudStack can provision from this storage pool")
     private Long capacityIops;
 
+    @SerializedName("allocatediops")
+    @Param(description = "total min IOPS currently allocated to volumes")
+    private Long allocatedIops;
+
     @SerializedName("tags")
     @Param(description = "the tags for the storage pool")
     private String tags;
@@ -286,6 +290,10 @@ public class StoragePoolResponse extends BaseResponse {
 
     public void setCapacityIops(Long capacityIops) {
         this.capacityIops = capacityIops;
+    }
+
+   public void setAllocatedIops(Long usedIops) {
+       this.allocatedIops = usedIops;
     }
 
     public String getTags() {
