@@ -103,7 +103,7 @@ public class StoragePoolJoinDaoImpl extends GenericDaoBase<StoragePoolJoinVO, Lo
             DataStore store = dataStoreMgr.getDataStore(pool.getId(), DataStoreRole.Primary);
             PrimaryDataStoreDriver driver = (PrimaryDataStoreDriver) store.getDriver();
             long usedIops = driver.getUsedIops(storagePool);
-            poolResponse.setUsedIops(usedIops);
+            poolResponse.setAllocatedIops(usedIops);
         }
 
         // TODO: StatsCollector does not persist data
