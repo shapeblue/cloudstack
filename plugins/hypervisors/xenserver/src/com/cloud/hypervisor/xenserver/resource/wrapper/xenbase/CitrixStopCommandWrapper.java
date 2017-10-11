@@ -141,9 +141,11 @@ public final class CitrixStopCommandWrapper extends CommandWrapper<StopCommand, 
                                 Set<VBD> vbds = vm.getVBDs(conn);
                                 for (VBD vbd : vbds) {
                                     VDI vdi = vbd.getVDI(conn);
-                                    SR sr = vdi.getSR(conn);
-                                    if (sr.getType(conn).equals(CitrixResourceBase.SRType.VDILUN.toString())) {
-                                        vdi.forget(conn);
+                                    if (!vdi.isNull()) {
+                                        SR sr = vdi.getSR(conn);
+                                        if (sr.getType(conn).equals(CitrixResourceBase.SRType.VDILUN.toString())) {
+                                            vdi.forget(conn);
+                                        }
                                     }
                                 }
                             }
