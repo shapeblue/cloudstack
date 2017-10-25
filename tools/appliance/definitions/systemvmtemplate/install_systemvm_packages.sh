@@ -82,16 +82,9 @@ function install_packages() {
   apt-get -y --force-yes upgrade
 
   if [ "${arch}" == "amd64" ]; then
-    # Hyperv  kvp daemon - 64bit only
-    # Download the hv kvp daemon
-    wget http://people.apache.org/~rajeshbattala/hv-kvp-daemon_3.1_amd64.deb
-    dpkg -i hv-kvp-daemon_3.1_amd64.deb
-    rm -f hv-kvp-daemon_3.1_amd64.deb
-    # XS tools
-    wget --no-check-certificate https://raw.githubusercontent.com/rhtyd/cloudstack-nonoss/master/xe-guest-utilities_6.5.0_amd64.deb
-    md5sum xe-guest-utilities_6.5.0_amd64.deb
-    dpkg -i xe-guest-utilities_6.5.0_amd64.deb
-    rm -f xe-guest-utilities_6.5.0_amd64.deb
+    wget http://objects-east.cloud.ca/v1/5ef827605f884961b94881e928e7a250/isos/citrix/xe-guest-utilities_7.1.0-41_amd64.deb
+    dpkg -i xe-guest-utilities_7.1.0-41_amd64.deb
+    rm -f xe-guest-utilities_7.1.0-41_amd64.deb
   fi
 
   # Install OpenJDK8 pkgs maintained by Azul
