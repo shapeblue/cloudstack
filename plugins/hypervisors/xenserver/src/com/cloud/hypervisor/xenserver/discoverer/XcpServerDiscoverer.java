@@ -529,7 +529,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
     }
 
     private void createXsToolsISO() {
-        String isoName = "xs-tools.iso";
+        String isoName = "guest-tools.iso";
         VMTemplateVO tmplt = _tmpltDao.findByTemplateName(isoName);
         Long id;
         if (tmplt == null) {
