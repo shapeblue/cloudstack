@@ -108,7 +108,7 @@ public class HAProxyConfiguratorTest {
         String result = genConfig(hpg, cmd);
         assertTrue("'send-proxy' should result if protocol is 'tcp-proxy'", result.contains("send-proxy"));
     }
-    
+
     /**
      * Test method for {@link com.cloud.network.HAProxyConfigurator#generateConfiguration(com.cloud.agent.api.routing.LoadBalancerConfigCommand)}.
      */
