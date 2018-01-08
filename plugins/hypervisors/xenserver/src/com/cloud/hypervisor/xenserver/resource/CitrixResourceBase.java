@@ -2682,9 +2682,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         String mountpoint = null;
         if (isoURL.startsWith("xs-tools")) {
             try {
-                final Set<VDI> vdis = VDI.getByNameLabel(conn, isoURL);
+                final String actualIsoURL = actualIsoTemplate(conn);
+                final Set<VDI> vdis = VDI.getByNameLabel(conn, actualIsoURL);
                 if (vdis.isEmpty()) {
-                    throw new CloudRuntimeException("Could not find ISO with URL: " + isoURL);
+                    throw new CloudRuntimeException("Could not find ISO with URL: " + actualIsoURL);
                 }
                 return vdis.iterator().next();
 
@@ -2718,6 +2719,35 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         } else {
             throw new CloudRuntimeException("Could not find ISO with URL: " + isoURL);
         }
+    }
+
+    /**
+     * Retrieves the actual name of the XenServer Tools ISO template name. The reason for this
+     * is that name of the tools iso has been changed from 'xs-tools.iso' to 'guest-tools.iso'
+     * since XenServer 7.x.x.
+     * 
+     * @param conn connection object to XenServer thorugh XenAPI
+     * 
+     * @return guest-tools.iso if the xen server version is 7.0+ otherwise xs-tools.iso
+     * 
+     * @throws BadServerResponse
+     * @throws XenAPIException
+     * @throws XmlRpcException
+     */
+    private String actualIsoTemplate(final Connection conn) throws BadServerResponse, XenAPIException, XmlRpcException {
+        final Host host = Host.getByUuid(conn, _host.getUuid());
+        final Host.Record record = host.getRecord(conn);
+        final String xenBrand = record.softwareVersion.get("product_brand");
+        final String xenVersion = record.softwareVersion.get("product_version");
+        final String[] items = xenVersion.split("\\.");
+
+        // guest-tools.iso for XenServer version 7.0+
+        if (xenBrand.equals("XenServer") && Integer.parseInt(items[0]) >= 7) {
+            return "guest-tools.iso";
+        }
+
+        // xs-tools.iso for older XenServer versions
+        return "xs-tools.iso";
     }
 
     public String getLabel() {
@@ -3978,9 +4008,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             final String templateName = iso.getName();
             if (templateName.startsWith("xs-tools")) {
                 try {
-                    final Set<VDI> vdis = VDI.getByNameLabel(conn, templateName);
+                    final String actualTemplateName = actualIsoTemplate(conn);
+                    final Set<VDI> vdis = VDI.getByNameLabel(conn, actualTemplateName);
                     if (vdis.isEmpty()) {
-                        throw new CloudRuntimeException("Could not find ISO with URL: " + templateName);
+                        throw new CloudRuntimeException("Could not find ISO with URL: " + actualTemplateName);
                     }
                     return vdis.iterator().next();
                 } catch (final XenAPIException e) {
