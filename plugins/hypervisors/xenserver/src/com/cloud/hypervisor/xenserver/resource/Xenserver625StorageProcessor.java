@@ -499,6 +499,9 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
             final String folder = destPath;
             String finalPath = null;
 
+            // make sure if secondary storage is capable of doing partial backup or not
+            fullbackup = fullbackup || !destStore.isPartialBackupCapable();
+
             final String localMountPoint = BaseMountPointOnHost + File.separator + UUID.nameUUIDFromBytes(secondaryStorageUrl.getBytes()).toString();
             if (fullbackup) {
                 SR snapshotSr = null;

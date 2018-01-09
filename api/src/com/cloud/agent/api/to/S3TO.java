@@ -240,6 +240,11 @@ public final class S3TO implements ClientOptions, DataStoreTO {
     }
 
     @Override
+    public boolean isPartialBackupCapable() {
+        return false;
+    }
+
+    @Override
     public boolean equals(final Object thatObject) {
 
         if (this == thatObject) {
