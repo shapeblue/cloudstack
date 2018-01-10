@@ -2725,11 +2725,11 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
      * Retrieves the actual name of the XenServer Tools ISO template name. The reason for this
      * is that name of the tools iso has been changed from 'xs-tools.iso' to 'guest-tools.iso'
      * since XenServer 7.x.x.
-     * 
+     *
      * @param conn connection object to XenServer thorugh XenAPI
-     * 
+     *
      * @return guest-tools.iso if the xen server version is 7.0+ otherwise xs-tools.iso
-     * 
+     *
      * @throws BadServerResponse
      * @throws XenAPIException
      * @throws XmlRpcException
