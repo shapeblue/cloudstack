@@ -24,11 +24,16 @@
 Name:      cloudstack
 Summary:   CloudStack IaaS Platform
 #http://fedoraproject.org/wiki/PackageNamingGuidelines#Pre-Release_packages
+%if "%{?_brand}" != ""
+%define _brandver %{_ver}%{_brand}
+%else
+%define _brandver %{_ver}
+%endif
 %if "%{?_prerelease}" != ""
-%define _maventag %{_ver}-SNAPSHOT
+%define _maventag %{_brandver}-SNAPSHOT
 Release:   %{_rel}%{dist}
 %else
-%define _maventag %{_ver}
+%define _maventag %{_brandver}
 Release:   %{_rel}%{dist}
 %endif
 
