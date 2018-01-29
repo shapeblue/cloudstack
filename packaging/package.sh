@@ -17,29 +17,35 @@
 # under the License.
 
 function usage() {
-    echo ""
-    echo "usage: ./package.sh [-h|--help] -d|--distribution <name> [-r|--release <version>] [-p|--pack oss|OSS|noredist|NOREDIST] [-s|--simulator default|DEFAULT|simulator|SIMULATOR]"
-    echo ""
-    echo "The supported arguments are:"
-    echo "  To package with only redistributable libraries (default)"
-    echo "    -p|--pack oss|OSS"
-    echo "  To package with non-redistributable libraries"
-    echo "    -p|--pack noredist|NOREDIST"
-    echo "  To build a package for a distribution (mandatory)"
-    echo "    -d|--distribution centos7|centos63|fedora20|fedora21"
-    echo "  To set the package release version (optional)"
-    echo "  (default is 1 for normal and prereleases, empty for SNAPSHOT)"
-    echo "    -r|--release version(integer)"
-    echo "  To build for Simulator (optional)"
-    echo "    -s|--simulator default|DEFAULT|simulator|SIMULATOR"
-    echo "  To display this information"
-    echo "    -h|--help"
-    echo ""
-    echo "Examples: ./package.sh --pack oss"
-    echo "          ./package.sh --pack noredist"
-    echo "          ./package.sh --pack oss --distribution centos7 --release 42"
-    echo "          ./package.sh --distribution centos7 --release 42"
-    echo "          ./package.sh --distribution centos7"
+	cat << USAGE
+Usage: ./package.sh -d DISTRO [OPTIONS]...
+Package CloudStack for specific distribution and provided options.
+
+If there's a "branding" string in the POM version (e.g. x.y.z.a-NAME[-SNAPSHOT]), the branding name will
+be used in the final generated pacakge like: cloudstack-management-x.y.z.a-NAME.NUMBER.el7.centos.x86_64
+
+Mandatory arguments:
+   -d, --distribution string               Build package for specified distribution ("centos7"|"centos63")
+
+Optional arguments:
+   -p, --pack string                       Define which type of libraries to package ("oss"|"OSS"|"noredist"|"NOREDIST") (default "oss")
+                                             - oss|OSS to package with only redistributable libraries 
+                                             - noredist|NOREDIST to package with non-redistributable libraries
+   -r, --release integer                   Set the package release version (default is 1 for normal and prereleases, empty for SNAPSHOT)
+   -s, --simulator string                  Build package for Simulator ("default"|"DEFAULT"|"simulator"|"SIMULATOR") (default "default")
+   
+Other arguments:
+   -h, --help                              Display this help message and exit
+   
+Examples:
+   package.sh --distribution centos7
+   package.sh --distribution centos7 --pack oss
+   package.sh --distribution centos7 --pack noredist
+   package.sh --distribution centos7 --release 42
+   package.sh --distribution centos7 --pack noredist --release 42
+
+USAGE
+	exit 0    
 }
 
 # packaging
@@ -51,6 +57,7 @@ function packaging() {
     CWD=$(pwd)
     RPMDIR=$CWD/../dist/rpmbuild
     PACK_PROJECT=cloudstack
+
     if [ -n "$1" ] ; then
         DEFOSSNOSS="-D_ossnoss $1"
     fi
@@ -59,6 +66,7 @@ function packaging() {
     fi
 
     DISTRO=$3
+
     MVN=$(which mvn)
     if [ -z "$MVN" ] ; then
         MVN=$(locate bin/mvn | grep -e mvn$ | tail -1)
@@ -67,23 +75,32 @@ function packaging() {
             exit 2
         fi
     fi
+
     VERSION=$(cd ../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
+    BASEVER=$(echo "$VERSION" | sed 's/-SNAPSHOT//g')
+    REALVER=$(echo "$BASEVER" | cut -d '-' -f 1)
+    BRAND=$(echo "$BASEVER" | cut -d '-' -f 2)
+
+    if [ "$REALVER" != "$BRAND" ]; then
+        DEFBRN="-D_brand -$BRAND"
+        BRAND="${BRAND}."
+    else
+        BRAND=""
+    fi
+
     if echo "$VERSION" | grep -q SNAPSHOT ; then
-        REALVER=$(echo "$VERSION" | cut -d '-' -f 1)
         if [ -n "$4" ] ; then
             DEFPRE="-D_prerelease $4"
-            DEFREL="-D_rel SNAPSHOT$4"
+            DEFREL="-D_rel ${BRAND}$(date +%s)$4"
         else
             DEFPRE="-D_prerelease 1"
-            DEFREL="-D_rel SNAPSHOT"
+            DEFREL="-D_rel ${BRAND}$(date +%s)"
         fi
     else
-        REALVER=$(echo "$VERSION" | cut -d '-' -f 1)
-	VERSION=$REALVER
         if [ -n "$4" ] ; then
-            DEFREL="-D_rel $4"
+            DEFREL="-D_rel ${BRAND}$4"
         else
-            DEFREL="-D_rel 1"
+            DEFREL="-D_rel ${BRAND}1"
         fi
     fi
     DEFVER="-D_ver $REALVER"
@@ -103,7 +120,7 @@ function packaging() {
     echo ". executing rpmbuild"
     cp "$DISTRO/cloud.spec" "$RPMDIR/SPECS"
 
-    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} -bb SPECS/cloud.spec)
+    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFBRN+"$DEFBRN"} -bb SPECS/cloud.spec)
     if [ $? -ne 0 ]; then
         echo "RPM Build Failed "
         exit 3
@@ -118,17 +135,13 @@ SIM=""
 PACKAGEVAL=""
 RELEASE=""
 
-SHORTOPTS="hp:s:d:r:"
-LONGOPTS="help,pack:simulator:distribution:release:"
-ARGS=$(getopt -s bash -u -a --options "$SHORTOPTS"  --longoptions "$LONGOPTS" --name "$0" -- "$@")
-eval set -- "$ARGS"
-echo "$ARGS"
-while [ $# -gt 0 ] ; do
+while [ -n "$1" ]; do
     case "$1" in
         -h | --help)
             usage
             exit 0
             ;;
+
         -p | --pack)
             echo "Packaging CloudStack..."
             PACKAGEVAL=$2
@@ -142,8 +155,9 @@ while [ $# -gt 0 ] ; do
                 usage
                 exit 1
             fi
-            shift
+            shift 2
             ;;
+
         -s | --simulator)
             SIM=$2
             echo "$SIM"
@@ -156,8 +170,9 @@ while [ $# -gt 0 ] ; do
                 usage
                 exit 1
             fi
-            shift
+            shift 2
             ;;
+
         -d | --distribution)
             TARGETDISTRO=$2
             if [ -z "$TARGETDISTRO" ] ; then
@@ -165,22 +180,20 @@ while [ $# -gt 0 ] ; do
                 usage
                 exit 1
             fi
-            shift
+            shift 2
             ;;
+
         -r | --release)
             RELEASE=$2
-            shift
+            shift 2
             ;;
-        -)
+
+        -*|*)
             echo "Error: Unrecognized option"
             usage
             exit 1
-            ;;
-        *)
-            shift
             ;;
     esac
 done
 
 packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE"
-
