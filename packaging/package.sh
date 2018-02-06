@@ -23,6 +23,7 @@ Package CloudStack for specific distribution and provided options.
 
 If there's a "branding" string in the POM version (e.g. x.y.z.a-NAME[-SNAPSHOT]), the branding name will
 be used in the final generated pacakge like: cloudstack-management-x.y.z.a-NAME.NUMBER.el7.centos.x86_64
+note that you can override/provide "branding" string with "-b, --brand" flag as well.
 
 Mandatory arguments:
    -d, --distribution string               Build package for specified distribution ("centos7"|"centos63")
@@ -33,6 +34,8 @@ Optional arguments:
                                              - noredist|NOREDIST to package with non-redistributable libraries
    -r, --release integer                   Set the package release version (default is 1 for normal and prereleases, empty for SNAPSHOT)
    -s, --simulator string                  Build package for Simulator ("default"|"DEFAULT"|"simulator"|"SIMULATOR") (default "default")
+   -b, --brand string                      Set branding to be used in package name (it will override any branding string in POM version)
+   -T, --use-timestamp                     Use epoch timestamp instead of SNAPSHOT in the package name (if not provided, use "SNAPSHOT")
    
 Other arguments:
    -h, --help                              Display this help message and exit
@@ -53,6 +56,7 @@ USAGE
 #   $2 simulator flag
 #   $3 distribution name
 #   $4 package release version
+#   $5 brand string (globally provided)
 function packaging() {
     CWD=$(pwd)
     RPMDIR=$CWD/../dist/rpmbuild
@@ -77,24 +81,30 @@ function packaging() {
     fi
 
     VERSION=$(cd ../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
-    BASEVER=$(echo "$VERSION" | sed 's/-SNAPSHOT//g')
-    REALVER=$(echo "$BASEVER" | cut -d '-' -f 1)
-    BRAND=$(echo "$BASEVER" | cut -d '-' -f 2)
 
-    if [ "$REALVER" != "$BRAND" ]; then
-        DEFBRN="-D_brand -$BRAND"
-        BRAND="${BRAND}."
+    if [ -n "$5" ]; then
+        DEFBRN="-D_brand -$5"
+        BRAND="${5}."
     else
-        BRAND=""
+        BASEVER=$(echo "$VERSION" | sed 's/-SNAPSHOT//g')
+        REALVER=$(echo "$BASEVER" | cut -d '-' -f 1)
+        BRAND=$(echo "$BASEVER" | cut -d '-' -f 2)
+
+        if [ "$REALVER" != "$BRAND" ]; then
+            DEFBRN="-D_brand -$BRAND"
+            BRAND="${BRAND}."
+        else
+            BRAND=""
+        fi
     fi
 
     if echo "$VERSION" | grep -q SNAPSHOT ; then
         if [ -n "$4" ] ; then
             DEFPRE="-D_prerelease $4"
-            DEFREL="-D_rel ${BRAND}$(date +%s)$4"
+            DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}$4"
         else
             DEFPRE="-D_prerelease 1"
-            DEFREL="-D_rel ${BRAND}$(date +%s)"
+            DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}"
         fi
     else
         if [ -n "$4" ] ; then
@@ -134,6 +144,10 @@ TARGETDISTRO=""
 SIM=""
 PACKAGEVAL=""
 RELEASE=""
+BRANDING=""
+SNAPSHOT_TIMESTAMP="SNAPSHOT"
+
+unrecognized_flags=""
 
 while [ -n "$1" ]; do
     case "$1" in
@@ -143,9 +157,7 @@ while [ -n "$1" ]; do
             ;;
 
         -p | --pack)
-            echo "Packaging CloudStack..."
             PACKAGEVAL=$2
-            echo "$PACKAGEVAL"
             if [ "$PACKAGEVAL" == "oss" -o "$PACKAGEVAL" == "OSS" ] ; then
                 PACKAGEVAL=""
             elif [ "$PACKAGEVAL" == "noredist" -o "$PACKAGEVAL" == "NOREDIST" ] ; then
@@ -160,7 +172,6 @@ while [ -n "$1" ]; do
 
         -s | --simulator)
             SIM=$2
-            echo "$SIM"
             if [ "$SIM" == "default" -o "$SIM" == "DEFAULT" ] ; then
                 SIM="false"
             elif [ "$SIM" == "simulator" -o "$SIM" == "SIMULATOR" ] ; then
@@ -188,12 +199,33 @@ while [ -n "$1" ]; do
             shift 2
             ;;
 
-        -*|*)
-            echo "Error: Unrecognized option"
-            usage
-            exit 1
+        -b | --brand)
+            BRANDING=$2
+            shift 2
+            ;;
+
+        -T | --use-timestamp)
+            SNAPSHOT_TIMESTAMP="$(date +%s)"
+            shift 1
+            ;;
+
+        -*)
+            unrecognized_flags="${unrecognized_flags}$1 "
+            shift 1
+            ;;
+
+        *)
+            shift 1
             ;;
     esac
 done
 
-packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE"
+if [ -n "$unrecognized_flags" ]; then
+    echo "Warning: Unrecognized option(s) found \" ${unrecognized_flags}\""
+    echo "         You're advised to fix your build job scripts and prevent using these"
+    echo "         flags, as in the future release(s) they will break packaging script."
+    echo ""
+fi
+
+echo "Packaging CloudStack..."
+packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE" "$BRANDING"
