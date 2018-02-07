@@ -51,6 +51,8 @@ USAGE
 	exit 0    
 }
 
+CWD=`dirname $0`
+
 # packaging
 #   $1 redist flag
 #   $2 simulator flag
@@ -58,7 +60,6 @@ USAGE
 #   $4 package release version
 #   $5 brand string (globally provided)
 function packaging() {
-    CWD=$(pwd)
     RPMDIR=$CWD/../dist/rpmbuild
     PACK_PROJECT=cloudstack
 
@@ -80,7 +81,7 @@ function packaging() {
         fi
     fi
 
-    VERSION=$(cd ../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
+    VERSION=$(cd $CWD/../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
 
     if [ -n "$5" ]; then
         DEFBRN="-D_brand -$5"
@@ -101,7 +102,7 @@ function packaging() {
     if echo "$VERSION" | grep -q SNAPSHOT ; then
         if [ -n "$4" ] ; then
             DEFPRE="-D_prerelease $4"
-            DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}$4"
+            DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}.$4"
         else
             DEFPRE="-D_prerelease 1"
             DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}"
@@ -124,11 +125,11 @@ function packaging() {
     mkdir -p "$RPMDIR/SOURCES/$PACK_PROJECT-$VERSION"
 
     echo ". preparing source tarball"
-    (cd ../; tar -c --exclude .git --exclude dist . | tar -C "$RPMDIR/SOURCES/$PACK_PROJECT-$VERSION" -x )
+    (cd $CWD/../; tar -c --exclude .git --exclude dist . | tar -C "$RPMDIR/SOURCES/$PACK_PROJECT-$VERSION" -x )
     (cd "$RPMDIR/SOURCES/"; tar -czf "$PACK_PROJECT-$VERSION.tgz" "$PACK_PROJECT-$VERSION")
 
     echo ". executing rpmbuild"
-    cp "$DISTRO/cloud.spec" "$RPMDIR/SPECS"
+    cp "$CWD/$DISTRO/cloud.spec" "$RPMDIR/SPECS"
 
     (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFBRN+"$DEFBRN"} -bb SPECS/cloud.spec)
     if [ $? -ne 0 ]; then
