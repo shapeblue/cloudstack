@@ -50,13 +50,8 @@ Usage:
 END
   exit 0
 }
-
-while [ -n "$1" ]; do
-    case "$1" in
-        -h | --help | help) usage ;;
-        *) shift 1 ;;
-    esac
-done
+echo $@ | grep help >/dev/null && usage
+echo $@ | grep '\-h' >/dev/null && usage
 
 # requires 32-bit vhd-util and faketime binaries to be available (even for 64 bit builds)
 # Something like (on centos 6.5)...
