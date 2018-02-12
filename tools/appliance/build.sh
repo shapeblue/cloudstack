@@ -52,7 +52,7 @@ END
 }
 
 for i in $@; do
-  if [ "$i" == "-h" || "$i" == "--help" || "$i" == "help" ]; then
+  if [ "$i" == "-h" -o "$i" == "--help" -o "$i" == "help" ]; then
     usage
   fi
 done
