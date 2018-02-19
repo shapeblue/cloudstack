@@ -19,59 +19,86 @@
 
 package com.cloud.maint;
 
+import java.util.regex.Pattern;
+
+import org.apache.commons.lang.StringUtils;
+
 public class Version {
+    public static void main(String[] args) {
+        System.out.println("Result is " + compare(args[0], args[1]));
+    }
+
     /**
      * Compares two version strings and see which one is higher version.
-     * @param ver1
-     * @param ver2
-     * @return positive if ver1 is higher.  negative if ver1 is lower; zero if the same.
+     *
+     * @param version1
+     * @param version2
+     *
+     * @return positive if version1 is higher.  negative if version2 is lower; zero if the same.
      */
-    public static int compare(String ver1, String ver2) {
-        String[] tokens1 = ver1.split("[.]");
-        String[] tokens2 = ver2.split("[.]");
-//        assert(tokens1.length <= tokens2.length);
+    public static int compare(String version1, String version2) {
+        String[] tokens1 = tokenize(version1);
+        String[] tokens2 = tokenize(version2);
+        int length = Math.max(tokens1.length, tokens2.length);
 
-        int compareLength = Math.min(tokens1.length, tokens2.length);
-        for (int i = 0; i < compareLength; i++) {
-            long version1 = Long.parseLong(tokens1[i]);
-            long version2 = Long.parseLong(tokens2[i]);
-            if (version1 != version2) {
-                return version1 < version2 ? -1 : 1;
+        for (int i = 0; i < length; i++) {
+            int v1Part = i < tokens1.length ? Integer.parseInt(tokens1[i]) : 0;
+            int v2Part = i < tokens2.length ? Integer.parseInt(tokens2[i]) : 0;
+
+            if (v1Part < v2Part) {
+                return -1;
             }
-        }
 
-        if (tokens1.length > tokens2.length) {
-            return 1;
-        } else if (tokens1.length < tokens2.length) {
-            return -1;
+            if (v1Part > v2Part) {
+                return 1;
+            }
         }
 
         return 0;
     }
 
     public static String trimToPatch(String version) {
-        int index = version.indexOf("-");
+        String[] tokens = tokenize(version);
 
-        if (index > 0)
-            version = version.substring(0, index);
-
-        String[] tokens = version.split("[.]");
-
-        if (tokens.length < 3)
+        if (tokens.length < 3) {
             return "0";
+        }
+
         return tokens[0] + "." + tokens[1] + "." + tokens[2];
     }
 
+    /**
+     * Trim full version from router version. Valid versions are:
+     *
+     * 1) x.y[.z[.a]
+     * 2) x.y[.z[.a]]-<brand string>
+     * 3) x.y[.z[.a]]-SNAPSHOT
+     * 4) x.y[.z[.a]]-<epoch timestamp>
+     *
+     * @param version to trim
+     *
+     * @return actual trimmed version
+     */
     public static String trimRouterVersion(String version) {
-        String[] tokens = version.split(" ");
-        if (tokens.length >= 3 && tokens[2].matches("[0-9]+(\\.[0-9]+)*")) {
+        final String[] tokens = version.split(" ");
+        final Pattern versionPattern = Pattern.compile("(\\d+\\.){2}(\\d+\\.)?\\d+(-[a-zA-Z]+)?(-\\d+)?(-SNAPSHOT)?");
+
+        if (tokens.length >= 3 && versionPattern.matcher(tokens[2]).matches()) {
             return tokens[2];
         }
+
         return "0";
     }
 
-    public static void main(String[] args) {
-        System.out.println("Result is " + compare(args[0], args[1]));
+    /**
+     * Strip in hyphen or string (branding or SNAPSHOT) from version
+     * and then return tokenized format of version (splitted by dot)
+     *
+     * @param version to tokenize
+     *
+     * @return stripped and splitted version
+     */
+    private static String[] tokenize(String version) {
+        return StringUtils.substringBefore(version, "-").split("\\.");
     }
-
 }
