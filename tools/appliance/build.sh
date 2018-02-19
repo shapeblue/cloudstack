@@ -395,7 +395,7 @@ function compact_hdd() {
   vboxmanage modifyhd "${1}" --compact
 }
 
-function stage_vmx (){
+function stage_vmx() {
   cat << VMXFILE > "${1}.vmx"
 .encoding = "UTF-8"
 displayname = "${1}"

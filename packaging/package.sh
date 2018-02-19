@@ -17,7 +17,7 @@
 # under the License.
 
 function usage() {
-	cat << USAGE
+    cat << USAGE
 Usage: ./package.sh -d DISTRO [OPTIONS]...
 Package CloudStack for specific distribution and provided options.
 
@@ -30,16 +30,16 @@ Mandatory arguments:
 
 Optional arguments:
    -p, --pack string                       Define which type of libraries to package ("oss"|"OSS"|"noredist"|"NOREDIST") (default "oss")
-                                             - oss|OSS to package with only redistributable libraries 
+                                             - oss|OSS to package with only redistributable libraries
                                              - noredist|NOREDIST to package with non-redistributable libraries
    -r, --release integer                   Set the package release version (default is 1 for normal and prereleases, empty for SNAPSHOT)
    -s, --simulator string                  Build package for Simulator ("default"|"DEFAULT"|"simulator"|"SIMULATOR") (default "default")
    -b, --brand string                      Set branding to be used in package name (it will override any branding string in POM version)
    -T, --use-timestamp                     Use epoch timestamp instead of SNAPSHOT in the package name (if not provided, use "SNAPSHOT")
-   
+
 Other arguments:
    -h, --help                              Display this help message and exit
-   
+
 Examples:
    package.sh --distribution centos7
    package.sh --distribution centos7 --pack oss
@@ -48,17 +48,19 @@ Examples:
    package.sh --distribution centos7 --pack noredist --release 42
 
 USAGE
-	exit 0    
+    exit 0
 }
 
 CWD=`dirname $0`
+NOW="$(date +%s)"
 
 # packaging
 #   $1 redist flag
 #   $2 simulator flag
 #   $3 distribution name
 #   $4 package release version
-#   $5 brand string (globally provided)
+#   $5 brand string to apply/override
+#   $6 use timestamp flag
 function packaging() {
     RPMDIR=$CWD/../dist/rpmbuild
     PACK_PROJECT=cloudstack
@@ -68,6 +70,11 @@ function packaging() {
     fi
     if [ -n "$2" ] ; then
         DEFSIM="-D_sim $2"
+    fi
+    if [ "$6" == "true" ]; then
+        INDICATOR="$NOW"
+    else
+        INDICATOR="SNAPSHOT"
     fi
 
     DISTRO=$3
@@ -82,17 +89,15 @@ function packaging() {
     fi
 
     VERSION=$(cd $CWD/../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
+    REALVER=$(echo "$VERSION" | cut -d '-' -f 1)
 
     if [ -n "$5" ]; then
-        DEFBRN="-D_brand -$5"
         BRAND="${5}."
     else
         BASEVER=$(echo "$VERSION" | sed 's/-SNAPSHOT//g')
-        REALVER=$(echo "$BASEVER" | cut -d '-' -f 1)
         BRAND=$(echo "$BASEVER" | cut -d '-' -f 2)
 
         if [ "$REALVER" != "$BRAND" ]; then
-            DEFBRN="-D_brand -$BRAND"
             BRAND="${BRAND}."
         else
             BRAND=""
@@ -101,11 +106,9 @@ function packaging() {
 
     if echo "$VERSION" | grep -q SNAPSHOT ; then
         if [ -n "$4" ] ; then
-            DEFPRE="-D_prerelease $4"
-            DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}.$4"
+            DEFREL="-D_rel ${BRAND}${INDICATOR0}.$4"
         else
-            DEFPRE="-D_prerelease 1"
-            DEFREL="-D_rel ${BRAND}${SNAPSHOT_TIMESTAMP}"
+            DEFREL="-D_rel ${BRAND}${INDICATOR}"
         fi
     else
         if [ -n "$4" ] ; then
@@ -114,6 +117,33 @@ function packaging() {
             DEFREL="-D_rel ${BRAND}1"
         fi
     fi
+
+    if [ "$USE_TIMESTAMP" == "true" ]; then
+        # use timestamp instead of SNAPSHOT
+        if echo "$VERSION" | grep -q SNAPSHOT ; then
+            # apply/override branding, if provided
+            if [ "$BRANDING" != "" ]; then
+                VERSION=$(echo "$VERSION" | cut -d '-' -f 1) # remove any existing branding from POM version to be overriden
+                VERSION="$VERSION-$BRANDING-$NOW"
+            else
+                VERSION=`echo $VERSION | sed 's/-SNAPSHOT/-'$NOW'/g'`
+            fi
+
+            branch=`git rev-parse --abbrev-ref HEAD`
+            $(cd $CWD/../; bash ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
+        fi
+    else
+        # apply/override branding, if provided
+        if [ "$BRANDING" != "" ]; then
+            VERSION=$(echo "$VERSION" | cut -d '-' -f 1) # remove any existing branding from POM version to be overriden
+            VERSION="$VERSION-$BRANDING"
+
+            branch=`git rev-parse --abbrev-ref HEAD`
+            $(cd $CWD/../; bash ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
+        fi
+    fi
+
+    DEFFULLVER="-D_fullver $VERSION"
     DEFVER="-D_ver $REALVER"
 
     echo "Preparing to package Apache CloudStack $VERSION"
@@ -131,7 +161,8 @@ function packaging() {
     echo ". executing rpmbuild"
     cp "$CWD/$DISTRO/cloud.spec" "$RPMDIR/SPECS"
 
-    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFBRN+"$DEFBRN"} -bb SPECS/cloud.spec)
+    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFFULLVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} -bb SPECS/cloud.spec)
+    git reset --hard
     if [ $? -ne 0 ]; then
         echo "RPM Build Failed "
         exit 3
@@ -146,7 +177,7 @@ SIM=""
 PACKAGEVAL=""
 RELEASE=""
 BRANDING=""
-SNAPSHOT_TIMESTAMP="SNAPSHOT"
+USE_TIMESTAMP="false"
 
 unrecognized_flags=""
 
@@ -206,7 +237,7 @@ while [ -n "$1" ]; do
             ;;
 
         -T | --use-timestamp)
-            SNAPSHOT_TIMESTAMP="$(date +%s)"
+            USE_TIMESTAMP="true"
             shift 1
             ;;
 
@@ -229,4 +260,4 @@ if [ -n "$unrecognized_flags" ]; then
 fi
 
 echo "Packaging CloudStack..."
-packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE" "$BRANDING"
+packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE" "$BRANDING" "$USE_TIMESTAMP"
