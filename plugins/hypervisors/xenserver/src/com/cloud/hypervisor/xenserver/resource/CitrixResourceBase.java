@@ -1397,12 +1397,23 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
         final String bootArgs = vmSpec.getBootArgs();
         if (bootArgs != null && bootArgs.length() > 0) {
+            // send boot args for PV instances
             String pvargs = vm.getPVArgs(conn);
             pvargs = pvargs + vmSpec.getBootArgs().replaceAll(" ", "%");
             if (s_logger.isDebugEnabled()) {
                 s_logger.debug("PV args are " + pvargs);
             }
             vm.setPVArgs(conn, pvargs);
+
+            // send boot args into xenstore-data for HVM instances
+            Map<String, String> xenstoreData = new HashMap<>();
+
+            xenstoreData.put("vm-data/cloudstack/init", bootArgs);
+            vm.setXenstoreData(conn, xenstoreData);
+
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug("HVM args are " + bootArgs);
+            }
         }
 
         if (!(guestOsTypeName.startsWith("Windows") || guestOsTypeName.startsWith("Citrix") || guestOsTypeName.startsWith("Other"))) {
