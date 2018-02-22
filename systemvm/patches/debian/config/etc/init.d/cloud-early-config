@@ -89,7 +89,14 @@ EOF
 
 hypervisor() {
   [ -d /proc/xen ] && mount -t xenfs none /proc/xen
-  [ -d /proc/xen ] && echo "xen-domU" && return 0
+  if [ -d /proc/xen ]; then
+    `dmesg | grep -q "Xen HVM"`
+    if [ $? -eq 0 ]; then  # 1=PV,0=HVM
+      echo "xen-hvm" && return 0
+    else
+      echo "xen-pv" && return 0
+    fi
+  fi
 
   local try=$([ -x /usr/sbin/virt-what ] && virt-what | tail -1)
   [ "$try" != "" ] && echo $try && return 0
@@ -100,7 +107,6 @@ hypervisor() {
   grep -q QEMU /var/log/messages && echo "kvm" && return 0
 
   echo "unknown" && return 1
-
 }
 
 get_boot_params() {
@@ -109,8 +115,15 @@ get_boot_params() {
   [ $? -ne 0 ] && log_it "Failed to detect hypervisor type, bailing out of early init" && exit 10
 
   case $hyp in
-     xen-domU|xen-hvm)
+     xen-pv)
           cat /proc/cmdline > /var/cache/cloud/cmdline
+          sed -i "s/%/ /g" /var/cache/cloud/cmdline
+          ;;
+     xen-hvm)
+          if [ ! -f /usr/sbin/xenstore-read ]; then
+            log_it "ERROR: xentools not installed, cannot found xenstore-read" && exit 5
+          fi
+          /usr/sbin/xenstore-read vm-data/cloudstack/init > /var/cache/cloud/cmdline
           sed -i "s/%/ /g" /var/cache/cloud/cmdline
           ;;
      kvm)
