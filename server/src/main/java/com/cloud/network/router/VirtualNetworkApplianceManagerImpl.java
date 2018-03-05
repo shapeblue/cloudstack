@@ -489,6 +489,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
         final UserVO user = _userDao.findById(CallContext.current().getCallingUserId());
         s_logger.debug("Stopping and starting router " + router + " as a part of router reboot");
 
+        // TODO refactor to start --> stop --> enable
         if (stop(router, false, user, caller) != null) {
             return startRouter(routerId, reprogramNetwork);
         } else {
@@ -2254,13 +2255,13 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
 
         // verify parameters
         DomainRouterVO router = _routerDao.findById(routerId);
-        //clean up the update_state feild
+        if (router == null) {
+            throw new InvalidParameterValueException("Unable to find router by id " + routerId + ".");
+        }
+        //clean up the update_state field
         if(router.getUpdateState()== VirtualRouter.UpdateState.UPDATE_FAILED){
             router.setUpdateState(null);
             _routerDao.update(router.getId(),router);
-        }
-        if (router == null) {
-            throw new InvalidParameterValueException("Unable to find router by id " + routerId + ".");
         }
         _accountMgr.checkAccess(caller, null, true, router);
 
@@ -2569,8 +2570,13 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                 ComponentContext.inject(cmd);
                 params.put("id", "" + router.getId());
                 params.put("ctxStartEventId", "1");
-                final AsyncJobVO job = new AsyncJobVO("", User.UID_SYSTEM, router.getAccountId(), RebootRouterCmd.class.getName(), ApiGsonHelper.getBuilder().create().toJson(params),
-                        router.getId(), cmd.getInstanceType() != null ? cmd.getInstanceType().toString() : null, null);
+                final AsyncJobVO job = new AsyncJobVO("",
+                        User.UID_SYSTEM, router.getAccountId(),
+                        RebootRouterCmd.class.getName(),
+                        ApiGsonHelper.getBuilder().create().toJson(params),
+                        router.getId(),
+                        cmd.getInstanceType() != null ? cmd.getInstanceType().toString() : null,
+                        null);
                 job.setDispatcher(_asyncDispatcher.getName());
                 final long jobId = _asyncMgr.submitAsyncJob(job);
                 jobIds.add(jobId);
