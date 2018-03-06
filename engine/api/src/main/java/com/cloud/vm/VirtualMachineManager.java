@@ -138,61 +138,19 @@ public interface VirtualMachineManager extends Manager {
 
     void storageMigration(String vmUuid, StoragePool storagePoolId);
 
-    /**
-     * @param vmInstance
-     * @param newServiceOffering
-     */
     void checkIfCanUpgrade(VirtualMachine vmInstance, ServiceOffering newServiceOffering);
 
-    /**
-     * @param vmId
-     * @param serviceOfferingId
-     * @return
-     */
     boolean upgradeVmDb(long vmId, long serviceOfferingId);
 
-    /**
-     * @param vm
-     * @param network
-     * @param requested TODO
-     * @return
-     * @throws ConcurrentOperationException
-     * @throws ResourceUnavailableException
-     * @throws InsufficientCapacityException
-     */
     NicProfile addVmToNetwork(VirtualMachine vm, Network network, NicProfile requested) throws ConcurrentOperationException,
         ResourceUnavailableException, InsufficientCapacityException;
 
-    /**
-     * @param vm
-     * @param nic
-     * @return
-     * @throws ResourceUnavailableException
-     * @throws ConcurrentOperationException
-     */
     boolean removeNicFromVm(VirtualMachine vm, Nic nic) throws ConcurrentOperationException, ResourceUnavailableException;
 
-    /**
-     * @param vm
-     * @param network
-     * @param broadcastUri TODO
-     * @return
-     * @throws ResourceUnavailableException
-     * @throws ConcurrentOperationException
-     */
     boolean removeVmFromNetwork(VirtualMachine vm, Network network, URI broadcastUri) throws ConcurrentOperationException, ResourceUnavailableException;
-    /**
-     * @param nic
-     * @param hypervisorType
-     * @return
-     */
+
     NicTO toNicTO(NicProfile nic, HypervisorType hypervisorType);
 
-    /**
-     * @param profile
-     * @param hvGuru
-     * @return
-     */
     VirtualMachineTO toVmTO(VirtualMachineProfile profile);
 
     boolean replugNic(Network network, NicTO nic, VirtualMachineTO vm, ReservationContext context, DeployDestination dest) throws ConcurrentOperationException,
