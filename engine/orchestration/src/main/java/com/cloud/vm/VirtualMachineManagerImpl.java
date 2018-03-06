@@ -4481,7 +4481,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 VmWorkReboot.class.getName());
 
         VmWorkJobVO workJob = null;
-        if (pendingWorkJobs != null && pendingWorkJobs.size() > 0) {
+        if (!(pendingWorkJobs == null || pendingWorkJobs.isEmpty())) {
             assert pendingWorkJobs.size() == 1;
             workJob = pendingWorkJobs.get(0);
         } else {
