@@ -375,6 +375,8 @@ public class NetworkHelperImpl implements NetworkHelper {
         assert router.getIsRedundantRouter();
         final List<Long> networkIds = _routerDao.getRouterNetworks(router.getId());
 
+        // TODO another place where redundancy is hardcoded to two (2), go fix
+        // TODO DomainRouterVO routerToBeAvoid ==> List<DomainRouterVO> routersToAvoid
         DomainRouterVO routerToBeAvoid = null;
         if (networkIds.size() != 0) {
             final List<DomainRouterVO> routerList = _routerDao.findByNetwork(networkIds.get(0));
@@ -382,9 +384,10 @@ public class NetworkHelperImpl implements NetworkHelper {
                 if (rrouter.getHostId() != null && rrouter.getIsRedundantRouter() && rrouter.getState() == State.Running) {
                     if (routerToBeAvoid != null) {
                         throw new ResourceUnavailableException("Try to start router " + router.getInstanceName() + "(" + router.getId() + ")"
-                                + ", but there are already two redundant routers with IP " + router.getPublicIpAddress() + ", they are " + rrouter.getInstanceName() + "("
-                                + rrouter.getId() + ") and " + routerToBeAvoid.getInstanceName() + "(" + routerToBeAvoid.getId() + ")", DataCenter.class,
-                                rrouter.getDataCenterId());
+                                + ", but there are already two redundant routers with IP " + router.getPublicIpAddress()
+                                + ", they are " + rrouter.getInstanceName() + "(" + rrouter.getId() + ") and "
+                                + routerToBeAvoid.getInstanceName() + "(" + routerToBeAvoid.getId() + ")",
+                                DataCenter.class, rrouter.getDataCenterId());
                     }
                     routerToBeAvoid = rrouter;
                 }

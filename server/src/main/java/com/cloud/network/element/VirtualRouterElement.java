@@ -226,11 +226,14 @@ NetworkMigrationResponder, AggregatedCommandExecutor, RedundantResource, DnsServ
 
         final List<DomainRouterVO> routers = routerDeploymentDefinition.deployVirtualRouter();
 
-        int routerCounts = 1;
+        // TODO if routerCount is 1 we need special downtime reduction algorithms else we can just kill master and
+        // upgrade and next kill new master etc.
+        int routerCount = 1;
         if (offering.getRedundantRouter()) {
-            routerCounts = 2;
+            // TODO redundancy requirements could call for 3 or more instances
+            routerCount = 2;
         }
-        if (routers == null || routers.size() < routerCounts) {
+        if (routers == null || routers.size() < routerCount) {
             //we might have a router which is already deployed and running.
             //so check the no of routers in network currently.
             List<DomainRouterVO> current_routers = _routerDao.listByNetworkAndRole(network.getId(), Role.VIRTUAL_ROUTER);
