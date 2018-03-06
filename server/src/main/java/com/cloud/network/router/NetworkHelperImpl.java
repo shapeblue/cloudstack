@@ -353,6 +353,7 @@ public class NetworkHelperImpl implements NetworkHelper {
             throws StorageUnavailableException, InsufficientCapacityException, ConcurrentOperationException, ResourceUnavailableException {
 
         if (router.getRole() != Role.VIRTUAL_ROUTER || !router.getIsRedundantRouter()) {
+            // TODO so here we are going to reduce the downtime for non-redundant routers
             return start(router, user, caller, params, null);
         }
 
