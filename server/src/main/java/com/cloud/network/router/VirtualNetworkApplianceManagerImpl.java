@@ -1009,6 +1009,8 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
 
     protected class RvRStatusUpdateTask extends ManagedContextRunnable {
 
+        private boolean shuttingDown = false;
+
         /*
          * In order to make fail-over works well at any time, we have to ensure:
          * 1. Backup router's priority = Master's priority - DELTA + 1
@@ -1093,7 +1095,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
 
         @Override
         protected void runInContext() {
-            while (true) {
+            while (! shuttingDown) {
                 try {
                     final Long networkId = _vrUpdateQueue.take(); // This is a blocking call so this thread won't run all the time if no work item in queue.
 
