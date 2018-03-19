@@ -1038,7 +1038,7 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
 
         try {
             if (isNetworkImplemented(network)) {
-                s_logger.debug("Network id=" + networkId + " is already implemented");
+                s_logger.debug("(unimplemented?) Network id=" + networkId + " is already implemented");
                 implemented.set(guru, network);
                 return implemented;
             }
@@ -1161,6 +1161,8 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
                     s_logger.debug("Asking " + element.getName() + " to implement " + network);
                 }
 
+                // TODO a reboot of non-redundant router needs extra work and not just blindly implement
+                s_logger.debug("a reboot of non-redundant router needs extra work here: " + element.getProvider().getName());
                 if (!element.implement(network, offering, dest, context)) {
                     final CloudRuntimeException ex = new CloudRuntimeException("Failed to implement provider " + element.getProvider().getName() + " for network with specified id");
                     ex.addProxyObject(network.getUuid(), "networkId");
@@ -2834,12 +2836,18 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
     InsufficientCapacityException {
 
         final NetworkVO network = _networksDao.findById(networkId);
+        boolean downtimeReductionNeeded = ! network.isRedundant();
 
         s_logger.debug("Restarting network " + networkId + "...");
+        // implement the network elements and rules again
+        final DeployDestination dest = new DeployDestination(_dcDao.findById(network.getDataCenterId()), null, null, null);
+
+        s_logger.debug("Implementing the network " + network + " elements and resources as a part of network restart");
+        final NetworkOfferingVO offering = _networkOfferingDao.findById(network.getNetworkOfferingId());
 
         final ReservationContext context = new ReservationContextImpl(null, null, callerUser, callerAccount);
 
-        if (cleanup) {
+        if (cleanup && ! downtimeReductionNeeded) {
             // shutdown the network
             s_logger.debug("Shutting down the network id=" + networkId + " as a part of network restart");
 
@@ -2851,12 +2859,6 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
         } else {
             s_logger.debug("Skip the shutting down of network id=" + networkId);
         }
-
-        // implement the network elements and rules again
-        final DeployDestination dest = new DeployDestination(_dcDao.findById(network.getDataCenterId()), null, null, null);
-
-        s_logger.debug("Implementing the network " + network + " elements and resources as a part of network restart");
-        final NetworkOfferingVO offering = _networkOfferingDao.findById(network.getNetworkOfferingId());
 
         try {
             implementNetworkElementsAndResources(dest, context, network, offering);

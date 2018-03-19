@@ -235,6 +235,17 @@ public interface NetworkOrchestrationService {
 
     NetworkProfile convertNetworkToNetworkProfile(long networkId);
 
+    /**
+     *
+     * @param networkId
+     * @param callerAccount
+     * @param callerUser
+     * @param cleanup whether or not to reimplement the router(s) from the template
+     * @return was the restart successful. if cleanup was specified the stop of the network might have failed as well.
+     * @throws ConcurrentOperationException
+     * @throws ResourceUnavailableException
+     * @throws InsufficientCapacityException
+     */
     boolean restartNetwork(Long networkId, Account callerAccount, User callerUser, boolean cleanup) throws ConcurrentOperationException, ResourceUnavailableException,
         InsufficientCapacityException;
 
