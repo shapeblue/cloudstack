@@ -21,7 +21,6 @@
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <version>${cs.commons-io.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
@@ -50,7 +49,6 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>
-      <version>${cs.httpcore.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.cloudstack</groupId>
@@ -135,6 +133,10 @@
       <groupId>org.opensaml</groupId>
       <artifactId>opensaml</artifactId>
       <version>${cs.opensaml.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.bettercloud</groupId>
+      <artifactId>vault-java-driver</artifactId>
     </dependency>
   </dependencies>
   <build>

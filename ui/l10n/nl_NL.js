@@ -2054,6 +2054,7 @@ var dictionary = {
     "message.enable.vpn.access": "VPN is momenteel uitgeschakeld voor dit IP adres. Wilt u deze inschakelen?",
     "message.enabled.vpn": "Uw VPN toegang is ingeschakeld en kan benaderd worden via het IP",
     "message.enabled.vpn.ip.sec": "Uw IPSec pre-shared key is",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Netwerk Aanbieding Inschakelen",
     "message.enabling.security.group.provider": "Inschakelen Security Group provider",
     "message.enabling.vpc.offering": "VPC aanbieding inschakelen",

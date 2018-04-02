@@ -2054,6 +2054,7 @@ var dictionary = {
     "message.enable.vpn.access": "VPN está desactivado actualmente para esta dirección IP. ¿Querría hablitar el acceso VPN?",
     "message.enabled.vpn": "Su acceso a la VPN está habilitado y se puede acceder a través de la IP",
     "message.enabled.vpn.ip.sec": "La clave pre-compartida IPSec es",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Habilitar oferta de red",
     "message.enabling.security.group.provider": "Habilitando el proveedor de Grupos de Seguridad",
     "message.enabling.vpc.offering": "Habilitando oferta VPC",

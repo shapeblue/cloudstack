@@ -42,6 +42,7 @@ public class ApiConstants {
     public static final String CERTIFICATE_FINGERPRINT = "fingerprint";
     public static final String CERTIFICATE_ID = "certid";
     public static final String PRIVATE_KEY = "privatekey";
+    public static final String CA_CERTIFICATES = "cacertificates";
     public static final String DOMAIN_SUFFIX = "domainsuffix";
     public static final String DNS_SEARCH_ORDER = "dnssearchorder";
     public static final String CHAIN_INFO = "chaininfo";
