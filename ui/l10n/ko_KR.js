@@ -2054,6 +2054,7 @@ var dictionary = {
     "message.enable.vpn.access": "현재이 IP 주소에 대한 VPN는 유효하지 않은입니다. VPN 접근를 사용 하시겠습니까?",
     "message.enabled.vpn": "현재 VPN 접근 사용 설정되어 있습니다. 다음 IP 주소 경유로 접근 할 수 있습니다.",
     "message.enabled.vpn.ip.sec": "IPSec 사전 공유 키:",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Enabling network offering",
     "message.enabling.security.group.provider": "보안 그룹 제공자를 사용 하고 있습니다.",
     "message.enabling.vpc.offering": "Enabling VPC offering",

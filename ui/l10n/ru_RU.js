@@ -2054,6 +2054,7 @@ var dictionary = {
     "message.enable.vpn.access": "VPN в данный момент отключен для этого IP адреса. Вы хотите активировать VPN?",
     "message.enabled.vpn": "Ваш VPN доступ в данный момент активирован. Доступ может быть осуществлен через IP адрес",
     "message.enabled.vpn.ip.sec": "Ваш IPSec pre-shared ключ",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Enabling network offering",
     "message.enabling.security.group.provider": "Включение поставщика групп безопасности",
     "message.enabling.vpc.offering": "Enabling VPC offering",

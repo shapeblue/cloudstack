@@ -74,7 +74,7 @@
     <cs.guava-testlib.version>18.0</cs.guava-testlib.version>
     <cs.guava.version>20.0</cs.guava.version>
     <cs.xapi.version>6.2.0-3.1</cs.xapi.version>
-    <cs.httpclient.version>4.5.2</cs.httpclient.version>
+    <cs.httpclient.version>4.5.5</cs.httpclient.version>
     <cs.httpcore.version>4.4.5</cs.httpcore.version>
     <cs.commons-httpclient.version>3.1</cs.commons-httpclient.version>
     <cs.mysql.version>5.1.34</cs.mysql.version>
@@ -473,6 +473,11 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-log4j12</artifactId>
         <version>1.7.22</version>
+      </dependency>
+      <dependency>
+        <groupId>com.bettercloud</groupId>
+        <artifactId>vault-java-driver</artifactId>
+        <version>3.1.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -924,6 +929,7 @@
               <exclude>systemvm/patches/debian/config/var/www/html/userdata/.htaccess</exclude>
               <exclude>systemvm/patches/debian/config/var/www/html/latest/.htaccess</exclude>
               <exclude>systemvm/patches/debian/vpn/etc/ipsec.d/l2tp.conf</exclude>
+              <exclude>systemvm/patches/debian/vpn/etc/ipsec.d/ikev2.conf</exclude>
               <exclude>tools/transifex/.tx/config</exclude>
               <exclude>tools/logo/apache_cloudstack.png</exclude>
               <exclude>tools/marvin/marvin/sandbox/advanced/sandbox.cfg</exclude>

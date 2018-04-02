@@ -2056,6 +2056,7 @@ var dictionary = {
     "message.enable.vpn.access": "当前已对此 IP 地址禁用了 VPN。是否要启用 VPN 访问?",
     "message.enabled.vpn": "您的远程访问 VPN 当前已启用，可以通过 IP 进行访问",
     "message.enabled.vpn.ip.sec": "您的 IPSec 预共享密钥",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "正在启用网络方案",
     "message.enabling.security.group.provider": "正在启用安全组提供程序",
     "message.enabling.vpc.offering": "正在启用 VPC 方案",
