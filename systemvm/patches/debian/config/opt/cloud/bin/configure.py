@@ -626,6 +626,11 @@ class CsVpnUser(CsDataBag):
                 elif vpn_type == "l2tp":
                     self.del_l2tp_ipsec_user(user, userconfig)
 
+        if vpn_type == "ikev2":
+            CsHelper.execute("service ipsec start")
+            CsHelper.execute("ipsec update")
+            CsHelper.execute("ipsec rereadsecrets")
+
     def add_l2tp_ipsec_user(self, user, obj):
         userfound = False
         password = obj['password']
@@ -700,8 +705,9 @@ class CsVpnUser(CsDataBag):
         file.deleteLine(userentry)
         file.commit()
 
-        establishedid = CsHelper.execute("ipsec status | grep '\[%s\]' | awk '{print $1}' | sed 's/://g'" % user)
-        CsHelper.execute("ipsec down %s" % establishedid)
+        establishedid = CsHelper.execute("ipsec statusall | grep '%s' | awk '{print $1}' | sed 's/://g'" % user)
+        if len(establishedid) > 0:
+            CsHelper.execute("ipsec down %s" % establishedid[0])
 
 
 class CsRemoteAccessVpn(CsDataBag):
@@ -714,11 +720,11 @@ class CsRemoteAccessVpn(CsDataBag):
 
         l2tpconffile="%s/l2tp.conf" % (self.VPNCONFDIR)
         if os.path.exists(l2tpconffile):
-            os.rename(l2tpconffile, l2tpconffile + "~")
+            os.rename(l2tpconffile, l2tpconffile + "-disabled")
 
         ikev2conffile="%s/ikev2.conf" % (self.VPNCONFDIR)
         if os.path.exists(ikev2conffile):
-            os.rename(ikev2conffile, ikev2conffile + "~")
+            os.rename(ikev2conffile, ikev2conffile + "-disabled")
 
         for public_ip in self.dbag:
             if public_ip == "id":
@@ -734,8 +740,8 @@ class CsRemoteAccessVpn(CsDataBag):
                     logging.debug("Remote accessvpn  data bag %s",  self.dbag)
                     self.remoteaccessvpn_iptables(public_ip, self.dbag[public_ip])
 
-                    CsHelper.execute("ipsec update")
                     CsHelper.execute("service ipsec start")
+                    CsHelper.execute("ipsec update")
                     CsHelper.execute("ipsec rereadsecrets")
 
                 elif vpnconfig["vpn_type"] == "l2tp":
@@ -752,10 +758,16 @@ class CsRemoteAccessVpn(CsDataBag):
                 #disable remote access vpn
                 logging.debug("Disabling remote access vpn .....")
                 if vpnconfig["vpn_type"] == "ikev2":
+                    if not os.path.exists(ikev2conffile):
+                        os.rename(ikev2conffile + "-disabled", ikev2conffile)
+
                     CsHelper.execute("ipsec down IKEv2-Remote")
                     CsHelper.execute("service ipsec stop")
 
                 elif vpnconfig["vpn_type"] == "l2tp":
+                    if not os.path.exists(l2tpconffile):
+                        os.rename(l2tpconffile + "-disabled", l2tpconffile)
+
                     CsHelper.execute("ipsec down L2TP-PSK")
                     CsHelper.execute("service xl2tpd stop")
 
@@ -767,7 +779,7 @@ class CsRemoteAccessVpn(CsDataBag):
         xl2tpoptionsfile='/etc/ppp/options.xl2tpd'
 
         if not os.path.exists(l2tpconffile):
-            os.rename(l2tpconffile + "~", l2tpconffile)
+            os.rename(l2tpconffile + "-disabled", l2tpconffile)
 
         file = CsFile(l2tpconffile)
         localip=obj['local_ip']
@@ -811,7 +823,7 @@ class CsRemoteAccessVpn(CsDataBag):
         serverkey=obj['server_key']
 
         if not os.path.exists(ikev2conffile):
-            os.rename(ikev2conffile + "~", ikev2conffile)
+            os.rename(ikev2conffile + "-disabled", ikev2conffile)
 
         # updating 'left' detail in ikev2-remote.conf
         file = CsFile(ikev2conffile)
