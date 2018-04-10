@@ -51,7 +51,7 @@ USAGE
     exit 0
 }
 
-CWD=`dirname $0`
+PWD=$(cd $(dirname "$0") && pwd -P)
 NOW="$(date +%s)"
 
 # packaging
@@ -62,7 +62,7 @@ NOW="$(date +%s)"
 #   $5 brand string to apply/override
 #   $6 use timestamp flag
 function packaging() {
-    RPMDIR=$CWD/../dist/rpmbuild
+    RPMDIR=$PWD/../dist/rpmbuild
     PACK_PROJECT=cloudstack
 
     if [ -n "$1" ] ; then
@@ -88,7 +88,7 @@ function packaging() {
         fi
     fi
 
-    VERSION=$(cd $CWD/../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
+    VERSION=$(cd $PWD/../; $MVN org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep --color=none '^[0-9]\.')
     REALVER=$(echo "$VERSION" | cut -d '-' -f 1)
 
     if [ -n "$5" ]; then
@@ -106,7 +106,7 @@ function packaging() {
 
     if echo "$VERSION" | grep -q SNAPSHOT ; then
         if [ -n "$4" ] ; then
-            DEFREL="-D_rel ${BRAND}${INDICATOR0}.$4"
+            DEFREL="-D_rel ${BRAND}${INDICATOR}.$4"
         else
             DEFREL="-D_rel ${BRAND}${INDICATOR}"
         fi
@@ -129,8 +129,8 @@ function packaging() {
                 VERSION=`echo $VERSION | sed 's/-SNAPSHOT/-'$NOW'/g'`
             fi
 
-            branch=`git rev-parse --abbrev-ref HEAD`
-            $(cd $CWD/../; bash ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
+            branch=$(cd $PWD/../; git rev-parse --abbrev-ref HEAD)
+            (cd $PWD/../; ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
         fi
     else
         # apply/override branding, if provided
@@ -138,8 +138,8 @@ function packaging() {
             VERSION=$(echo "$VERSION" | cut -d '-' -f 1) # remove any existing branding from POM version to be overriden
             VERSION="$VERSION-$BRANDING"
 
-            branch=`git rev-parse --abbrev-ref HEAD`
-            $(cd $CWD/../; bash ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
+            branch=$(cd $PWD/../; git rev-parse --abbrev-ref HEAD)
+            (cd $PWD/../; ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
         fi
     fi
 
@@ -155,18 +155,19 @@ function packaging() {
     mkdir -p "$RPMDIR/SOURCES/$PACK_PROJECT-$VERSION"
 
     echo ". preparing source tarball"
-    (cd $CWD/../; tar -c --exclude .git --exclude dist . | tar -C "$RPMDIR/SOURCES/$PACK_PROJECT-$VERSION" -x )
+    (cd $PWD/../; tar -c --exclude .git --exclude dist . | tar -C "$RPMDIR/SOURCES/$PACK_PROJECT-$VERSION" -x )
     (cd "$RPMDIR/SOURCES/"; tar -czf "$PACK_PROJECT-$VERSION.tgz" "$PACK_PROJECT-$VERSION")
 
     echo ". executing rpmbuild"
-    cp "$CWD/$DISTRO/cloud.spec" "$RPMDIR/SPECS"
+    cp "$PWD/$DISTRO/cloud.spec" "$RPMDIR/SPECS"
 
     (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFFULLVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} -bb SPECS/cloud.spec)
-    git reset --hard
     if [ $? -ne 0 ]; then
+        (cd $PWD/../; git reset --hard)
         echo "RPM Build Failed "
         exit 3
     else
+        (cd $PWD/../; git reset --hard)
         echo "RPM Build Done"
     fi
     exit

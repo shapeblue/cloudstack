@@ -107,7 +107,7 @@ if [ -z "$DCH" ] ; then
 fi
 
 NOW="$(date +%s)"
-PWD=`dirname $0`
+PWD=$(cd $(dirname "$0") && pwd -P)
 cd $PWD/../
 
 VERSION=$(head -n1 debian/changelog  |awk -F [\(\)] '{print $2}')
@@ -124,8 +124,8 @@ if [ "$USE_TIMESTAMP" == "true" ]; then
             VERSION=`echo $VERSION | sed 's/-SNAPSHOT/-'$NOW'/g'`
         fi
 
-        branch=`git rev-parse --abbrev-ref HEAD`
-        $(cd $PWD/../; ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
+        branch=$(cd $PWD; git rev-parse --abbrev-ref HEAD)
+        (cd $PWD; ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
     fi
 else
     # apply/override branding, if provided
@@ -133,8 +133,8 @@ else
         VERSION=$(echo "$VERSION" | cut -d '-' -f 1) # remove any existing branding from POM version to be overriden
         VERSION="$VERSION-$BRANDING"
 
-        branch=`git rev-parse --abbrev-ref HEAD`
-        $(cd $PWD/../; ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
+        branch=$(cd $PWD; git rev-parse --abbrev-ref HEAD)
+        (cd $PWD; ./tools/build/setnextversion.sh --version $VERSION --sourcedir . --branch $branch --no-commit)
     fi
 fi
 
@@ -148,4 +148,4 @@ dpkg-buildpackage -uc -us -b
 
 /bin/mv /tmp/changelog.orig debian/changelog
 
-git reset --hard
+(cd $PWD; git reset --hard)
