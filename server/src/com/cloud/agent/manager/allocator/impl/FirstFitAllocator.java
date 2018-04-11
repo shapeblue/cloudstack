@@ -25,9 +25,12 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
+
+import com.google.common.base.Strings;
+
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 
 import com.cloud.agent.manager.allocator.HostAllocator;
 import com.cloud.capacity.CapacityManager;
@@ -417,6 +420,10 @@ public class FirstFitAllocator extends AdapterBase implements HostAllocator {
         // Determine the guest OS category of the template
         String templateGuestOSCategory = getTemplateGuestOSCategory(template);
 
+        if (Strings.isNullOrEmpty(templateGuestOSCategory)) {
+            return hosts;
+        }
+
         List<Host> prioritizedHosts = new ArrayList<Host>();
         List<Host> noHvmHosts = new ArrayList<Host>();
 
@@ -537,6 +544,11 @@ public class FirstFitAllocator extends AdapterBase implements HostAllocator {
     protected String getTemplateGuestOSCategory(VMTemplateVO template) {
         long guestOSId = template.getGuestOSId();
         GuestOSVO guestOS = _guestOSDao.findById(guestOSId);
+
+        if (guestOS == null) {
+            return null;
+        }
+
         long guestOSCategoryId = guestOS.getCategoryId();
         GuestOSCategoryVO guestOSCategory = _guestOSCategoryDao.findById(guestOSCategoryId);
         return guestOSCategory.getName();
