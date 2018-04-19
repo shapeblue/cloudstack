@@ -252,8 +252,6 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
     protected Gson _gson;
     @Inject
     StorageManager storageMgr;
-    @Inject
-    ImageStoreDao imageStoreDao;
 
     private List<StoragePoolAllocator> _storagePoolAllocators;
 
