@@ -335,10 +335,12 @@ public class DateraObject {
         private String name;
         private String path;
         private String op;
+        private boolean force;
 
-        public Initiator(String name, String id) {
+        public Initiator(String name, String id, boolean force) {
             this.id = id;
             this.name = name;
+            this.force = force;
         }
 
         public Initiator(String path, DateraOperation op){
@@ -357,10 +359,12 @@ public class DateraObject {
         private List<Initiator> members;
         private String path;
         private String op;
+        private boolean force;
 
-        public InitiatorGroup(String name, List<Initiator> members) {
+        public InitiatorGroup(String name, List<Initiator> members, boolean force) {
             this.name = name;
             this.members = members;
+            this.force = force;
         }
 
         public InitiatorGroup(String path, DateraOperation op) {

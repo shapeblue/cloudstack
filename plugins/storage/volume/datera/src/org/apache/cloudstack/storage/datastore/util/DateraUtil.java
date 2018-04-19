@@ -325,11 +325,29 @@ public class DateraUtil {
         return appInstance;
     }
 
+    public static List<DateraObject.AppInstance> getInitiators(DateraObject.DateraConnection conn) throws DateraObject.DateraError {
+
+        HttpGet getInitiators = new HttpGet(generateApiUrl("initiators"));
+        String response = null;
+
+        response = executeApiRequest(conn, getInitiators);
+
+        Type responseType = new TypeToken<List<DateraObject.Initiator>>() {}.getType();
+
+        return gson.fromJson(response, responseType);
+    }
+
     public static DateraObject.Initiator createInitiator(DateraObject.DateraConnection conn, String name, String iqn) throws DateraObject.DateraError, UnsupportedEncodingException {
-
         HttpPost req = new HttpPost(generateApiUrl("initiators" ));
+        boolean force = false;
 
-        DateraObject.Initiator initiator = new DateraObject.Initiator(name, iqn);
+        //if we don't have any initiators, set the force flag to true.
+        List<DateraObject.AppInstance> initiators = getInitiators(conn);
+        if (initiators.size() == 0) {
+            force = true;
+        }
+
+        DateraObject.Initiator initiator = new DateraObject.Initiator(name, iqn, force);
         StringEntity httpEntity = new StringEntity(gson.toJson(initiator));
         req.setEntity(httpEntity);
 
@@ -360,8 +378,15 @@ public class DateraUtil {
     public static DateraObject.InitiatorGroup createInitiatorGroup(DateraObject.DateraConnection conn, String name) throws UnsupportedEncodingException, DateraObject.DateraError {
 
         HttpPost createReq = new HttpPost(generateApiUrl("initiator_groups"));
+        boolean force = false;
 
-        DateraObject.InitiatorGroup group = new DateraObject.InitiatorGroup(name, Collections.<DateraObject.Initiator>emptyList());
+        //if we don't have any initiators, set the force flag to true.
+        List<DateraObject.AppInstance> initiators = getInitiators(conn);
+        if (initiators.size() == 0) {
+            force = true;
+        }
+
+        DateraObject.InitiatorGroup group = new DateraObject.InitiatorGroup(name, Collections.<DateraObject.Initiator>emptyList(), force);
 
         StringEntity httpEntity = new StringEntity(gson.toJson(group));
         createReq.setEntity(httpEntity);
