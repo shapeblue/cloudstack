@@ -20,6 +20,7 @@ import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
+import com.cloud.agent.api.to.NfsTO;
 import com.cloud.api.ApiDBUtils;
 import com.cloud.configuration.Config;
 import com.cloud.configuration.ConfigurationManager;
@@ -2426,7 +2427,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         }
         // perform extraction
         ImageStoreEntity secStore = (ImageStoreEntity)dataStoreMgr.getImageStore(zoneId);
-        if (secStore.getRole() == DataStoreRole.ImageCache) {
+        if (!(secStore.getTO() instanceof NfsTO)) {
             secStore = (ImageStoreEntity) dataStoreMgr.getImageCacheStore(volume.getDataCenterId());
         }
 
