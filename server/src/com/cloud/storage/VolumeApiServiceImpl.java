@@ -132,6 +132,7 @@ import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeService;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeService.VolumeApiResult;
+import org.apache.cloudstack.engine.subsystem.api.storage.ZoneScope;
 import org.apache.cloudstack.framework.async.AsyncCallFuture;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
@@ -148,6 +149,8 @@ import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.DettachCommand;
 import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
+import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
+import org.apache.cloudstack.storage.datastore.db.ImageStoreVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
@@ -249,6 +252,8 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
     protected Gson _gson;
     @Inject
     StorageManager storageMgr;
+    @Inject
+    ImageStoreDao imageStoreDao;
 
     private List<StoragePoolAllocator> _storagePoolAllocators;
 
@@ -2426,6 +2431,10 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         }
         // perform extraction
         ImageStoreEntity secStore = (ImageStoreEntity)dataStoreMgr.getImageStore(zoneId);
+        if (secStore.getRole() == DataStoreRole.ImageCache) {
+            secStore = (ImageStoreEntity) dataStoreMgr.getImageCacheStore(volume.getDataCenterId());
+        }
+
         String value = _configDao.getValue(Config.CopyVolumeWait.toString());
         NumbersUtil.parseInt(value, Integer.parseInt(Config.CopyVolumeWait.getDefaultValue()));
 
