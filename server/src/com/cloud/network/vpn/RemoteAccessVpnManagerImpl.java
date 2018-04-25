@@ -101,7 +101,7 @@ import com.cloud.utils.net.NetUtils;
 public class RemoteAccessVpnManagerImpl extends ManagerBase implements RemoteAccessVpnService, Configurable {
     private final static Logger s_logger = Logger.getLogger(RemoteAccessVpnManagerImpl.class);
 
-    static final ConfigKey<String> RemoteAccessVpnType = new ConfigKey<String>("Network", String.class, RemoteAccessVpnTypeConfigKey, "ikev2", "Type of VPN (ikev2 or l2tp)", false, ConfigKey.Scope.Account);
+    static final ConfigKey<String> RemoteAccessVpnType = new ConfigKey<String>("Network", String.class, RemoteAccessVpnTypeConfigKey, "l2tp", "Type of VPN (ikev2 or l2tp)", false, ConfigKey.Scope.Account);
     static final ConfigKey<String> RemoteAccessVpnClientIpRange = new ConfigKey<String>("Network", String.class, RemoteAccessVpnClientIpRangeCK, "10.1.2.1-10.1.2.8",
         "The range of ips to be allocated to remote access vpn clients. The first ip in the range is used by the VPN server", false, ConfigKey.Scope.Account);
 
