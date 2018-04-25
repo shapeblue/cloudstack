@@ -45,6 +45,8 @@ import com.cloud.utils.net.Ip;
 public class PkiEngineVault implements PkiEngine {
     public static final int RETRY_COUNT = 2;
     public static final int RETRY_INTERVAL_MILISECONDS = 2000;
+    public static final int OPEN_CONNECTION_TIMEOUT_SECONDS = 5;
+    public static final int READ_CONNECTION_TIMEOUT_SECONDS = 5;
 
     private final String _vaultUrl;
     private final String _vaultToken;
@@ -302,7 +304,12 @@ public class PkiEngineVault implements PkiEngine {
          * @throws VaultException
          */
         public Vault build() throws VaultException {
-            final VaultConfig config = new VaultConfig().address(_vaultUrl).token(_vaultToken).build();
+            final VaultConfig config = new VaultConfig()
+                                            .address(_vaultUrl)
+                                            .token(_vaultToken)
+                                            .openTimeout(OPEN_CONNECTION_TIMEOUT_SECONDS)
+                                            .readTimeout(READ_CONNECTION_TIMEOUT_SECONDS)
+                                            .build();
 
             // Vault Token is provided, Vault object can be initialized right away
             if (!Strings.isNullOrEmpty(_vaultToken)) {
