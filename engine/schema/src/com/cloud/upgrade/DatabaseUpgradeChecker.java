@@ -44,6 +44,7 @@ import com.cloud.upgrade.dao.Upgrade30to301;
 import com.cloud.upgrade.dao.Upgrade40to41;
 import com.cloud.upgrade.dao.Upgrade4100226to4100227;
 import com.cloud.upgrade.dao.Upgrade4100227to4100228;
+import com.cloud.upgrade.dao.Upgrade4100228to4100229;
 import com.cloud.upgrade.dao.Upgrade410to420;
 import com.cloud.upgrade.dao.Upgrade420to421;
 import com.cloud.upgrade.dao.Upgrade421to430;
