@@ -4306,7 +4306,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
         final String vdiNameLabel = Volume.Type.ROOT.equals(disk.getType()) ? ("ROOT-" + vmId) : (vmName + "-DATA");
 
-        return prepareManagedStorage(conn, details, null, vdiNameLabel);
+        return prepareManagedStorage(conn, details, disk.getPath(), vdiNameLabel);
     }
 
     protected SR prepareManagedSr(final Connection conn, final Map<String, String> details) {
