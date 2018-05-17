@@ -24,7 +24,7 @@
     <name>Apache CloudStack Developer Tools - Checkstyle Configuration</name>
     <groupId>org.apache.cloudstack</groupId>
     <artifactId>checkstyle</artifactId>
-    <version>4.10.0.229-cca</version>
+    <version>4.10.0.230-cca-SNAPSHOT</version>
 
     <build>
       <plugins>
