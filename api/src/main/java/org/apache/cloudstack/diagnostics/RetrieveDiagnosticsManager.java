@@ -25,14 +25,10 @@ import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCm
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 
-import javax.naming.ConfigurationException;
-import java.util.List;
-
 public interface RetrieveDiagnosticsManager extends Manager, PluggableService {
 
     RetrieveDiagnosticsResponse getDiagnosticsFiles(RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException;
 
-    List<String> getConfiguration() throws ConfigurationException;
     String updateConfiguration(final String name, final String value);
     Configuration updateConfiguration(RetrieveDiagnosticsCmd cmd);
 

@@ -191,11 +191,6 @@ public class RetrieveDiagnosticsManagerImpl extends ManagerBase implements Retri
         return timeOut;
     }
 
-    @Override
-    public List<String> getConfiguration() throws ConfigurationException {
-        return null;
-    }
-
     public void setTimeOut(Long timeOut) {
         this.timeOut = timeOut;
     }
