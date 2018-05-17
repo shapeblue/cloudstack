@@ -16,52 +16,24 @@
 // under the License.
 package com.cloud.event;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.cloud.dc.DataCenter;
 import com.cloud.dc.Pod;
 import com.cloud.dc.StorageNetworkIpRange;
 import com.cloud.dc.Vlan;
 import com.cloud.domain.Domain;
 import com.cloud.host.Host;
-import com.cloud.network.GuestVlan;
-import com.cloud.network.IpAddress;
-import com.cloud.network.Network;
-import com.cloud.network.PhysicalNetwork;
-import com.cloud.network.PhysicalNetworkServiceProvider;
-import com.cloud.network.PhysicalNetworkTrafficType;
-import com.cloud.network.RemoteAccessVpn;
-import com.cloud.network.Site2SiteCustomerGateway;
-import com.cloud.network.Site2SiteVpnConnection;
-import com.cloud.network.Site2SiteVpnGateway;
-import com.cloud.network.as.AutoScaleCounter;
-import com.cloud.network.as.AutoScalePolicy;
-import com.cloud.network.as.AutoScaleVmGroup;
-import com.cloud.network.as.AutoScaleVmProfile;
-import com.cloud.network.as.Condition;
+import com.cloud.network.*;
+import com.cloud.network.as.*;
 import com.cloud.network.router.VirtualRouter;
-import com.cloud.network.rules.FirewallRule;
-import com.cloud.network.rules.HealthCheckPolicy;
-import com.cloud.network.rules.LoadBalancer;
-import com.cloud.network.rules.StaticNat;
-import com.cloud.network.rules.StickinessPolicy;
+import com.cloud.network.rules.*;
 import com.cloud.network.security.SecurityGroup;
-import com.cloud.network.vpc.NetworkACL;
-import com.cloud.network.vpc.NetworkACLItem;
-import com.cloud.network.vpc.PrivateGateway;
-import com.cloud.network.vpc.StaticRoute;
-import com.cloud.network.vpc.Vpc;
+import com.cloud.network.vpc.*;
 import com.cloud.offering.DiskOffering;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.offering.ServiceOffering;
 import com.cloud.projects.Project;
 import com.cloud.server.ResourceTag;
-import com.cloud.storage.GuestOS;
-import com.cloud.storage.GuestOSHypervisor;
-import com.cloud.storage.Snapshot;
-import com.cloud.storage.StoragePool;
-import com.cloud.storage.Volume;
+import com.cloud.storage.*;
 import com.cloud.storage.snapshot.SnapshotPolicy;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.user.Account;
@@ -75,6 +47,9 @@ import org.apache.cloudstack.annotation.Annotation;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.ha.HAConfig;
 import org.apache.cloudstack.usage.Usage;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class EventTypes {
 
@@ -96,6 +71,7 @@ public class EventTypes {
     public static final String EVENT_VM_MOVE = "VM.MOVE";
     public static final String EVENT_VM_RESTORE = "VM.RESTORE";
     public static final String EVENT_VM_EXPUNGE = "VM.EXPUNGE";
+    public static final String EVENT_VM_DIAGNOSTICS = "VM.DIAGNOSTICS";
 
     // Domain Router
     public static final String EVENT_ROUTER_CREATE = "ROUTER.CREATE";
@@ -266,6 +242,7 @@ public class EventTypes {
     public static final String EVENT_SSVM_STOP = "SSVM.STOP";
     public static final String EVENT_SSVM_REBOOT = "SSVM.REBOOT";
     public static final String EVENT_SSVM_HA = "SSVM.HA";
+    public static final String EVENT_SSVM_DIAGNOSTICS = "SSVM.DIAGNOSTICS";
 
     // Service Offerings
     public static final String EVENT_SERVICE_OFFERING_CREATE = "SERVICE.OFFERING.CREATE";
@@ -604,6 +581,7 @@ public class EventTypes {
         entityEventDetails.put(EVENT_VM_MOVE, VirtualMachine.class);
         entityEventDetails.put(EVENT_VM_RESTORE, VirtualMachine.class);
         entityEventDetails.put(EVENT_VM_EXPUNGE, VirtualMachine.class);
+        entityEventDetails.put(EVENT_VM_DIAGNOSTICS, VirtualMachine.class);
 
         entityEventDetails.put(EVENT_ROUTER_CREATE, VirtualRouter.class);
         entityEventDetails.put(EVENT_ROUTER_DESTROY, VirtualRouter.class);
@@ -740,6 +718,7 @@ public class EventTypes {
         entityEventDetails.put(EVENT_SSVM_STOP, VirtualMachine.class);
         entityEventDetails.put(EVENT_SSVM_REBOOT, VirtualMachine.class);
         entityEventDetails.put(EVENT_SSVM_HA, VirtualMachine.class);
+        entityEventDetails.put(EVENT_SSVM_DIAGNOSTICS, VirtualMachine.class);
 
         // Service Offerings
         entityEventDetails.put(EVENT_SERVICE_OFFERING_CREATE, ServiceOffering.class);

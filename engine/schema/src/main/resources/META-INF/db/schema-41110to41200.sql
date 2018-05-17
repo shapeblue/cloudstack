@@ -33,3 +33,11 @@ ALTER TABLE `vlan` CHANGE `description` `ip4_range` varchar(255);
 INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`, `sort_order`) values (UUID(), 2, 'moveNetworkAclItem', 'ALLOW', 100) ON DUPLICATE KEY UPDATE rule=rule;
 INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`, `sort_order`) values (UUID(), 3, 'moveNetworkAclItem', 'ALLOW', 302) ON DUPLICATE KEY UPDATE rule=rule;
 INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`, `sort_order`) values (UUID(), 4, 'moveNetworkAclItem', 'ALLOW', 260) ON DUPLICATE KEY UPDATE rule=rule;
+
+CREATE TABLE `cloud`.`diagnosticsdata` (
+  `id`   bigint unsigned NOT NULL auto_increment,
+  `role` varchar(10) NOT NULL COMMENT 'role as for system vm',
+  `class` varchar(30) NOT NULL COMMENT 'the kind of diagnostics files',
+  `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
