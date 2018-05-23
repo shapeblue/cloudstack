@@ -20,10 +20,15 @@ package org.apache.cloudstack.api.command.admin.diagnostics;
 import com.cloud.event.EventTypes;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.acl.RoleType;
-import org.apache.cloudstack.api.*;
+import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.BaseAsyncCmd;
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.api.Parameter;
+import org.apache.cloudstack.api.ApiErrorCode;
+import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsManager;
+import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -46,7 +51,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     private boolean retrieveDefaultFiles = false;
     @Inject
-    private RetrieveDiagnosticsManager retrieveDiagnosticsManager;
+    private RetrieveDiagnosticsService retrieveDiagnosticsService;
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -105,12 +110,12 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         this.retrieveDefaultFiles = retrieveDefaultFiles;
     }
 
-    public RetrieveDiagnosticsManager getRetrieveDiagnosticsManager() {
-        return retrieveDiagnosticsManager;
+    public RetrieveDiagnosticsService getRetrieveDiagnosticsService() {
+        return retrieveDiagnosticsService;
     }
 
-    public void setRetrieveDiagnosticsManager(RetrieveDiagnosticsManager retrieveDiagnosticsManager) {
-        this.retrieveDiagnosticsManager = retrieveDiagnosticsManager;
+    public void setRetrieveDiagnosticsService(RetrieveDiagnosticsService retrieveDiagnosticsService) {
+        this.retrieveDiagnosticsService = retrieveDiagnosticsService;
     }
 
     public void setId(Long id) {
@@ -253,14 +258,9 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     }
 
 
-    //Logic to retrieve the list of default diagnostic files from the database
-    //public String getDefaultListOfDiagnosticsFiles() { return null; }
-
     @Override
     public void execute() {
         if (Strings.isNullOrEmpty(getDiagnosticsType()) || Strings.isNullOrEmpty(optionalListOfFiles) ) {
-//              String defaultListOfdiagnosticsFiles = getDefaultListOfDiagnosticsFiles();
-//              List<String> listOfDefaultDiagnosticsFiles = processListOfDiagnosticsFiles(defaultListOfdiagnosticsFiles);
             retrieveDefaultFiles = true;
         }
 
@@ -268,8 +268,9 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
         RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = new RetrieveDiagnosticsResponse();
         try {
-            if (retrieveDiagnosticsManager == null)
+            if (retrieveDiagnosticsService == null)
                 throw new IOException();
+
 
         } catch (final IOException e) {
             s_logger.error("Failed to retrieve diagnostics files from ", e);
@@ -278,7 +279,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         retrieveDiagnosticsResponse.setResponseName(getCommandName());
         setResponseObject(retrieveDiagnosticsResponse);
 
-        retrieveDiagnosticsManager.updateConfiguration(this);
+        //retrieveDiagnosticsService.updateConfiguration(this);
 
 
     }
