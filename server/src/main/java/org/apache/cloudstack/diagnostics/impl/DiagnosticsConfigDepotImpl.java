@@ -17,14 +17,19 @@
 package org.apache.cloudstack.diagnostics.impl;
 
 import com.cloud.utils.Pair;
+import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.diagnostics.DiagnosticsKey;
 import org.apache.cloudstack.diagnostics.dao.RetrieveDiagnosticsDao;
-import org.apache.cloudstack.framework.config.*;
+import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.cloudstack.framework.config.ConfigDepot;
+import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
 import org.apache.cloudstack.framework.config.impl.ConfigDepotImpl;
 
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
 
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.*;
 
@@ -59,6 +64,122 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
     public DiagnosticsKey<?> getKey(String key) {
         Pair<String, DiagnosticsKey<?>> value = _allKeys.get(key);
         return value != null ? value.second() : null;
+    }
+
+    @PostConstruct
+    @Override
+    public void populateConfigurations() {
+        Date date = new Date();
+        for (Configurable configurable : _configurables) {
+            populateConfiguration(date, configurable);
+        }
+    }
+
+    protected void populateConfiguration(Date date, Configurable configurable) {
+        if (_configured.contains(configurable))
+            return;
+
+        s_logger.debug("Retrieving keys from " + configurable.getClass().getSimpleName());
+
+        for (DiagnosticsKey<?> key : configurable..getConfigKeys()) {
+            Pair<String, ConfigKey<?>> previous = _allKeys.get(key.key());
+            if (previous != null && !previous.first().equals(configurable.getConfigComponentName())) {
+                throw new CloudRuntimeException("Configurable " + configurable.getConfigComponentName() + " is adding a key that has been added before by " +
+                        previous.first() + ": " + key.toString());
+            }
+            _allKeys.put(key.key(), new Pair<String, ConfigKey<?>>(configurable.getConfigComponentName(), key));
+
+            createOrupdateConfigObject(date, configurable.getConfigComponentName(), key, null);
+
+            if ((key.scope() != null) && (key.scope() != ConfigKey.Scope.Global)) {
+                Set<ConfigKey<?>> currentConfigs = _scopeLevelConfigsMap.get(key.scope());
+                currentConfigs.add(key);
+            }
+        }
+
+        _configured.add(configurable);
+    }
+
+    private void createOrupdateConfigObject(Date date, String componentName, ConfigKey<?> key, String value) {
+        ConfigurationVO vo = _configDao.findById(key.key());
+        if (vo == null) {
+            vo = new ConfigurationVO(componentName, key);
+            vo.setUpdated(date);
+            if (value != null) {
+                vo.setValue(value);
+            }
+            _configDao.persist(vo);
+        } else {
+            if (vo.isDynamic() != key.isDynamic() || !ObjectUtils.equals(vo.getDescription(), key.description()) || !ObjectUtils.equals(vo.getDefaultValue(), key.defaultValue()) ||
+                    !ObjectUtils.equals(vo.getScope(), key.scope().toString()) ||
+                    !ObjectUtils.equals(vo.getComponent(), componentName)) {
+                vo.setDynamic(key.isDynamic());
+                vo.setDescription(key.description());
+                vo.setDefaultValue(key.defaultValue());
+                vo.setScope(key.scope().toString());
+                vo.setComponent(componentName);
+                vo.setUpdated(date);
+                _configDao.persist(vo);
+            }
+        }
+    }
+
+    @Override
+    public void populateConfiguration(Configurable configurable) {
+        populateConfiguration(new Date(), configurable);
+    }
+
+    @Override
+    public List<String> getComponentsInDepot() {
+        return new ArrayList<String>();
+    }
+
+    public ConfigurationDao global() {
+        return _configDao;
+    }
+
+    public ScopedConfigStorage findScopedConfigStorage(ConfigKey<?> config) {
+        for (ScopedConfigStorage storage : _scopedStorages) {
+            if (storage.getScope() == config.scope()) {
+                return storage;
+            }
+        }
+
+        throw new CloudRuntimeException("Unable to find config storage for this scope: " + config.scope() + " for " + config.key());
+    }
+
+    public List<ScopedConfigStorage> getScopedStorages() {
+        return _scopedStorages;
+    }
+
+    @Inject
+    public void setScopedStorages(List<ScopedConfigStorage> scopedStorages) {
+        _scopedStorages = scopedStorages;
+    }
+
+    public List<Configurable> getConfigurables() {
+        return _configurables;
+    }
+
+    @Inject
+    public void setConfigurables(List<Configurable> configurables) {
+        _configurables = configurables;
+    }
+
+    @Override
+    public Set<ConfigKey<?>> getConfigListByScope(String scope) {
+        return _scopeLevelConfigsMap.get(ConfigKey.Scope.valueOf(scope));
+    }
+
+    @Override
+    public <T> void set(ConfigKey<T> key, T value) {
+        _configDao.update(key.key(), value.toString());
+    }
+
+    @Override
+    public <T> void createOrUpdateConfigObject(String componentName, ConfigKey<T> key, String value) {
+        createOrupdateConfigObject(new Date(), componentName, key, value);
+
     }
 
 
