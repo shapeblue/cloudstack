@@ -76,6 +76,29 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     // Configuration parameters //////
 
+    public String getConfigName() {
+        return configName;
+    }
+
+    public void setConfigName(String configName) {
+        this.configName = configName;
+    }
+
+    @Parameter(name = ApiConstants.NAME, type = CommandType.STRING, description = "lists configuration by name")
+    private String configName;
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
+
+    @Parameter(name = ApiConstants.KEYWORD, type = CommandType.STRING, description = "List by keyword")
+    private String keyword;
+
+
     @Parameter(name = ApiConstants.TIMEOUT,
             type = BaseAsyncCmd.CommandType.STRING,
             required = false,

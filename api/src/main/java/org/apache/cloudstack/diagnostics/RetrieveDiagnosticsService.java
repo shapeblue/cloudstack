@@ -19,13 +19,16 @@ package org.apache.cloudstack.diagnostics;
 
 
 import com.cloud.exception.AgentUnavailableException;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
+import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.framework.config.ConfigKey;
 
 import javax.naming.ConfigurationException;
+import java.util.List;
 import java.util.Map;
 
 
@@ -52,6 +55,7 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
 
 
     boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException;
+    Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);
 
 
 }
