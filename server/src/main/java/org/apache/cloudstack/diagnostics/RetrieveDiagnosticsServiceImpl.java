@@ -263,25 +263,25 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
        final Pair<List<ConfigurationVO>, Integer> result = _configDao.searchAndCount(sc, searchFilter);
 
        final List<ConfigurationVO> configVOList = new ArrayList<ConfigurationVO>();
-           for (final ConfigurationVO param : result.first()) {
-               final ConfigurationVO configVo = _configDao.findByName(param.getName());
-               if (configVo != null) {
-                   final ConfigKey<?> key = _configDepot.get(param.getName());
-                   if (key != null) {
-                       configVo.setValue(key.valueIn((Long)id) == null ? null : key.valueIn((Long)id).toString());
-                       configVOList.add(configVo);
-                   } else {
-                       s_logger.warn("ConfigDepot could not find parameter " + param.getName());
-                   }
+       for (final ConfigurationVO param : result.first()) {
+           final ConfigurationVO configVo = _configDao.findByName(param.getName());
+           if (configVo != null) {
+               final ConfigKey<?> key = _configDepot.get(param.getName());
+               if (key != null) {
+                   configVo.setValue(key.valueIn((Long) id) == null ? null : key.valueIn((Long) id).toString());
+                   configVOList.add(configVo);
                } else {
-                   s_logger.warn("Configuration item  " + param.getName() + " not found.");
+                   s_logger.warn("ConfigDepot could not find parameter " + param.getName());
                }
+           } else {
+               s_logger.warn("Configuration item  " + param.getName() + " not found.");
            }
+       }
 
-           return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
+        return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
        //}
 
-       return new Pair<List<? extends Configuration>, Integer>(result.first(), result.second());
+       //return new Pair<List<? extends Configuration>, Integer>(result.first(), result.second());
    }
 
 
