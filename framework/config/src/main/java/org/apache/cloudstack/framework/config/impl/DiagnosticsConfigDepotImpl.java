@@ -16,12 +16,7 @@
 // under the License.
 package org.apache.cloudstack.framework.config.impl;
 
-import com.cloud.utils.Pair;
-import com.cloud.utils.exception.CloudRuntimeException;
-import org.apache.cloudstack.framework.config.Configurable;
-import org.apache.cloudstack.framework.config.ConfigDepot;
-import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
-import org.apache.cloudstack.framework.config.ScopedConfigStorage;
+import org.apache.cloudstack.framework.config.*;
 
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
@@ -36,93 +31,88 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
     private final static Logger s_logger = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
-    List<Configurable> _configurables;
-    List<ScopedConfigStorage> _scopedStorages;
-    Set<Configurable> _configured = Collections.synchronizedSet(new HashSet<Configurable>());
+    List<DiagnosticsKey<?>> _diagnosticsTypeConfigurable;
+    Set<DiagnosticsKey> _diagnosticsTypesConfigured = Collections.synchronizedSet(new HashSet<DiagnosticsKey>());
 
-    HashMap<String, Pair<String, DiagnosticsKey<?>>> _allKeys = new HashMap<String, Pair<String, DiagnosticsKey<?>>>();
-
+    Map<String, DiagnosticsKey<?>> _allKeys = new HashMap<String, DiagnosticsKey<?>>();
 
 
-    \
-
-
-
-    HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey<?>>> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey<?>>>();
+    HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey>> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey>>();
 
     public DiagnosticsConfigDepotImpl() {
         DiagnosticsKey.init(this);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VR, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.CPVM, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.SSVM, new HashSet<DiagnosticsKey<?>>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLES, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DHCPFILES, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DNS, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESremove, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESretrieve, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LOGFILES, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LB, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.PROPERTYFILES, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.USERDATA, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VPN, new HashSet<DiagnosticsKey>());
     }
 
     public DiagnosticsKey<?> getKey(String key) {
-        Pair<String, DiagnosticsKey<?>> value = _allKeys.get(key);
-        return value != null ? value.second() : null;
+        DiagnosticsKey<?> value = _allKeys.get(key);
+        return value != null ? value : null;
     }
 
     @PostConstruct
     @Override
     public void populateConfigurations() {
-        Date date = new Date();
-        for (Configurable configurable : _configurables) {
-            populateConfiguration(date, configurable);
+        for (DiagnosticsKey<?> diagnosticsClassType : _diagnosticsTypeConfigurable) {
+            populateConfiguration(diagnosticsClassType);
         }
     }
 
-    protected void populateConfiguration(Date date, Configurable configurable) {
-        if (_configured.contains(configurable))
+    protected void populateConfiguration(DiagnosticsKey<?> clazz) {
+        if (_diagnosticsTypeConfigurable.contains(clazz))
             return;
+        boolean diagnosticsTypeExists = false;
 
-        s_logger.debug("Retrieving keys from " + configurable.getClass().getSimpleName());
+        s_logger.debug("Retrieving keys from " + clazz.getClass().getSimpleName());
 
-        for (DiagnosticsKey<?> key : configurable. . ..get.get.getConfigKeys()) {
-            Pair<String, DiagnosticsKey<?>> previous = _allKeys.get(key.key());
-            if (previous != null && !previous.first().equals(configurable.getConfigComponentName())) {
-                throw new CloudRuntimeException("Configurable " + configurable.getConfigComponentName() + " is adding a key that has been added before by " +
-                        previous.first() + ": " + key.toString());
+        for (int i = 0; _diagnosticsTypeConfigurable != null; i++) {
+            DiagnosticsKey<?> previous = _allKeys.get(_diagnosticsTypeConfigurable.get(i));
+            if (previous != null && previous.key().equals(clazz.type())) {
+                diagnosticsTypeExists = true;
             }
-            _allKeys.put(key.key(), new Pair<String, DiagnosticsKey<?>>(configurable.getConfigComponentName(), key));
-
-            createOrupdateConfigObject(date, configurable.getConfigComponentName(), key, null);
-
-            if ((key.scope() != null) && (key.scope() != global())) {
-                Set<DiagnosticsKey<?>> currentConfigs = _diagnosticsTypeLevelsMap.get(key.scope());
-                currentConfigs.add(key);
+            if (!diagnosticsTypeExists) {
+                //Pair<String, DiagnosticsKey<?>> newDiagnosticsType = new Pair<String, DiagnosticsKey<?>>(clazz.key(), clazz);
+                DiagnosticsKey<String> newDiagnosticsType = new DiagnosticsKey<String>(String.class, clazz.key(), "new diagnostics type", clazz.get_detail(), clazz.get_role());//?>>(clazz.key(), clazz);
+                _allKeys.put(clazz.key(), newDiagnosticsType);
+                createOrupdateDiagnosticsObject(clazz.key(), newDiagnosticsType );
             }
+
         }
 
-        _configured.add(configurable);
+
     }
 
-    private void createOrupdateConfigObject(Date date, String componentName, DiagnosticsKey<?> key, String value) {
-        RetrieveDiagnosticsVO vo = _diagnosticsDao.findById(key.key());
+    private void createOrupdateDiagnosticsObject(String componentName,  DiagnosticsKey<?> diagnosticsType) {
+        RetrieveDiagnosticsVO vo = _diagnosticsDao.findById(diagnosticsType.key());
+        //DiagnosticsKey diagnosticsKey = new DiagnosticsKey(diagnosticsType.getClass(), diagnosticsType.key(), "new diagnostics")
         if (vo == null) {
-            vo = new RetrieveDiagnosticsVO(componentName, key);
-            vo.setUpdated(date);
-            if (value != null) {
-                vo.setValue(value);
-            }
+            vo = new RetrieveDiagnosticsVO(componentName, diagnosticsType);
+            vo.setClassName(diagnosticsType.key());
+            vo.setRole(diagnosticsType.get_role());//to be given SystemVM type
+            vo.setValue(diagnosticsType.get_detail());//to be populated
             _diagnosticsDao.persist(vo);
         } else {
-            if (vo.isDynamic() != key.isDynamic() || !ObjectUtils.equals(vo.getDescription(), key.description()) || !ObjectUtils.equals(vo.getDefaultValue(), key.defaultValue()) ||
-                    !ObjectUtils.equals(vo.getScope(), key.scope().toString()) ||
-                    !ObjectUtils.equals(vo.getComponent(), componentName)) {
-                vo.setDynamic(key.isDynamic());
-                vo.setDescription(key.description());
-                vo.setDefaultValue(key.defaultValue());
-                vo.setScope(key.scope().toString());
-                vo.setComponent(componentName);
-                vo.setUpdated(date);
-                _configDao.persist(vo);
+            if (vo.getValue() != diagnosticsType.key() || !ObjectUtils.equals(vo.getRole(), diagnosticsType.get_role()) || !ObjectUtils.equals(vo.getDefaultValue(),
+                    diagnosticsType.get_detail())) {
+                vo.setRole(diagnosticsType.value()); //to be changed
+                vo.setClassName(diagnosticsType.key());
+                vo.setValue(diagnosticsType.get_detail()); //to be changed
+                _diagnosticsDao.persist(vo);
             }
         }
     }
 
     @Override
     public void populateConfiguration(Configurable configurable) {
-        populateConfiguration(new Date(), configurable);
+
     }
 
     @Override
@@ -134,48 +124,36 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
         return _diagnosticsDao;
     }
 
-    public ScopedConfigStorage findScopedConfigStorage(ConfigKey<?> config) {
-        for (ScopedConfigStorage storage : _scopedStorages) {
-            if (storage.getScope() == config.scope()) {
-                return storage;
-            }
-        }
 
-        throw new CloudRuntimeException("Unable to find config storage for this scope: " + config.scope() + " for " + config.key());
-    }
-
-    public List<ScopedConfigStorage> getScopedStorages() {
-        return _scopedStorages;
+    public List<DiagnosticsKey<?>> getConfigurables() {
+        return _diagnosticsTypeConfigurable;
     }
 
     @Inject
-    public void setScopedStorages(List<ScopedConfigStorage> scopedStorages) {
-        _scopedStorages = scopedStorages;
-    }
-
-    public List<Configurable> getConfigurables() {
-        return _configurables;
-    }
-
-    @Inject
-    public void setConfigurables(List<Configurable> configurables) {
-        _configurables = configurables;
+    public void setConfigurables(List<DiagnosticsKey<?>> diagnosticsConfigurables) {
+        _diagnosticsTypeConfigurable = diagnosticsConfigurables;
     }
 
     @Override
     public Set<ConfigKey<?>> getConfigListByScope(String scope) {
-        return _scopeLevelConfigsMap.get(ConfigKey.Scope.valueOf(scope));
+        return null;
     }
 
     @Override
     public <T> void set(ConfigKey<T> key, T value) {
-        _configDao.update(key.key(), value.toString());
+        //_diagnosticsDao.update(key.key(), value.toString());
+
     }
 
     @Override
     public <T> void createOrUpdateConfigObject(String componentName, ConfigKey<T> key, String value) {
-        createOrupdateConfigObject(new Date(), componentName, key, value);
+        //createOrupdateConfigObject(new Date(), componentName, key, value);
 
+    }
+
+    @Override
+    public ConfigKey<?> get(String key) {
+        return null;
     }
 
 

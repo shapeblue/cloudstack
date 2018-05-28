@@ -158,13 +158,15 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Inject
     MessageBus messageBus;
 
-    DiagnosticsKey<String> RoleID = new DiagnosticsKey<String>("SSVM", String.class, "role", "SSVM",
-            "The System VM to get diagnostics files from", true);
-    DiagnosticsKey<String> ClassName = new DiagnosticsKey<String>("VR", String.class, "class",
-            "dnsmasq.conf", "The diagnostics type", true);
-    DiagnosticsKey<String> DefaultValues = new DiagnosticsKey<String>("CPVM", String.class, "value",
-            "cloud.log", "Configuration files diagnostics files", true);
-
+    DiagnosticsKey<String> IPTablesRemove = new DiagnosticsKey<String>(String.class, "IPtables.remove", "The IPtables rules to be removed", null, null);
+    DiagnosticsKey<String> IPTablesRetrieve = new DiagnosticsKey<String>(String.class, "IPTables.retrieve", "The IPTable rules to be retrieved", null, null);
+    DiagnosticsKey<String> LOGFILES = new DiagnosticsKey<String>(String.class, "LogFiles", "Logfiles to be retrieved", null, null);
+    DiagnosticsKey<String> PROPERTYFILES = new DiagnosticsKey<String>(String.class, "PropertyFiles", "Property files to be retrieved", null, null);
+    DiagnosticsKey<String> DNSFILES = new DiagnosticsKey<String>(String.class, "DnsFiles", "Dns files to be retrieved", null, null);
+    DiagnosticsKey<String> DHCPFILES = new DiagnosticsKey<String>(String.class, "DhcpFiles", "Dhcp files to be retrieved", null, null);
+    DiagnosticsKey<String> USERDATA = new DiagnosticsKey<String>(String.class, "Userdata", "User data to be retrieved", null, null);
+    DiagnosticsKey<String> LB = new DiagnosticsKey<String>(String.class, "LoadBalancing", "Load balancing files to be retrieved", null, null);
+    DiagnosticsKey<String> VPN = new DiagnosticsKey<String>(String.class, "Vpn", "Logfiles to be retrieved", null, null);
     public RetrieveDiagnosticsServiceImpl() {
     }
 
@@ -174,11 +176,17 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             s_logger.info("Initialising configuring values for retrieve diagnostics api : " + name);
         }
         _timeOut = RetrieveDiagnosticsTimeOut.value();
+        params.put(RetrieveDiagnosticsTimeOut.key(), (Long)RetrieveDiagnosticsTimeOut.value());
         _fileAge = RetrieveDiagnosticsFileAge.value();
+        params.put(RetrieveDiagnosticsFileAge.key(), (Long)RetrieveDiagnosticsFileAge.value());
         _enabledGC = enabledGCollector.value();
+        params.put(enabledGCollector.key(), (Boolean)enabledGCollector.value());
         _filePath = RetrieveDiagnosticsFilePath.value();
+        params.put(RetrieveDiagnosticsFilePath.key(), (String)RetrieveDiagnosticsFilePath.value());
         _disableThreshold = RetrieveDiagnosticsDisableThreshold.value();
+        params.put(RetrieveDiagnosticsDisableThreshold.key(), (Float)RetrieveDiagnosticsDisableThreshold.value());
         _intervalGC = RetrieveDiagnosticsInterval.value();
+        params.put(RetrieveDiagnosticsInterval.key(), (Long)RetrieveDiagnosticsInterval.value());
 
         return true;
     }
@@ -284,8 +292,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 String _intervalGC = cmd.getIntervalGC();
                 String _fileAge = cmd.getFileAge();
                 final String _filePath = cmd.getFilePath();
-                if (!_disableThreshold.isEmpty() || !_timeOut.isEmpty() || !_enableGC.isEmpty()
-                            || !_intervalGC.isEmpty() || !_fileAge.isEmpty() || !_filePath.isEmpty()) {
+                if (!_disableThreshold.isEmpty() && !_timeOut.isEmpty() && !_enableGC.isEmpty()
+                            && !_intervalGC.isEmpty() && !_fileAge.isEmpty() && !_filePath.isEmpty()) {
                     final Long _ttimeOut = NumbersUtil.parseLong(_timeOut, 3600);
                     final Float _ddisableThreshold = NumbersUtil.parseFloat(_disableThreshold, 0.95f);
                     final Long _ffileAge = NumbersUtil.parseLong(_fileAge, 86400);
@@ -323,11 +331,18 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return RetrieveDiagnosticsServiceImpl.class.getSimpleName();
     }
 
+   // @Override
+    public DiagnosticsKey<?>[] getDiagnosticsConfigKeys()
+    {
+        return new DiagnosticsKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
+    }
 
     @Override
-    public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] { RoleID, ClassName, DefaultValues };
+    public ConfigKey<?>[] getConfigKeys()
+    {
+        return null; //new ConfigKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
     }
+
 
     @Override
     public List<Class<?>> getCommands(){

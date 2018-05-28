@@ -73,7 +73,7 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
             stmt.executeUpdate();
             return true;
         } catch (Exception e) {
-            s_logger.warn("Unable to update Configuration Value", e);
+            s_logger.warn("Unable to update Diagnostics default value", e);
         }
         return false;
     }
@@ -102,8 +102,8 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
             }
             return returnValue;
         } catch (Exception e) {
-            s_logger.warn("Unable to update Configuration Value", e);
-            throw new CloudRuntimeException("Unable to initialize configuration variable: " + name);
+            s_logger.warn("Unable to update Diagnostics default value", e);
+            throw new CloudRuntimeException("Unable to initialize Diagnostics default variable: " + name);
 
         }
     }
@@ -144,5 +144,9 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
         _diagnosticsDetails = null;
 
     }
+
+
+
+
 
 }
