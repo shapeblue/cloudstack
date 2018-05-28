@@ -295,7 +295,7 @@ public class VirtualRoutingResource {
     }
 
     private Answer execute(ExecuteDiagnosisCommand cmd){
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.PING_REMOTELY, cmd.getArgs());
+        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.EXECUTE_ICMP_TOOL_REMOTELY , cmd.getArgs());
         if (!result.isSuccess()){
             return new ExecuteDiagnosisAnswer(cmd, false, "ExecuteDiagnosisCommand failed");
         }

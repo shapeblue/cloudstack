@@ -44,7 +44,6 @@ import javax.inject.Inject;
         responseHasSensitiveInfo = false,
         requestHasSensitiveInfo = false,
         responseObject = RemoteDiagnosisResponse.class,
-        entityType = VirtualMachine.class,
         authorized = RoleType.Admin)
 public class RemoteDiagnosisCmd extends BaseCmd {
 
@@ -67,7 +66,7 @@ public class RemoteDiagnosisCmd extends BaseCmd {
             description = "Destination IP address to ping",
             required = true,
             type = CommandType.STRING)
-    private String ipaddress;
+    private String destinationIpAddress;
 
     @Parameter(name = ApiConstants.DIAGNOSIS_TYPE,
             description = "The type of command to be executed inside the System VM instance, e.g. ping, tracert or arping",
@@ -80,8 +79,8 @@ public class RemoteDiagnosisCmd extends BaseCmd {
         return id;
     }
 
-    public String getIpaddress() {
-        return ipaddress;
+    public String getDestinationIpAddress() {
+        return destinationIpAddress;
     }
 
     public String getDiagnosisType() {
@@ -106,7 +105,7 @@ public class RemoteDiagnosisCmd extends BaseCmd {
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-        RemoteDiagnosisResponse diagnosisResponse = diagnosisService.pingAddress(this);
+        RemoteDiagnosisResponse diagnosisResponse = diagnosisService.executeDiagnosisToolInSsvm(this);
         diagnosisResponse.setObjectName("diagnosis");
         diagnosisResponse.setResponseName(getCommandName());
         this.setResponseObject(diagnosisResponse);

@@ -28,7 +28,7 @@ import org.apache.cloudstack.api.EntityReference;
 @EntityReference(value = VirtualMachine.class)
 public class RemoteDiagnosisResponse extends BaseResponse {
     @SerializedName("details")
-    @Param(description = "Script executing result")
+    @Param(description = "Script execution result")
     private String details;
 
     @SerializedName("success")

@@ -22,7 +22,6 @@ package org.apache.cloudstack.diagnosis;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
-import com.cloud.agent.resource.virtualnetwork.VirtualRouterDeployer;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.OperationTimedoutException;
@@ -49,35 +48,26 @@ public class RemoteDiagnosisServiceImpl extends ManagerBase implements Pluggable
     private RouterControlHelper routerControlHelper;
     @Inject
     private AgentManager agentManager;
-    @Inject
-    private VirtualRouterDeployer vrDeployer;
+
 
     @Override
-    public RemoteDiagnosisResponse pingAddress(final RemoteDiagnosisCmd cmd) throws AgentUnavailableException {
+    public RemoteDiagnosisResponse executeDiagnosisToolInSsvm(final RemoteDiagnosisCmd cmd) throws AgentUnavailableException,
+            InvalidParameterValueException {
         final Long routerId = cmd.getId();
         final DomainRouterVO router = domainRouterDao.findById(routerId);
-
         final Long hostId = router.getHostId();
 
         // Verify parameter
         if (router == null) {
+            s_logger.warn("Unable to find router by id " + routerId + ".");
             throw new InvalidParameterValueException("Unable to find router by id " + routerId + ".");
         }
 
         final ExecuteDiagnosisCommand command = new ExecuteDiagnosisCommand(routerId,
-                cmd.getIpaddress(), cmd.getDiagnosisType());
+                cmd.getDestinationIpAddress(), cmd.getDiagnosisType());
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(router.getId()));
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
 
-//        String routerAccessIP = command.getRouterAccessIp();
-//        String routerIp = command.getAccessDetail(NetworkElementCommand.ROUTER_IP);
-//
-//        final ExecutionResult result = vrDeployer.executeInVR(routerIp, VRScripts.PING_REMOTELY, command.getArgs());
-//        ExecuteDiagnosisAnswer answer = new ExecuteDiagnosisAnswer(command, result.isSuccess(), result.getDetails());
-
-
-//        Answer origAnswer = agentManager.easySend(hostId, command);
-//        ExecuteDiagnosisAnswer answer = ((ExecuteDiagnosisAnswer) origAnswer);
         Answer origAnswer;
 
         try{
