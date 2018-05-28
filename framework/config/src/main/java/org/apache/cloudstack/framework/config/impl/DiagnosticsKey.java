@@ -2,7 +2,7 @@ package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 
-public class DiagnosticsKey<T> {
+public class DiagnosticsKey {
     public static enum DiagnosticsEntryType {
         IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove
     }
@@ -10,6 +10,7 @@ public class DiagnosticsKey<T> {
     private String _role;
     private DiagnosticsEntryType _diagnosticsType;
     private String _defaultFiles;
+    private String _description;
 
     public String role() {
         return _role;
@@ -29,37 +30,22 @@ public class DiagnosticsKey<T> {
         return _defaultFiles;
     }
 
-    public DiagnosticsEntryType diagnosticsType()
+    public String diagnosticsType()
     {
-        return _diagnosticsType;
+        return _diagnosticsType.name();
+    }
+
+    public String description() {
+        return _description;
     }
 
 
-
-/*    public ConfigKey.Scope scope() {
-        return _scope;
-    }
-*/
-//    public DiagnosticsType diagnosticsType() { return _diagnosticsType; }
 
     @Override
     public String toString()
     {
-        return _role;
+        return _diagnosticsType.name();
     }
-
-    private final Class<T> _type;
-    private final String _role;
-
-
-    private final String _defaultValue;
-    private final String _description;
-    private final boolean _isDynamic;
-//    private final T _multiplier;
-    T _value = null;
-
-//    private final T _multiplier;
- //   private final String _defaultvalue = null;
 
     static DiagnosticsConfigDepotImpl s_depot = null;
 
@@ -67,14 +53,10 @@ public class DiagnosticsKey<T> {
         s_depot = depot;
     }
 
-    public DiagnosticsKey(String category, Class<T> type, String name, String defaultValue, String description, boolean isDynamic) {
-        _category = category;
-        _type = type;
-        _role = name;
-        _defaultValue = defaultValue;
+    public DiagnosticsKey(String role, DiagnosticsEntryType diagnosticstype, String description) {
+        _role = role;
+        _diagnosticsType = diagnosticstype;
         _description = description;
- //       _scope = scope;
-        _isDynamic = isDynamic;
     }
 
     @Override
@@ -86,7 +68,7 @@ public class DiagnosticsKey<T> {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof DiagnosticsKey) {
-            DiagnosticsKey<?> that = (DiagnosticsKey<?>)obj;
+            DiagnosticsKey that = (DiagnosticsKey)obj;
             return this._role.equals(that._role);
         }
         return false;
@@ -103,19 +85,19 @@ public class DiagnosticsKey<T> {
         throw new CloudRuntimeException("Comparing ConfigKey to " + obj.toString());
     }
 
-    public T value() {
-        if (_value == null) {
+    public String value() {
+        if (_defaultFiles == null) {
             RetrieveDiagnosticsVO vo = s_depot != null ? s_depot.global().findById(key()) : null;
             final String value = (vo != null && vo.getValue() != null) ? vo.getValue() : null;
-            _value = ((value == null) ? (T)null : valueOf(value));
+            _defaultFiles = (String)((value == null) ? null : valueOf(value));
         }
 
-        return _value;
+        return _defaultFiles;
     }
 
-    public T valueIn(Long id) {
+    public String valueIn(Long id) {
         if (id == null) {
-            return value();
+            return defaultFiles();
         }
 
         String value = s_depot != null ? s_depot.findScopedConfigStorage(this).getConfigValue(id, this) : null;
@@ -127,12 +109,12 @@ public class DiagnosticsKey<T> {
     }
 
     @SuppressWarnings("unchecked")
-    protected T valueOf(String value) {
-        Class<T> type = type();
+    protected String valueOf(String value) {
+        Class type = value.getClass();
         if (!type.isAssignableFrom(String.class)) {
             throw new CloudRuntimeException("Unsupported data type for config values: " + type);
         } else {
-            return (T) String.valueOf(value);
+            return  String.valueOf(value);
         }
     }
 
