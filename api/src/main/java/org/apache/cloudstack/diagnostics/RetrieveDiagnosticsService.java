@@ -49,7 +49,7 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
     ConfigKey<Long> RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
             "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
 
-    RetrieveDiagnosticsResponse getDiagnosticsFiles(RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException, ConfigurationException;
+    RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException, ConfigurationException;
 
     ConfigKey<?>[] getConfigKeys();
 

@@ -25,7 +25,6 @@ import com.cloud.dc.dao.DataCenterDetailsDao;
 import com.cloud.domain.dao.DomainDao;
 import com.cloud.domain.dao.DomainDetailsDao;
 import com.cloud.exception.AgentUnavailableException;
-import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.resource.ResourceManager;
 import com.cloud.storage.StorageManager;
@@ -45,8 +44,9 @@ import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCm
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.diagnostics.dao.RetrieveDiagnosticsDao;
-import org.apache.cloudstack.diagnostics.impl.RetrieveDiagnosticsVO;
+import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.cloudstack.framework.config.ConfigDepot;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
@@ -58,7 +58,6 @@ import org.apache.cloudstack.storage.datastore.db.ImageStoreDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.log4j.Logger;
-import org.codehaus.stax2.ri.typed.NumberUtil;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
@@ -159,27 +158,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Inject
     MessageBus messageBus;
 
-    DiagnosticsKey<Long> LOGFILES = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
-            "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Boolean> PROPERTYFILES = new ConfigKey<>("Advanced", Boolean.class, "retrieveDiagnostics.gc.enabled",
-            "true", "Garbage collection on/off switch (true|false", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<String> CONFIGURATIONFILES = new ConfigKey<String>("Advanced", String.class, "retrieveDiagnostics.filepath",
-            "/tmp", "File path to use on the management server for all temporary data. This allows CloudStack administrators to determine where best to place the files.", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Float> DHCPFILES = new ConfigKey<Float>("Advanced", Float.class, "retrieveDiagnostics.disablethreshold", "0.95",
-            "The percentage disk space cut-off before API call will fail", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Long> USERDATA = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.max.fileage", "86400",
-            "The diagnostics file age in seconds before considered for garbage collection", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Long> LB = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
-            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Long> DNS = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
-            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
-, VPN, IPTABLESretrieve, IPTABLESremove
-    DiagnosticsKey<Long> VPN = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
-            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Long> IPTABLESretrieve = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
-            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
-    DiagnosticsKey<Long> IPTABLESremove = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
-            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
+    DiagnosticsKey<String> RoleID = new DiagnosticsKey<String>("SSVM", String.class, "role", "SSVM",
+            "The System VM to get diagnostics files from", true);
+    DiagnosticsKey<String> ClassName = new DiagnosticsKey<String>("VR", String.class, "class",
+            "dnsmasq.conf", "The diagnostics type", true);
+    DiagnosticsKey<String> DefaultValues = new DiagnosticsKey<String>("CPVM", String.class, "value",
+            "cloud.log", "Configuration files diagnostics files", true);
 
     public RetrieveDiagnosticsServiceImpl() {
     }
@@ -279,14 +263,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
        }
 
         return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
-       //}
 
-       //return new Pair<List<? extends Configuration>, Integer>(result.first(), result.second());
    }
 
 
     @Override
-    public RetrieveDiagnosticsResponse getDiagnosticsFiles(RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException, ConfigurationException {
+    public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException, ConfigurationException {
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
         }
@@ -324,6 +306,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
             }
         } else {
+             
             //get list of default files from the database table for this diagnostics type
 
 
@@ -343,15 +326,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] { RetrieveDiagnosticsTimeOut, enabledGCollector, RetrieveDiagnosticsFilePath, RetrieveDiagnosticsDisableThreshold,
-                RetrieveDiagnosticsFileAge, RetrieveDiagnosticsInterval };
+        return new ConfigKey<?>[] { RoleID, ClassName, DefaultValues };
     }
-
-    public DiagnosticsKey<?>[] getDiagnosticsDataKeys() {
-        return new DiagnosticsKey<?>[] { LOGFILES, PROPERTYFILES,
-                CONFIGURATIONFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove };
-    }
-
 
     @Override
     public List<Class<?>> getCommands(){

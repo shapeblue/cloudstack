@@ -14,16 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.cloudstack.diagnostics.impl;
+package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.Pair;
 import com.cloud.utils.exception.CloudRuntimeException;
-import org.apache.cloudstack.diagnostics.DiagnosticsKey;
-import org.apache.cloudstack.diagnostics.dao.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.ConfigDepot;
 import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
-import org.apache.cloudstack.framework.config.impl.ConfigDepotImpl;
+import org.apache.cloudstack.framework.config.ScopedConfigStorage;
 
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
@@ -35,7 +33,7 @@ import java.util.*;
 
 public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin {
 
-    private final static Logger s_logger = Logger.getLogger(ConfigDepotImpl.class);
+    private final static Logger s_logger = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
     List<Configurable> _configurables;
@@ -44,21 +42,19 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
 
     HashMap<String, Pair<String, DiagnosticsKey<?>>> _allKeys = new HashMap<String, Pair<String, DiagnosticsKey<?>>>();
 
-    HashMap<DiagnosticsKey.DiagnosticsType, Set<DiagnosticsKey<?>>> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsType, Set<DiagnosticsKey<?>>>();
+
+
+    \
+
+
+
+    HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey<?>>> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey<?>>>();
 
     public DiagnosticsConfigDepotImpl() {
         DiagnosticsKey.init(this);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.CONFIGURATIONFILES, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.DHCPFILES, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.DNS, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.LOGFILES, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.PROPERTYFILES, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.LB, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.USERDATA, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.VPN, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.IPTABLESretrieve, new HashSet<DiagnosticsKey<?>>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsType.IPTABLESremove, new HashSet<DiagnosticsKey<?>>());
-
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VR, new HashSet<DiagnosticsKey<?>>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.CPVM, new HashSet<DiagnosticsKey<?>>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.SSVM, new HashSet<DiagnosticsKey<?>>());
     }
 
     public DiagnosticsKey<?> getKey(String key) {
@@ -81,7 +77,7 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
 
         s_logger.debug("Retrieving keys from " + configurable.getClass().getSimpleName());
 
-        for (DiagnosticsKey<?> key : configurable..etConfigKeys()) {
+        for (DiagnosticsKey<?> key : configurable. . ..get.get.getConfigKeys()) {
             Pair<String, DiagnosticsKey<?>> previous = _allKeys.get(key.key());
             if (previous != null && !previous.first().equals(configurable.getConfigComponentName())) {
                 throw new CloudRuntimeException("Configurable " + configurable.getConfigComponentName() + " is adding a key that has been added before by " +

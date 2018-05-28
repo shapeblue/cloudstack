@@ -22,7 +22,8 @@ import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.db.*;
 
 import com.cloud.utils.exception.CloudRuntimeException;
-import org.apache.cloudstack.diagnostics.impl.RetrieveDiagnosticsVO;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 

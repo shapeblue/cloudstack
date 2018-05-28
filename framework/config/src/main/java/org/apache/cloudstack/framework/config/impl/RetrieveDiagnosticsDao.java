@@ -1,7 +1,6 @@
-package org.apache.cloudstack.diagnostics.dao;
+package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.db.GenericDao;
-import org.apache.cloudstack.diagnostics.impl.RetrieveDiagnosticsVO;
 
 import java.util.Map;
 

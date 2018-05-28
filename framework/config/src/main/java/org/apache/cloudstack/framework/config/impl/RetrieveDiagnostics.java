@@ -1,4 +1,4 @@
-package org.apache.cloudstack.diagnostics.dao;
+package org.apache.cloudstack.framework.config.impl;
 
 public interface RetrieveDiagnostics {
 

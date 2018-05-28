@@ -15,11 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.cloudstack.diagnostics.impl;
+package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.crypt.DBEncryptionUtil;
-import org.apache.cloudstack.diagnostics.DiagnosticsKey;
-import org.apache.cloudstack.diagnostics.dao.RetrieveDiagnostics;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
