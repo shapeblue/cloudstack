@@ -52,7 +52,7 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
     }
 
     public RetrieveDiagnosticsVO(String component, DiagnosticsKey<?> key) {
-        this(key.key(), key.getClassName(), key.get_detail());
+        this(key.key(), key.getClassName(), key.getDetail());
     }
 
 /*    public RetrieveDiagnosticsVO(String roleId, String role, String className, String value) {

@@ -16,21 +16,16 @@
 // under the License.
 package org.apache.cloudstack.framework.config.impl;
 
-import org.apache.cloudstack.framework.config.*;
-
+import org.apache.cloudstack.framework.config.ConfigDepot;
+import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
 
-
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.Set;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.ArrayList;
+import java.util.*;
 
 public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin {
 
@@ -86,7 +81,7 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
             }
             if (!diagnosticsTypeExists) {
                 //Pair<String, DiagnosticsKey<?>> newDiagnosticsType = new Pair<String, DiagnosticsKey<?>>(clazz.key(), clazz);
-                DiagnosticsKey<String> newDiagnosticsType = new DiagnosticsKey<String>(String.class, clazz.key(), "new diagnostics type", clazz.get_detail(), clazz.get_role());//?>>(clazz.key(), clazz);
+                DiagnosticsKey<String> newDiagnosticsType = new DiagnosticsKey<String>(String.class, clazz.key(), "new diagnostics type", clazz.getDetail(), clazz.getRole());//?>>(clazz.key(), clazz);
                 _allKeys.put(clazz.key(), newDiagnosticsType);
                 createOrupdateDiagnosticsObject(clazz.key(), newDiagnosticsType );
             }
@@ -102,15 +97,15 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
         if (vo == null) {
             vo = new RetrieveDiagnosticsVO(componentName, diagnosticsType);
             vo.setDiagnosticsType(diagnosticsType.key());
-            vo.setRole(diagnosticsType.get_role());//to be given SystemVM type
-            vo.setValue(diagnosticsType.get_detail());//to be populated
+            vo.setRole(diagnosticsType.getRole());//to be given SystemVM type
+            vo.setValue(diagnosticsType.getDetail());//to be populated
             _diagnosticsDao.persist(vo);
         } else {
-            if (vo.getValue() != diagnosticsType.key() || !ObjectUtils.equals(vo.getRole(), diagnosticsType.get_role()) || !ObjectUtils.equals(vo.getDefaultValue(),
-                    diagnosticsType.get_detail())) {
+            if (vo.getValue() != diagnosticsType.key() || !ObjectUtils.equals(vo.getRole(), diagnosticsType.getRole()) || !ObjectUtils.equals(vo.getDefaultValue(),
+                    diagnosticsType.getDetail())) {
                 vo.setRole(diagnosticsType.value()); //to be changed
                 vo.setDiagnosticsType(diagnosticsType.key());
-                vo.setValue(diagnosticsType.get_detail()); //to be changed
+                vo.setValue(diagnosticsType.getDetail()); //to be changed
                 _diagnosticsDao.persist(vo);
             }
         }

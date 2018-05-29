@@ -25,10 +25,10 @@ public class DiagnosticsKey<T> {
         IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove
     }
 
-    private String _name;
-    private final Class<T> _type;
-    private String _description;
-    private String _detail;
+    private String name;
+    private final Class<T> type;
+    private String description;
+    private String detail;
 
     public String getClassName() {
         return className;
@@ -40,36 +40,36 @@ public class DiagnosticsKey<T> {
 
     private String className;
 
-    public String get_detail() {
-        return _detail;
+    public String getDetail() {
+        return detail;
     }
 
-    public void set_detail(String detail) {
-        this._detail = _detail;
+    public void setDetail(String detail) {
+        this.detail = detail;
     }
 
-    public String get_role() {
-        return _role;
+    public String getRole() {
+        return role;
     }
 
-    public void set_role(String role) {
-        this._role = _role;
+    public void setRole(String role) {
+        this.role = role;
     }
 
-    private String _role;
-    T _value = null;
+    private String role;
+    T value = null;
 
     public Class<T> type() {
-        return _type;
+        return type;
     }
 
     public final String key() {
-        return _name;
+        return name;
     }
 
 
     public String description() {
-        return _description;
+        return description;
     }
 
 
@@ -77,7 +77,7 @@ public class DiagnosticsKey<T> {
     @Override
     public String toString()
     {
-        return _name;
+        return name;
     }
 
     static DiagnosticsConfigDepotImpl s_depot = null;
@@ -91,24 +91,24 @@ public class DiagnosticsKey<T> {
     }*/
 
     public DiagnosticsKey(Class<T> type, String name, String description, String detail, String role) {
-        _type = type;
-        _name = name;
-        _description = description;
-        _detail = detail;
-        _role = role;
+        this.type = type;
+        this.name = name;
+        this.description = description;
+        this.detail = detail;
+        this.role = role;
     }
 
     @Override
     public int hashCode()
     {
-        return _name.hashCode();
+        return name.hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof DiagnosticsKey) {
             DiagnosticsKey that = (DiagnosticsKey)obj;
-            return this._name.equals(that._name);
+            return this.name.equals(that.name);
         }
         return false;
     }
@@ -118,20 +118,20 @@ public class DiagnosticsKey<T> {
             return true;
         } else if (obj instanceof String) {
             String key = (String)obj;
-            return key.equals(_name);
+            return key.equals(name);
         }
 
         throw new CloudRuntimeException("Comparing Diagnostics key to " + obj.toString());
     }
 
     public String value() {
-        if (_name == null) {
+        if (name == null) {
             RetrieveDiagnosticsVO vo = s_depot != null ? s_depot.global().findById(key()) : null;
             final String value = (vo != null && vo.getValue() != null) ? vo.getValue() : null;
-            _name = (String)((value == null) ? null : valueOf(value));
+            name = (String)((value == null) ? null : valueOf(value));
         }
 
-        return _name;
+        return name;
     }
 
     public String valueIn(Long id) {
