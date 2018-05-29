@@ -19,6 +19,7 @@ package org.apache.cloudstack.diagnostics;
 
 
 import com.cloud.exception.AgentUnavailableException;
+import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
@@ -49,7 +50,7 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
     ConfigKey<Long> RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
             "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
 
-    RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException, ConfigurationException;
+    RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws InvalidParameterValueException, ConfigurationException;
 
     ConfigKey<?>[] getConfigKeys();
 

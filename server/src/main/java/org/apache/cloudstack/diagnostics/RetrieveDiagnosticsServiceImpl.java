@@ -24,7 +24,7 @@ import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.dc.dao.DataCenterDetailsDao;
 import com.cloud.domain.dao.DomainDao;
 import com.cloud.domain.dao.DomainDetailsDao;
-import com.cloud.exception.AgentUnavailableException;
+import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.host.dao.HostDao;
 import com.cloud.resource.ResourceManager;
 import com.cloud.storage.StorageManager;
@@ -61,7 +61,10 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
 
@@ -276,34 +279,55 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
 
     @Override
-    public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws AgentUnavailableException, ConfigurationException {
+    public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws InvalidParameterValueException, ConfigurationException {
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
         }
         boolean enableGCollector = false;
+        Long hostId = null;
+        String diagnosticsType = null;
+        String fileDetails = null;
         if (_configParams == null) {
             _configParams = new HashMap<>();
         }
         if (configure(getConfigComponentName(), _configParams)) {
             if (cmd != null) {
-                String _timeOut = cmd.getTimeOut();
-                String _disableThreshold = cmd.getDisableThreshold();
-                String _enableGC = cmd.getEnabledGC();
-                String _intervalGC = cmd.getIntervalGC();
-                String _fileAge = cmd.getFileAge();
-                final String _filePath = cmd.getFilePath();
-                if (!_disableThreshold.isEmpty() && !_timeOut.isEmpty() && !_enableGC.isEmpty()
-                            && !_intervalGC.isEmpty() && !_fileAge.isEmpty() && !_filePath.isEmpty()) {
-                    final Long _ttimeOut = NumbersUtil.parseLong(_timeOut, 3600);
-                    final Float _ddisableThreshold = NumbersUtil.parseFloat(_disableThreshold, 0.95f);
-                    final Long _ffileAge = NumbersUtil.parseLong(_fileAge, 86400);
-                    final Long _iintervalGC = NumbersUtil.parseLong(_intervalGC, 86400);
-
-                    if ("true".equalsIgnoreCase(_enableGC)) {
-                        enableGCollector = true;
-                    }
+                if (!cmd.getDisableThreshold().isEmpty() ) {
+                    RetrieveDiagnosticsDisableThreshold = new ConfigKey<Float>("Advanced", Float.class, "", cmd.getDiagnosticsType(), "", true);
 
                 }
+                if (!cmd.getTimeOut().isEmpty() ) {
+                    RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "", cmd.getTimeOut(), "", true  );
+                }
+                if (!cmd.getEnabledGC().isEmpty() ) {
+                    enabledGCollector = new ConfigKey<Boolean>("Advanced", Boolean.class, "", cmd.getEnabledGC(), "", true);
+                }
+                if (!cmd.getIntervalGC().isEmpty() ) {
+                    RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "", cmd.getIntervalGC(), "", true);
+                }
+                if (!cmd.getFileAge().isEmpty()) {
+                    RetrieveDiagnosticsFileAge = new ConfigKey<Long>("Advanced", Long.class, "", cmd.getFileAge(), "", true);
+                }
+                if (!cmd.getFilePath().isEmpty()) {
+                    RetrieveDiagnosticsFilePath = new ConfigKey<String>("Advanced", String.class, "", cmd.getFilePath(), "", true);
+                }
+                hostId = cmd.getId();
+                diagnosticsType = cmd.getDiagnosticsType();
+                if (hostId != null && diagnosticsType != null) {
+
+
+                } else {
+                    throw new InvalidParameterValueException("Invalid parameters");
+                    System.exit(-1);
+
+                }
+                fileDetails = cmd.getOptionalListOfFiles();
+                if (fileDetails != null) {
+
+                } else {
+                    //retrieve default files from db
+                }
+
             }
 
         }
