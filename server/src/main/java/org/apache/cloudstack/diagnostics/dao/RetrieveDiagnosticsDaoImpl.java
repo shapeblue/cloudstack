@@ -19,7 +19,11 @@ package org.apache.cloudstack.diagnostics.dao;
 
 import com.cloud.utils.component.ComponentLifecycle;
 import com.cloud.utils.crypt.DBEncryptionUtil;
-import com.cloud.utils.db.*;
+import com.cloud.utils.db.GenericDaoBase;
+import com.cloud.utils.db.SearchBuilder;
+import com.cloud.utils.db.SearchCriteria;
+import com.cloud.utils.db.TransactionLegacy;
+import com.cloud.utils.db.DB;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;

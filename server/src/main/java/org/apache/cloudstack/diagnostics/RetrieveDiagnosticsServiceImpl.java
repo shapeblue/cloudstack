@@ -70,19 +70,19 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     private static final Logger s_logger = Logger.getLogger(RetrieveDiagnosticsServiceImpl.class);
 
-    private String _instance;
-    private int _mgmtPort = 8250;
+    private String instance;
+    private int mgmtPort = 8250;
     private boolean editConfiguration = false;
 
-    public Map<String, Object> get_configParams() {
-        return _configParams;
+    public Map<String, Object> getConfigParams() {
+        return configParams;
     }
 
-    public void set_configParams(Map<String, Object> _configParams) {
-        this._configParams = _configParams;
+    public void setConfigParams(Map<String, Object> configParams) {
+        this.configParams = configParams;
     }
 
-    protected Map<String, Object> _configParams = new HashMap<String, Object>();
+    protected Map<String, Object> configParams = new HashMap<String, Object>();
 
     private Long _timeOut;
     private Boolean _enabledGC;
@@ -228,15 +228,15 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
    public Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd) {
        final Long zoneId = _accountMgr.checkAccessAndSpecifyAuthority(CallContext.current().getCallingAccount(), cmd.getId());
        Boolean _enabledGCollector = false;
-       final Long _timeOut = NumbersUtil.parseLong(cmd.getTimeOut(), 3600);
-       final Float _disableThreshold = NumbersUtil.parseFloat(cmd.getDisableThreshold(), 0.95f);
+       final Long timeOut = NumbersUtil.parseLong(cmd.getTimeOut(), 3600);
+       final Float disableThreshold = NumbersUtil.parseFloat(cmd.getDisableThreshold(), 0.95f);
        String _enabledGC = cmd.getEnabledGC();
        if ("true".equalsIgnoreCase(_enabledGC)) {
            _enabledGCollector = true;
        }
-       final Long _intervalGC = NumbersUtil.parseLong(cmd.getIntervalGC(), 86400);
-       final Long _fileAge = NumbersUtil.parseLong(cmd.getFileAge(), 86400);
-       final String _filePath = cmd.getFilePath();
+       final Long intervalGC = NumbersUtil.parseLong(cmd.getIntervalGC(), 86400);
+       final Long fileAge = NumbersUtil.parseLong(cmd.getFileAge(), 86400);
+       final String filePath = cmd.getFilePath();
 
        final Object id = _accountMgr.checkAccessAndSpecifyAuthority(CallContext.current().getCallingAccount(), cmd.getId());
 
@@ -251,28 +251,28 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
        sb.and("filepath", sb.entity().getValue(), SearchCriteria.Op.EQ);
 
        final SearchCriteria<ConfigurationVO> sc = sb.create();
-       if (_timeOut != null) {
-           sc.setParameters("timeout", _timeOut);
+       if (timeOut != null) {
+           sc.setParameters("timeout", timeOut);
        }
 
-       if (_disableThreshold != null) {
-           sc.setParameters("disablethreshold", _disableThreshold);
+       if (disableThreshold != null) {
+           sc.setParameters("disablethreshold", disableThreshold);
        }
 
        if (_enabledGCollector != null) {
            sc.setParameters("enabledGC", _enabledGCollector);
        }
 
-       if (_intervalGC != null) {
-           sc.setParameters("intervalGC", _intervalGC);
+       if (intervalGC != null) {
+           sc.setParameters("intervalGC", intervalGC);
        }
 
-       if (_fileAge != null) {
-           sc.setParameters("fileage", _fileAge);
+       if (fileAge != null) {
+           sc.setParameters("fileage", fileAge);
        }
 
-       if (_filePath != null) {
-           sc.setParameters("filepath", _filePath);
+       if (filePath != null) {
+           sc.setParameters("filepath", filePath);
        }
 
        final Pair<List<ConfigurationVO>, Integer> result = _configDao.searchAndCount(sc, searchFilter);
@@ -308,10 +308,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         String diagnosticsType = null;
         String fileDetails = null;
         String[] filesToRetrieve = null;
-        if (_configParams == null) {
-            _configParams = new HashMap<>();
+        if (configParams == null) {
+            configParams = new HashMap<>();
         }
-        if (configure(getConfigComponentName(), _configParams)) {
+        if (configure(getConfigComponentName(), configParams)) {
             if (cmd != null) {
                 if (!cmd.getDisableThreshold().isEmpty() ) {
                     RetrieveDiagnosticsDisableThreshold = new ConfigKey<Float>("Advanced", Float.class, "", cmd.getDiagnosticsType(), "", true);
