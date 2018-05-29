@@ -97,7 +97,7 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
                     update(name, className, initValue);
                 }
             } else {
-                RetrieveDiagnosticsVO newDiagnostics = new RetrieveDiagnosticsVO(name, "DEFAULT", className, initValue);
+                RetrieveDiagnosticsVO newDiagnostics = new RetrieveDiagnosticsVO(name, className, initValue);
                 persist(newDiagnostics);
             }
             return returnValue;
@@ -114,7 +114,7 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
             _diagnosticsDetails = new HashMap<String, Map<String, String>>();
 
             SearchCriteria<RetrieveDiagnosticsVO> sc = RoleSearch.create();
-            sc.setParameters("role", "DEFAULT");
+            sc.setParameters("role", "class", "value");
             List<RetrieveDiagnosticsVO> results = search(sc, null);
             Map<String, String> details = new HashMap<String, String>(results.size());
             for (RetrieveDiagnosticsVO result : results) {
