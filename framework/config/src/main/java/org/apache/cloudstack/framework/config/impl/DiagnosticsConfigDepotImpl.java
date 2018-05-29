@@ -95,7 +95,7 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
         //DiagnosticsKey diagnosticsKey = new DiagnosticsKey(diagnosticsType.getClass(), diagnosticsType.key(), "new diagnostics")
         if (vo == null) {
             vo = new RetrieveDiagnosticsVO(componentName, diagnosticsType);
-            vo.setClassName(diagnosticsType.key());
+            vo.setDiagnosticsType(diagnosticsType.key());
             vo.setRole(diagnosticsType.get_role());//to be given SystemVM type
             vo.setValue(diagnosticsType.get_detail());//to be populated
             _diagnosticsDao.persist(vo);
@@ -103,7 +103,7 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
             if (vo.getValue() != diagnosticsType.key() || !ObjectUtils.equals(vo.getRole(), diagnosticsType.get_role()) || !ObjectUtils.equals(vo.getDefaultValue(),
                     diagnosticsType.get_detail())) {
                 vo.setRole(diagnosticsType.value()); //to be changed
-                vo.setClassName(diagnosticsType.key());
+                vo.setDiagnosticsType(diagnosticsType.key());
                 vo.setValue(diagnosticsType.get_detail()); //to be changed
                 _diagnosticsDao.persist(vo);
             }

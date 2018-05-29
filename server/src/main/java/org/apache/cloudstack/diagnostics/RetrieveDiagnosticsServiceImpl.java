@@ -161,7 +161,23 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Inject
     MessageBus messageBus;
 
-    DiagnosticsKey<String> IPTablesRemove = new DiagnosticsKey<String>(String.class, "IPtables.remove", "The IPtables rules to be removed", null, null);
+    ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
+            "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
+    ConfigKey<Boolean> enabledGCollector = new ConfigKey<>("Advanced", Boolean.class, "retrieveDiagnostics.gc.enabled",
+            "true", "Garbage collection on/off switch (true|false", true, ConfigKey.Scope.Global);
+    ConfigKey<String> RetrieveDiagnosticsFilePath = new ConfigKey<String>("Advanced", String.class, "retrieveDiagnostics.filepath",
+            "/tmp", "File path to use on the management server for all temporary data. This allows CloudStack administrators to determine where best to place the files.", true, ConfigKey.Scope.Global);
+    ConfigKey<Float> RetrieveDiagnosticsDisableThreshold = new ConfigKey<Float>("Advanced", Float.class, "retrieveDiagnostics.disablethreshold", "0.95",
+            "The percentage disk space cut-off before API call will fail", true, ConfigKey.Scope.Global);
+
+    ConfigKey<Long> RetrieveDiagnosticsFileAge = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.max.fileage", "86400",
+            "The diagnostics file age in seconds before considered for garbage collection", true, ConfigKey.Scope.Global);
+
+    ConfigKey<Long> RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
+            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
+
+
+/*    DiagnosticsKey<String> IPTablesRemove = new DiagnosticsKey<String>(String.class, "IPtables.remove", "The IPtables rules to be removed", null, null);
     DiagnosticsKey<String> IPTablesRetrieve = new DiagnosticsKey<String>(String.class, "IPTables.retrieve", "The IPTable rules to be retrieved", null, null);
     DiagnosticsKey<String> LOGFILES = new DiagnosticsKey<String>(String.class, "LogFiles", "Logfiles to be retrieved", null, null);
     DiagnosticsKey<String> PROPERTYFILES = new DiagnosticsKey<String>(String.class, "PropertyFiles", "Property files to be retrieved", null, null);
@@ -169,7 +185,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     DiagnosticsKey<String> DHCPFILES = new DiagnosticsKey<String>(String.class, "DhcpFiles", "Dhcp files to be retrieved", null, null);
     DiagnosticsKey<String> USERDATA = new DiagnosticsKey<String>(String.class, "Userdata", "User data to be retrieved", null, null);
     DiagnosticsKey<String> LB = new DiagnosticsKey<String>(String.class, "LoadBalancing", "Load balancing files to be retrieved", null, null);
-    DiagnosticsKey<String> VPN = new DiagnosticsKey<String>(String.class, "Vpn", "Logfiles to be retrieved", null, null);
+    DiagnosticsKey<String> VPN = new DiagnosticsKey<String>(String.class, "Vpn", "Logfiles to be retrieved", null, null);*/
     public RetrieveDiagnosticsServiceImpl() {
     }
 
@@ -354,7 +370,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     public DiagnosticsKey<?>[] getDiagnosticsConfigKeys()
     {
-        return new DiagnosticsKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
+        return null; //new DiagnosticsKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
     }
 
     @Override

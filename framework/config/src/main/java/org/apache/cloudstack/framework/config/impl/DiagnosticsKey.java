@@ -30,6 +30,16 @@ public class DiagnosticsKey<T> {
     private String _description;
     private String _detail;
 
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    private String className;
+
     public String get_detail() {
         return _detail;
     }

@@ -52,18 +52,15 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
     }
 
     public RetrieveDiagnosticsVO(String component, DiagnosticsKey<?> key) {
-        this(key.role(), key.key(), key._diagnosticsType());
+        this(key.key(), key.getClassName(), key.get_detail());
     }
 
-
-
-    public RetrieveDiagnosticsVO(String roleId, String role, String className, String value) {
-        this.roleId = roleId;
+/*    public RetrieveDiagnosticsVO(String roleId, String role, String className, String value) {
         this.role = role;
         this.className = className;
         this.value = value;
         setValue(value);
-    }
+    }*/
 
     public String getRole() {
         return role;
@@ -73,33 +70,24 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
         this.role = role;
     }
 
-    public void setClassName(String className) {
+    public void setDiagnosticsType(String className) {
         this.className = className;
     }
 
-    public String getRoleId() {
-        return roleId;
-    }
-
-    public void setRoleId(String roleId) {
-        this.roleId = roleId;
-    }
-
-    public String getRoleName()
-    {
-        return null;
-    }
-
-    public String getClassName(){
-        return null;
-    }
-
     public String getDefaultValue() {
-        return null;
+        return value;
+    }
+
+    public void setDefaultValue(String className) {
+        this.className = className;
     }
 
     public boolean isEncrypted() {
         return "Hidden".equals(getRole()) || "Secure".equals(getRole());
+    }
+
+    public String getDiagnosticsType() {
+        return className;
     }
 
     @Override

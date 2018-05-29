@@ -51,7 +51,7 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
         RoleSearch.and("role", RoleSearch.entity().getRole(), SearchCriteria.Op.EQ);
 
         ClassNameSearch = createSearchBuilder();
-        ClassNameSearch.and("class", ClassNameSearch.entity().getClassName(), SearchCriteria.Op.EQ);
+        ClassNameSearch.and("class", ClassNameSearch.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
 
         ValueSearch = createSearchBuilder();
         ValueSearch.and("value", ValueSearch.entity().getValue(), SearchCriteria.Op.EQ);
@@ -118,10 +118,10 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
             List<RetrieveDiagnosticsVO> results = search(sc, null);
             Map<String, String> details = new HashMap<String, String>(results.size());
             for (RetrieveDiagnosticsVO result : results) {
-                if ("password".equals(result.getClassName())) {
-                    details.put(result.getClassName(), result.getValue());
+                if ("password".equals(result.getDiagnosticsType())) {
+                    details.put(result.getDiagnosticsType(), result.getValue());
                 } else {
-                    details.put(result.getClassName(), result.getValue());
+                    details.put(result.getDiagnosticsType(), result.getValue());
                 }
             }
 
