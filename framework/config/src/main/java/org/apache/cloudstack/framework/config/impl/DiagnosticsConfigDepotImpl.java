@@ -25,7 +25,13 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.Map;
+import java.util.HashSet;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin {
 
