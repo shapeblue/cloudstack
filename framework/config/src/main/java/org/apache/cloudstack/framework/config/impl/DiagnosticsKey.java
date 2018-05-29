@@ -44,7 +44,7 @@ public class DiagnosticsKey<T> {
         return _detail;
     }
 
-    public void set_detail(String _detail) {
+    public void set_detail(String detail) {
         this._detail = _detail;
     }
 
@@ -52,7 +52,7 @@ public class DiagnosticsKey<T> {
         return _role;
     }
 
-    public void set_role(String _role) {
+    public void set_role(String role) {
         this._role = _role;
     }
 
