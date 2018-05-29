@@ -178,20 +178,24 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Initialising configuring values for retrieve diagnostics api : " + name);
         }
-        _timeOut = RetrieveDiagnosticsTimeOut.value();
-        params.put(RetrieveDiagnosticsTimeOut.key(), (Long)RetrieveDiagnosticsTimeOut.value());
-        _fileAge = RetrieveDiagnosticsFileAge.value();
-        params.put(RetrieveDiagnosticsFileAge.key(), (Long)RetrieveDiagnosticsFileAge.value());
-        _enabledGC = enabledGCollector.value();
-        params.put(enabledGCollector.key(), (Boolean)enabledGCollector.value());
-        _filePath = RetrieveDiagnosticsFilePath.value();
-        params.put(RetrieveDiagnosticsFilePath.key(), (String)RetrieveDiagnosticsFilePath.value());
-        _disableThreshold = RetrieveDiagnosticsDisableThreshold.value();
-        params.put(RetrieveDiagnosticsDisableThreshold.key(), (Float)RetrieveDiagnosticsDisableThreshold.value());
-        _intervalGC = RetrieveDiagnosticsInterval.value();
-        params.put(RetrieveDiagnosticsInterval.key(), (Long)RetrieveDiagnosticsInterval.value());
 
-        return true;
+        _timeOut = RetrieveDiagnosticsTimeOut.value();
+        _fileAge = RetrieveDiagnosticsFileAge.value();
+        _enabledGC = enabledGCollector.value();
+        _filePath = RetrieveDiagnosticsFilePath.value();
+        _disableThreshold = RetrieveDiagnosticsDisableThreshold.value();
+        _intervalGC = RetrieveDiagnosticsInterval.value();
+        if (params != null) {
+            params.put(RetrieveDiagnosticsTimeOut.key(), (Long)RetrieveDiagnosticsTimeOut.value());
+            params.put(RetrieveDiagnosticsFileAge.key(), (Long)RetrieveDiagnosticsFileAge.value());
+            params.put(enabledGCollector.key(), (Boolean)enabledGCollector.value());
+            params.put(RetrieveDiagnosticsFilePath.key(), (String)RetrieveDiagnosticsFilePath.value());
+            params.put(RetrieveDiagnosticsDisableThreshold.key(), (Float)RetrieveDiagnosticsDisableThreshold.value());
+            params.put(RetrieveDiagnosticsInterval.key(), (Long)RetrieveDiagnosticsInterval.value());
+            return true;
+        }
+
+        return false;
     }
 
     public boolean loadDiagnosticsConfiguration(final RetrieveDiagnosticsVO retrieveDiagnosticsVO) {
@@ -287,6 +291,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         Long hostId = null;
         String diagnosticsType = null;
         String fileDetails = null;
+        String[] filesToRetrieve = null;
         if (_configParams == null) {
             _configParams = new HashMap<>();
         }
@@ -318,35 +323,27 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
                 } else {
                     throw new InvalidParameterValueException("Invalid parameters");
-                    System.exit(-1);
+                   // System.exit(-1);
 
                 }
                 fileDetails = cmd.getOptionalListOfFiles();
                 if (fileDetails != null) {
-
+                    filesToRetrieve = fileDetails.split(",");
                 } else {
-                    //retrieve default files from db
+                    filesToRetrieve = null;//retrieve default files from db
+                }
+                if (!retrieveDiagnosticsFiles(hostId, diagnosticsType, filesToRetrieve)) {
+
                 }
 
             }
 
         }
-        Long instanceId = cmd.getId();
-        List<String> diagnosticsfilesToRetrieve = cmd.getListOfDiagnosticsFiles();
-        if (diagnosticsfilesToRetrieve != null) {
-            for (String file : diagnosticsfilesToRetrieve) {
-
-            }
-        } else {
-             
-            //get list of default files from the database table for this diagnostics type
-
-
-        }
-
-
-
         return null;
+    }
+
+    protected boolean retrieveDiagnosticsFiles(Long hostId, String diagnosticsType, String[] diagnosticsFiles) {
+        return true;
     }
 
 
@@ -355,7 +352,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return RetrieveDiagnosticsServiceImpl.class.getSimpleName();
     }
 
-   // @Override
     public DiagnosticsKey<?>[] getDiagnosticsConfigKeys()
     {
         return new DiagnosticsKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
@@ -364,7 +360,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Override
     public ConfigKey<?>[] getConfigKeys()
     {
-        return null; //new ConfigKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
+        return new ConfigKey<?>[] { RetrieveDiagnosticsFilePath, RetrieveDiagnosticsFileAge, RetrieveDiagnosticsInterval, RetrieveDiagnosticsTimeOut,
+                RetrieveDiagnosticsDisableThreshold, enabledGCollector };
     }
 
 
