@@ -35,24 +35,22 @@ INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`,
 INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`, `sort_order`) values (UUID(), 4, 'moveNetworkAclItem', 'ALLOW', 260) ON DUPLICATE KEY UPDATE rule=rule;
 
 CREATE TABLE `cloud`.`diagnosticsdata` (
-  `role_id`   bigint unsigned NOT NULL auto_increment,
   `role` varchar(10) NOT NULL COMMENT 'role as for system vm',
   `class` varchar(30) NOT NULL COMMENT 'the kind of diagnostics files',
   `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files',
-  PRIMARY KEY (`role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (2, 'SSMV', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (3, 'SSMV', 'PROPERTYFILES', '<SSVM property files>') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (4, 'VR', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (5, 'VR', 'USERDATA', '<userdatafiles>') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (6, 'VR', 'LB', 'haproxy.conf') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (7, 'VR', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (8, 'VR', 'VPN', '<vpn configuration file>') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (9, 'VR', 'LOGFILES', 'cloud.log,agent.log') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (10, 'CPVM', 'PROPERTYFILES', '<CPVM property file>') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (11, 'ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (12, 'ALL', 'IPTABLES.remove', 'iptablesremove.sh') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (13, 'ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh') ON DUPLICATE KEY UPDATE role_id=role_id;
-INSERT INTO `cloud`.`diagnosticsdata` ('role_id', `role`, `class`, `value`) values (14, 'ALL', 'IPTABLES.remove', 'iptablesremove.sh') ON DUPLICATE KEY UPDATE role_id=role_id;
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SSMV', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SSMV', 'PROPERTYFILES', '<SSVM property files>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'USERDATA', '<userdatafiles>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'LB', 'haproxy.conf');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'VPN', '<vpn configuration file>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'LOGFILES', 'cloud.log,agent.log');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('CPVM', 'PROPERTYFILES', '<CPVM property file>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
 
