@@ -22,18 +22,31 @@ package org.apache.cloudstack.api.response;
 import com.cloud.serializer.Param;
 import com.cloud.vm.VirtualMachine;
 import com.google.gson.annotations.SerializedName;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
 public class RemoteDiagnosisResponse extends BaseResponse {
-    @SerializedName("details")
+    @SerializedName(ApiConstants.DETAILS)
     @Param(description = "Script execution result")
     private String details;
 
-    @SerializedName("success")
+    @SerializedName(ApiConstants.RESULT)
     @Param(description = "true if operation is executed successfully")
     private Boolean success;
+
+    @SerializedName("command")
+    @Param(description = "Command passed to scrip")
+    private String networkCommand;
+
+    public String getNetworkCommand() {
+        return networkCommand;
+    }
+
+    public void setNetworkCommand(String networkCommand) {
+        this.networkCommand = networkCommand;
+    }
 
     public String getDetails() {
         return details;

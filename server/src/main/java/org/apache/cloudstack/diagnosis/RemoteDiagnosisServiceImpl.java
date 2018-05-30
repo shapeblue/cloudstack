@@ -28,8 +28,8 @@ import com.cloud.exception.OperationTimedoutException;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
-import com.cloud.vm.DomainRouterVO;
-import com.cloud.vm.dao.DomainRouterDao;
+import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosisCmd;
 import org.apache.cloudstack.api.response.RemoteDiagnosisResponse;
 import org.apache.cloudstack.diangosis.RemoteDiagnosisService;
@@ -43,56 +43,71 @@ public class RemoteDiagnosisServiceImpl extends ManagerBase implements Pluggable
     private static final Logger s_logger = Logger.getLogger(RemoteDiagnosisServiceImpl.class);
 
     @Inject
-    private DomainRouterDao domainRouterDao;
-    @Inject
     private RouterControlHelper routerControlHelper;
     @Inject
     private AgentManager agentManager;
+    @Inject
+    private VMInstanceDao vmInstanceDao;
 
 
     @Override
     public RemoteDiagnosisResponse executeDiagnosisToolInSsvm(final RemoteDiagnosisCmd cmd) throws AgentUnavailableException,
             InvalidParameterValueException {
-        final Long routerId = cmd.getId();
-        final DomainRouterVO router = domainRouterDao.findById(routerId);
-        final Long hostId = router.getHostId();
+        //final Long systemVmId = cmd.getId();
+        final VMInstanceVO systemVm = vmInstanceDao.findById(cmd.getId());
+        final Long hostId = systemVm.getHostId();
 
-        // Verify parameter
-        if (router == null) {
-            s_logger.warn("Unable to find router by id " + routerId + ".");
-            throw new InvalidParameterValueException("Unable to find router by id " + routerId + ".");
+        final String diagnosisCommandType = cmd.getDiagnosisType();
+        final String destinationIpAddress = cmd.getDestinationIpAddress();
+        final String optionalArgunments = cmd.getOptionalArguments();
+
+        if (systemVm == null){
+            s_logger.error("Unable to find a virtual machine with id " + systemVm);
+            throw new InvalidParameterValueException("Unable to find a virtual machine with id " + systemVm);
         }
 
-        final ExecuteDiagnosisCommand command = new ExecuteDiagnosisCommand(routerId,
-                cmd.getDestinationIpAddress(), cmd.getDiagnosisType());
-        command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(router.getId()));
-        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
+        String remoteCommand = setupRemoteCommand(diagnosisCommandType, destinationIpAddress, optionalArgunments);
+        final ExecuteDiagnosisCommand command = new ExecuteDiagnosisCommand(remoteCommand);
+        command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVm.getId()));
+        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVm.getInstanceName());
+
+        // For debugging
+        final String commandPassed = command.getSrciptArguments();
 
         Answer origAnswer;
-
         try{
-            origAnswer = agentManager.send(hostId,command);
+            origAnswer = agentManager.send(hostId, command);
         } catch (final OperationTimedoutException e) {
             s_logger.warn("Timed Out", e);
-            throw new AgentUnavailableException("Unable to send commands to virtual router ", hostId, e);
+            throw new AgentUnavailableException("Unable to send comands to virtual machine ", hostId, e);
         }
-
         ExecuteDiagnosisAnswer answer = null;
         if (origAnswer instanceof ExecuteDiagnosisAnswer) {
             answer = (ExecuteDiagnosisAnswer) origAnswer;
         } else {
-            s_logger.warn("Unable to update router " + router.getHostName() + "status");
+            s_logger.warn("Unable to update router " + systemVm.getHostName() + "status");
         }
 
-        return createRemoteDiagnosisResponse(answer);
+
+        return createRemoteDiagnosisResponse(answer,commandPassed);
     }
 
-    private static RemoteDiagnosisResponse createRemoteDiagnosisResponse(ExecuteDiagnosisAnswer answer){
+    private static RemoteDiagnosisResponse createRemoteDiagnosisResponse(ExecuteDiagnosisAnswer answer, String commandPaased){
         RemoteDiagnosisResponse response = new RemoteDiagnosisResponse();
         response.setResult(answer.getResult());
         response.setDetails(answer.getDetails());
+        response.setNetworkCommand(commandPaased);
         return response;
     }
+
+    private static String setupRemoteCommand(String diagnosisType, String destinationIpAddress, String optionalArguments){
+        if (optionalArguments != null){
+            return String.format("%s %s", diagnosisType, destinationIpAddress+" "+optionalArguments);
+        }
+
+        return String.format("%s %s", diagnosisType, destinationIpAddress);
+    }
+
 
     @Override
     public List<Class<?>> getCommands() {

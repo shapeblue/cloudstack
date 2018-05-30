@@ -27,5 +27,19 @@ import org.apache.cloudstack.api.response.RemoteDiagnosisResponse;
 public interface RemoteDiagnosisService {
     RemoteDiagnosisResponse executeDiagnosisToolInSsvm(RemoteDiagnosisCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
 
+    enum DiagnosisType {
+        ping, traceroute, arping;
+
+        public static boolean containts(String cmd){
+            try{
+                valueOf(cmd);
+                return true;
+            }catch (Exception e){
+                return false;
+            }
+
+        }
+    }
+
 
 }

@@ -22,18 +22,15 @@ package org.apache.cloudstack.diagnosis;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 
 public class ExecuteDiagnosisCommand extends NetworkElementCommand {
-    private final Long ssvmId;
-    private final String pingDestination ;
-    private final String diagnosisType;
 
-    public ExecuteDiagnosisCommand(Long ssvmId, String pingDestination, String diagnosisType) {
-        this.ssvmId = ssvmId;
-        this.pingDestination = pingDestination;
-        this.diagnosisType = diagnosisType;
+    private final String scriptArguments;
+
+    public ExecuteDiagnosisCommand(String scriptArguments) {
+        this.scriptArguments = scriptArguments;
     }
 
-    public String getArgs(){
-        return diagnosisType + " " + pingDestination;
+    public String getSrciptArguments(){
+        return scriptArguments;
     }
 
     @Override

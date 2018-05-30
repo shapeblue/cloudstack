@@ -25,7 +25,7 @@ import com.cloud.exception.NetworkRuleConflictException;
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.user.Account;
-import com.cloud.vm.VirtualMachine;
+import com.google.common.base.Preconditions;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -70,11 +70,18 @@ public class RemoteDiagnosisCmd extends BaseCmd {
 
     @Parameter(name = ApiConstants.DIAGNOSIS_TYPE,
             description = "The type of command to be executed inside the System VM instance, e.g. ping, tracert or arping",
+            required = true,
             type = CommandType.STRING)
     private String diagnosisType;
+
+    @Parameter(name = ApiConstants.PARAMS,
+            description = "Additional command line options",
+            type = CommandType.STRING)
+    private String optionalArguments;
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
+
     public Long getId() {
         return id;
     }
@@ -84,8 +91,13 @@ public class RemoteDiagnosisCmd extends BaseCmd {
     }
 
     public String getDiagnosisType() {
-        return diagnosisType;
+        return diagnosisType.toLowerCase();
     }
+
+    public String getOptionalArguments() {
+        return optionalArguments;
+    }
+
     /////////////////////////////////////////////////////
     /////////////////// Implementation //////////////////
     /////////////////////////////////////////////////////
@@ -104,10 +116,15 @@ public class RemoteDiagnosisCmd extends BaseCmd {
     }
 
     @Override
-    public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
+    public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException,
+            ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
+        Preconditions.checkState(RemoteDiagnosisService.DiagnosisType.containts(getDiagnosisType()), "%s is " +
+                "not a valid network diagnosis command, I only allow ping, traceroute and arping.", diagnosisType);
         RemoteDiagnosisResponse diagnosisResponse = diagnosisService.executeDiagnosisToolInSsvm(this);
         diagnosisResponse.setObjectName("diagnosis");
         diagnosisResponse.setResponseName(getCommandName());
         this.setResponseObject(diagnosisResponse);
     }
+
+
 }
