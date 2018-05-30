@@ -20,25 +20,15 @@ package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 
-public class DiagnosticsKey<T> {
+public class DiagnosticsKey {
     public static enum DiagnosticsEntryType {
         IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove
     }
 
-    private String name;
-    private final Class<T> type;
+    private String role;
+    private String diagnosticsClassType;
     private String description;
     private String detail;
-
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(String className) {
-        this.className = className;
-    }
-
-    private String className;
 
     public String getDetail() {
         return detail;
@@ -56,15 +46,16 @@ public class DiagnosticsKey<T> {
         this.role = role;
     }
 
-    private String role;
-    T value = null;
+    public String getDiagnosticsClassType() {
+        return diagnosticsClassType;
+    }
 
-    public Class<T> type() {
-        return type;
+    public void setDiagnosticsClassType(String diagnosticsClassType) {
+        this.diagnosticsClassType = diagnosticsClassType;
     }
 
     public final String key() {
-        return name;
+        return role;
     }
 
 
@@ -77,7 +68,7 @@ public class DiagnosticsKey<T> {
     @Override
     public String toString()
     {
-        return name;
+        return role;
     }
 
     static DiagnosticsConfigDepotImpl s_depot = null;
@@ -90,9 +81,8 @@ public class DiagnosticsKey<T> {
         this(type, name, description, null);
     }*/
 
-    public DiagnosticsKey(Class<T> type, String name, String description, String detail, String role) {
-        this.type = type;
-        this.name = name;
+    public DiagnosticsKey(String role, String diagnosticsType, String detail, String description) {
+        this.diagnosticsClassType = diagnosticsType;
         this.description = description;
         this.detail = detail;
         this.role = role;
@@ -101,14 +91,14 @@ public class DiagnosticsKey<T> {
     @Override
     public int hashCode()
     {
-        return name.hashCode();
+        return role.hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof DiagnosticsKey) {
             DiagnosticsKey that = (DiagnosticsKey)obj;
-            return this.name.equals(that.name);
+            return this.role.equals(that.role);
         }
         return false;
     }
@@ -118,20 +108,20 @@ public class DiagnosticsKey<T> {
             return true;
         } else if (obj instanceof String) {
             String key = (String)obj;
-            return key.equals(name);
+            return key.equals(role);
         }
 
         throw new CloudRuntimeException("Comparing Diagnostics key to " + obj.toString());
     }
 
     public String value() {
-        if (name == null) {
+        if (role == null) {
             RetrieveDiagnosticsVO vo = s_depot != null ? s_depot.global().findById(key()) : null;
             final String value = (vo != null && vo.getValue() != null) ? vo.getValue() : null;
-            name = (String)((value == null) ? null : valueOf(value));
+            role = (String)((value == null) ? null : valueOf(value));
         }
 
-        return name;
+        return role;
     }
 
     public String valueIn(Long id) {
