@@ -38,10 +38,10 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
     private final static Logger s_logger = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
-    List<DiagnosticsKey<?>> _diagnosticsTypeConfigurable;
+    List<DiagnosticsKey> _diagnosticsTypeConfigurable;
     Set<DiagnosticsKey> _diagnosticsTypesConfigured = Collections.synchronizedSet(new HashSet<DiagnosticsKey>());
 
-    Map<String, DiagnosticsKey<?>> _allKeys = new HashMap<String, DiagnosticsKey<?>>();
+    Map<String, DiagnosticsKey> _allKeys = new HashMap<String, DiagnosticsKey>();
 
 
     HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey>> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey>>();
@@ -60,20 +60,20 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
         _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VPN, new HashSet<DiagnosticsKey>());
     }
 
-    public DiagnosticsKey<?> getKey(String key) {
-        DiagnosticsKey<?> value = _allKeys.get(key);
+    public DiagnosticsKey getKey(String key) {
+        DiagnosticsKey value = _allKeys.get(key);
         return value != null ? value : null;
     }
 
     @PostConstruct
     @Override
     public void populateConfigurations() {
-        for (DiagnosticsKey<?> diagnosticsClassType : _diagnosticsTypeConfigurable) {
+        for (DiagnosticsKey diagnosticsClassType : _diagnosticsTypeConfigurable) {
             populateConfiguration(diagnosticsClassType);
         }
     }
 
-    protected void populateConfiguration(DiagnosticsKey<?> clazz) {
+    protected void populateConfiguration(DiagnosticsKey clazz) {
         if (_diagnosticsTypeConfigurable.contains(clazz))
             return;
         boolean diagnosticsTypeExists = false;
@@ -81,13 +81,13 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
         s_logger.debug("Retrieving keys from " + clazz.getClass().getSimpleName());
 
         for (int i = 0; _diagnosticsTypeConfigurable != null; i++) {
-            DiagnosticsKey<?> previous = _allKeys.get(_diagnosticsTypeConfigurable.get(i));
-            if (previous != null && previous.key().equals(clazz.type())) {
+            DiagnosticsKey previous = _allKeys.get(_diagnosticsTypeConfigurable.get(i));
+            if (previous != null && previous.key().equals(clazz.key())) {
                 diagnosticsTypeExists = true;
             }
             if (!diagnosticsTypeExists) {
                 //Pair<String, DiagnosticsKey<?>> newDiagnosticsType = new Pair<String, DiagnosticsKey<?>>(clazz.key(), clazz);
-                DiagnosticsKey<String> newDiagnosticsType = new DiagnosticsKey<String>(String.class, clazz.key(), "new diagnostics type", clazz.getDetail(), clazz.getRole());//?>>(clazz.key(), clazz);
+                DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.key(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());//?>>(clazz.key(), clazz);
                 _allKeys.put(clazz.key(), newDiagnosticsType);
                 createOrupdateDiagnosticsObject(clazz.key(), newDiagnosticsType );
             }
@@ -97,7 +97,7 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
 
     }
 
-    private void createOrupdateDiagnosticsObject(String componentName,  DiagnosticsKey<?> diagnosticsType) {
+    private void createOrupdateDiagnosticsObject(String componentName,  DiagnosticsKey diagnosticsType) {
         RetrieveDiagnosticsVO vo = _diagnosticsDao.findById(diagnosticsType.key());
         //DiagnosticsKey diagnosticsKey = new DiagnosticsKey(diagnosticsType.getClass(), diagnosticsType.key(), "new diagnostics")
         if (vo == null) {
@@ -132,12 +132,12 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
     }
 
 
-    public List<DiagnosticsKey<?>> getConfigurables() {
+    public List<DiagnosticsKey> getConfigurables() {
         return _diagnosticsTypeConfigurable;
     }
 
     @Inject
-    public void setConfigurables(List<DiagnosticsKey<?>> diagnosticsConfigurables) {
+    public void setConfigurables(List<DiagnosticsKey> diagnosticsConfigurables) {
         _diagnosticsTypeConfigurable = diagnosticsConfigurables;
     }
 
