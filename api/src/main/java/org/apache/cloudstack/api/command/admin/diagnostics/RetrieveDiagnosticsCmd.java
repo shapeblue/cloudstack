@@ -17,6 +17,8 @@
 
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
+import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.host.Host;
 import com.cloud.vm.VirtualMachine;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.acl.RoleType;
@@ -35,6 +37,7 @@ import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
+import javax.naming.ConfigurationException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -292,28 +295,20 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     @Override
     public void execute() {
-        if (Strings.isNullOrEmpty(getDiagnosticsType()) || Strings.isNullOrEmpty(optionalListOfFiles) ) {
-            retrieveDefaultFiles = true;
-        }
-
-
-
+        CallContext.current().setEventDetails("Vm Id: " + this._uuidMgr.getUuid(VirtualMachine.class, getId()));
         RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = new RetrieveDiagnosticsResponse();
         try {
-            if (retrieveDiagnosticsService == null)
-                throw new IOException();
-
-
-        } catch (final IOException e) {
-            s_logger.error("Failed to retrieve diagnostics files from ", e);
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve diagnostics files");
+            retrieveDiagnosticsService.getDiagnosticsFiles(this);
+            retrieveDiagnosticsResponse.setObjectName("retrievediagnostics");
+            retrieveDiagnosticsResponse.setResponseName(getCommandName());
+            this.setResponseObject(retrieveDiagnosticsResponse);
+        } catch (InvalidParameterValueException ipve) {
+            s_logger.error("Failed to retrieve diagnostics files from ", ipve);
+            throw new ServerApiException(ApiErrorCode.PARAM_ERROR, ipve.getMessage());
+        } catch (ConfigurationException cre) {
+            s_logger.error("Failed to retrieve diagnostics files from ", cre);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
         }
-        retrieveDiagnosticsResponse.setResponseName(getCommandName());
-        this.setResponseObject(retrieveDiagnosticsResponse);
-
-        //retrieveDiagnosticsService.updateConfiguration(this);
-
-
     }
 
     @Override
@@ -325,11 +320,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     public long getEntityOwnerId() {
         return CallContext.current().getCallingAccount().getId();
     }
-
- /*   @Override
-    public String getEventType() {
-        return EventTypes.EVENT_VM_DIAGNOSTICS;
-    }*/
 
     @Override
     public String getEventDescription() {
