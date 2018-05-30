@@ -51,8 +51,8 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
         setValue(value);
     }
 
-    public RetrieveDiagnosticsVO(String component, DiagnosticsKey<?> key) {
-        this(key.key(), key.getClassName(), key.getDetail());
+    public RetrieveDiagnosticsVO(String component, DiagnosticsKey key) {
+        this(key.key(), key.getDiagnosticsClassType(), key.getDetail());
     }
 
 /*    public RetrieveDiagnosticsVO(String roleId, String role, String className, String value) {
