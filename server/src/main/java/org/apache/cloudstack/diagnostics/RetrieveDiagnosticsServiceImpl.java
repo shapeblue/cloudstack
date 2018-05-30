@@ -408,7 +408,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return RetrieveDiagnosticsServiceImpl.class.getSimpleName();
     }
 
-    public DiagnosticsKey<?>[] getDiagnosticsConfigKeys()
+    public DiagnosticsKey getDiagnosticsConfigKeys()
     {
         return null; //new DiagnosticsKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
     }

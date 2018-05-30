@@ -18,7 +18,6 @@
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.host.Host;
 import com.cloud.vm.VirtualMachine;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.acl.RoleType;
@@ -38,7 +37,6 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
