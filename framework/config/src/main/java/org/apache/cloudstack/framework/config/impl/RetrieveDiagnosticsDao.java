@@ -19,6 +19,7 @@ package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.db.GenericDao;
 
+import java.util.List;
 import java.util.Map;
 
 public interface RetrieveDiagnosticsDao extends GenericDao<RetrieveDiagnosticsVO, String> {
@@ -34,5 +35,7 @@ public interface RetrieveDiagnosticsDao extends GenericDao<RetrieveDiagnosticsVO
     String getValueAndInitIfNotExist(String name, String className, String initValue);
 
     void invalidateCache();
+
+    List<RetrieveDiagnosticsVO> listByName(String roleName);
 
 }

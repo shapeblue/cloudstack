@@ -18,6 +18,9 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.RetrieveDiagnosticsCommand;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.dc.ClusterDetailsDao;
 import com.cloud.dc.dao.ClusterDao;
 import com.cloud.dc.dao.DataCenterDao;
@@ -26,6 +29,7 @@ import com.cloud.domain.dao.DomainDao;
 import com.cloud.domain.dao.DomainDetailsDao;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.host.dao.HostDao;
+import com.cloud.network.router.RouterControlHelper;
 import com.cloud.resource.ResourceManager;
 import com.cloud.storage.StorageManager;
 import com.cloud.storage.secondary.SecondaryStorageListener;
@@ -39,19 +43,20 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachineManager;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
-import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
-import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.cloudstack.framework.config.ConfigDepot;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
+import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.cloudstack.framework.messagebus.MessageBus;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDetailsDao;
@@ -62,9 +67,9 @@ import org.apache.log4j.Logger;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
 
@@ -73,6 +78,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private String instance;
     private int mgmtPort = 8250;
     private boolean editConfiguration = false;
+
+    private Long hostId = null;
+    private String diagnosticsType = null;
+    private String fileDetails = null;
 
     public Map<String, Object> getConfigParams() {
         return configParams;
@@ -160,6 +169,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     ConfigDepot configDepot;
     @Inject
     MessageBus messageBus;
+
+    @Inject
+    RouterControlHelper routerControlHelper;
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
             "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
@@ -346,11 +358,14 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 if (fileDetails != null) {
                     filesToRetrieve = fileDetails.split(",");
                 } else {
+                    List<String> listOfFilesToRetrieve = new ArrayList<>();
+                    List<RetrieveDiagnosticsVO> result = null;
+                    result = _retrieveDiagnosticsDao.listByName(cmd.getEventType()); //get the systemvmid
                     filesToRetrieve = null;//retrieve default files from db
                 }
-                if (!retrieveDiagnosticsFiles(hostId, diagnosticsType, filesToRetrieve)) {
+                /*if (!retrieveDiagnosticsFiles(hostId, diagnosticsType, filesToRetrieve)) {
 
-                }
+                }*/
 
             }
 
@@ -358,7 +373,18 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    protected boolean retrieveDiagnosticsFiles(Long hostId, String diagnosticsType, String[] diagnosticsFiles) {
+    protected boolean retrieveDiagnosticsFiles(Long hostId, String diagnosticsType, String[] diagnosticsFiles, VMInstanceVO systemVmId) {
+        RetrieveDiagnosticsCommand command = new RetrieveDiagnosticsCommand();
+        command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVmId.getId()));
+        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVmId.getInstanceName() );
+
+        Answer answer;
+        try{
+            answer = _agentMgr.send(systemVmId.getHostId(), command);
+        }catch (Exception e){
+            s_logger.error("Unable to send commabd");
+            throw new InvalidParameterValueException("Agent unavailable");
+        }
         return true;
     }
 

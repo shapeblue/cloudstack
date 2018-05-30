@@ -37,7 +37,7 @@ INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`,
 CREATE TABLE `cloud`.`diagnosticsdata` (
   `role` varchar(10) NOT NULL COMMENT 'role as for system vm',
   `class` varchar(30) NOT NULL COMMENT 'the kind of diagnostics files',
-  `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files',
+  `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SSMV', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]');
@@ -50,7 +50,7 @@ INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', '
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'LOGFILES', 'cloud.log,agent.log');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('CPVM', 'PROPERTYFILES', '<CPVM property file>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class
+`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
-

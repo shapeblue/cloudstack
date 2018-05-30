@@ -17,16 +17,19 @@
 
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
-import com.cloud.event.EventTypes;
+import com.cloud.vm.VirtualMachine;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.acl.SecurityChecker;
+import org.apache.cloudstack.api.ACL;
 import org.apache.cloudstack.api.APICommand;
-import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ApiErrorCode;
+import org.apache.cloudstack.api.BaseAsyncCmd;
+import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
+import org.apache.cloudstack.api.response.SystemVmResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsService;
 import org.apache.log4j.Logger;
@@ -56,9 +59,10 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
+    @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
     @Parameter(name = ApiConstants.ID,
             type = CommandType.UUID,
-            entityType = RetrieveDiagnosticsResponse.class,
+            entityType = SystemVmResponse.class,
             required = true,
             description = "The System VM type that the diagnostics files requested are to be retrieved from")
     private Long id;
@@ -276,6 +280,11 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         return null;
     }
 
+    @Override
+    public String getEventType() {
+        VirtualMachine.Type type = _mgr.findSystemVMTypeById(getId());
+        return type.toString();
+    }
     public String getDiagnosticsType() {
         return diagnosticsType;
     }
@@ -300,7 +309,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve diagnostics files");
         }
         retrieveDiagnosticsResponse.setResponseName(getCommandName());
-        setResponseObject(retrieveDiagnosticsResponse);
+        this.setResponseObject(retrieveDiagnosticsResponse);
 
         //retrieveDiagnosticsService.updateConfiguration(this);
 
@@ -317,10 +326,10 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         return CallContext.current().getCallingAccount().getId();
     }
 
-    @Override
+ /*   @Override
     public String getEventType() {
         return EventTypes.EVENT_VM_DIAGNOSTICS;
-    }
+    }*/
 
     @Override
     public String getEventDescription() {

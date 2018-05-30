@@ -47,10 +47,16 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
     final SearchBuilder<RetrieveDiagnosticsVO> RoleSearch;
     final SearchBuilder<RetrieveDiagnosticsVO> ClassNameSearch;
     final SearchBuilder<RetrieveDiagnosticsVO> ValueSearch;
-
+    protected final SearchBuilder<RetrieveDiagnosticsVO> AllFieldsSearch;
     public static final String UPDATE_DIAGNOSTICSDATA_SQL = "UPDATE diagnosticsdata SET value = ? WHERE name = ?";
 
     public RetrieveDiagnosticsDaoImpl() {
+        AllFieldsSearch = createSearchBuilder();
+        AllFieldsSearch.and("role", AllFieldsSearch.entity().getRole(), SearchCriteria.Op.EQ);
+        AllFieldsSearch.and("class", AllFieldsSearch.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
+        AllFieldsSearch.and("value", AllFieldsSearch.entity().getDefaultValue(), SearchCriteria.Op.EQ);
+        AllFieldsSearch.done();
+
         RoleSearch = createSearchBuilder();
         RoleSearch.and("role", RoleSearch.entity().getRole(), SearchCriteria.Op.EQ);
 
@@ -110,6 +116,14 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
             throw new CloudRuntimeException("Unable to initialize Diagnostics default variable: " + name);
 
         }
+    }
+
+    @Override
+    public List<RetrieveDiagnosticsVO> listByName(String roleName) {
+        SearchCriteria<RetrieveDiagnosticsVO> sc = AllFieldsSearch.create();
+        sc.setParameters("role", roleName);
+
+        return listBy(sc);
     }
 
     @Override
