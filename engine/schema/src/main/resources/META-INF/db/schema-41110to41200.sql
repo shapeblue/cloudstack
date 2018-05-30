@@ -50,7 +50,6 @@ INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', '
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'LOGFILES', 'cloud.log,agent.log');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('CPVM', 'PROPERTYFILES', '<CPVM property file>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class
-`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
