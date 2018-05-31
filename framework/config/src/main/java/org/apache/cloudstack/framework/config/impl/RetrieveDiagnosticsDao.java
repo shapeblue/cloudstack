@@ -17,14 +17,14 @@
 
 package org.apache.cloudstack.framework.config.impl;
 
+import com.cloud.utils.Pair;
 import com.cloud.utils.db.GenericDao;
 
 import java.util.List;
-import java.util.Map;
 
 public interface RetrieveDiagnosticsDao extends GenericDao<RetrieveDiagnosticsVO, String> {
 
-    Map<String, String> getDiagnosticsDetails();
+    Pair<List<RetrieveDiagnosticsVO>, Integer> getDiagnosticsDetails();
 
     boolean update(String name, String category, String value);
 

@@ -57,6 +57,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
+import org.apache.cloudstack.framework.config.impl.DiagnosticsConfigDepotImpl;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
@@ -95,6 +96,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     }
 
     protected Map<String, Object> configParams = new HashMap<String, Object>();
+    protected Pair<List<RetrieveDiagnosticsVO>, Integer> defaultDiagnosticsData;
 
     private Long _timeOut;
     private Boolean _enabledGC;
@@ -143,6 +145,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     private ConfigDepot _configDepot;
+
+    @Inject
+    private DiagnosticsConfigDepotImpl _diagnosticsDepot;
 
     @Inject
     StoragePoolDetailsDao _storagePoolDetailsDao;
@@ -232,15 +237,11 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return false;
     }
 
-    public boolean loadDiagnosticsConfiguration(final RetrieveDiagnosticsVO retrieveDiagnosticsVO) {
+    protected Pair<List<RetrieveDiagnosticsVO>, Integer> loadDiagnosticsDataConfiguration() {
         if (s_logger.isInfoEnabled()) {
-            s_logger.info("Retrieving configuring values for retrieve diagnostics api : " + getConfigComponentName());
+            s_logger.info("Retrieving diagnostics data values for retrieve diagnostics api : " + getConfigComponentName());
         }
-        Map<String, String> configDetails = _retrieveDiagnosticsDao.getDiagnosticsDetails();
-        if (configDetails != null) {
-
-        }
-        return false;
+        return _retrieveDiagnosticsDao.getDiagnosticsDetails();
     }
 
    public Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd) {
@@ -315,16 +316,51 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
    }
 
+   @Override
+   public List<RetrieveDiagnosticsVO> searchAndUpdateDiagnosticsType(RetrieveDiagnosticsCmd cmd, final String diagnosticsType) {
+       final Filter searchFilter = new Filter(RetrieveDiagnosticsVO.class, "role", true, null, null);
+       final SearchCriteria<RetrieveDiagnosticsVO> sc = _retrieveDiagnosticsDao.createSearchCriteria();
+       List<RetrieveDiagnosticsVO> resultVo;
+
+       final SearchCriteria<RetrieveDiagnosticsVO> ssc = _retrieveDiagnosticsDao.createSearchCriteria();
+       ssc.addAnd("role", SearchCriteria.Op.LIKE, "%" + cmd.getEventType() + "%");
+       ssc.addAnd("class", SearchCriteria.Op.LIKE, "%" + diagnosticsType + "%");
+       ssc.addAnd("value", SearchCriteria.Op.LIKE, "%" + cmd.getOptionalListOfFiles() + "%");
+
+       final List<RetrieveDiagnosticsVO> result = _retrieveDiagnosticsDao.search(ssc, searchFilter);
+       final List<RetrieveDiagnosticsVO> diagnosticsVOList = new ArrayList<RetrieveDiagnosticsVO>();
+       for (final RetrieveDiagnosticsVO param : result) {
+           final RetrieveDiagnosticsVO diagnosticsVo = _retrieveDiagnosticsDao.findByName(param.getDiagnosticsType());
+           if (diagnosticsVo != null) {
+              final DiagnosticsKey key = _diagnosticsDepot.getKey(param.getRole());
+              if (key != null) {
+                 diagnosticsVo.setValue(key.valueIn(cmd.getEventType()) == null ? null : key.valueIn(cmd.getEventType()).toString());
+                 diagnosticsVOList.add(diagnosticsVo);
+              } else {
+                 s_logger.warn("DiagnosticsConfigDepot could not find parameter " + param.getDiagnosticsType());
+              }
+              return diagnosticsVOList;
+           } else {
+                 s_logger.warn("Global setting item  " + param.getDiagnosticsType() + " not found in ");
+           }
+
+       }
+
+       return result;
+
+   }
+
     @Override
     public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws InvalidParameterValueException, ConfigurationException {
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
         }
-        Long hostId = null;
+        String systemVmType = null;
         String diagnosticsType = null;
         String fileDetails = null;
         String[] filesToRetrieve = null;
         List<String> listOfDiagnosticsFiles;
+        boolean diagnosticsTypeExists = false;
         if (configParams == null) {
             configParams = new HashMap<>();
         }
@@ -348,11 +384,14 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 if (!cmd.getFilePath().isEmpty()) {
                     RetrieveDiagnosticsFilePath = new ConfigKey<String>("Advanced", String.class, "", cmd.getFilePath(), "", true);
                 }
-                hostId = cmd.getId();
+                systemVmType = cmd.getEventType();
                 diagnosticsType = cmd.getDiagnosticsType();
-                if (hostId != null) {
+                if (systemVmType == null) {
                     throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "No host was selected.");
                 }
+
+                defaultDiagnosticsData = loadDiagnosticsDataConfiguration();
+
                 if (diagnosticsType == null) {
                     listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType);
                 } else {
@@ -363,12 +402,38 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
                     } else {
                         //retrieve default files from db for the system vm
-                        List<RetrieveDiagnosticsVO> result = null;
+                        for (RetrieveDiagnosticsVO defaultsVO : defaultDiagnosticsData.first()) {
+                            String vmRole = defaultsVO.getRole();
+                            String classDiagnosticsType = defaultsVO.getDiagnosticsType();
+                            String defaultFileList = defaultsVO.getDefaultValue();
+                            if (vmRole.equalsIgnoreCase(systemVmType) && classDiagnosticsType.equalsIgnoreCase(diagnosticsType)) {
+                                filesToRetrieve = defaultFileList.split(",");
+                                listOfDiagnosticsFiles = getDefaultFilesForVm(filesToRetrieve);
+                                diagnosticsTypeExists = true;
+                            }
+
+                        }
+                        if (!diagnosticsTypeExists) {
+                            List<RetrieveDiagnosticsVO> diagnosticsVOList = searchAndUpdateDiagnosticsType(cmd, diagnosticsType);
+                            if (diagnosticsVOList != null) {
+                                for (RetrieveDiagnosticsVO diagnosticsVO : diagnosticsVOList) {
+
+
+                                }
+                            } else {
+                                //diagnostics type entry does not exist in the DB, so insert it
+                            }
+
+                        } else {
+
+
+                        }
+ /*                       List<RetrieveDiagnosticsVO> result = null;
                         result = _retrieveDiagnosticsDao.listByName(cmd.getEventType()); //get the systemvmid
-                        listOfDiagnosticsFiles = getDefaultFilesForVm(result);
+                        listOfDiagnosticsFiles = getDefaultFilesForVm(result);*/
                     }
-                    final VMInstanceVO instance = _vmDao.findById(cmd.getId());
-                    retrieveDiagnosticsFiles(cmd.getId(), diagnosticsType, listOfDiagnosticsFiles, instance );
+                    /*final VMInstanceVO instance = _vmDao.findById(cmd.getId());
+                    retrieveDiagnosticsFiles(cmd.getId(), diagnosticsType, listOfDiagnosticsFiles, instance );*/
                 }
             }
         }
@@ -384,7 +449,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    protected List<String> getDefaultFilesForVm(List<RetrieveDiagnosticsVO> voList) {
+    protected List<String> getDefaultFilesForVm(String[] defaultFiles) {
         return null;
     }
 

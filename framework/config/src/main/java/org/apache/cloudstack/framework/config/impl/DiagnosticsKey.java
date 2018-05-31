@@ -55,7 +55,7 @@ public class DiagnosticsKey {
     }
 
     public final String key() {
-        return role;
+        return diagnosticsClassType;
     }
 
 
@@ -68,7 +68,7 @@ public class DiagnosticsKey {
     @Override
     public String toString()
     {
-        return role;
+        return diagnosticsClassType;
     }
 
     static DiagnosticsConfigDepotImpl s_depot = null;
@@ -91,14 +91,14 @@ public class DiagnosticsKey {
     @Override
     public int hashCode()
     {
-        return role.hashCode();
+        return diagnosticsClassType.hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof DiagnosticsKey) {
             DiagnosticsKey that = (DiagnosticsKey)obj;
-            return this.role.equals(that.role);
+            return this.diagnosticsClassType.equals(that.diagnosticsClassType);
         }
         return false;
     }
@@ -108,23 +108,23 @@ public class DiagnosticsKey {
             return true;
         } else if (obj instanceof String) {
             String key = (String)obj;
-            return key.equals(role);
+            return key.equals(diagnosticsClassType);
         }
 
         throw new CloudRuntimeException("Comparing Diagnostics key to " + obj.toString());
     }
 
     public String value() {
-        if (role == null) {
+        if (diagnosticsClassType == null) {
             RetrieveDiagnosticsVO vo = s_depot != null ? s_depot.global().findById(key()) : null;
             final String value = (vo != null && vo.getValue() != null) ? vo.getValue() : null;
-            role = (String)((value == null) ? null : valueOf(value));
+            diagnosticsClassType = (String)((value == null) ? null : valueOf(value));
         }
 
-        return role;
+        return diagnosticsClassType;
     }
 
-    public String valueIn(Long id) {
+    public String valueIn(String id) {
         if (id == null) {
             return value();
         }

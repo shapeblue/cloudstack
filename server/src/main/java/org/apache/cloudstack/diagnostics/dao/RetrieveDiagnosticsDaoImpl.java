@@ -17,6 +17,7 @@
 
 package org.apache.cloudstack.diagnostics.dao;
 
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.ComponentLifecycle;
 import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.db.GenericDaoBase;
@@ -127,32 +128,23 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
     }
 
     @Override
-    public Map<String, String> getDiagnosticsDetails() {
+    public Pair<List<RetrieveDiagnosticsVO>, Integer> getDiagnosticsDetails() {
         if (_diagnosticsDetails == null) {
             _diagnosticsDetails = new HashMap<String, Map<String, String>>();
-
+            Integer voSize = 0;
             SearchCriteria<RetrieveDiagnosticsVO> sc = RoleSearch.create();
             sc.setParameters("role", "class", "value");
             List<RetrieveDiagnosticsVO> results = search(sc, null);
-            Map<String, String> details = new HashMap<String, String>(results.size());
-            for (RetrieveDiagnosticsVO result : results) {
-                if ("password".equals(result.getDiagnosticsType())) {
-                    details.put(result.getDiagnosticsType(), result.getValue());
-                } else {
-                    details.put(result.getDiagnosticsType(), result.getValue());
-                }
-            }
-
-            return details;
-
+            return new Pair<List<RetrieveDiagnosticsVO>, Integer>(results, results.size());
         }
         return null;
+
     }
 
     @Override
     public RetrieveDiagnosticsVO findByName(String name) {
         SearchCriteria<RetrieveDiagnosticsVO> sc = RoleSearch.create();
-        sc.setParameters("name", name);
+        sc.setParameters("role", name);
         return findOneIncludingRemovedBy(sc);
     }
 
@@ -162,9 +154,5 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
         _diagnosticsDetails = null;
 
     }
-
-
-
-
 
 }

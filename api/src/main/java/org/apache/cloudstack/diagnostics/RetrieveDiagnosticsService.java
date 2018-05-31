@@ -25,6 +25,7 @@ import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCm
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 
 import javax.naming.ConfigurationException;
 import java.util.List;
@@ -40,5 +41,7 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
     boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException;
 
     Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);
+
+    List<RetrieveDiagnosticsVO> searchAndUpdateDiagnosticsType(RetrieveDiagnosticsCmd cmd, final String diagnosticsType);
 
 }
