@@ -17,16 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cmd=$1
-if [ $cmd == "ping" ]
-then
-    $1 $2 -c 5
-
-elif [ $cmd == "traceroute" ]
-then
-    $1 $2
-
+if [[ "$@" = *"ping"* ]]; then
+    if [[ "$@" = *"-c"* ]]; then
+        $@
+    else
+        $@ -c 5
+    fi
 else
-    echo "I am not ping or traceroute"
-
+    $@
 fi
