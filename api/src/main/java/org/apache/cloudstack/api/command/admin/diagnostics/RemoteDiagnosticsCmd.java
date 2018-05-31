@@ -17,7 +17,7 @@
  * // under the License.
  */
 
-package org.apache.cloudstack.api.command.admin.diagnosis;
+package org.apache.cloudstack.api.command.admin.diagnostics;
 
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
@@ -120,7 +120,7 @@ public class RemoteDiagnosticsCmd extends BaseCmd {
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException,
             ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
         Preconditions.checkState(RemoteDiagnosticsService.DiagnosisType.contains(getType()), "%s is " +
-                "not a valid network diagnosis command, only ping, traceroute or arping is allowed.", type);
+                "not a valid network diagnostics command, only ping, traceroute or arping is allowed.", type);
         RemoteDiagnosticsResponse diagnosisResponse = diagnosisService.executeDiagnosisToolInSystemVm(this);
         if (diagnosisResponse != null) {
             diagnosisResponse.setObjectName("diagnostics");

@@ -17,7 +17,7 @@
  * // under the License.
  */
 
-package org.apache.cloudstack.api.command.admin.diagnosis;
+package org.apache.cloudstack.api.command.admin.diagnostics;
 
 import org.junit.After;
 import org.junit.Before;

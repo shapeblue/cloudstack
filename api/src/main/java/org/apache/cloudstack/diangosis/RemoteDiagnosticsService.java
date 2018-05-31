@@ -21,7 +21,7 @@ package org.apache.cloudstack.diangosis;
 
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
-import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosticsCmd;
+import org.apache.cloudstack.api.command.admin.diagnostics.RemoteDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
 
 public interface RemoteDiagnosticsService {

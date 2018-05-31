@@ -31,7 +31,7 @@ import com.cloud.utils.component.PluggableService;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
-import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosticsCmd;
+import org.apache.cloudstack.api.command.admin.diagnostics.RemoteDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
 import org.apache.cloudstack.diangosis.RemoteDiagnosticsService;
 import org.apache.log4j.Logger;
