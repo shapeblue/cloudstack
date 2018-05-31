@@ -53,12 +53,11 @@ import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.config.ConfigDepot;
-import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.cloudstack.framework.config.DiagnosticsConfigDepot;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
-import org.apache.cloudstack.framework.config.impl.DiagnosticsConfigDepotImpl;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
@@ -145,10 +144,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     PrimaryDataStoreDao _storagePoolDao;
 
     @Inject
-    private ConfigDepot _configDepot;
+    ConfigDepot _configDepot;
 
     @Inject
-    private DiagnosticsConfigDepotImpl _diagnosticsDepot;
+    DiagnosticsConfigDepot _diagnosticsDepot;
 
     @Inject
     StoragePoolDetailsDao _storagePoolDetailsDao;
@@ -333,7 +332,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
        for (final RetrieveDiagnosticsVO param : result) {
            final RetrieveDiagnosticsVO diagnosticsVo = _retrieveDiagnosticsDao.findByName(param.getDiagnosticsType());
            if (diagnosticsVo != null) {
-              final DiagnosticsKey key = _diagnosticsDepot.getKey(param.getRole());
+              final DiagnosticsKey key = _diagnosticsDepot.get(param.getRole());
               if (key != null) {
                  diagnosticsVo.setValue(key.valueIn(cmd.getEventType()) == null ? null : key.valueIn(cmd.getEventType()).toString());
                  diagnosticsVOList.add(diagnosticsVo);

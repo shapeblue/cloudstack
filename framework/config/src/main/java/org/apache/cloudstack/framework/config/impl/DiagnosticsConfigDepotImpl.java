@@ -16,10 +16,7 @@
 // under the License.
 package org.apache.cloudstack.framework.config.impl;
 
-import org.apache.cloudstack.framework.config.ConfigDepot;
-import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
-import org.apache.cloudstack.framework.config.ConfigKey;
-import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.cloudstack.framework.config.DiagnosticsConfigDepot;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
 
@@ -33,7 +30,7 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.ArrayList;
 
-public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin {
+public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
 
     private final static Logger s_logger = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
     @Inject
@@ -67,13 +64,14 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
 
     @PostConstruct
     @Override
-    public void populateConfigurations() {
+    public void populateDiagnostics() {
         for (DiagnosticsKey diagnosticsClassType : _diagnosticsTypeConfigurable) {
-            populateConfiguration(diagnosticsClassType);
+            populateDiagnostics(diagnosticsClassType);
         }
     }
 
-    protected void populateConfiguration(DiagnosticsKey clazz) {
+    @Override
+    public void populateDiagnostics(DiagnosticsKey clazz) {
         if (_diagnosticsTypeConfigurable.contains(clazz))
             return;
         boolean diagnosticsTypeExists = false;
@@ -89,7 +87,7 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
                 //Pair<String, DiagnosticsKey<?>> newDiagnosticsType = new Pair<String, DiagnosticsKey<?>>(clazz.key(), clazz);
                 DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.key(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());//?>>(clazz.key(), clazz);
                 _allKeys.put(clazz.key(), newDiagnosticsType);
-                createOrupdateDiagnosticsObject(clazz.key(), newDiagnosticsType );
+                createOrUpdateDiagnosticObject(clazz.key(), newDiagnosticsType );
             }
 
         }
@@ -97,7 +95,8 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
 
     }
 
-    private void createOrupdateDiagnosticsObject(String componentName,  DiagnosticsKey diagnosticsType) {
+    @Override
+    public void createOrUpdateDiagnosticObject(String componentName,  DiagnosticsKey diagnosticsType) {
         RetrieveDiagnosticsVO vo = _diagnosticsDao.findById(diagnosticsType.key());
         //DiagnosticsKey diagnosticsKey = new DiagnosticsKey(diagnosticsType.getClass(), diagnosticsType.key(), "new diagnostics")
         if (vo == null) {
@@ -117,10 +116,6 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
         }
     }
 
-    @Override
-    public void populateConfiguration(Configurable configurable) {
-
-    }
 
     @Override
     public List<String> getComponentsInDepot() {
@@ -142,24 +137,13 @@ public class DiagnosticsConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin
     }
 
     @Override
-    public Set<ConfigKey<?>> getConfigListByScope(String scope) {
-        return null;
-    }
-
-    @Override
-    public <T> void set(ConfigKey<T> key, T value) {
+    public void set(DiagnosticsKey key, String value) {
         //_diagnosticsDao.update(key.key(), value.toString());
 
     }
 
     @Override
-    public <T> void createOrUpdateConfigObject(String componentName, ConfigKey<T> key, String value) {
-        //createOrupdateConfigObject(new Date(), componentName, key, value);
-
-    }
-
-    @Override
-    public ConfigKey<?> get(String key) {
+    public DiagnosticsKey get(String key) {
         return null;
     }
 
