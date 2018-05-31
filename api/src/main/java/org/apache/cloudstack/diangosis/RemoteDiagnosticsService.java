@@ -21,16 +21,16 @@ package org.apache.cloudstack.diangosis;
 
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
-import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosisCmd;
-import org.apache.cloudstack.api.response.RemoteDiagnosisResponse;
+import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosticsCmd;
+import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
 
-public interface RemoteDiagnosisService {
-    RemoteDiagnosisResponse executeDiagnosisToolInSsvm(RemoteDiagnosisCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
+public interface RemoteDiagnosticsService {
+    RemoteDiagnosticsResponse executeDiagnosisToolInSystemVm(RemoteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
 
     enum DiagnosisType {
         ping, traceroute, arping;
 
-        public static boolean containts(String cmd){
+        public static boolean contains(String cmd){
             try{
                 valueOf(cmd);
                 return true;

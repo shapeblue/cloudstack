@@ -32,25 +32,25 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.RemoteDiagnosisResponse;
+import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.diangosis.RemoteDiagnosisService;
+import org.apache.cloudstack.diangosis.RemoteDiagnosticsService;
 
 import javax.inject.Inject;
 
-@APICommand(name = RemoteDiagnosisCmd.APINAME,
+@APICommand(name = RemoteDiagnosticsCmd.APINAME,
         since = "4.11",
         description = "Execute network utility command (ping/arping/tracert from a remote host",
         responseHasSensitiveInfo = false,
         requestHasSensitiveInfo = false,
-        responseObject = RemoteDiagnosisResponse.class,
+        responseObject = RemoteDiagnosticsResponse.class,
         authorized = RoleType.Admin)
-public class RemoteDiagnosisCmd extends BaseCmd {
+public class RemoteDiagnosticsCmd extends BaseCmd {
 
     public static final String APINAME = "remoteDiganosis";
 
     @Inject
-    private RemoteDiagnosisService diagnosisService;
+    private RemoteDiagnosticsService diagnosisService;
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -59,7 +59,7 @@ public class RemoteDiagnosisCmd extends BaseCmd {
             description = "The ID of the System VM instance",
             required = true,
             type = CommandType.UUID,
-            entityType = RemoteDiagnosisResponse.class)
+            entityType = RemoteDiagnosticsResponse.class)
     private Long id;
 
     @Parameter(name = ApiConstants.IP_ADDRESS,
@@ -68,7 +68,7 @@ public class RemoteDiagnosisCmd extends BaseCmd {
             type = CommandType.STRING)
     private String destinationIpAddress;
 
-    @Parameter(name = ApiConstants.DIAGNOSIS_TYPE,
+    @Parameter(name = ApiConstants.TYPE,
             description = "The type of command to be executed inside the System VM instance, e.g. ping, tracert or arping",
             required = true,
             type = CommandType.STRING)
@@ -118,10 +118,10 @@ public class RemoteDiagnosisCmd extends BaseCmd {
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException,
             ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-        Preconditions.checkState(RemoteDiagnosisService.DiagnosisType.containts(getDiagnosisType()), "%s is " +
+        Preconditions.checkState(RemoteDiagnosticsService.DiagnosisType.contains(getDiagnosisType()), "%s is " +
                 "not a valid network diagnosis command, I only allow ping, traceroute and arping.", diagnosisType);
-        RemoteDiagnosisResponse diagnosisResponse = diagnosisService.executeDiagnosisToolInSsvm(this);
-        diagnosisResponse.setObjectName("diagnosis");
+        RemoteDiagnosticsResponse diagnosisResponse = diagnosisService.executeDiagnosisToolInSystemVm(this);
+        diagnosisResponse.setObjectName("diagnostics");
         diagnosisResponse.setResponseName(getCommandName());
         this.setResponseObject(diagnosisResponse);
     }

@@ -22,7 +22,7 @@ package org.apache.cloudstack.api.command.admin.diagnosis;
 import org.junit.After;
 import org.junit.Before;
 
-public class RemoteDiagnosisCmdTest {
+public class RemoteDiagnosticsCmdTest {
 
     @Before
     public void setUp() throws Exception {

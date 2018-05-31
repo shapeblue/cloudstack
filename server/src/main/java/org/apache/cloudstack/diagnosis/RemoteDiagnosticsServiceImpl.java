@@ -30,17 +30,17 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
-import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosisCmd;
-import org.apache.cloudstack.api.response.RemoteDiagnosisResponse;
-import org.apache.cloudstack.diangosis.RemoteDiagnosisService;
+import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosticsCmd;
+import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
+import org.apache.cloudstack.diangosis.RemoteDiagnosticsService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RemoteDiagnosisServiceImpl extends ManagerBase implements PluggableService, RemoteDiagnosisService {
-    private static final Logger s_logger = Logger.getLogger(RemoteDiagnosisServiceImpl.class);
+public class RemoteDiagnosticsServiceImpl extends ManagerBase implements PluggableService, RemoteDiagnosticsService {
+    private static final Logger s_logger = Logger.getLogger(RemoteDiagnosticsServiceImpl.class);
 
     @Inject
     private RouterControlHelper routerControlHelper;
@@ -51,27 +51,28 @@ public class RemoteDiagnosisServiceImpl extends ManagerBase implements Pluggable
 
 
     @Override
-    public RemoteDiagnosisResponse executeDiagnosisToolInSsvm(final RemoteDiagnosisCmd cmd) throws AgentUnavailableException,
+    public RemoteDiagnosticsResponse executeDiagnosisToolInSystemVm(final RemoteDiagnosticsCmd cmd) throws AgentUnavailableException,
             InvalidParameterValueException {
-        //final Long systemVmId = cmd.getId();
-        final VMInstanceVO systemVm = vmInstanceDao.findById(cmd.getId());
+        final Long systemVmId = cmd.getId();
+        final VMInstanceVO systemVm = vmInstanceDao.findById(systemVmId);
+        if (systemVm == null){
+            s_logger.error("Unable to find a virtual machine with id " + systemVm);
+            throw new InvalidParameterValueException("Unable to find a virtual machine with id " + systemVm);
+        }
         final Long hostId = systemVm.getHostId();
 
         final String diagnosisCommandType = cmd.getDiagnosisType();
         final String destinationIpAddress = cmd.getDestinationIpAddress();
         final String optionalArgunments = cmd.getOptionalArguments();
 
-        if (systemVm == null){
-            s_logger.error("Unable to find a virtual machine with id " + systemVm);
-            throw new InvalidParameterValueException("Unable to find a virtual machine with id " + systemVm);
-        }
+
 
         String remoteCommand = setupRemoteCommand(diagnosisCommandType, destinationIpAddress, optionalArgunments);
+
         final ExecuteDiagnosisCommand command = new ExecuteDiagnosisCommand(remoteCommand);
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVm.getId()));
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVm.getInstanceName());
 
-        // For debugging
         final String commandPassed = command.getSrciptArguments();
 
         Answer origAnswer;
@@ -79,21 +80,19 @@ public class RemoteDiagnosisServiceImpl extends ManagerBase implements Pluggable
             origAnswer = agentManager.send(hostId, command);
         } catch (final OperationTimedoutException e) {
             s_logger.warn("Timed Out", e);
-            throw new AgentUnavailableException("Unable to send comands to virtual machine ", hostId, e);
+            throw new AgentUnavailableException("Unable to send commands to virtual machine ", hostId, e);
         }
+
         ExecuteDiagnosisAnswer answer = null;
         if (origAnswer instanceof ExecuteDiagnosisAnswer) {
             answer = (ExecuteDiagnosisAnswer) origAnswer;
-        } else {
-            s_logger.warn("Unable to update router " + systemVm.getHostName() + "status");
         }
-
 
         return createRemoteDiagnosisResponse(answer,commandPassed);
     }
 
-    private static RemoteDiagnosisResponse createRemoteDiagnosisResponse(ExecuteDiagnosisAnswer answer, String commandPaased){
-        RemoteDiagnosisResponse response = new RemoteDiagnosisResponse();
+    private static RemoteDiagnosticsResponse createRemoteDiagnosisResponse(ExecuteDiagnosisAnswer answer, String commandPaased){
+        RemoteDiagnosticsResponse response = new RemoteDiagnosticsResponse();
         response.setResult(answer.getResult());
         response.setDetails(answer.getDetails());
         response.setNetworkCommand(commandPaased);
@@ -112,7 +111,7 @@ public class RemoteDiagnosisServiceImpl extends ManagerBase implements Pluggable
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> cmdList = new ArrayList<>();
-        cmdList.add(RemoteDiagnosisCmd.class);
+        cmdList.add(RemoteDiagnosticsCmd.class);
         return cmdList;
     }
 

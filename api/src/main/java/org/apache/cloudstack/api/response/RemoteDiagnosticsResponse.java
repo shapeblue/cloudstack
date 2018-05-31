@@ -27,7 +27,7 @@ import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
-public class RemoteDiagnosisResponse extends BaseResponse {
+public class RemoteDiagnosticsResponse extends BaseResponse {
     @SerializedName(ApiConstants.DETAILS)
     @Param(description = "Script execution result")
     private String details;
@@ -37,7 +37,7 @@ public class RemoteDiagnosisResponse extends BaseResponse {
     private Boolean success;
 
     @SerializedName("command")
-    @Param(description = "Command passed to scrip")
+    @Param(description = "Command passed to script")
     private String networkCommand;
 
     public String getNetworkCommand() {
