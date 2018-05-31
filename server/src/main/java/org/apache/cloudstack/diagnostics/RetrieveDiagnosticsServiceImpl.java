@@ -391,10 +391,11 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 }
 
                 defaultDiagnosticsData = loadDiagnosticsDataConfiguration();
-
+                diagnosticsType = cmd.getDiagnosticsType();
                 if (diagnosticsType == null) {
                     listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType);
                 } else {
+                    fileDetails = cmd.getOptionalListOfFiles();
                     if (fileDetails != null) {
                         fileDetails = cmd.getOptionalListOfFiles();
                         filesToRetrieve = fileDetails.split(",");
