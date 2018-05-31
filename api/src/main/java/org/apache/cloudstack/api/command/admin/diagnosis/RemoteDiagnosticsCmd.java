@@ -29,6 +29,7 @@ import com.google.common.base.Preconditions;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
@@ -66,13 +67,13 @@ public class RemoteDiagnosticsCmd extends BaseCmd {
             description = "Destination IP address to ping",
             required = true,
             type = CommandType.STRING)
-    private String destinationIpAddress;
+    private String address;
 
     @Parameter(name = ApiConstants.TYPE,
             description = "The type of command to be executed inside the System VM instance, e.g. ping, tracert or arping",
             required = true,
             type = CommandType.STRING)
-    private String diagnosisType;
+    private String type;
 
     @Parameter(name = ApiConstants.PARAMS,
             description = "Additional command line options",
@@ -86,12 +87,12 @@ public class RemoteDiagnosticsCmd extends BaseCmd {
         return id;
     }
 
-    public String getDestinationIpAddress() {
-        return destinationIpAddress;
+    public String getAddress() {
+        return address;
     }
 
-    public String getDiagnosisType() {
-        return diagnosisType.toLowerCase();
+    public String getType() {
+        return type.toLowerCase();
     }
 
     public String getOptionalArguments() {
@@ -118,12 +119,17 @@ public class RemoteDiagnosticsCmd extends BaseCmd {
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException,
             ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-        Preconditions.checkState(RemoteDiagnosticsService.DiagnosisType.contains(getDiagnosisType()), "%s is " +
-                "not a valid network diagnosis command, I only allow ping, traceroute and arping.", diagnosisType);
+        Preconditions.checkState(RemoteDiagnosticsService.DiagnosisType.contains(getType()), "%s is " +
+                "not a valid network diagnosis command, only ping, traceroute or arping is allowed.", type);
         RemoteDiagnosticsResponse diagnosisResponse = diagnosisService.executeDiagnosisToolInSystemVm(this);
-        diagnosisResponse.setObjectName("diagnostics");
-        diagnosisResponse.setResponseName(getCommandName());
-        this.setResponseObject(diagnosisResponse);
+        if (diagnosisResponse != null) {
+            diagnosisResponse.setObjectName("diagnostics");
+            diagnosisResponse.setResponseName(getCommandName());
+            this.setResponseObject(diagnosisResponse);
+        } else {
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Unsupported VM type");
+        }
+
     }
 
 

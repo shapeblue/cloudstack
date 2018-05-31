@@ -21,7 +21,10 @@ package org.apache.cloudstack.api.command.admin.diagnosis;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.runner.RunWith;
+import org.mockito.runners.MockitoJUnitRunner;
 
+@RunWith(MockitoJUnitRunner.class)
 public class RemoteDiagnosticsCmdTest {
 
     @Before

@@ -29,6 +29,7 @@ import com.cloud.network.router.RouterControlHelper;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
 import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.admin.diagnosis.RemoteDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
@@ -54,18 +55,22 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
     public RemoteDiagnosticsResponse executeDiagnosisToolInSystemVm(final RemoteDiagnosticsCmd cmd) throws AgentUnavailableException,
             InvalidParameterValueException {
         final Long systemVmId = cmd.getId();
-        final VMInstanceVO systemVm = vmInstanceDao.findById(systemVmId);
+        final VMInstanceVO systemVm = vmInstanceDao.findByIdTypes(systemVmId, VirtualMachine.Type.ConsoleProxy,
+                VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
         if (systemVm == null){
-            s_logger.error("Unable to find a virtual machine with id " + systemVm);
-            throw new InvalidParameterValueException("Unable to find a virtual machine with id " + systemVm);
+            s_logger.error("Unable to find a system virtual machine with id " + systemVmId);
+            throw new InvalidParameterValueException("Unable to find a system virtual machine with id " + systemVmId);
         }
+
         final Long hostId = systemVm.getHostId();
+        if (hostId == null){
+            s_logger.warn("Unable to find host for virtual machine instance " + systemVm.getInstanceName());
+            throw new InvalidParameterValueException("Unable to find host for virtual machine instance " + systemVm.getInstanceName());
+        }
 
-        final String diagnosisCommandType = cmd.getDiagnosisType();
-        final String destinationIpAddress = cmd.getDestinationIpAddress();
+        final String diagnosisCommandType = cmd.getType();
+        final String destinationIpAddress = cmd.getAddress();
         final String optionalArgunments = cmd.getOptionalArguments();
-
-
 
         String remoteCommand = setupRemoteCommand(diagnosisCommandType, destinationIpAddress, optionalArgunments);
 
@@ -103,7 +108,6 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
         if (optionalArguments != null){
             return String.format("%s %s", diagnosisType, destinationIpAddress+" "+optionalArguments);
         }
-
         return String.format("%s %s", diagnosisType, destinationIpAddress);
     }
 
@@ -114,6 +118,4 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
         cmdList.add(RemoteDiagnosticsCmd.class);
         return cmdList;
     }
-
-
 }
