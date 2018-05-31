@@ -301,4 +301,5 @@
     
     <bean id="retrieveDiagnosticsServiceImpl" class="org.apache.cloudstack.diagnostics.RetrieveDiagnosticsServiceImpl" />
     <bean id="RetrieveDiagnosticsDao" class="org.apache.cloudstack.diagnostics.dao.RetrieveDiagnosticsDaoImpl" />
+    <bean id="DiagnosticsConfigDepotImpl" class="org.apache.cloudstack.framework.config.impl.DiagnosticsConfigDepotImpl" />
 </beans>

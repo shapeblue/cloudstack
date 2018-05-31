@@ -53,6 +53,7 @@ import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.config.ConfigDepot;
+import org.apache.cloudstack.framework.config.ConfigDepotAdmin;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
