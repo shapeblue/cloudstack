@@ -1,21 +1,21 @@
-/*
- * // Licensed to the Apache Software Foundation (ASF) under one
- * // or more contributor license agreements.  See the NOTICE file
- * // distributed with this work for additional information
- * // regarding copyright ownership.  The ASF licenses this file
- * // to you under the Apache License, Version 2.0 (the
- * // "License"); you may not use this file except in compliance
- * // with the License.  You may obtain a copy of the License at
- * //
- * //   http://www.apache.org/licenses/LICENSE-2.0
- * //
- * // Unless required by applicable law or agreed to in writing,
- * // software distributed under the License is distributed on an
- * // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * // KIND, either express or implied.  See the License for the
- * // specific language governing permissions and limitations
- * // under the License.
- */
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 
 package org.apache.cloudstack.diagnosis;
 
@@ -68,13 +68,13 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
             throw new InvalidParameterValueException("Unable to find host for virtual machine instance " + systemVm.getInstanceName());
         }
 
-        final String diagnosisCommandType = cmd.getType();
-        final String destinationIpAddress = cmd.getAddress();
+        final String cmdType = cmd.getType();
+        final String cmdAddress = cmd.getAddress();
         final String optionalArgunments = cmd.getOptionalArguments();
 
-        String remoteCommand = setupRemoteCommand(diagnosisCommandType, destinationIpAddress, optionalArgunments);
+        String remoteCommand = setupRemoteCommand(cmdType, cmdAddress, optionalArgunments);
 
-        final ExecuteDiagnosisCommand command = new ExecuteDiagnosisCommand(remoteCommand);
+        final ExecuteDiagnosticsCommand command = new ExecuteDiagnosticsCommand(remoteCommand);
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVm.getId()));
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVm.getInstanceName());
 
@@ -88,15 +88,15 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
             throw new AgentUnavailableException("Unable to send commands to virtual machine ", hostId, e);
         }
 
-        ExecuteDiagnosisAnswer answer = null;
-        if (origAnswer instanceof ExecuteDiagnosisAnswer) {
-            answer = (ExecuteDiagnosisAnswer) origAnswer;
+        ExecuteDiagnosticsAnswer answer = null;
+        if (origAnswer instanceof ExecuteDiagnosticsAnswer) {
+            answer = (ExecuteDiagnosticsAnswer) origAnswer;
         }
 
         return createRemoteDiagnosisResponse(answer,commandPassed);
     }
 
-    private static RemoteDiagnosticsResponse createRemoteDiagnosisResponse(ExecuteDiagnosisAnswer answer, String commandPaased){
+    private static RemoteDiagnosticsResponse createRemoteDiagnosisResponse(ExecuteDiagnosticsAnswer answer, String commandPaased){
         RemoteDiagnosticsResponse response = new RemoteDiagnosticsResponse();
         response.setResult(answer.getResult());
         response.setDetails(answer.getDetails());
@@ -104,11 +104,12 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
         return response;
     }
 
-    private static String setupRemoteCommand(String diagnosisType, String destinationIpAddress, String optionalArguments){
+    private static String setupRemoteCommand(String cmdType, String cmdAddress, String optionalArguments){
+        String COMMAND_LINE_TEMPLATE = String.format("%s %s", cmdType, cmdAddress);
         if (optionalArguments != null){
-            return String.format("%s %s", diagnosisType, destinationIpAddress+" "+optionalArguments);
+            return String.format("%s %s", COMMAND_LINE_TEMPLATE, optionalArguments);
         }
-        return String.format("%s %s", diagnosisType, destinationIpAddress);
+        return COMMAND_LINE_TEMPLATE;
     }
 
 

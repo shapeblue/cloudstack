@@ -76,8 +76,8 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachine.PowerState;
-import org.apache.cloudstack.diagnosis.ExecuteDiagnosisAnswer;
-import org.apache.cloudstack.diagnosis.ExecuteDiagnosisCommand;
+import org.apache.cloudstack.diagnosis.ExecuteDiagnosticsAnswer;
+import org.apache.cloudstack.diagnosis.ExecuteDiagnosticsCommand;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -274,11 +274,11 @@ public class MockVmManagerImpl extends ManagerBase implements MockVmManager {
     }
 
     @Override
-    public ExecuteDiagnosisAnswer executeDiagnosis(ExecuteDiagnosisCommand cmd) {
+    public ExecuteDiagnosticsAnswer executeDiagnostics(final ExecuteDiagnosticsCommand cmd) {
         final String router_name = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
         final MockVm vm = _mockVmDao.findByVmName(router_name);
 
-        return new ExecuteDiagnosisAnswer(cmd, true, null);
+        return new ExecuteDiagnosticsAnswer(cmd, true, null);
     }
 
     @Override

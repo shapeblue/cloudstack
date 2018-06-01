@@ -40,8 +40,8 @@ import org.apache.cloudstack.ca.SetupCertificateAnswer;
 import org.apache.cloudstack.ca.SetupCertificateCommand;
 import org.apache.cloudstack.ca.SetupKeyStoreCommand;
 import org.apache.cloudstack.ca.SetupKeystoreAnswer;
-import org.apache.cloudstack.diagnosis.ExecuteDiagnosisAnswer;
-import org.apache.cloudstack.diagnosis.ExecuteDiagnosisCommand;
+import org.apache.cloudstack.diagnosis.ExecuteDiagnosticsAnswer;
+import org.apache.cloudstack.diagnosis.ExecuteDiagnosticsCommand;
 import org.apache.cloudstack.utils.security.KeyStoreUtils;
 import org.apache.log4j.Logger;
 import org.joda.time.Duration;
@@ -192,8 +192,8 @@ public class VirtualRoutingResource {
             return execute((CheckS2SVpnConnectionsCommand) cmd);
         } else if (cmd instanceof GetRouterAlertsCommand) {
             return execute((GetRouterAlertsCommand) cmd);
-        } else if (cmd instanceof ExecuteDiagnosisCommand){
-            return execute((ExecuteDiagnosisCommand) cmd);
+        } else if (cmd instanceof ExecuteDiagnosticsCommand){
+            return execute((ExecuteDiagnosticsCommand) cmd);
         } else {
             s_logger.error("Unknown query command in VirtualRoutingResource!");
             return Answer.createUnsupportedCommandAnswer(cmd);
@@ -294,12 +294,12 @@ public class VirtualRoutingResource {
         return new CheckRouterAnswer(cmd, result.getDetails(), true);
     }
 
-    private Answer execute(ExecuteDiagnosisCommand cmd){
+    private Answer execute(ExecuteDiagnosticsCommand cmd){
         final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(),VRScripts.DIAGNOSE_SYSTEM_VM, cmd.getSrciptArguments());
         if (!result.isSuccess()){
-            return new ExecuteDiagnosisAnswer(cmd, result.isSuccess(), "ExecuteDiagnosisCommand failed: " + result.getDetails());
+            return new ExecuteDiagnosticsAnswer(cmd, result.isSuccess(), "ExecuteDiagnosticsCommand failed: " + result.getDetails());
         }
-        return new ExecuteDiagnosisAnswer(cmd, result.isSuccess(), result.getDetails());
+        return new ExecuteDiagnosticsAnswer(cmd, result.isSuccess(), result.getDetails());
     }
 
     private Answer execute(GetDomRVersionCmd cmd) {

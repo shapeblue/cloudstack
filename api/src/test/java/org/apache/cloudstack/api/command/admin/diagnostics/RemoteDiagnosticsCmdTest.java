@@ -17,14 +17,42 @@
 
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
+import org.apache.cloudstack.diangosis.RemoteDiagnosticsService;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.runners.MockitoJUnitRunner;
 
-//@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.class)
 public class RemoteDiagnosticsCmdTest {
+
+    private RemoteDiagnosticsCmd remoteDiagnosticsCmd;
+
+    @Mock
+    private RemoteDiagnosticsService diagnosticsService;
 
     @Before
     public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        remoteDiagnosticsCmd = new RemoteDiagnosticsCmd();
+    }
+
+    @Test
+    public void testPingCommand(){
+
+    }
+
+    @Test
+    public void testTracerouteCommand(){
+
+    }
+
+    @Test
+    public void testArpingCommand(){
+
     }
 
     @After
