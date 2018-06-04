@@ -40,15 +40,15 @@ CREATE TABLE `cloud`.`diagnosticsdata` (
   `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SSMV', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SSMV', 'PROPERTYFILES', '<SSVM property files>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'USERDATA', '<userdatafiles>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'LB', 'haproxy.conf');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'VPN', '<vpn configuration file>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('VR', 'LOGFILES', 'cloud.log,agent.log');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('CPVM', 'PROPERTYFILES', '<CPVM property file>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'PROPERTYFILES', '<SSVM property files>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'USERDATA', '<userdatafiles>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'LB', 'haproxy.conf');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'VPN', '<vpn configuration file>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'LOGFILES', 'cloud.log,agent.log');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ConsoleProxy', 'PROPERTYFILES', '<CPVM property file>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');

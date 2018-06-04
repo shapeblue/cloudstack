@@ -52,6 +52,6 @@
           class="org.apache.cloudstack.framework.config.impl.DiagnosticsConfigDepotImpl" />
 
     <bean id="RetrieveDiagnosticsDao"
-          class="org.apache.cloudstack.framework.config.ConfigDepotAdmin.RetrieveDiagnosticsDaoImpl" />
+          class="org.apache.cloudstack.framework.config.RetrieveDiagnosticsDaoImpl" />
 
 </beans>

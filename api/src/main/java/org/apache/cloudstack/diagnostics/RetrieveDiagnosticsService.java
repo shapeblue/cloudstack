@@ -38,6 +38,8 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
 
     ConfigKey<?>[] getConfigKeys();
 
+    //DiagnosticsKey[] getDiagnosticsKeys();
+
     boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException;
 
     Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);

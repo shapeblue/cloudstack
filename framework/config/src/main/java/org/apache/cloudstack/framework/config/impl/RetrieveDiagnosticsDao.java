@@ -17,25 +17,14 @@
 
 package org.apache.cloudstack.framework.config.impl;
 
-import com.cloud.utils.Pair;
 import com.cloud.utils.db.GenericDao;
 
 import java.util.List;
 
 public interface RetrieveDiagnosticsDao extends GenericDao<RetrieveDiagnosticsVO, String> {
 
-    Pair<List<RetrieveDiagnosticsVO>, Integer> getDiagnosticsDetails();
-
-    boolean update(String name, String category, String value);
-
-    String getValue(String name);
-
-    RetrieveDiagnosticsVO findByName(String name);
-
-    String getValueAndInitIfNotExist(String name, String className, String initValue);
-
-    void invalidateCache();
-
-    List<RetrieveDiagnosticsVO> listByName(String roleName);
-
+    public List<RetrieveDiagnosticsVO> findByEntityType(String entityType);
+    public List<RetrieveDiagnosticsVO> findByEntity(String entityType, String entityUuid);
 }
+
+

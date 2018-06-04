@@ -719,7 +719,6 @@ public class ApiConstants {
     public static final String LAST_ANNOTATED = "lastannotated";
     public static final String LDAP_DOMAIN = "ldapdomain";
 
-    public static final String DIAGNOSTICS_TYPE = "diagnosticstype";
     public static final String DETAIL = "detail";
     public static final String DISABLE_THRESHOLD = "disablethreshold";
     public static final String FILE_PATH = "filepath";

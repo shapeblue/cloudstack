@@ -19,7 +19,6 @@ package org.apache.cloudstack.api.command.admin.diagnostics;
 
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.vm.VirtualMachine;
-import com.google.common.base.Strings;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.acl.SecurityChecker;
 import org.apache.cloudstack.api.ACL;
@@ -30,15 +29,12 @@ import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
-import org.apache.cloudstack.api.response.SystemVmResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-import java.util.ArrayList;
-import java.util.List;
 
 @APICommand(name = RetrieveDiagnosticsCmd.APINAME,
         description = "Retrieves diagnostics files from System VMs",
@@ -53,7 +49,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     public static final String APINAME = "retrieveDiagnostics";
 
-    private boolean retrieveDefaultFiles = false;
     @Inject
     private RetrieveDiagnosticsService retrieveDiagnosticsService;
 
@@ -63,64 +58,58 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
     @Parameter(name = ApiConstants.ID,
             type = CommandType.UUID,
-            entityType = SystemVmResponse.class,
+            entityType = RetrieveDiagnosticsResponse.class,
             required = true,
             description = "The System VM type that the diagnostics files requested are to be retrieved from")
     private Long id;
 
 
-    @Parameter(name = ApiConstants.DIAGNOSTICS_TYPE,
-            type = BaseAsyncCmd.CommandType.STRING,
+    @Parameter(name = ApiConstants.TYPE,
+            type = CommandType.STRING,
+            required = true,
             description = "The type of diagnostics files requested, if DIAGNOSTICS_TYPE is not provided then the default files specified in the database will be retrieved")
-    private String diagnosticsType;
+    private String type;
 
     @Parameter(name = ApiConstants.DETAIL,
-            type = BaseAsyncCmd.CommandType.STRING,
+            type = CommandType.STRING,
             description = "Optional comma separated list of diagnostics files or items, can be specified as filenames only or full file path. These come in addition to the defaults set in diagnosticstype")
     private String optionalListOfFiles;
 
     // Configuration parameters //////
 
-    public String getConfigName() {
-        return configName;
-    }
-
-    public void setConfigName(String configName) {
-        this.configName = configName;
-    }
-
-    @Parameter(name = ApiConstants.NAME, type = CommandType.STRING, description = "lists configuration by name")
-    private String configName;
-
-    public String getKeyword() {
-        return keyword;
-    }
-
-    public void setKeyword(String keyword) {
-        this.keyword = keyword;
-    }
-
-    @Parameter(name = ApiConstants.KEYWORD, type = CommandType.STRING, description = "List by keyword")
-    private String keyword;
-
-
     @Parameter(name = ApiConstants.TIMEOUT,
-            type = BaseAsyncCmd.CommandType.STRING,
-            required = false,
+            type = CommandType.STRING,
             description = "Time out setting in seconds for the overall API call.")
     private String timeOut;
 
     @Parameter(name = ApiConstants.DISABLE_THRESHOLD,
-            type = BaseAsyncCmd.CommandType.STRING,
-            required = false,
+            type = CommandType.STRING,
             description = "Percentage disk space cut off before API will fail.")
     private String disableThreshold;
 
     @Parameter(name = ApiConstants.FILE_AGE,
-            type = BaseAsyncCmd.CommandType.STRING,
-            required = false,
+            type = CommandType.STRING,
             description = "Diagnostics file age in seconds before considered for garbage collection")
     private String fileAge;
+
+    @Parameter(name = ApiConstants.FILE_PATH,
+            type = CommandType.STRING,
+            description = "File path to use on the management server for all temporary files.")
+    private String filePath;
+
+    @Parameter(name = ApiConstants.INTERVAL,
+            type = CommandType.STRING,
+            description = "Interval between garbage collection executions in seconds.")
+    private String intervalGC;
+
+    @Parameter(name = ApiConstants.ENABLED,
+            type = CommandType.BOOLEAN,
+            description = "Garbage Collection on/off switch (true|false).")
+    private String enabledGC;
+
+    /////////////////////////////////////////////////////
+    /////////////////// Accessors ///////////////////////
+    /////////////////////////////////////////////////////
 
     public static Logger getS_logger() {
         return s_logger;
@@ -130,28 +119,12 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         return APINAME;
     }
 
-    public boolean isRetrieveDefaultFiles() {
-        return retrieveDefaultFiles;
-    }
-
-    public void setRetrieveDefaultFiles(boolean retrieveDefaultFiles) {
-        this.retrieveDefaultFiles = retrieveDefaultFiles;
-    }
-
-    public RetrieveDiagnosticsService getRetrieveDiagnosticsService() {
-        return retrieveDiagnosticsService;
-    }
-
-    public void setRetrieveDiagnosticsService(RetrieveDiagnosticsService retrieveDiagnosticsService) {
-        this.retrieveDiagnosticsService = retrieveDiagnosticsService;
-    }
-
     public void setId(Long id) {
         this.id = id;
     }
 
-    public void setDiagnosticsType(String diagnosticsType) {
-        this.diagnosticsType = diagnosticsType;
+    public void setType(String type) {
+        this.type = type;
     }
 
     public String getOptionalListOfFiles() {
@@ -210,75 +183,8 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         this.enabledGC = enabledGC;
     }
 
-    public String getCfgName() {
-        return cfgName;
-    }
-
-    public void setCfgName(String cfgName) {
-        this.cfgName = cfgName;
-    }
-
-    @Parameter(name = ApiConstants.NAME,
-            type = CommandType.STRING,
-            required = true,
-            description = "the name of the configuration")
-    private String cfgName;
-
-    public String getValue() {
-        return value;
-    }
-
-    public void setValue(String value) {
-        this.value = value;
-    }
-
-    @Parameter(name = ApiConstants.VALUE,
-            type = CommandType.STRING,
-            description = "the value of the configuration",
-            length = 4095)
-    private String value;
-
-    @Parameter(name = ApiConstants.FILE_PATH,
-            type = BaseAsyncCmd.CommandType.STRING,
-            required = false,
-            description = "File path to use on the management server for all temporary files.")
-    private String filePath;
-
-    @Parameter(name = ApiConstants.INTERVAL,
-            type = BaseAsyncCmd.CommandType.STRING,
-            required = false,
-            description = "Interval between garbage collection executions in seconds.")
-    private String intervalGC;
-
-    @Parameter(name = ApiConstants.ENABLED,
-            type = CommandType.BOOLEAN,
-            required = false,
-            description = "Garbage Collection on/off switch (true|false).")
-    private String enabledGC;
-
-    /////////////////////////////////////////////////////
-    /////////////////// Accessors ///////////////////////
-    /////////////////////////////////////////////////////
-
     public Long getId() {
         return id;
-    }
-
-    private List<String> processListOfDiagnosticsFiles(final String string) {
-        final List<String> listOfDiagnosticsFiles = new ArrayList<>();
-        if (!Strings.isNullOrEmpty(string)) {
-            for (final String file: string.split(",")) {
-                listOfDiagnosticsFiles.add(file.trim());
-            }
-        }
-        return listOfDiagnosticsFiles;
-    }
-
-    public List<String> getListOfDiagnosticsFiles() {
-        if (optionalListOfFiles != null) {
-            return processListOfDiagnosticsFiles(optionalListOfFiles);
-        }
-        return null;
     }
 
     @Override
@@ -286,8 +192,8 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         VirtualMachine.Type type = _mgr.findSystemVMTypeById(getId());
         return type.toString();
     }
-    public String getDiagnosticsType() {
-        return diagnosticsType;
+    public String getType() {
+        return type;
     }
 
 

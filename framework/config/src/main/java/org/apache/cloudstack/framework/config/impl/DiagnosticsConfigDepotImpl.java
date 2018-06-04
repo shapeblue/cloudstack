@@ -22,130 +22,116 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.Map;
-import java.util.HashSet;
 import java.util.HashMap;
-import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
 
     private final static Logger s_logger = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
-    List<DiagnosticsKey> _diagnosticsTypeConfigurable;
-    Set<DiagnosticsKey> _diagnosticsTypesConfigured = Collections.synchronizedSet(new HashSet<DiagnosticsKey>());
+    HashSet<DiagnosticsKey> diagnosticsKeyHashSet = new HashSet<>();
 
-    Map<String, DiagnosticsKey> _allKeys = new HashMap<String, DiagnosticsKey>();
+    DiagnosticsKey IPTablesRemove = new DiagnosticsKey("SecondaryStorageVm", "IPTables.remove", "IPTablesremove.sh", "Remove IP table rules");
+    DiagnosticsKey IPTablesRetrieve = new DiagnosticsKey("SecondaryStorageVm", "IPTables.remove", "IPTablesremove.sh", "Remove IP table rules");
+    DiagnosticsKey LOGFILES = new DiagnosticsKey( "ConsoleProxy", "LOGFILES", "agent.log,management.log,cloud.log", "Log files on Console Proxy VM");
+    DiagnosticsKey PROPERTYFILES = new DiagnosticsKey("VR", "PROPERTYFILES", "console.property,cloud.property,server.property",  "Property files to be retrieved");
+    DiagnosticsKey DNSFILES = new DiagnosticsKey("VR", "DNSFILES", "", "Dns files to be retrieved");
+    DiagnosticsKey DHCPFILES = new DiagnosticsKey("VR", "DHCPFILES", "DHCPmasq",  "Dhcp files to be retrieved");
+    DiagnosticsKey USERDATA = new DiagnosticsKey("ConsoleProxy", "USERDATA", "", "User data to be retrieved");
+    DiagnosticsKey LB = new DiagnosticsKey("SecondaryStorageVm", "LOADBALANCING", "", "Load balancing files to be retrieved");
+    DiagnosticsKey VPN = new DiagnosticsKey("VR", "VPN", "", "VPN diagnostics files to be retrieved");
+
+    DiagnosticsKey[] _diagnosticsTypeConfigurable = new DiagnosticsKey[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, DNSFILES, DHCPFILES, LB, VPN, USERDATA, PROPERTYFILES };
+    //Set<DiagnosticsKey> _diagnosticsTypesConfigured = Collections.synchronizedSet(new HashSet<DiagnosticsKey>());
+
+    //HashMap<String, Pair<String, DiagnosticsKey>> _allKeys = new HashMap<String, Pair<String, DiagnosticsKey>>();
 
 
-    HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey>> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, Set<DiagnosticsKey>>();
+    HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey>();
 
     public DiagnosticsConfigDepotImpl() {
-        DiagnosticsKey.init(this);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLES, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DHCPFILES, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DNS, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESremove, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESretrieve, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LOGFILES, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LB, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.PROPERTYFILES, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.USERDATA, new HashSet<DiagnosticsKey>());
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VPN, new HashSet<DiagnosticsKey>());
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESremove, IPTablesRemove);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESretrieve, IPTablesRetrieve);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LOGFILES, LOGFILES);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.PROPERTYFILES, PROPERTYFILES);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DNS, DNSFILES);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DHCPFILES, DHCPFILES);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.USERDATA, USERDATA);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LB, LB);
+        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VPN, VPN);
     }
 
-    public DiagnosticsKey getKey(String key) {
-        DiagnosticsKey value = _allKeys.get(key);
-        return value != null ? value : null;
+    @Override
+    public DiagnosticsKey getKey(DiagnosticsKey.DiagnosticsEntryType key) {
+        if (_diagnosticsTypeLevelsMap.containsKey(key)) {
+            _diagnosticsTypeLevelsMap.get(key);
+        }
+        return null;
     }
 
     @PostConstruct
     @Override
     public void populateDiagnostics() {
-        for (DiagnosticsKey diagnosticsClassType : _diagnosticsTypeConfigurable) {
-            populateDiagnostics(diagnosticsClassType);
+        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> entry : _diagnosticsTypeLevelsMap.entrySet()) {
+            populateDiagnostics(entry.getValue());
         }
     }
 
     @Override
     public void populateDiagnostics(DiagnosticsKey clazz) {
-        if (_diagnosticsTypeConfigurable.contains(clazz))
-            return;
         boolean diagnosticsTypeExists = false;
-
-        s_logger.debug("Retrieving keys from " + clazz.getClass().getSimpleName());
-
-        for (int i = 0; _diagnosticsTypeConfigurable != null; i++) {
-            DiagnosticsKey previous = _allKeys.get(_diagnosticsTypeConfigurable.get(i));
-            if (previous != null && previous.key().equals(clazz.key())) {
+        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> key : _diagnosticsTypeLevelsMap.entrySet()) {
+            if (key.equals(clazz) && key.getValue().getRole().equals(clazz.getRole()) && key.getValue().getDiagnosticsClassType().equals(clazz.getDiagnosticsClassType())) {
+                if (!key.getValue().getDetail().equals(clazz.getDetail())) {
+                    key.getValue().setDetail(clazz.getDetail());
+                }
                 diagnosticsTypeExists = true;
             }
-            if (!diagnosticsTypeExists) {
-                //Pair<String, DiagnosticsKey<?>> newDiagnosticsType = new Pair<String, DiagnosticsKey<?>>(clazz.key(), clazz);
-                DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.key(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());//?>>(clazz.key(), clazz);
-                _allKeys.put(clazz.key(), newDiagnosticsType);
-                createOrUpdateDiagnosticObject(clazz.key(), newDiagnosticsType );
-            }
-
         }
-
+        if (!diagnosticsTypeExists) {
+            String type = clazz.getDiagnosticsClassType();
+            DiagnosticsKey.DiagnosticsEntryType key = DiagnosticsKey.DiagnosticsEntryType.valueOf(type);
+            DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.getRole(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());
+            _diagnosticsTypeLevelsMap.put(key, newDiagnosticsType);
+            createOrUpdateDiagnosticObject(key, newDiagnosticsType );
+        }
 
     }
 
     @Override
-    public void createOrUpdateDiagnosticObject(String componentName,  DiagnosticsKey diagnosticsType) {
-        RetrieveDiagnosticsVO vo = _diagnosticsDao.findById(diagnosticsType.key());
+    public void createOrUpdateDiagnosticObject(DiagnosticsKey.DiagnosticsEntryType type, DiagnosticsKey diagnosticsType) {
+        List<RetrieveDiagnosticsVO> voList = _diagnosticsDao.findByEntityType(type.toString());
         //DiagnosticsKey diagnosticsKey = new DiagnosticsKey(diagnosticsType.getClass(), diagnosticsType.key(), "new diagnostics")
-        if (vo == null) {
-            vo = new RetrieveDiagnosticsVO(componentName, diagnosticsType);
-            vo.setDiagnosticsType(diagnosticsType.key());
-            vo.setRole(diagnosticsType.getRole());//to be given SystemVM type
-            vo.setValue(diagnosticsType.getDetail());//to be populated
-            _diagnosticsDao.persist(vo);
-        } else {
-            if (vo.getValue() != diagnosticsType.key() || !ObjectUtils.equals(vo.getRole(), diagnosticsType.getRole()) || !ObjectUtils.equals(vo.getDefaultValue(),
-                    diagnosticsType.getDetail())) {
-                vo.setRole(diagnosticsType.value()); //to be changed
-                vo.setDiagnosticsType(diagnosticsType.key());
-                vo.setValue(diagnosticsType.getDetail()); //to be changed
+        for (RetrieveDiagnosticsVO vo : voList) {
+            if (vo == null) {
+                vo = new RetrieveDiagnosticsVO(diagnosticsType.getRole(), diagnosticsType.getDiagnosticsClassType(), diagnosticsType.getDetail());
+                vo.setDiagnosticsType(diagnosticsType.getRole());
+                vo.setRole(diagnosticsType.getDiagnosticsClassType());//to be given SystemVM type
+                vo.setDefaultValue(diagnosticsType.getDetail());//to be populated
                 _diagnosticsDao.persist(vo);
+
+            } else {
+                if (vo.getDefaultValue() != diagnosticsType.getDiagnosticsClassType() || !ObjectUtils.equals(vo.getRole(), diagnosticsType.getRole()) || !ObjectUtils.equals(vo.getDefaultValue(),
+                        diagnosticsType.getDetail())) {
+                    vo.setRole(diagnosticsType.value()); //to be changed
+                    vo.setDiagnosticsType(diagnosticsType.key());
+                    vo.setDefaultValue(diagnosticsType.getDetail()); //to be changed
+                    _diagnosticsDao.persist(vo);
+                }
             }
         }
-    }
-
-
-    @Override
-    public List<String> getComponentsInDepot() {
-        return new ArrayList<String>();
     }
 
     public RetrieveDiagnosticsDao global() {
         return _diagnosticsDao;
     }
 
-
-    public List<DiagnosticsKey> getConfigurables() {
-        return _diagnosticsTypeConfigurable;
-    }
-
-    @Inject
-    public void setConfigurables(List<DiagnosticsKey> diagnosticsConfigurables) {
-        _diagnosticsTypeConfigurable = diagnosticsConfigurables;
-    }
-
     @Override
     public void set(DiagnosticsKey key, String value) {
-        //_diagnosticsDao.update(key.key(), value.toString());
 
     }
-
-    @Override
-    public DiagnosticsKey get(String key) {
-        return null;
-    }
-
 
 }

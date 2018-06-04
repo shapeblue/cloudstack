@@ -21,19 +21,18 @@ package org.apache.cloudstack.framework.config;
 
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 
-import java.util.List;
-
 public interface DiagnosticsConfigDepot {
-    DiagnosticsKey get(String paramName);
 
     void set(DiagnosticsKey key, String value);
 
-    void createOrUpdateDiagnosticObject(String componentName, DiagnosticsKey key);
+    void createOrUpdateDiagnosticObject(DiagnosticsKey.DiagnosticsEntryType type, DiagnosticsKey key);
 
     void populateDiagnostics();
 
     void populateDiagnostics(DiagnosticsKey configurable);
 
-    List<String> getComponentsInDepot();
+   // void setConfigurables(List<DiagnosticsKey> diagnosticsConfigurables);
+
+    DiagnosticsKey getKey(DiagnosticsKey.DiagnosticsEntryType key);
 }
 

@@ -17,12 +17,12 @@
 
 package org.apache.cloudstack.framework.config.impl;
 
-import com.cloud.utils.crypt.DBEncryptionUtil;
+import com.cloud.utils.db.GenericDao;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Id;
 import javax.persistence.Table;
+import java.util.Date;
 
 @Entity
 @Table(name = "diagnosticsdata")
@@ -32,36 +32,43 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
     private String role;
 
     @Column(name = "class")
-    private String className;
-
-    @Id
-    @Column(name = "role_id")
-    private String roleId;
+    private DiagnosticsKey.DiagnosticsEntryType className;
 
     @Column(name = "value", length = 8191)
     private String value;
 
+    @Column(name = GenericDao.CREATED_COLUMN)
+    private Date created;
+
+    @Column(name = GenericDao.REMOVED_COLUMN)
+    private Date removed;
+
+
 
     protected RetrieveDiagnosticsVO() {
+        this.role.toString();
     }
 
     public RetrieveDiagnosticsVO(String role, String className, String value) {
-        this.role = role;
-        this.className = className;
-        setValue(value);
+        this();
+        setRole(role);
+        setDiagnosticsType(className);
+        setDefaultValue(value);
     }
 
-    public RetrieveDiagnosticsVO(String component, DiagnosticsKey key) {
-        this(key.key(), key.getDiagnosticsClassType(), key.getDetail());
+    public RetrieveDiagnosticsVO(String role, DiagnosticsKey.DiagnosticsEntryType type, String value) {
+        this();
+        setRole(role);
+        setDiagnosticsType(type.toString());
+        setDefaultValue(value);
     }
 
-/*    public RetrieveDiagnosticsVO(String roleId, String role, String className, String value) {
-        this.role = role;
-        this.className = className;
-        this.value = value;
-        setValue(value);
-    }*/
+    public RetrieveDiagnosticsVO(String name, String value) {
+        this.role = name;
+        setDefaultValue(value);
+    }
 
+    @Override
     public String getRole() {
         return role;
     }
@@ -70,42 +77,36 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
         this.role = role;
     }
 
-    public void setDiagnosticsType(String className) {
-        this.className = className;
+    public void setDiagnosticsType(String diagnosticsType) {
+        this.className = DiagnosticsKey.DiagnosticsEntryType.valueOf(diagnosticsType);
     }
 
+    public void setDiagnosticsType(DiagnosticsKey.DiagnosticsEntryType diagnosticsType) {
+        this.className = diagnosticsType;
+    }
+
+    @Override
+    public Date getCreated() {
+        return created;
+    }
+
+    @Override
+    public Date getRemoved() {
+        return removed;
+    }
+
+    @Override
     public String getDefaultValue() {
         return value;
     }
 
-    public void setDefaultValue(String className) {
-        this.className = className;
-    }
-
-    public boolean isEncrypted() {
-        return "Hidden".equals(getRole()) || "Secure".equals(getRole());
-    }
-
-    public String getDiagnosticsType() {
-        return className;
+    public void setDefaultValue(String value) {
+        this.value = value;
     }
 
     @Override
-    public String getValue() {
-        if(isEncrypted()) {
-            return DBEncryptionUtil.decrypt(value);
-        } else {
-            return value;
-        }
+    public DiagnosticsKey.DiagnosticsEntryType getDiagnosticsType() {
+        return className;
     }
-
-    public void setValue(String value) {
-        if(isEncrypted()) {
-            this.value = DBEncryptionUtil.encrypt(value);
-        } else {
-            this.value = value;
-        }
-    }
-
 
 }

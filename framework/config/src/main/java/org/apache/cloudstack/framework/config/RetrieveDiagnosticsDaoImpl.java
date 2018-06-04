@@ -19,143 +19,44 @@
 
 package org.apache.cloudstack.framework.config;
 
-import com.cloud.utils.Pair;
-import com.cloud.utils.component.ComponentLifecycle;
-import com.cloud.utils.crypt.DBEncryptionUtil;
-import com.cloud.utils.db.DB;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
-import com.cloud.utils.db.TransactionLegacy;
-import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
-import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.naming.ConfigurationException;
-import java.sql.PreparedStatement;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosticsVO, String> implements RetrieveDiagnosticsDao
 {
-    private static final Logger s_logger = Logger.getLogger(RetrieveDiagnosticsDaoImpl.class);
-    private Map<String, Map<String,String>> _diagnosticsDetails = null;
-
-    final SearchBuilder<RetrieveDiagnosticsVO> RoleSearch;
-    final SearchBuilder<RetrieveDiagnosticsVO> ClassNameSearch;
-    final SearchBuilder<RetrieveDiagnosticsVO> ValueSearch;
-    protected final SearchBuilder<RetrieveDiagnosticsVO> AllFieldsSearch;
-    public static final String UPDATE_DIAGNOSTICSDATA_SQL = "UPDATE diagnosticsdata SET value = ? WHERE name = ?";
+    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByType;
+    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByTypeAndUuid;
 
     public RetrieveDiagnosticsDaoImpl() {
-        AllFieldsSearch = createSearchBuilder();
-        AllFieldsSearch.and("role", AllFieldsSearch.entity().getRole(), SearchCriteria.Op.EQ);
-        AllFieldsSearch.and("class", AllFieldsSearch.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
-        AllFieldsSearch.and("value", AllFieldsSearch.entity().getDefaultValue(), SearchCriteria.Op.EQ);
-        AllFieldsSearch.done();
-
-        RoleSearch = createSearchBuilder();
-        RoleSearch.and("role", RoleSearch.entity().getRole(), SearchCriteria.Op.EQ);
-
-        ClassNameSearch = createSearchBuilder();
-        ClassNameSearch.and("class", ClassNameSearch.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
-
-        ValueSearch = createSearchBuilder();
-        ValueSearch.and("value", ValueSearch.entity().getValue(), SearchCriteria.Op.EQ);
-        setRunLevel(ComponentLifecycle.RUN_LEVEL_SYSTEM_BOOTSTRAP);
+        super();
+        DiagnosticsSearchByType = createSearchBuilder();
+        DiagnosticsSearchByType.and("class", DiagnosticsSearchByType.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
+        DiagnosticsSearchByType.done();
+        DiagnosticsSearchByTypeAndUuid = createSearchBuilder();
+        DiagnosticsSearchByTypeAndUuid.and("class", DiagnosticsSearchByTypeAndUuid.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
+        DiagnosticsSearchByTypeAndUuid.and("role", DiagnosticsSearchByTypeAndUuid.entity().getRole(), SearchCriteria.Op.EQ);
+        DiagnosticsSearchByTypeAndUuid.done();
     }
 
-    @PostConstruct
-    public void init() throws ConfigurationException {
-        configure(getName(), getConfigParams());
-    }
-
-    @Override
-    public boolean update(String name, String category, String value) {
-        TransactionLegacy txn = TransactionLegacy.currentTxn();
-        value = ("Hidden".equals(category) || "Secure".equals(category)) ? DBEncryptionUtil.encrypt(value) : value;
-        try (PreparedStatement stmt = txn.prepareStatement(UPDATE_DIAGNOSTICSDATA_SQL);){
-            stmt.setString(1, value);
-            stmt.setString(2, name);
-            stmt.executeUpdate();
-            return true;
-        } catch (Exception e) {
-            s_logger.warn("Unable to update Diagnostics default value", e);
+        @Override public List<RetrieveDiagnosticsVO> findByEntityType(String diagnosticsType) {
+            SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
+            sc.addAnd("class", SearchCriteria.Op.EQ, diagnosticsType);
+            return listBy(sc);
         }
-        return false;
-    }
 
-    @Override
-    public String getValue(String name) {
-        RetrieveDiagnosticsVO diagnostics = findByName(name);
-        return (diagnostics == null) ? null : diagnostics.getValue();
-    }
-
-    @Override
-    @DB
-    public String getValueAndInitIfNotExist(String name, String className, String initValue) {
-        String returnValue = initValue;
-        try {
-            RetrieveDiagnosticsVO diagnosticsDetail = findByName(name);
-            if (diagnosticsDetail != null) {
-                if (diagnosticsDetail.getValue() != null) {
-                    returnValue = diagnosticsDetail.getValue();
-                } else {
-                    update(name, className, initValue);
-                }
-            } else {
-                RetrieveDiagnosticsVO newDiagnostics = new RetrieveDiagnosticsVO(name, className, initValue);
-                persist(newDiagnostics);
-            }
-            return returnValue;
-        } catch (Exception e) {
-            s_logger.warn("Unable to update Diagnostics default value", e);
-            throw new CloudRuntimeException("Unable to initialize Diagnostics default variable: " + name);
-
+        @Override public List<RetrieveDiagnosticsVO> findByEntity(String diagnosticsType, String role) {
+            SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
+            sc.addAnd("class", SearchCriteria.Op.EQ, diagnosticsType);
+            sc.addAnd("role", SearchCriteria.Op.EQ, role);
+            return listBy(sc, null);
         }
-    }
-
-    @Override
-    public List<RetrieveDiagnosticsVO> listByName(String roleName) {
-        SearchCriteria<RetrieveDiagnosticsVO> sc = AllFieldsSearch.create();
-        sc.setParameters("role", roleName);
-
-        return listBy(sc);
-    }
-
-    @Override
-    public Pair<List<RetrieveDiagnosticsVO>, Integer> getDiagnosticsDetails() {
-        if (_diagnosticsDetails == null) {
-            _diagnosticsDetails = new HashMap<String, Map<String, String>>();
-            Integer voSize = 0;
-            SearchCriteria<RetrieveDiagnosticsVO> sc = RoleSearch.create();
-            sc.setParameters("role", "class", "value");
-            List<RetrieveDiagnosticsVO> results = search(sc, null);
-            return new Pair<List<RetrieveDiagnosticsVO>, Integer>(results, results.size());
-        }
-        return null;
-
-    }
-
-    @Override
-    public RetrieveDiagnosticsVO findByName(String name) {
-        SearchCriteria<RetrieveDiagnosticsVO> sc = RoleSearch.create();
-        sc.setParameters("role", name);
-        return findOneIncludingRemovedBy(sc);
-    }
-
-
-    @Override
-    public void invalidateCache() {
-        _diagnosticsDetails = null;
-
-    }
-
 }
 
 

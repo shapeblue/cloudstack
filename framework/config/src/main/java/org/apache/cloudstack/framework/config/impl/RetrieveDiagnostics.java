@@ -19,10 +19,16 @@
 
 package org.apache.cloudstack.framework.config.impl;
 
-public interface RetrieveDiagnostics {
-    String getValue();
+import java.util.Date;
 
-    String getDiagnosticsType();
+public interface RetrieveDiagnostics {
+    String getDefaultValue();
 
     String getRole();
+
+    DiagnosticsKey.DiagnosticsEntryType getDiagnosticsType();
+
+    Date getCreated();
+
+    Date getRemoved();
 }

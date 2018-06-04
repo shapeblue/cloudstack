@@ -20,9 +20,15 @@ package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 
+import java.util.List;
+
 public class DiagnosticsKey {
     public static enum DiagnosticsEntryType {
-        IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove
+        IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove;
+        @Override
+        public String toString() {
+            return "IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove";
+        }
     }
 
     private String role;
@@ -71,15 +77,12 @@ public class DiagnosticsKey {
         return diagnosticsClassType;
     }
 
-    static DiagnosticsConfigDepotImpl s_depot = null;
+    static DiagnosticsConfigDepotImpl s_depot = new DiagnosticsConfigDepotImpl();
 
-    static public void init(DiagnosticsConfigDepotImpl depot) {
-        s_depot = depot;
-    }
 
-   /* public DiagnosticsKey(Class<T> type, String name, String description) {
-        this(type, name, description, null);
-    }*/
+   public DiagnosticsKey() {
+
+   }
 
     public DiagnosticsKey(String role, String diagnosticsType, String detail, String description) {
         this.diagnosticsClassType = diagnosticsType;
@@ -117,7 +120,7 @@ public class DiagnosticsKey {
     public String value() {
         if (diagnosticsClassType == null) {
             RetrieveDiagnosticsVO vo = s_depot != null ? s_depot.global().findById(key()) : null;
-            final String value = (vo != null && vo.getValue() != null) ? vo.getValue() : null;
+            final String value = (vo != null && vo.getDefaultValue() != null) ? vo.getDefaultValue() : null;
             diagnosticsClassType = (String)((value == null) ? null : valueOf(value));
         }
 
@@ -129,12 +132,16 @@ public class DiagnosticsKey {
             return value();
         }
 
-        String value = s_depot != null ? s_depot.global().getValue(key()) : null;
-        if (value == null) {
-            return value();
-        } else {
-            return valueOf(value);
+        List<RetrieveDiagnosticsVO> valueVO = s_depot != null ? s_depot.global().findByEntityType((key())) : null;
+        for (RetrieveDiagnosticsVO vo : valueVO) {
+            String value = vo.getDiagnosticsType().toString();
+            if (value == null) {
+                return value();
+            } else {
+                return valueOf(value);
+            }
         }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -147,8 +154,8 @@ public class DiagnosticsKey {
         }
     }
 
-/*    public static DiagnosticsKey<?> getDiagnosticsClassKeys() {
-        return new DiagnosticsKey<?>[] { IPTABLES, LOGFILES, PROPERTYFILES, DHCPFILES, USERDATA, LB, DNS, VPN, IPTABLESretrieve, IPTABLESremove};
-    }*/
+    public DiagnosticsEntryType[] getDiagnosticsTypeKeys() {
+        return DiagnosticsEntryType.values();
+    }
 
 }
