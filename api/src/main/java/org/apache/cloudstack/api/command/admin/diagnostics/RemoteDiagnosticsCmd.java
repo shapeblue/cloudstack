@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
 import com.cloud.exception.ConcurrentOperationException;
@@ -116,7 +115,7 @@ public class RemoteDiagnosticsCmd extends BaseCmd {
                 "not a valid network diagnostics command, only ping, traceroute or arping is allowed.", type);
         RemoteDiagnosticsResponse diagnosticsResponse = null;
         try {
-            diagnosticsResponse = diagnosticsService.executeDiagnosisToolInSystemVm(this);
+            diagnosticsResponse = diagnosticsService.executeDiagnosticsToolInSystemVm(this);
             if (diagnosticsResponse != null) {
                 diagnosticsResponse.setObjectName("diagnostics");
                 diagnosticsResponse.setResponseName(getCommandName());

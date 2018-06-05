@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,23 +18,45 @@
 
 
 import subprocess
+import shlex
+import sys
 
-
-
-
-args = map(str, raw_input().split())
-print(args)
-
-
-# if [[ "$@" = *"ping"* ]]; then
-# if [[ "$@" = *"-c"* ]]; then
-# $@
-# else
-# $@ -c 5
-# fi
-# else
-# $@
-# fi
-
-if __name__ == "__main":
+class Result(object):
     pass
+
+# Execute shell command
+def run_cmd(command):
+    result = Result()
+    p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (stdout, stderr) = p.communicate()
+
+    result.exit_code = p.returncode
+    result.stdout = stdout
+    result.stderr = stderr
+    result.command = command
+
+    if p.returncode != 0:
+        print('Error executing command [%s]' % command)
+        print('stderr: [%s]' % stderr)
+
+    print('stdout: [%s]' % result.stdout)
+    print('return code: %s' % result.exit_code)
+
+    return result.exit_code
+
+def get_command():
+    input_arguments = sys.argv
+    cmd = " ".join(input_arguments[1:])
+
+    if 'ping' in input_arguments or 'arping' in input_arguments:
+        if '-c' in input_arguments:
+            return cmd
+
+        else:
+            return cmd + " -c 4"
+
+    return cmd
+
+if __name__ == "__main__":
+    command = get_command()
+    run_cmd(command)

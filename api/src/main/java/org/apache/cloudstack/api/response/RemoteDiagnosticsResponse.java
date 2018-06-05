@@ -36,18 +36,6 @@ public class RemoteDiagnosticsResponse extends BaseResponse {
     @Param(description = "true if operation is executed successfully")
     private Boolean success;
 
-    @SerializedName("command")
-    @Param(description = "Command passed to script")
-    private String networkCommand;
-
-    public String getNetworkCommand() {
-        return networkCommand;
-    }
-
-    public void setNetworkCommand(String networkCommand) {
-        this.networkCommand = networkCommand;
-    }
-
     public String getDetails() {
         return details;
     }

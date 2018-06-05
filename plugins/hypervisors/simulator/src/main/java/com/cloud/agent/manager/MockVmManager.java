@@ -53,8 +53,8 @@ import com.cloud.simulator.MockVMVO;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.vm.VirtualMachine.PowerState;
-import org.apache.cloudstack.diagnosis.ExecuteDiagnosticsAnswer;
-import org.apache.cloudstack.diagnosis.ExecuteDiagnosticsCommand;
+import org.apache.cloudstack.diagnostics.ExecuteDiagnosticsAnswer;
+import org.apache.cloudstack.diagnostics.ExecuteDiagnosticsCommand;
 
 import java.util.HashMap;
 import java.util.Map;

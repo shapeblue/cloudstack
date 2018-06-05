@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.cloudstack.diagnosis;
+package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.api.Answer;
 

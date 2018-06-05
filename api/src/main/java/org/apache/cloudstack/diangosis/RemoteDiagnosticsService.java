@@ -23,9 +23,15 @@ import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
 import org.apache.cloudstack.api.command.admin.diagnostics.RemoteDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RemoteDiagnosticsResponse;
+import org.apache.cloudstack.framework.config.ConfigKey;
 
 public interface RemoteDiagnosticsService {
-    RemoteDiagnosticsResponse executeDiagnosisToolInSystemVm(RemoteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
+    static final ConfigKey<String> PingUtility = new ConfigKey<String>("Advanced", String.class, "ping", "ping", "I am description", true);
+    static final ConfigKey<String> TracerouteUtility = new ConfigKey<String>("Advanced", String.class, "traceroute", "ping", "I am description", true);
+    static final ConfigKey<String> ArpingUtility = new ConfigKey<String>("Advanced", String.class, "arping", "ping", "I am description", true);
+
+
+    RemoteDiagnosticsResponse executeDiagnosticsToolInSystemVm(RemoteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
 
     enum DiagnosisType {
         ping, traceroute, arping;

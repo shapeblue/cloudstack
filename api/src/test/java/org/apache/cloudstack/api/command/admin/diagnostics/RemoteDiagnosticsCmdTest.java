@@ -17,45 +17,45 @@
 
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
+import junit.framework.TestCase;
+import org.apache.cloudstack.api.ApiCmdTestUtil;
 import org.apache.cloudstack.diangosis.RemoteDiagnosticsService;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-public class RemoteDiagnosticsCmdTest {
-
-    private RemoteDiagnosticsCmd remoteDiagnosticsCmd;
+public class RemoteDiagnosticsCmdTest extends TestCase {
 
     @Mock
     private RemoteDiagnosticsService diagnosticsService;
 
+    @InjectMocks
+    private RemoteDiagnosticsCmd remoteDiagnosticsCmd = new RemoteDiagnosticsCmd();
+
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        remoteDiagnosticsCmd = new RemoteDiagnosticsCmd();
+    }
+
+    @Test(expected =IllegalStateException.class)
+    public void testUnsupportedDiagnosticsType() throws Exception{
+        ApiCmdTestUtil.set(remoteDiagnosticsCmd, "type", "unknownType");
+        remoteDiagnosticsCmd.execute();
     }
 
     @Test
-    public void testPingCommand(){
-
-    }
-
-    @Test
-    public void testTracerouteCommand(){
-
-    }
-
-    @Test
-    public void testArpingCommand(){
-
-    }
-
-    @After
-    public void tearDown() throws Exception {
+    public void testPingCommand() throws Exception{
+        ApiCmdTestUtil.set(remoteDiagnosticsCmd, "type", "ping");
+        ApiCmdTestUtil.set(remoteDiagnosticsCmd, "id", 1L);
+        ApiCmdTestUtil.set(remoteDiagnosticsCmd, "address", "8.8.8.8");
+        ApiCmdTestUtil.set(remoteDiagnosticsCmd, "optionalArgument", "-c 5");
+        remoteDiagnosticsCmd.execute();
+        Mockito.verify(diagnosticsService, Mockito.times(1)).executeDiagnosticsToolInSystemVm(remoteDiagnosticsCmd);
     }
 }
