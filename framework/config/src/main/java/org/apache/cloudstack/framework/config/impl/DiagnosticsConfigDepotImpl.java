@@ -20,7 +20,6 @@ import org.apache.cloudstack.framework.config.DiagnosticsConfigDepot;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,32 +49,31 @@ public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
     //HashMap<String, Pair<String, DiagnosticsKey>> _allKeys = new HashMap<String, Pair<String, DiagnosticsKey>>();
 
 
-    HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> _diagnosticsTypeLevelsMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey>();
+    HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> diagnosticsKeyHashMap = new HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey>();
 
     public DiagnosticsConfigDepotImpl() {
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESremove, IPTablesRemove);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESretrieve, IPTablesRetrieve);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LOGFILES, LOGFILES);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.PROPERTYFILES, PROPERTYFILES);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DNS, DNSFILES);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.DHCPFILES, DHCPFILES);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.USERDATA, USERDATA);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.LB, LB);
-        _diagnosticsTypeLevelsMap.put(DiagnosticsKey.DiagnosticsEntryType.VPN, VPN);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESremove, IPTablesRemove);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.IPTABLESretrieve, IPTablesRetrieve);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.LOGFILES, LOGFILES);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.PROPERTYFILES, PROPERTYFILES);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.DNS, DNSFILES);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.DHCPFILES, DHCPFILES);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.USERDATA, USERDATA);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.LB, LB);
+        diagnosticsKeyHashMap.put(DiagnosticsKey.DiagnosticsEntryType.VPN, VPN);
     }
 
     @Override
     public DiagnosticsKey getKey(DiagnosticsKey.DiagnosticsEntryType key) {
-        if (_diagnosticsTypeLevelsMap.containsKey(key)) {
-            _diagnosticsTypeLevelsMap.get(key);
+        if (diagnosticsKeyHashMap.containsKey(key)) {
+            diagnosticsKeyHashMap.get(key);
         }
         return null;
     }
 
-    @PostConstruct
     @Override
     public void populateDiagnostics() {
-        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> entry : _diagnosticsTypeLevelsMap.entrySet()) {
+        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> entry : diagnosticsKeyHashMap.entrySet()) {
             populateDiagnostics(entry.getValue());
         }
     }
@@ -83,7 +81,7 @@ public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
     @Override
     public void populateDiagnostics(DiagnosticsKey clazz) {
         boolean diagnosticsTypeExists = false;
-        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> key : _diagnosticsTypeLevelsMap.entrySet()) {
+        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> key : diagnosticsKeyHashMap.entrySet()) {
             if (key.equals(clazz) && key.getValue().getRole().equals(clazz.getRole()) && key.getValue().getDiagnosticsClassType().equals(clazz.getDiagnosticsClassType())) {
                 if (!key.getValue().getDetail().equals(clazz.getDetail())) {
                     key.getValue().setDetail(clazz.getDetail());
@@ -95,7 +93,7 @@ public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
             String type = clazz.getDiagnosticsClassType();
             DiagnosticsKey.DiagnosticsEntryType key = DiagnosticsKey.DiagnosticsEntryType.valueOf(type);
             DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.getRole(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());
-            _diagnosticsTypeLevelsMap.put(key, newDiagnosticsType);
+            diagnosticsKeyHashMap.put(key, newDiagnosticsType);
             createOrUpdateDiagnosticObject(key, newDiagnosticsType );
         }
 
@@ -123,6 +121,15 @@ public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
                 }
             }
         }
+    }
+
+    @Override
+    public HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> getDiagnosticsTypeLevelsMap() {
+        return diagnosticsKeyHashMap;
+    }
+
+    public void setDiagnosticsTypeLevelsMap(HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> diagnosticsTypeLevelsMap) {
+        this.diagnosticsKeyHashMap = diagnosticsTypeLevelsMap;
     }
 
     public RetrieveDiagnosticsDao global() {

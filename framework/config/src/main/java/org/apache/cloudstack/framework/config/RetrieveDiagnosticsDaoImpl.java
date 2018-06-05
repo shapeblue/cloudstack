@@ -45,18 +45,25 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
         DiagnosticsSearchByTypeAndUuid.done();
     }
 
-        @Override public List<RetrieveDiagnosticsVO> findByEntityType(String diagnosticsType) {
-            SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
-            sc.addAnd("class", SearchCriteria.Op.EQ, diagnosticsType);
-            return listBy(sc);
-        }
+    @Override public List<RetrieveDiagnosticsVO> findByEntityType(String diagnosticsType) {
+        SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
+        sc.addAnd("class", SearchCriteria.Op.EQ, diagnosticsType);
+        return listBy(sc);
+    }
 
-        @Override public List<RetrieveDiagnosticsVO> findByEntity(String diagnosticsType, String role) {
-            SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
-            sc.addAnd("class", SearchCriteria.Op.EQ, diagnosticsType);
-            sc.addAnd("role", SearchCriteria.Op.EQ, role);
-            return listBy(sc, null);
-        }
+    @Override public List<RetrieveDiagnosticsVO> findByEntity(String diagnosticsType, String role) {
+        SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
+        sc.addAnd("class", SearchCriteria.Op.EQ, diagnosticsType);
+        sc.addAnd("role", SearchCriteria.Op.EQ, role);
+        return listBy(sc, null);
+    }
+
+    @Override
+    public List<RetrieveDiagnosticsVO> retrieveAllDiagnosticsData() {
+        SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
+        sc.addAnd("class", SearchCriteria.Op.IN, "ConsoleProxy, SecondaryStorageVm, VirtualRouter");//, diagnosticsType);
+        return listBy(sc, null);
+    }
 }
 
 

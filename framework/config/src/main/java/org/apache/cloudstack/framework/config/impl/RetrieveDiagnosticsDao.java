@@ -23,8 +23,9 @@ import java.util.List;
 
 public interface RetrieveDiagnosticsDao extends GenericDao<RetrieveDiagnosticsVO, String> {
 
-    public List<RetrieveDiagnosticsVO> findByEntityType(String entityType);
-    public List<RetrieveDiagnosticsVO> findByEntity(String entityType, String entityUuid);
+    List<RetrieveDiagnosticsVO> findByEntityType(String entityType);
+    List<RetrieveDiagnosticsVO> findByEntity(String entityType, String entityUuid);
+    List<RetrieveDiagnosticsVO> retrieveAllDiagnosticsData();
 }
 
 
