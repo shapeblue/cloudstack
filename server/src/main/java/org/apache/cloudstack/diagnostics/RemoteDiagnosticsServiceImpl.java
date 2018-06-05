@@ -102,7 +102,7 @@ public class RemoteDiagnosticsServiceImpl extends ManagerBase implements Pluggab
         return createRemoteDiagnosisResponse(answer);
     }
 
-    private RemoteDiagnosticsResponse createRemoteDiagnosisResponse(ExecuteDiagnosticsAnswer answer){
+    protected RemoteDiagnosticsResponse createRemoteDiagnosisResponse(ExecuteDiagnosticsAnswer answer){
         RemoteDiagnosticsResponse response = new RemoteDiagnosticsResponse();
         response.setResult(answer.getResult());
         response.setDetails(answer.getDetails());
