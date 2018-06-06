@@ -32,17 +32,17 @@ import java.util.List;
 public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosticsVO, String> implements RetrieveDiagnosticsDao
 {
     private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByType;
-    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByTypeAndUuid;
+    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByTypeAndRole;
 
     public RetrieveDiagnosticsDaoImpl() {
         super();
         DiagnosticsSearchByType = createSearchBuilder();
-        DiagnosticsSearchByType.and("class", DiagnosticsSearchByType.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
+        DiagnosticsSearchByType.and("class", DiagnosticsSearchByType.entity().getType(), SearchCriteria.Op.EQ);
         DiagnosticsSearchByType.done();
-        DiagnosticsSearchByTypeAndUuid = createSearchBuilder();
-        DiagnosticsSearchByTypeAndUuid.and("class", DiagnosticsSearchByTypeAndUuid.entity().getDiagnosticsType(), SearchCriteria.Op.EQ);
-        DiagnosticsSearchByTypeAndUuid.and("role", DiagnosticsSearchByTypeAndUuid.entity().getRole(), SearchCriteria.Op.EQ);
-        DiagnosticsSearchByTypeAndUuid.done();
+        DiagnosticsSearchByTypeAndRole = createSearchBuilder();
+        DiagnosticsSearchByTypeAndRole.and("class", DiagnosticsSearchByTypeAndRole.entity().getType(), SearchCriteria.Op.EQ);
+        DiagnosticsSearchByTypeAndRole.and("role", DiagnosticsSearchByTypeAndRole.entity().getRole(), SearchCriteria.Op.EQ);
+        DiagnosticsSearchByTypeAndRole.done();
     }
 
     @Override public List<RetrieveDiagnosticsVO> findByEntityType(String diagnosticsType) {
@@ -61,7 +61,7 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
     @Override
     public List<RetrieveDiagnosticsVO> retrieveAllDiagnosticsData() {
         SearchCriteria<RetrieveDiagnosticsVO> sc = createSearchCriteria();
-        sc.addAnd("class", SearchCriteria.Op.IN, "ConsoleProxy, SecondaryStorageVm, VirtualRouter");//, diagnosticsType);
+        sc.addAnd("class", SearchCriteria.Op.IN, "ConsoleProxy, SecondaryStorageVm, VirtualRouter");
         return listBy(sc, null);
     }
 }

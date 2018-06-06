@@ -41,7 +41,7 @@ import javax.naming.ConfigurationException;
         responseObject = RetrieveDiagnosticsResponse.class,
         requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false,
-        since = "4.11.0",
+        since = "4.12.0",
         authorized = {RoleType.Admin})
 public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
@@ -82,42 +82,9 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             description = "Time out setting in seconds for the overall API call.")
     private String timeOut;
 
-    @Parameter(name = ApiConstants.DISABLE_THRESHOLD,
-            type = CommandType.STRING,
-            description = "Percentage disk space cut off before API will fail.")
-    private String disableThreshold;
-
-    @Parameter(name = ApiConstants.FILE_AGE,
-            type = CommandType.STRING,
-            description = "Diagnostics file age in seconds before considered for garbage collection")
-    private String fileAge;
-
-    @Parameter(name = ApiConstants.FILE_PATH,
-            type = CommandType.STRING,
-            description = "File path to use on the management server for all temporary files.")
-    private String filePath;
-
-    @Parameter(name = ApiConstants.INTERVAL,
-            type = CommandType.STRING,
-            description = "Interval between garbage collection executions in seconds.")
-    private String intervalGC;
-
-    @Parameter(name = ApiConstants.ENABLED,
-            type = CommandType.BOOLEAN,
-            description = "Garbage Collection on/off switch (true|false).")
-    private String enabledGC;
-
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
-
-    public static Logger getS_logger() {
-        return s_logger;
-    }
-
-    public static String getAPINAME() {
-        return APINAME;
-    }
 
     public void setId(Long id) {
         this.id = id;
@@ -141,46 +108,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     public void setTimeOut(String timeOut) {
         this.timeOut = timeOut;
-    }
-
-    public String getDisableThreshold() {
-        return disableThreshold;
-    }
-
-    public void setDisableThreshold(String disableThreshold) {
-        this.disableThreshold = disableThreshold;
-    }
-
-    public String getFileAge() {
-        return fileAge;
-    }
-
-    public void setFileAge(String fileAge) {
-        this.fileAge = fileAge;
-    }
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
-    }
-
-    public String getIntervalGC() {
-        return intervalGC;
-    }
-
-    public void setIntervalGC(String intervalGC) {
-        this.intervalGC = intervalGC;
-    }
-
-    public String getEnabledGC() {
-        return enabledGC;
-    }
-
-    public void setEnabledGC(String enabledGC) {
-        this.enabledGC = enabledGC;
     }
 
     public Long getId() {

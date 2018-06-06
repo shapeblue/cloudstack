@@ -134,7 +134,7 @@ public class DiagnosticsKey {
 
         List<RetrieveDiagnosticsVO> valueVO = s_depot != null ? s_depot.global().findByEntityType((key())) : null;
         for (RetrieveDiagnosticsVO vo : valueVO) {
-            String value = vo.getDiagnosticsType().toString();
+            String value = vo.getType().toString();
             if (value == null) {
                 return value();
             } else {

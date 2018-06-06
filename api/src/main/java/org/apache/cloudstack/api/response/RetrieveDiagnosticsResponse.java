@@ -37,6 +37,11 @@ public class RetrieveDiagnosticsResponse extends BaseResponse {
     @Param(description = "the date and time of the last download of the diagnostics files")
     private Date lastSent;
 
+    @SerializedName(ApiConstants.TIMEOUT)
+    @Param(description = "the timeout (in seconds) for requests to the retrieve diagnostics API")
+    private String timeout;
+
+
     public Boolean getSuccess() {
         return success;
     }
@@ -53,5 +58,12 @@ public class RetrieveDiagnosticsResponse extends BaseResponse {
         this.lastSent = lastSent;
     }
 
+    public String getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(String timeout) {
+        this.timeout = timeout;
+    }
 
 }

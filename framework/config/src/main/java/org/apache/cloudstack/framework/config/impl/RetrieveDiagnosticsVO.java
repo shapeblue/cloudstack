@@ -17,12 +17,9 @@
 
 package org.apache.cloudstack.framework.config.impl;
 
-import com.cloud.utils.db.GenericDao;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
-import java.util.Date;
 
 @Entity
 @Table(name = "diagnosticsdata")
@@ -32,34 +29,23 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
     private String role;
 
     @Column(name = "class")
-    private DiagnosticsKey.DiagnosticsEntryType className;
+    private String type;
 
     @Column(name = "value", length = 8191)
     private String value;
 
-    @Column(name = GenericDao.CREATED_COLUMN)
-    private Date created;
-
-    @Column(name = GenericDao.REMOVED_COLUMN)
-    private Date removed;
-
-
-
     protected RetrieveDiagnosticsVO() {
-        this.role.toString();
     }
 
     public RetrieveDiagnosticsVO(String role, String className, String value) {
-        this();
         setRole(role);
-        setDiagnosticsType(className);
+        setType(className);
         setDefaultValue(value);
     }
 
     public RetrieveDiagnosticsVO(String role, DiagnosticsKey.DiagnosticsEntryType type, String value) {
-        this();
         setRole(role);
-        setDiagnosticsType(type.toString());
+        setType(type.toString());
         setDefaultValue(value);
     }
 
@@ -77,24 +63,6 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
         this.role = role;
     }
 
-    public void setDiagnosticsType(String diagnosticsType) {
-        this.className = DiagnosticsKey.DiagnosticsEntryType.valueOf(diagnosticsType);
-    }
-
-    public void setDiagnosticsType(DiagnosticsKey.DiagnosticsEntryType diagnosticsType) {
-        this.className = diagnosticsType;
-    }
-
-    @Override
-    public Date getCreated() {
-        return created;
-    }
-
-    @Override
-    public Date getRemoved() {
-        return removed;
-    }
-
     @Override
     public String getDefaultValue() {
         return value;
@@ -104,9 +72,12 @@ public class RetrieveDiagnosticsVO implements RetrieveDiagnostics {
         this.value = value;
     }
 
-    @Override
-    public DiagnosticsKey.DiagnosticsEntryType getDiagnosticsType() {
-        return className;
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 
 }

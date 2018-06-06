@@ -18,6 +18,7 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.host.Host;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
@@ -40,4 +41,6 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
     boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException;
 
     Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);
+
+    RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse(Host host);
 }

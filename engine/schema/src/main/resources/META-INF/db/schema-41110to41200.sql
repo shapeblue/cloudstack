@@ -35,19 +35,19 @@ INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`,
 INSERT INTO `cloud`.`role_permissions` (`uuid`, `role_id`, `rule`, `permission`, `sort_order`) values (UUID(), 4, 'moveNetworkAclItem', 'ALLOW', 260) ON DUPLICATE KEY UPDATE rule=rule;
 
 CREATE TABLE `cloud`.`diagnosticsdata` (
-  `role` varchar(10) NOT NULL COMMENT 'role as for system vm',
+  `role` varchar(40) NOT NULL COMMENT 'role as for system vm',
   `class` varchar(30) NOT NULL COMMENT 'the kind of diagnostics files',
   `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'PROPERTYFILES', '<SSVM property files>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'USERDATA', '<userdatafiles>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'LB', 'haproxy.conf');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'VPN', '<vpn configuration file>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Routing', 'LOGFILES', 'cloud.log,agent.log');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'USERDATA', '<userdatafiles>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'LB', 'haproxy.conf');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'VPN', '<vpn configuration file>');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'LOGFILES', 'cloud.log,agent.log');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ConsoleProxy', 'PROPERTYFILES', '<CPVM property file>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');

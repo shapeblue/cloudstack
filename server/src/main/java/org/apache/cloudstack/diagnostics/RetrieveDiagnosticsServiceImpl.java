@@ -21,22 +21,12 @@ import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.RetrieveDiagnosticsCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
-import com.cloud.dc.ClusterDetailsDao;
-import com.cloud.dc.dao.ClusterDao;
-import com.cloud.dc.dao.DataCenterDao;
-import com.cloud.dc.dao.DataCenterDetailsDao;
-import com.cloud.domain.dao.DomainDao;
-import com.cloud.domain.dao.DomainDetailsDao;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.host.dao.HostDao;
+import com.cloud.host.Host;
+import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.resource.ResourceManager;
-import com.cloud.storage.StorageManager;
-import com.cloud.storage.secondary.SecondaryStorageListener;
-import com.cloud.storage.secondary.SecondaryStorageVmManager;
-import com.cloud.user.AccountDetailsDao;
 import com.cloud.user.AccountManager;
-import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
@@ -44,7 +34,6 @@ import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
-import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
@@ -61,11 +50,6 @@ import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
-import org.apache.cloudstack.framework.messagebus.MessageBus;
-import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
-import org.apache.cloudstack.storage.datastore.db.ImageStoreDetailsDao;
-import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
-import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -79,35 +63,11 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     private static final Logger s_logger = Logger.getLogger(RetrieveDiagnosticsServiceImpl.class);
 
-    private String instance;
-    private int mgmtPort = 8250;
-    private boolean editConfiguration = false;
-
-    private Long hostId = null;
-    private String diagnosticsType = null;
-    private String fileDetails = null;
-
-    public Map<String, Object> getConfigParams() {
-        return configParams;
-    }
-
-    public void setConfigParams(Map<String, Object> configParams) {
-        this.configParams = configParams;
-    }
+    private Long _timeOut;
 
     protected Map<String, Object> configParams = new HashMap<String, Object>();
-    protected Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> defaultDiagnosticsData;
 
-    private Long _timeOut;
-    private Boolean _enabledGC;
-    private String _filePath;
-    private Float _disableThreshold;
-    private Long _fileAge;
-    private Long _intervalGC;
-
-    @Inject
-    SecondaryStorageVmManager _ssVmMgr;
-    private SecondaryStorageListener _listener;
+    protected HashMap<String, DiagnosticsKey> defaultDiagnosticsData = new HashMap<String, DiagnosticsKey>();
 
     @Inject
     private AgentManager _agentMgr;
@@ -117,31 +77,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     protected ConfigurationDao _configDao;
-    HostDao hostDao;
-
-    @Inject
-    private VirtualMachineManager _itMgr;
 
     @Inject
     protected ResourceManager _resourceMgr;
 
     @Inject
-    DataCenterDao _zoneDao;
-
-    @Inject
-    DataCenterDetailsDao _dcDetailsDao;
-
-    @Inject
     RetrieveDiagnosticsDao _retrieveDiagnosticsDao;
-
-    @Inject
-    ClusterDetailsDao _clusterDetailsDao;
-
-    @Inject
-    ClusterDao _clusterDao;
-
-    @Inject
-    PrimaryDataStoreDao _storagePoolDao;
 
     @Inject
     ConfigDepot _configDepot;
@@ -150,54 +91,19 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     DiagnosticsConfigDepot _diagnosticsDepot;
 
     @Inject
-    StoragePoolDetailsDao _storagePoolDetailsDao;
-
-    @Inject
-    AccountDao _accountDao;
-
-    @Inject
-    AccountDetailsDao _accountDetailsDao;
-
-    @Inject
-    ImageStoreDao _imageStoreDao;
-
-    @Inject
-    ImageStoreDetailsDao _imageStoreDetailsDao;
-
-    @Inject
-    DomainDetailsDao _domainDetailsDao;
-
-    @Inject
-    DomainDao _domainDao;
-
-    @Inject
-    StorageManager _storageManager;
-
-    @Inject
     ConfigDepot configDepot;
-    @Inject
-    MessageBus messageBus;
 
     @Inject
     RouterControlHelper routerControlHelper;
+
+    @Inject
+    HostDetailsDao _hostDetailDao;
 
     @Inject
     protected VMInstanceDao _vmDao;
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
             "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
-    ConfigKey<Boolean> enabledGCollector = new ConfigKey<>("Advanced", Boolean.class, "retrieveDiagnostics.gc.enabled",
-            "true", "Garbage collection on/off switch (true|false", true, ConfigKey.Scope.Global);
-    ConfigKey<String> RetrieveDiagnosticsFilePath = new ConfigKey<String>("Advanced", String.class, "retrieveDiagnostics.filepath",
-            "/tmp", "File path to use on the management server for all temporary data. This allows CloudStack administrators to determine where best to place the files.", true, ConfigKey.Scope.Global);
-    ConfigKey<Float> RetrieveDiagnosticsDisableThreshold = new ConfigKey<Float>("Advanced", Float.class, "retrieveDiagnostics.disablethreshold", "0.95",
-            "The percentage disk space cut-off before API call will fail", true, ConfigKey.Scope.Global);
-
-    ConfigKey<Long> RetrieveDiagnosticsFileAge = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.max.fileage", "86400",
-            "The diagnostics file age in seconds before considered for garbage collection", true, ConfigKey.Scope.Global);
-
-    ConfigKey<Long> RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
-            "The interval between garbage collection executions in seconds", true, ConfigKey.Scope.Global);
 
     public RetrieveDiagnosticsServiceImpl() {
     }
@@ -209,88 +115,39 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
 
         _timeOut = RetrieveDiagnosticsTimeOut.value();
-        _fileAge = RetrieveDiagnosticsFileAge.value();
-        _enabledGC = enabledGCollector.value();
-        _filePath = RetrieveDiagnosticsFilePath.value();
-        _disableThreshold = RetrieveDiagnosticsDisableThreshold.value();
-        _intervalGC = RetrieveDiagnosticsInterval.value();
         if (params != null) {
             params.put(RetrieveDiagnosticsTimeOut.key(), (Long)RetrieveDiagnosticsTimeOut.value());
-            params.put(RetrieveDiagnosticsFileAge.key(), (Long)RetrieveDiagnosticsFileAge.value());
-            params.put(enabledGCollector.key(), (Boolean)enabledGCollector.value());
-            params.put(RetrieveDiagnosticsFilePath.key(), (String)RetrieveDiagnosticsFilePath.value());
-            params.put(RetrieveDiagnosticsDisableThreshold.key(), (Float)RetrieveDiagnosticsDisableThreshold.value());
-            params.put(RetrieveDiagnosticsInterval.key(), (Long)RetrieveDiagnosticsInterval.value());
             return true;
         }
 
         return false;
     }
 
-    protected Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> loadDiagnosticsDataConfiguration() {
+    protected void loadDiagnosticsDataConfiguration() {
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Retrieving diagnostics data values for retrieve diagnostics api : " + getConfigComponentName());
         }
         List<RetrieveDiagnosticsVO> listVO = _retrieveDiagnosticsDao.retrieveAllDiagnosticsData();
         for (RetrieveDiagnosticsVO vo : listVO) {
-            defaultDiagnosticsData.put(vo.getDiagnosticsType(), new DiagnosticsKey(vo.getRole(), vo.getDiagnosticsType().toString(), vo.getDefaultValue(), null));
+            defaultDiagnosticsData.put(vo.getType(), new DiagnosticsKey(vo.getRole(), vo.getType(), vo.getDefaultValue(), ""));
         }
-        return defaultDiagnosticsData;
-
+        _diagnosticsDepot.setDiagnosticsKeyHashMap(defaultDiagnosticsData);
     }
 
    public Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd) {
        final Long zoneId = _accountMgr.checkAccessAndSpecifyAuthority(CallContext.current().getCallingAccount(), cmd.getId());
-       Boolean _enabledGCollector = false;
        final Long timeOut = NumbersUtil.parseLong(cmd.getTimeOut(), 3600);
-       final Float disableThreshold = NumbersUtil.parseFloat(cmd.getDisableThreshold(), 0.95f);
-       String _enabledGC = cmd.getEnabledGC();
-       if ("true".equalsIgnoreCase(_enabledGC)) {
-           _enabledGCollector = true;
-       }
-       final Long intervalGC = NumbersUtil.parseLong(cmd.getIntervalGC(), 86400);
-       final Long fileAge = NumbersUtil.parseLong(cmd.getFileAge(), 86400);
-       final String filePath = cmd.getFilePath();
-
        final Object id = _accountMgr.checkAccessAndSpecifyAuthority(CallContext.current().getCallingAccount(), cmd.getId());
 
        final Filter searchFilter = new Filter(ConfigurationVO.class, "id", true, 0L, 0L);
 
        final SearchBuilder<ConfigurationVO> sb = _configDao.createSearchBuilder();
        sb.and("timeout", sb.entity().getValue(), SearchCriteria.Op.EQ);
-       sb.and("disablethreshold", sb.entity().getValue(), SearchCriteria.Op.EQ);
-       sb.and("enabledGC", sb.entity().getValue(), SearchCriteria.Op.EQ);
-       sb.and("intervalGC", sb.entity().getValue(), SearchCriteria.Op.EQ);
-       sb.and("fileage", sb.entity().getValue(), SearchCriteria.Op.EQ);
-       sb.and("filepath", sb.entity().getValue(), SearchCriteria.Op.EQ);
-
        final SearchCriteria<ConfigurationVO> sc = sb.create();
        if (timeOut != null) {
            sc.setParameters("timeout", timeOut);
        }
-
-       if (disableThreshold != null) {
-           sc.setParameters("disablethreshold", disableThreshold);
-       }
-
-       if (_enabledGCollector != null) {
-           sc.setParameters("enabledGC", _enabledGCollector);
-       }
-
-       if (intervalGC != null) {
-           sc.setParameters("intervalGC", intervalGC);
-       }
-
-       if (fileAge != null) {
-           sc.setParameters("fileage", fileAge);
-       }
-
-       if (filePath != null) {
-           sc.setParameters("filepath", filePath);
-       }
-
        final Pair<List<ConfigurationVO>, Integer> result = _configDao.searchAndCount(sc, searchFilter);
-
        final List<ConfigurationVO> configVOList = new ArrayList<ConfigurationVO>();
        for (final ConfigurationVO param : result.first()) {
            final ConfigurationVO configVo = _configDao.findByName(param.getName());
@@ -306,9 +163,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                s_logger.warn("Configuration item  " + param.getName() + " not found.");
            }
        }
-
-        return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
-
+       return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
    }
 
     @Override
@@ -320,43 +175,25 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         String diagnosticsType = null;
         String fileDetails = null;
         String[] filesToRetrieve = null;
-        Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> listOfDiagnosticsFiles = null;
-        List<String> filesToRetrieveForSystemVmType = null;
+        Map<String, DiagnosticsKey> listOfDiagnosticsFiles = null;
         List<String> diagnosticsFiles = new ArrayList<>();
-        boolean diagnosticsTypeExists = false;
         if (configParams == null) {
             configParams = new HashMap<>();
         }
+        loadDiagnosticsDataConfiguration();
         if (configure(getConfigComponentName(), configParams)) {
             if (cmd != null) {
-                if (!cmd.getDisableThreshold().isEmpty()) {
-                    RetrieveDiagnosticsDisableThreshold = new ConfigKey<Float>("Advanced", Float.class, "", cmd.getDisableThreshold(), "", true);
-                }
-                if (!cmd.getTimeOut().isEmpty()) {
+                if (cmd.getTimeOut() != null) {
                     RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "", cmd.getTimeOut(), "", true);
-                }
-                if (!cmd.getEnabledGC().isEmpty()) {
-                    enabledGCollector = new ConfigKey<Boolean>("Advanced", Boolean.class, "", cmd.getEnabledGC(), "", true);
-                }
-                if (!cmd.getIntervalGC().isEmpty()) {
-                    RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "", cmd.getIntervalGC(), "", true);
-                }
-                if (!cmd.getFileAge().isEmpty()) {
-                    RetrieveDiagnosticsFileAge = new ConfigKey<Long>("Advanced", Long.class, "", cmd.getFileAge(), "", true);
-                }
-                if (!cmd.getFilePath().isEmpty()) {
-                    RetrieveDiagnosticsFilePath = new ConfigKey<String>("Advanced", String.class, "", cmd.getFilePath(), "", true);
                 }
                 systemVmType = cmd.getEventType();
                 diagnosticsType = cmd.getType();
                 if (systemVmType == null) {
                     throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "No host was selected.");
                 }
-
-                defaultDiagnosticsData = loadDiagnosticsDataConfiguration();
                 if (diagnosticsType == null) {
                     listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType);
-                    for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> entry : listOfDiagnosticsFiles.entrySet()) {
+                    for (Map.Entry<String, DiagnosticsKey> entry : listOfDiagnosticsFiles.entrySet()) {
                         diagnosticsFiles.add(entry.getValue().getDetail());
                     }
 
@@ -368,13 +205,13 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                         for (String entry : filesToRetrieve ) {
                             diagnosticsFiles.add(entry);
                         }
-                        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> key : listOfDiagnosticsFiles.entrySet()) {
+                        for (Map.Entry<String, DiagnosticsKey> key : listOfDiagnosticsFiles.entrySet()) {
                             diagnosticsFiles.add(key.getValue().getDetail());
                         }
                     } else {
                         //retrieve default files from diagnostics data class for the system vm
                          listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType, "");
-                        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> key : listOfDiagnosticsFiles.entrySet()) {
+                        for (Map.Entry<String, DiagnosticsKey> key : listOfDiagnosticsFiles.entrySet()) {
                             diagnosticsFiles.add(key.getValue().getDetail());
                         }
 
@@ -388,36 +225,40 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     }
 
-    protected Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
-        DiagnosticsKey.DiagnosticsEntryType diagnosticsEntryType = DiagnosticsKey.DiagnosticsEntryType.valueOf(diagnosticsType);
-        Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> entry = new HashMap<>();
-        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> type : defaultDiagnosticsData.entrySet()) {
-            if (type.getKey().compareTo(diagnosticsEntryType) == 0) {
-                entry.put(type.getKey(), type.getValue());
+    @Override
+    public RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse(Host host) {
+        Map<String, String> rdDetails = _hostDetailDao.findDetails(host.getId());
+        RetrieveDiagnosticsResponse response = new RetrieveDiagnosticsResponse();
+        response.setSuccess(true);
+        response.setTimeout(rdDetails.get("timeout"));
+        return response;
+    }
+
+    protected Map<String, DiagnosticsKey> getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
+        Map<String, DiagnosticsKey> entry = new HashMap<>();
+        DiagnosticsKey diagnosticsKey = defaultDiagnosticsData.get(diagnosticsType);
+
+        if (diagnosticsKey != null && diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(diagnosticsType)) {
+            if (diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(diagnosticsType)) {
+                entry.put(diagnosticsKey.getDiagnosticsClassType(), diagnosticsKey);
                 return entry;
             }
         }
-
         return null;
     }
 
-    protected Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> getDefaultFilesForVm(String diagnosticsType, String systemVmType, String defaultFiles) {
-        boolean found = false;
-        DiagnosticsKey.DiagnosticsEntryType diagnosticsEntryType = DiagnosticsKey.DiagnosticsEntryType.valueOf(diagnosticsType);
-        Map<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> entry = new HashMap<>();
-        for (Map.Entry<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> type : defaultDiagnosticsData.entrySet()) {
-            if (type.getKey().compareTo(diagnosticsEntryType) == 0 && type.getValue().getRole().equalsIgnoreCase(systemVmType)) {
-                entry.put(type.getKey(), type.getValue());
-                found = true;//return entry;
+    protected Map<String, DiagnosticsKey> getDefaultFilesForVm(String diagnosticsType, String systemVmType, String defaultFiles) {
+        Map<String, DiagnosticsKey> entry = new HashMap<>();
+
+        DiagnosticsKey diagnosticsKey = defaultDiagnosticsData.get(diagnosticsType);
+
+        if (diagnosticsKey != null && diagnosticsKey.getRole().equalsIgnoreCase(systemVmType)) {
+            if (diagnosticsKey.getDetail().equalsIgnoreCase(defaultFiles)) {
+                diagnosticsKey.setDetail(defaultFiles);
+                entry.put(diagnosticsType, diagnosticsKey);
+                return entry;
             }
         }
-        if (!found) {
-            DiagnosticsKey newDiagnosticsTypeEntry = new DiagnosticsKey(systemVmType, diagnosticsType, defaultFiles, "New diagnostics type" + diagnosticsType);
-            _diagnosticsDepot.populateDiagnostics(newDiagnosticsTypeEntry);
-            entry.put(DiagnosticsKey.DiagnosticsEntryType.valueOf(diagnosticsType), newDiagnosticsTypeEntry);
-            return entry;
-        }
-
         return null;
     }
 
@@ -436,21 +277,27 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return true;
     }
 
+    public Map<String, Object> getConfigParams() {
+        return configParams;
+    }
+
+    public void setConfigParams(Map<String, Object> configParams) {
+        this.configParams = configParams;
+    }
+
     @Override
     public String getConfigComponentName() {
         return RetrieveDiagnosticsServiceImpl.class.getSimpleName();
     }
 
-    public DiagnosticsKey getDiagnosticsConfigKeys()
-    {
-        return null; //new DiagnosticsKey<?>[] { IPTablesRemove, IPTablesRetrieve, LOGFILES, PROPERTYFILES, DNSFILES, DHCPFILES, USERDATA, LB, VPN   };
+    public Map<String, DiagnosticsKey> getDefaultDiagnosticsData() {
+        return defaultDiagnosticsData;
     }
 
     @Override
     public ConfigKey<?>[] getConfigKeys()
     {
-        return new ConfigKey<?>[] { RetrieveDiagnosticsFilePath, RetrieveDiagnosticsFileAge, RetrieveDiagnosticsInterval, RetrieveDiagnosticsTimeOut,
-                RetrieveDiagnosticsDisableThreshold, enabledGCollector };
+        return new ConfigKey<?>[] { RetrieveDiagnosticsTimeOut };
     }
 
 

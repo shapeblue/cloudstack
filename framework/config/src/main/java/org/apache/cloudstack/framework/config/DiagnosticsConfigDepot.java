@@ -27,14 +27,16 @@ public interface DiagnosticsConfigDepot {
 
     void set(DiagnosticsKey key, String value);
 
-    void createOrUpdateDiagnosticObject(DiagnosticsKey.DiagnosticsEntryType type, DiagnosticsKey key);
+    void createOrUpdateDiagnosticObject(DiagnosticsKey key);
 
-    void populateDiagnostics();
+//    void populateDiagnostics();
 
     void populateDiagnostics(DiagnosticsKey configurable);
 
-    DiagnosticsKey getKey(DiagnosticsKey.DiagnosticsEntryType key);
+//    DiagnosticsKey getKey(String key);
 
-    HashMap<DiagnosticsKey.DiagnosticsEntryType, DiagnosticsKey> getDiagnosticsTypeLevelsMap();
+    void setDiagnosticsKeyHashMap(HashMap<String, DiagnosticsKey> diagnosticsKeyHashMap);
+
+    HashMap<String, DiagnosticsKey> getDiagnosticsTypeLevelsMap();
 }
 
