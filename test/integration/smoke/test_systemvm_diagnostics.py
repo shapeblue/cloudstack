@@ -17,6 +17,7 @@
 """ BVT tests for remote diagnostics of system VMs
 """
 # Import Local Modules
+from marvin.codes import FAILED
 from marvin.cloudstackTestCase import cloudstackTestCase
 from marvin.cloudstackAPI import remoteDiganostics
 from marvin.lib.utils import (cleanup_resources)
@@ -102,8 +103,11 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
     def tearDown(self):
         pass
+
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
     def test_01_ping_in_system_vm(self):
+
+        # Test with VR
         list_router_response = list_routers(
             self.apiclient
         )
@@ -117,16 +121,64 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
         cmd = remoteDiganostics.remoteDiganosticsCmd()
         cmd.id = router.id
-        cmd.ipaddress = "dkdlglglsmndhjfgke;"
+        cmd.ipaddress = "8.8.8.8;"
         cmd.type = "ping"
         cmd_response = self.apiclient.remoteDiganostics(cmd);
 
         self.assertEqual(True,
                          cmd_response.success,
-                         msg="Ping command not executed successfully")
+                         msg="Failed to exeute remote Ping command in VR"
+                         )
+
+        # Test with SSVM
+        list_ssvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='secondarystoragevm',
+            state='Running',
+        )
+
+        self.assertEqual(
+            isinstance(list_ssvm_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+        ssvm = list_ssvm_response[0]
+
+        self.debug("Setting up SSVM with ID %s" %ssvm.id)
+        cmd.id = ssvm.id
+        ssvm_response = self.apiclient.remoteDiganostics(cmd)
+
+        self.assertEqual(True,
+                         ssvm_response.success,
+                         msg="Failed to execute remote Ping in SSVM"
+                         )
+
+        # Test with CPVM
+        list_cpvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='consoleproxy',
+            state='Running',
+        )
+        self.assertEqual(
+            isinstance(list_cpvm_response, list),
+                        True,
+                        "Check list response returns a valid list"
+                        )
+        cpvm = list_cpvm_response[0]
+
+        self.debug("Setting up CPVM with ID %s" %cpvm.id)
+        cmd.id = cpvm.id
+        cpvm_response = self.apiclient.remoteDiganostics(cmd)
+
+        self.assertEqual(True,
+                     cpvm_response.success,
+                     msg="Failed to execute remote Ping in CPVM"
+                         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
     def test_02_traceroute_in_system_vm(self):
+
+        # Test with VR
         list_router_response = list_routers(
             self.apiclient
         )
@@ -140,34 +192,56 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
         cmd = remoteDiganostics.remoteDiganosticsCmd()
         cmd.id = router.id
-        cmd.ipaddress = "dkdlglglsmndhjfgke;"
-        cmd.type = "ping"
+        cmd.ipaddress = "8.8.8.8;"
+        cmd.type = "traceroute"
         cmd_response = self.apiclient.remoteDiganostics(cmd);
 
         self.assertEqual(True,
                          cmd_response.success,
-                         msg="Ping command not executed successfully")
+                         msg="Failed to exeute remote Traceroute command in VR"
+                         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_03_arping_in_system_vm(self):
-        list_router_response = list_routers(
-            self.apiclient
+        # Test with SSVM
+        list_ssvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='secondarystoragevm',
+            state='Running',
         )
+
         self.assertEqual(
-            isinstance(list_router_response, list),
+            isinstance(list_ssvm_response, list),
             True,
             "Check list response returns a valid list"
         )
-        router = list_router_response[0]
-        self.debug("Starting the router with ID: %s" %router.id)
+        ssvm = list_ssvm_response[0]
 
-        cmd = remoteDiganostics.remoteDiganosticsCmd()
-        cmd.id = router.id
-        cmd.ipaddress = "dkdlglglsmndhjfgke;"
-        cmd.type = "ping"
-        cmd_response = self.apiclient.remoteDiganostics(cmd);
+        self.debug("Setting up SSVM with ID %s" %ssvm.id)
+        cmd.id = ssvm.id
+        ssvm_response = self.apiclient.remoteDiganostics(cmd)
 
         self.assertEqual(True,
-                         cmd_response.success,
-                         msg="Ping command not executed successfully")
+                         ssvm_response.success,
+                         msg="Failed to execute remote Traceroute in SSVM"
+                         )
 
+        # Test with CPVM
+        list_cpvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='consoleproxy',
+            state='Running',
+        )
+        self.assertEqual(
+            isinstance(list_cpvm_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+        cpvm = list_cpvm_response[0]
+
+        self.debug("Setting up CPVM with ID %s" %cpvm.id)
+        cmd.id = cpvm.id
+        cpvm_response = self.apiclient.remoteDiganostics(cmd)
+
+        self.assertEqual(True,
+                         cpvm_response.success,
+                         msg="Failed to execute remote Traceroute in CPVM"
+                         )

@@ -69,8 +69,6 @@ public class VRScripts {
 
     public static final String VR_CFG = "vr_cfg.sh";
 
-    // New script for use by remoteDiagnosis API
-    public static final String EXECUTE_ICMP_TOOL_REMOTELY = "execute_icmp_tool_remotely.sh";
+    // New script for use with Remote DIagnostics API
     public static final String DIAGNOSE_SYSTEM_VM = "diagnose_system_vm.py";
-
 }

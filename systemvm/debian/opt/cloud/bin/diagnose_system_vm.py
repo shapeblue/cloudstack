@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 import subprocess
 import shlex
 import sys
@@ -27,8 +26,7 @@ class Result(object):
 # Execute shell command
 def run_cmd(command):
     result = Result()
-    final_cmd = shlex.split(command)
-    p = subprocess.Popen(final_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (stdout, stderr) = p.communicate()
 
     result.exit_code = p.returncode
@@ -39,7 +37,7 @@ def run_cmd(command):
     if p.returncode != 0 and result.stderr is not "":
         print('Error executing command [%s]' % command)
         print('stderr: [%s]' % stderr)
-        sys.exit(1)
+        sys.exit(result.exit_code)
 
     print('stdout: [%s]' % result.stdout)
     print('return code: %s' % result.exit_code)
