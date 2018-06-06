@@ -252,7 +252,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
         DiagnosticsKey diagnosticsKey = defaultDiagnosticsData.get(diagnosticsType);
 
-        if (diagnosticsKey != null && diagnosticsKey.getRole().equalsIgnoreCase(systemVmType)) {
+        if (diagnosticsKey != null && diagnosticsKey.getRole().equalsIgnoreCase(systemVmType)
+                && diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(diagnosticsType)) {
             if (diagnosticsKey.getDetail().equalsIgnoreCase(defaultFiles)) {
                 diagnosticsKey.setDetail(defaultFiles);
                 entry.put(diagnosticsType, diagnosticsKey);
