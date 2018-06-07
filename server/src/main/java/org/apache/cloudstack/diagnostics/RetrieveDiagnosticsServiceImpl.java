@@ -61,7 +61,7 @@ import java.util.Map;
 
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
 
-    private static final Logger s_logger = Logger.getLogger(RetrieveDiagnosticsServiceImpl.class);
+    private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsServiceImpl.class);
 
     private Long _timeOut;
 
@@ -110,8 +110,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
-        if (s_logger.isInfoEnabled()) {
-            s_logger.info("Initialising configuring values for retrieve diagnostics api : " + name);
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Initialising configuring values for retrieve diagnostics api : " + name);
         }
 
         _timeOut = RetrieveDiagnosticsTimeOut.value();
@@ -131,8 +131,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
 
     protected void loadDiagnosticsDataConfiguration() {
-        if (s_logger.isInfoEnabled()) {
-            s_logger.info("Retrieving diagnostics data values for retrieve diagnostics api : " + getConfigComponentName());
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Retrieving diagnostics data values for retrieve diagnostics api : " + getConfigComponentName());
         }
         List<RetrieveDiagnosticsVO> listVO = _retrieveDiagnosticsDao.retrieveAllDiagnosticsData();
         DiagnosticsKey diagnosticsKey = null;
@@ -181,10 +181,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                    configVo.setValue(key.valueIn((Long) id) == null ? null : key.valueIn((Long) id).toString());
                    configVOList.add(configVo);
                } else {
-                   s_logger.warn("ConfigDepot could not find parameter " + param.getName());
+                   LOGGER.warn("ConfigDepot could not find parameter " + param.getName());
                }
            } else {
-               s_logger.warn("Configuration item  " + param.getName() + " not found.");
+               LOGGER.warn("Configuration item  " + param.getName() + " not found.");
            }
        }
        return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
@@ -192,8 +192,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Override
     public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws InvalidParameterValueException, ConfigurationException {
-        if (s_logger.isInfoEnabled()) {
-            s_logger.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
         }
         String systemVmType = null;
         String diagnosticsType = null;
@@ -287,7 +287,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         try{
             answer = _agentMgr.send(systemVmId.getHostId(), command);
         }catch (Exception e){
-            s_logger.error("Unable to send command");
+            LOGGER.error("Unable to send command");
             throw new InvalidParameterValueException("Agent unavailable");
         }
         return true;

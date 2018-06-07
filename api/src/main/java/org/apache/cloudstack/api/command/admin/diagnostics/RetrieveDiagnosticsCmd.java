@@ -45,7 +45,7 @@ import javax.naming.ConfigurationException;
         authorized = {RoleType.Admin})
 public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
-    private static final Logger s_logger = Logger.getLogger(RetrieveDiagnosticsCmd.class);
+    private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsCmd.class);
 
     public static final String APINAME = "retrieveDiagnostics";
 
@@ -134,10 +134,10 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             retrieveDiagnosticsResponse.setResponseName(getCommandName());
             this.setResponseObject(retrieveDiagnosticsResponse);
         } catch (InvalidParameterValueException ipve) {
-            s_logger.error("Failed to retrieve diagnostics files from ", ipve);
+            LOGGER.error("Failed to retrieve diagnostics files from ", ipve);
             throw new ServerApiException(ApiErrorCode.PARAM_ERROR, ipve.getMessage());
         } catch (ConfigurationException cre) {
-            s_logger.error("Failed to retrieve diagnostics files from ", cre);
+            LOGGER.error("Failed to retrieve diagnostics files from ", cre);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
         }
     }
