@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.framework.config.impl;
 
+import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.framework.config.DiagnosticsConfigDepot;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
@@ -30,33 +31,33 @@ public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
 
-    @Override
-    public void setDiagnosticsKeyHashMap(HashMap<String, DiagnosticsKey> diagnosticsKeyHashMap) {
-        this.diagnosticsKeyHashMap = diagnosticsKeyHashMap;
-    }
 
-    HashMap<String, DiagnosticsKey> diagnosticsKeyHashMap = null;
+    HashMap<String, List<DiagnosticsKey>> diagnosticsKeyHashMap = null;
 
     public DiagnosticsConfigDepotImpl() {
     }
 
     @Override
     public void populateDiagnostics(DiagnosticsKey clazz) {
-        boolean diagnosticsTypeExists = false;
-        DiagnosticsKey diagnosticsKey = diagnosticsKeyHashMap.get(clazz.getDiagnosticsClassType());
-        if (diagnosticsKey != null) {
-            if (diagnosticsKey.getRole().equalsIgnoreCase(clazz.getRole()) && diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(clazz.getDiagnosticsClassType())) {
-                if (!diagnosticsKey.getDetail().equalsIgnoreCase(clazz.getDetail())) {
-                    diagnosticsKey.setDetail(clazz.getDetail());
-                    diagnosticsTypeExists = true;
-                }
+        List<DiagnosticsKey> previous = diagnosticsKeyHashMap.get(clazz.key());
+        for (DiagnosticsKey key : previous) {
+            if (key == null && !key.getDiagnosticsClassType().equals(clazz.getDiagnosticsClassType())) {
+                throw new CloudRuntimeException("Diagnostics type " + clazz.getDiagnosticsClassType() + " is not one of the diagnostic types");
+            }
+            if (key.getRole().equalsIgnoreCase(clazz.getRole()) && !key.getDetail().equalsIgnoreCase(clazz.getDetail())) {
+                key.setDetail(clazz.getDetail());
+            } else {
+                DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.getRole(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());
+                createOrUpdateDiagnosticObject(newDiagnosticsType );
             }
         }
-        if (!diagnosticsTypeExists) {
-            DiagnosticsKey newDiagnosticsType = new DiagnosticsKey(clazz.getRole(), clazz.getDiagnosticsClassType(), clazz.getDetail(), clazz.description());
-            createOrUpdateDiagnosticObject(newDiagnosticsType );
-        }
     }
+
+    @Override
+    public void setDiagnosticsKeyHashMap(HashMap<String, List<DiagnosticsKey>> diagnosticsKeyHashMap) {
+        this.diagnosticsKeyHashMap = diagnosticsKeyHashMap;
+    }
+
 
     @Override
     public void createOrUpdateDiagnosticObject(DiagnosticsKey diagnosticsType) {
@@ -82,11 +83,11 @@ public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
     }
 
     @Override
-    public HashMap<String, DiagnosticsKey> getDiagnosticsTypeLevelsMap() {
+    public HashMap<String, List<DiagnosticsKey>> getDiagnosticsTypeLevelsMap() {
         return diagnosticsKeyHashMap;
     }
 
-    public void setDiagnosticsTypeLevelsMap(HashMap<String, DiagnosticsKey> diagnosticsTypeLevelsMap) {
+    public void setDiagnosticsTypeLevelsMap(HashMap<String, List<DiagnosticsKey>> diagnosticsTypeLevelsMap) {
         this.diagnosticsKeyHashMap = diagnosticsTypeLevelsMap;
     }
 

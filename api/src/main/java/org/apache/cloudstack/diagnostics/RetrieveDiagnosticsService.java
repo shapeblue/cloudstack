@@ -26,6 +26,7 @@ import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCm
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 
 import javax.naming.ConfigurationException;
 import java.util.List;
@@ -43,4 +44,6 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
     Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);
 
     RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse(Host host);
+
+    List<DiagnosticsKey> get(String key);
 }

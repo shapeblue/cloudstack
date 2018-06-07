@@ -67,7 +67,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     protected Map<String, Object> configParams = new HashMap<String, Object>();
 
-    protected HashMap<String, DiagnosticsKey> defaultDiagnosticsData = new HashMap<String, DiagnosticsKey>();
+    HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
 
     @Inject
     private AgentManager _agentMgr;
@@ -123,15 +123,39 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return false;
     }
 
+    @Override
+    public List<DiagnosticsKey> get(String key) {
+        List<DiagnosticsKey> value = allDefaultDiagnosticsTypeKeys.get(key);
+        return value != null ? value : null;
+    }
+
+
     protected void loadDiagnosticsDataConfiguration() {
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Retrieving diagnostics data values for retrieve diagnostics api : " + getConfigComponentName());
         }
         List<RetrieveDiagnosticsVO> listVO = _retrieveDiagnosticsDao.retrieveAllDiagnosticsData();
+        DiagnosticsKey diagnosticsKey = null;
+        List<DiagnosticsKey> arrDiagnosticsKeys = null;
         for (RetrieveDiagnosticsVO vo : listVO) {
-            defaultDiagnosticsData.put(vo.getType(), new DiagnosticsKey(vo.getRole(), vo.getType(), vo.getDefaultValue(), ""));
+            if (allDefaultDiagnosticsTypeKeys != null) {
+                List<DiagnosticsKey> value = get(vo.getType());
+                if (value == null) {
+                    diagnosticsKey = new DiagnosticsKey(vo.getRole(), vo.getType(), vo.getDefaultValue(), "");
+                    arrDiagnosticsKeys = new ArrayList<>();
+                    arrDiagnosticsKeys.add(diagnosticsKey);
+                    allDefaultDiagnosticsTypeKeys.put(vo.getType(), arrDiagnosticsKeys);
+                } else {
+                    for (DiagnosticsKey keyValue : value) {
+                        if (!keyValue.getRole().equalsIgnoreCase(vo.getRole()) && !keyValue.getDiagnosticsClassType().equalsIgnoreCase(vo.getType())) {
+                            arrDiagnosticsKeys.add(keyValue);
+                            allDefaultDiagnosticsTypeKeys.put(vo.getType(), arrDiagnosticsKeys);
+                        }
+                    }
+                }
+            }
         }
-        _diagnosticsDepot.setDiagnosticsKeyHashMap(defaultDiagnosticsData);
+      _diagnosticsDepot.setDiagnosticsKeyHashMap(allDefaultDiagnosticsTypeKeys);
     }
 
    public Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd) {
@@ -175,7 +199,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         String diagnosticsType = null;
         String fileDetails = null;
         String[] filesToRetrieve = null;
-        Map<String, DiagnosticsKey> listOfDiagnosticsFiles = null;
+        String[] listOfDiagnosticsFiles = null;
         List<String> diagnosticsFiles = new ArrayList<>();
         if (configParams == null) {
             configParams = new HashMap<>();
@@ -192,27 +216,26 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                     throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "No host was selected.");
                 }
                 if (diagnosticsType == null) {
-                    listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType);
-                    for (Map.Entry<String, DiagnosticsKey> entry : listOfDiagnosticsFiles.entrySet()) {
-                        diagnosticsFiles.add(entry.getValue().getDetail());
+                    listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType,systemVmType);
+                    for (String entry : filesToRetrieve ) {
+                        diagnosticsFiles.add(entry);
                     }
-
                 } else {
                     fileDetails = cmd.getOptionalListOfFiles();
                     if (fileDetails != null) {
                         filesToRetrieve = fileDetails.split(",");
-                        listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType, fileDetails);
+                        listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType);
                         for (String entry : filesToRetrieve ) {
                             diagnosticsFiles.add(entry);
                         }
-                        for (Map.Entry<String, DiagnosticsKey> key : listOfDiagnosticsFiles.entrySet()) {
-                            diagnosticsFiles.add(key.getValue().getDetail());
+                        for (String defaultFileList : listOfDiagnosticsFiles) {
+                            diagnosticsFiles.add(defaultFileList);
                         }
                     } else {
                         //retrieve default files from diagnostics data class for the system vm
-                         listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType, "");
-                        for (Map.Entry<String, DiagnosticsKey> key : listOfDiagnosticsFiles.entrySet()) {
-                            diagnosticsFiles.add(key.getValue().getDetail());
+                         listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType);
+                        for (String key : listOfDiagnosticsFiles) {
+                            diagnosticsFiles.add(key);
                         }
 
                     }
@@ -234,31 +257,23 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return response;
     }
 
-    protected Map<String, DiagnosticsKey> getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
-        Map<String, DiagnosticsKey> entry = new HashMap<>();
-        DiagnosticsKey diagnosticsKey = defaultDiagnosticsData.get(diagnosticsType);
-
-        if (diagnosticsKey != null && diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(diagnosticsType)) {
-            if (diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(diagnosticsType)) {
-                entry.put(diagnosticsKey.getDiagnosticsClassType(), diagnosticsKey);
-                return entry;
-            }
+    protected String[] getAllDefaultFilesForEachSystemVm(String diagnosticsType, String systemVmType) {
+        StringBuilder listDefaultFilesForEachVm = new StringBuilder();
+        List<DiagnosticsKey> diagnosticsKey = get(diagnosticsType);
+        for (DiagnosticsKey key : diagnosticsKey) {
+            listDefaultFilesForEachVm.append(key.getDetail());
         }
-        return null;
+        return listDefaultFilesForEachVm.toString().split(",");
     }
 
-    protected Map<String, DiagnosticsKey> getDefaultFilesForVm(String diagnosticsType, String systemVmType, String defaultFiles) {
-        Map<String, DiagnosticsKey> entry = new HashMap<>();
-
-        DiagnosticsKey diagnosticsKey = defaultDiagnosticsData.get(diagnosticsType);
-
-        if (diagnosticsKey != null && diagnosticsKey.getRole().equalsIgnoreCase(systemVmType)
-                && diagnosticsKey.getDiagnosticsClassType().equalsIgnoreCase(diagnosticsType)) {
-            if (diagnosticsKey.getDetail().equalsIgnoreCase(defaultFiles)) {
-                diagnosticsKey.setDetail(defaultFiles);
-                entry.put(diagnosticsType, diagnosticsKey);
-                return entry;
+    protected String[] getDefaultFilesForVm(String diagnosticsType, String systemVmType) {
+        String listDefaultFilesForVm = null;
+        List<DiagnosticsKey> diagnosticsKey = allDefaultDiagnosticsTypeKeys.get(diagnosticsType);
+        for (DiagnosticsKey key : diagnosticsKey) {
+            if (key.getRole().equalsIgnoreCase(systemVmType)) {
+                listDefaultFilesForVm = key.getDetail();
             }
+            return listDefaultFilesForVm.split(",");
         }
         return null;
     }
@@ -291,8 +306,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return RetrieveDiagnosticsServiceImpl.class.getSimpleName();
     }
 
-    public Map<String, DiagnosticsKey> getDefaultDiagnosticsData() {
-        return defaultDiagnosticsData;
+    public Map<String, List<DiagnosticsKey>> getDefaultDiagnosticsData() {
+        return allDefaultDiagnosticsTypeKeys;
     }
 
     @Override

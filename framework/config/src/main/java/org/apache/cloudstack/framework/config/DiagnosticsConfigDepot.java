@@ -22,6 +22,7 @@ package org.apache.cloudstack.framework.config;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 
 import java.util.HashMap;
+import java.util.List;
 
 public interface DiagnosticsConfigDepot {
 
@@ -29,14 +30,10 @@ public interface DiagnosticsConfigDepot {
 
     void createOrUpdateDiagnosticObject(DiagnosticsKey key);
 
-//    void populateDiagnostics();
-
     void populateDiagnostics(DiagnosticsKey configurable);
 
-//    DiagnosticsKey getKey(String key);
+    void setDiagnosticsKeyHashMap(HashMap<String, List<DiagnosticsKey>> diagnosticsKeyHashMap);
 
-    void setDiagnosticsKeyHashMap(HashMap<String, DiagnosticsKey> diagnosticsKeyHashMap);
-
-    HashMap<String, DiagnosticsKey> getDiagnosticsTypeLevelsMap();
+    HashMap<String, List<DiagnosticsKey>> getDiagnosticsTypeLevelsMap();
 }
 
