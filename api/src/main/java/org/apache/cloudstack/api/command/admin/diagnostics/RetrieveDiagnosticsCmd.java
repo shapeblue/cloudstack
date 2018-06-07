@@ -20,14 +20,13 @@ package org.apache.cloudstack.api.command.admin.diagnostics;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.vm.VirtualMachine;
 import org.apache.cloudstack.acl.RoleType;
-import org.apache.cloudstack.acl.SecurityChecker;
-import org.apache.cloudstack.api.ACL;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.response.DomainRouterResponse;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsService;
@@ -55,10 +54,9 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
-    @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
     @Parameter(name = ApiConstants.ID,
             type = CommandType.UUID,
-            entityType = RetrieveDiagnosticsResponse.class,
+            entityType = DomainRouterResponse.class,
             required = true,
             description = "The System VM type that the diagnostics files requested are to be retrieved from")
     private Long id;

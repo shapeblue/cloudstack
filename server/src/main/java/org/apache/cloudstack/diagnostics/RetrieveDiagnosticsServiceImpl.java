@@ -147,7 +147,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                     allDefaultDiagnosticsTypeKeys.put(vo.getType(), arrDiagnosticsKeys);
                 } else {
                     for (DiagnosticsKey keyValue : value) {
-                        if (!keyValue.getRole().equalsIgnoreCase(vo.getRole()) && !keyValue.getDiagnosticsClassType().equalsIgnoreCase(vo.getType())) {
+                        if (!keyValue.getRole().equalsIgnoreCase(vo.getRole()) && keyValue.getDiagnosticsClassType().equalsIgnoreCase(vo.getType())) {
                             arrDiagnosticsKeys.add(keyValue);
                             allDefaultDiagnosticsTypeKeys.put(vo.getType(), arrDiagnosticsKeys);
                         }
