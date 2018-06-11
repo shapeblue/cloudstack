@@ -27,7 +27,7 @@ import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
-public class RemoteDiagnosticsResponse extends BaseResponse {
+public class ExecuteDiagnosticsResponse extends BaseResponse {
     @SerializedName(ApiConstants.DETAILS)
     @Param(description = "Script execution result")
     private String details;
@@ -35,6 +35,42 @@ public class RemoteDiagnosticsResponse extends BaseResponse {
     @SerializedName(ApiConstants.RESULT)
     @Param(description = "true if operation is executed successfully")
     private Boolean success;
+
+    @SerializedName("stdout")
+    @Param(description = "the standard output from the command execution")
+    private String stdout;
+
+    @SerializedName("stderr")
+    @Param(description = "the standard error output from the command execution")
+    private String stderr;
+
+    @SerializedName("returnCode")
+    @Param(description = "the command return code")
+    private String returnCode;
+
+    public String getStdout() {
+        return stdout;
+    }
+
+    public void setStdout(String stdout) {
+        this.stdout = stdout;
+    }
+
+    public String getStderr() {
+        return stderr;
+    }
+
+    public void setStderr(String stderr) {
+        this.stderr = stderr;
+    }
+
+    public String getReturnCode() {
+        return returnCode;
+    }
+
+    public void setReturnCode(String returnCode) {
+        this.returnCode = returnCode;
+    }
 
     public String getDetails() {
         return details;

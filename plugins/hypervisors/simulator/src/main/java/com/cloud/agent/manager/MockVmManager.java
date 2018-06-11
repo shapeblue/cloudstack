@@ -53,8 +53,8 @@ import com.cloud.simulator.MockVMVO;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.vm.VirtualMachine.PowerState;
-import org.apache.cloudstack.diagnostics.ExecuteDiagnosticsAnswer;
-import org.apache.cloudstack.diagnostics.ExecuteDiagnosticsCommand;
+import org.apache.cloudstack.diagnostics.DiagnosticsAnswer;
+import org.apache.cloudstack.diagnostics.DiagnosticsCommand;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -99,7 +99,7 @@ public interface MockVmManager extends Manager {
 
     CheckRouterAnswer checkRouter(CheckRouterCommand cmd);
 
-    ExecuteDiagnosticsAnswer executeDiagnostics(ExecuteDiagnosticsCommand cmd);
+    DiagnosticsAnswer executeDiagnostics(DiagnosticsCommand cmd);
 
     Answer cleanupNetworkRules(CleanupNetworkRulesCmd cmd, SimulatorInfo info);
 

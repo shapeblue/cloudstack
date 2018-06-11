@@ -15,13 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
+
 package org.apache.cloudstack.diagnostics;
 
-import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 
-public class ExecuteDiagnosticsAnswer extends Answer {
-    public ExecuteDiagnosticsAnswer(ExecuteDiagnosticsCommand cmd, boolean result, String details){
-        super(cmd, result, details);
+public class DiagnosticsCommand extends NetworkElementCommand {
+
+    private final String cmdType;
+    private final String cmdAddress;
+    private final String optionals;
+
+    public DiagnosticsCommand(String cmdType, String cmdAddress, String optionals) {
+        this.cmdType = cmdType;
+        this.cmdAddress = cmdAddress;
+        this.optionals = optionals;
     }
 
+    public String getSrciptArguments() {
+        return String.format("%s %s %s", cmdType, cmdAddress, optionals);
+    }
+
+    @Override
+    public boolean isQuery() {
+        return true;
+    }
 }

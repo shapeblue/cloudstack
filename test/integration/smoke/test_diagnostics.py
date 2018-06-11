@@ -19,7 +19,7 @@
 # Import Local Modules
 from marvin.codes import FAILED
 from marvin.cloudstackTestCase import cloudstackTestCase
-from marvin.cloudstackAPI import remoteDiganostics
+from marvin.cloudstackAPI import executeDiagnostics
 from marvin.lib.utils import (cleanup_resources)
 from marvin.lib.base import (Account,
                              ServiceOffering,
@@ -28,18 +28,19 @@ from marvin.lib.common import (get_domain,
                                get_zone,
                                get_test_template,
                                list_ssvms,
-                               list_routers)
+                               list_routers,
+                               list_hosts)
 
 from nose.plugins.attrib import attr
 
-class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
+class TestRemoteDiagnostics(cloudstackTestCase):
     """
     Test remote diagnostics with system VMs as root admin
     """
     @classmethod
     def setUpClass(cls):
 
-        testClient = super(TestRemoteDiagnosticsInSystemVMs, cls).getClsTestClient()
+        testClient = super(TestRemoteDiagnostics, cls).getClsTestClient()
         cls.apiclient = testClient.getApiClient()
         cls.services = testClient.getParsedTestDataConfig()
 
@@ -86,7 +87,7 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
     def tearDownClass(cls):
         try:
             cls.apiclient = super(
-                TestRemoteDiagnosticsInSystemVMs,
+                TestRemoteDiagnostics,
                 cls
             ).getClsTestClient().getApiClient()
             # Clean up, terminate the created templates
@@ -94,12 +95,12 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
         except Exception as e:
             raise Exception("Warning: Exception during cleanup : %s" % e)
-        return
+
 
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
         self.hypervisor = self.testClient.getHypervisorInfo()
-        return
+
 
     def tearDown(self):
         pass
@@ -119,11 +120,11 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
         router = list_router_response[0]
         self.debug("Starting the router with ID: %s" %router.id)
 
-        cmd = remoteDiganostics.remoteDiganosticsCmd()
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = router.id
         cmd.ipaddress = "8.8.8.8;"
         cmd.type = "ping"
-        cmd_response = self.apiclient.remoteDiganostics(cmd);
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertEqual(True,
                          cmd_response.success,
@@ -168,7 +169,7 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
         self.debug("Setting up CPVM with ID %s" %cpvm.id)
         cmd.id = cpvm.id
-        cpvm_response = self.apiclient.remoteDiganostics(cmd)
+        cpvm_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertEqual(True,
                      cpvm_response.success,
@@ -190,11 +191,11 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
         router = list_router_response[0]
         self.debug("Starting the router with ID: %s" %router.id)
 
-        cmd = remoteDiganostics.remoteDiganosticsCmd()
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = router.id
         cmd.ipaddress = "8.8.8.8;"
         cmd.type = "traceroute"
-        cmd_response = self.apiclient.remoteDiganostics(cmd);
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertEqual(True,
                          cmd_response.success,
@@ -217,7 +218,7 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
         self.debug("Setting up SSVM with ID %s" %ssvm.id)
         cmd.id = ssvm.id
-        ssvm_response = self.apiclient.remoteDiganostics(cmd)
+        ssvm_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertEqual(True,
                          ssvm_response.success,
@@ -239,9 +240,97 @@ class TestRemoteDiagnosticsInSystemVMs(cloudstackTestCase):
 
         self.debug("Setting up CPVM with ID %s" %cpvm.id)
         cmd.id = cpvm.id
-        cpvm_response = self.apiclient.remoteDiganostics(cmd)
+        cpvm_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertEqual(True,
                          cpvm_response.success,
                          msg="Failed to execute remote Traceroute in CPVM"
+                         )
+
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_03_arping_in_system_vm(self):
+
+        # Test with VR
+        list_router_response = list_routers(
+            self.apiclient
+        )
+        self.assertEqual(
+            isinstance(list_router_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+
+        router = list_router_response[0]
+        self.debug("Starting the router with ID: %s" %router.id)
+
+        hosts = list_hosts(
+            self.apiclient,
+            zoneid=router.zoneid,
+            type='Routing',
+            state='Up',
+            id=router.hostid
+        )
+        self.assertEqual(
+            isinstance(hosts, list),
+            True,
+            "Check list host returns a valid list"
+        )
+        host = hosts[0]
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd.id = router.id
+        cmd.ipaddress = host.ipaddress
+        cmd.type = "arping"
+        cmd.params = "-I eth0 -c 4"
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertEqual(True,
+                         cmd_response.success,
+                         msg="Failed to exeute remote Arping command in VR"
+                         )
+
+        # Test with SSVM
+        list_ssvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='secondarystoragevm',
+            state='Running',
+        )
+
+        self.assertEqual(
+            isinstance(list_ssvm_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+        ssvm = list_ssvm_response[0]
+
+        self.debug("Setting up SSVM with ID %s" %ssvm.id)
+        cmd.id = ssvm.id
+        ssvm_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertEqual(True,
+                         ssvm_response.success,
+                         msg="Failed to execute remote Arping in SSVM"
+                         )
+
+        # Test with CPVM
+        list_cpvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='consoleproxy',
+            state='Running',
+        )
+        self.assertEqual(
+            isinstance(list_cpvm_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+        cpvm = list_cpvm_response[0]
+
+        self.debug("Setting up CPVM with ID %s" %cpvm.id)
+        cmd.id = cpvm.id
+        cpvm_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertEqual(True,
+                         cpvm_response.success,
+                         msg="Failed to execute remote Arping in CPVM"
                          )

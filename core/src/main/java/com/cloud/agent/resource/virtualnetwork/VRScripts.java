@@ -69,6 +69,6 @@ public class VRScripts {
 
     public static final String VR_CFG = "vr_cfg.sh";
 
-    // New script for use with Remote DIagnostics API
-    public static final String DIAGNOSE_SYSTEM_VM = "diagnose_system_vm.py";
+    // New script for use with Remote Diagnostics API
+    public static final String DIAGNOSTICS = "diagnostics.py";
 }

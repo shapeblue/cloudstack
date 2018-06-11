@@ -16,15 +16,13 @@
 // specific language governing permissions and limitations
 // under the License.
 //
-
-
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
-import org.apache.cloudstack.api.command.admin.diagnostics.RemoteDiagnosticsCmd;
+import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,35 +33,29 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-public class RemoteDiagnosticsServiceImplTest extends TestCase {
+public class DiagnosticsServiceImplTest extends TestCase {
 
     @Mock
     private VMInstanceDao vmInstanceDao;
     @Mock
-    private RemoteDiagnosticsCmd remoteDiagnosticsCmd;
+    private ExecuteDiagnosticsCmd executeDiagnosticsCmd;
     @InjectMocks
-    private RemoteDiagnosticsServiceImpl diagnosticsService = new RemoteDiagnosticsServiceImpl();
+    private DiagnosticsServiceImpl diagnosticsService = new DiagnosticsServiceImpl();
 
     @Before
-    public void setUp() throws Exception{
+    public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        remoteDiagnosticsCmd = Mockito.mock(RemoteDiagnosticsCmd.class);
-        Mockito.when(remoteDiagnosticsCmd.getId()).thenReturn(1L);
-        Mockito.when(remoteDiagnosticsCmd.getAddress()).thenReturn("8.8.8.8");
-        Mockito.when(remoteDiagnosticsCmd.getType()).thenReturn("ping");
-        Mockito.when(remoteDiagnosticsCmd.getOptionalArguments()).thenReturn("-c");
+        executeDiagnosticsCmd = Mockito.mock(ExecuteDiagnosticsCmd.class);
+        Mockito.when(executeDiagnosticsCmd.getId()).thenReturn(1L);
+        Mockito.when(executeDiagnosticsCmd.getAddress()).thenReturn("8.8.8.8");
+        Mockito.when(executeDiagnosticsCmd.getType().getValue()).thenReturn("ping");
+        Mockito.when(executeDiagnosticsCmd.getOptionalArguments()).thenReturn("-c");
     }
 
     @Test(expected = InvalidParameterValueException.class)
     public void testExecuteDiagnosticsToolInSystemVmThrowsException() throws Exception {
-        Mockito.when(vmInstanceDao.findByIdTypes(remoteDiagnosticsCmd.getId(), VirtualMachine.Type.ConsoleProxy,
+        Mockito.when(vmInstanceDao.findByIdTypes(executeDiagnosticsCmd.getId(), VirtualMachine.Type.ConsoleProxy,
                 VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm)).thenReturn(null);
-        diagnosticsService.executeDiagnosticsToolInSystemVm(remoteDiagnosticsCmd);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testIllegalCommandArgumentsThrowsException() throws Exception {
-        diagnosticsService.setupRemoteCommand(remoteDiagnosticsCmd.getType(), remoteDiagnosticsCmd.getAddress(),
-                "-c && sleep");
+        diagnosticsService.runDiagnosticsCommand(executeDiagnosticsCmd);
     }
 }

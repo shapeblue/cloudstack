@@ -20,40 +20,52 @@ import subprocess
 import shlex
 import sys
 
-class Result(object):
-    pass
-
 # Execute shell command
 def run_cmd(command):
-    result = Result()
-    p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (stdout, stderr) = p.communicate()
+    if command is not None:
+        p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (stdout, stderr) = p.communicate()
+        exit_code = p.returncode
+        command = command
 
-    result.exit_code = p.returncode
-    result.stdout = stdout
-    result.stderr = stderr
-    result.command = command
-
-    if p.returncode != 0 and result.stderr is not "":
+    if exit_code != 0:
         print('Error executing command [%s]' % command)
-        print('stderr: [%s]' % stderr)
-        sys.exit(result.exit_code)
+        print('stdout: %s}' % stdout.strip())
+        print('stderr: %s}' % stderr.strip())
+        print('returncode: %s}' % exit_code)
+        sys.exit(exit_code)
 
-    print('stdout: [%s]' % result.stdout)
-    print('return code: %s' % result.exit_code)
+    print('stdout: %s}' % stdout.strip())
+    print('stderr: %s}' % stderr.strip())
+    print('returncode: %s}' % exit_code)
 
-    return result.exit_code
 
 def get_command():
     input_arguments = sys.argv
     cmd = " ".join(input_arguments[1:])
 
-    if 'ping' in input_arguments or 'arping' in input_arguments:
+    cmd_type = sys.argv[1]
+
+    if cmd_type == 'ping':
         if '-c' in input_arguments:
             return cmd
-
         else:
             return cmd + " -c 4"
+
+    elif cmd_type == 'traceroute':
+        if '-m' in input_arguments:
+            return cmd
+        else:
+            return cmd + " -m 20"
+
+    elif cmd_type == 'arping':
+        if '-c' in input_arguments:
+            return cmd
+        else:
+            return cmd + " -c 4"
+
+    else:
+        return None
 
     return cmd
 
