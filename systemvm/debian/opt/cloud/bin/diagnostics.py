@@ -20,24 +20,29 @@ import subprocess
 import shlex
 import sys
 
+
 # Execute shell command
 def run_cmd(command):
     if command is not None:
         p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = p.communicate()
         exit_code = p.returncode
-        command = command
+        stdout = stdout.strip()
+        stderr = stderr.strip()
 
-    if exit_code != 0:
-        print('Error executing command [%s]' % command)
-        print('stdout: %s}' % stdout.strip())
-        print('stderr: %s}' % stderr.strip())
-        print('returncode: %s}' % exit_code)
-        sys.exit(exit_code)
+        if exit_code != 0:
+            print('%s}' % stdout)
+            print('%s}' % stderr)
+            print('%s' % exit_code)
+            sys.exit(exit_code)
 
-    print('stdout: %s}' % stdout.strip())
-    print('stderr: %s}' % stderr.strip())
-    print('returncode: %s}' % exit_code)
+        else:
+            print('%s}' % stdout)
+            print('%s}' % stderr)
+            print('%s' % exit_code)
+    else:
+        print "Unsupported diagnostics command type"
+        sys.exit(1)
 
 
 def get_command():
@@ -68,6 +73,7 @@ def get_command():
         return None
 
     return cmd
+
 
 if __name__ == "__main__":
     command = get_command()

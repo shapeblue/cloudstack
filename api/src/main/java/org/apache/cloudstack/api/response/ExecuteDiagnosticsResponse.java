@@ -28,25 +28,21 @@ import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
 public class ExecuteDiagnosticsResponse extends BaseResponse {
-    @SerializedName(ApiConstants.DETAILS)
-    @Param(description = "Script execution result")
-    private String details;
-
     @SerializedName(ApiConstants.RESULT)
     @Param(description = "true if operation is executed successfully")
-    private Boolean success;
+    private String success;
 
-    @SerializedName("stdout")
+    @SerializedName("STDOUT")
     @Param(description = "the standard output from the command execution")
     private String stdout;
 
-    @SerializedName("stderr")
+    @SerializedName("STDERR")
     @Param(description = "the standard error output from the command execution")
     private String stderr;
 
-    @SerializedName("returnCode")
+    @SerializedName("EXITCODE")
     @Param(description = "the command return code")
-    private String returnCode;
+    private String exitCode;
 
     public String getStdout() {
         return stdout;
@@ -64,27 +60,19 @@ public class ExecuteDiagnosticsResponse extends BaseResponse {
         this.stderr = stderr;
     }
 
-    public String getReturnCode() {
-        return returnCode;
+    public String getExitCode() {
+        return exitCode;
     }
 
-    public void setReturnCode(String returnCode) {
-        this.returnCode = returnCode;
+    public void setExitCode(String exitCode) {
+        this.exitCode = exitCode;
     }
 
-    public String getDetails() {
-        return details;
-    }
-
-    public void setDetails(String details) {
-        this.details = details;
-    }
-
-    public Boolean getResult() {
+    public String getResult() {
         return success;
     }
 
-    public void setResult(Boolean success) {
+    public void setResult(String success) {
         this.success = success;
     }
 }

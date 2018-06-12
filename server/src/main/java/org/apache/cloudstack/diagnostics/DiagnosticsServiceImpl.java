@@ -38,6 +38,7 @@ import org.apache.log4j.Logger;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class DiagnosticsServiceImpl extends ManagerBase implements PluggableService, DiagnosticsService {
     private static final Logger LOGGER = Logger.getLogger(DiagnosticsServiceImpl.class);
@@ -51,8 +52,9 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     @Inject
     private ConfigurationDao configurationDao;
 
+
     @Override
-    public Answer runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException {
+    public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException {
         final Long vmId = cmd.getId();
         final String cmdType = cmd.getType().getValue();
         final String cmdAddress = cmd.getAddress();
@@ -74,14 +76,21 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
 
         Answer answer;
-        DiagnosticsCommand anser;
+
         try {
             answer = agentManager.send(hostId, command);
             if (answer instanceof DiagnosticsAnswer) {
-                return answer;
+                final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
+                if (!detailsMap.isEmpty()) {
+                    return detailsMap;
+                } else {
+                    LOGGER.error("Failed to parse diagnostics command execution results: " + answer.getDetails());
+                    throw new CloudRuntimeException("Failed to parse diagnostics command execution results ");
+                }
+
             } else {
-                LOGGER.error("Unknown Diagnostics query command");
-                throw new CloudRuntimeException("Unknown Diagnostics query command");
+                LOGGER.error("Failed to execute diagnostics command: " + answer.getDetails());
+                throw new CloudRuntimeException("Failed to execute diagnostics command: " + answer.getDetails());
             }
         } catch (OperationTimedoutException e) {
             LOGGER.warn("Timed Out", e);

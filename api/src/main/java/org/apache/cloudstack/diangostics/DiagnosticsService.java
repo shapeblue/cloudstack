@@ -18,13 +18,14 @@
 //
 package org.apache.cloudstack.diangostics;
 
-import com.cloud.agent.api.Answer;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 
+import java.util.Map;
+
 public interface DiagnosticsService {
 
-    Answer runDiagnosticsCommand(ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
+    Map<String, String> runDiagnosticsCommand(ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
 
 }

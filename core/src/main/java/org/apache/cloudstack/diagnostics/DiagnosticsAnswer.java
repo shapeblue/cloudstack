@@ -18,22 +18,24 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.api.Answer;
+import org.apache.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class DiagnosticsAnswer extends Answer {
-    private Map<String, Object> executionDetails = new HashMap<>();
+    public static final Logger LOGGER = Logger.getLogger(DiagnosticsAnswer.class);
 
-    public DiagnosticsAnswer(DiagnosticsCommand cmd, boolean result, String details){
+    public DiagnosticsAnswer(DiagnosticsCommand cmd, boolean result, String details) {
         super(cmd, result, details);
     }
 
-    public Map<String, Object> getExecutionDetails() {
-        String[] parseDetails = details.split("}");
-        executionDetails.put("stdout", parseDetails[0]);
-        executionDetails.put("stderr", parseDetails[1]);
-        executionDetails.put("returnCode", parseDetails[2]);
-        return executionDetails;
+    public Map<String, String> getExecutionDetails() {
+        final Map<String, String> executionDetailsMap = new HashMap<>();
+        final String[] parseDetails = details.split("}");
+        executionDetailsMap.put("STDOUT", parseDetails[0]);
+        executionDetailsMap.put("STDERR", parseDetails[1]);
+        executionDetailsMap.put("EXITCODE", parseDetails[2]);
+        return executionDetailsMap;
     }
 }

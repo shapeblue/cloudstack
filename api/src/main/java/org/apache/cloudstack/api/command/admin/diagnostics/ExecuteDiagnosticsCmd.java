@@ -16,10 +16,10 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
-import com.cloud.agent.api.Answer;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.user.Account;
+import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachine;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
@@ -37,6 +37,7 @@ import org.apache.cloudstack.diangostics.DiagnosticsType;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 @APICommand(name = ExecuteDiagnosticsCmd.APINAME, responseObject = ExecuteDiagnosticsResponse.class, entityType = {VirtualMachine.class},
@@ -98,7 +99,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     public String getOptionalArguments() {
         final String EMPTY_STRING = "";
 
-        if (optionalArguments == null) {
+        if (optionalArguments == null || optionalArguments.isEmpty()) {
             return EMPTY_STRING;
         }
         final String regex = "^[\\w\\-\\s]+$";
@@ -132,10 +133,11 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException {
         ExecuteDiagnosticsResponse response = new ExecuteDiagnosticsResponse();
         try {
-            final Answer answer = diagnosticsService.runDiagnosticsCommand(this);
-            if (answer != null) {
-                response.setResult(answer.getResult());
-                response.setDetails(answer.getDetails());
+            final Map<String, String> answerMap = diagnosticsService.runDiagnosticsCommand(this);
+            if (answerMap != null || !answerMap.isEmpty()) {
+                response.setStdout(answerMap.get("STDOUT"));
+                response.setStderr(answerMap.get("STDERR"));
+                response.setExitCode(answerMap.get("EXITCODE"));
                 response.setObjectName("diagnostics");
                 response.setResponseName(getCommandName());
                 this.setResponseObject(response);
@@ -143,6 +145,9 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
         } catch (ServerApiException e) {
             LOGGER.warn("Exception occurred while executing remote diagnostics command: ", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
+        } catch (CloudRuntimeException ex) {
+            LOGGER.warn("Error occurred while executing diagnostics command: ");
+            throw new CloudRuntimeException("Error occurred while executing diagnostics command: " + ex);
         }
     }
 }
