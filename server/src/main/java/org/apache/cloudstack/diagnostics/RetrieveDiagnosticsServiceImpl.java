@@ -26,6 +26,7 @@ import com.cloud.host.Host;
 import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.resource.ResourceManager;
+import com.cloud.server.ManagementServer;
 import com.cloud.user.AccountManager;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
@@ -66,6 +67,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private Long _timeOut;
 
     protected Map<String, Object> configParams = new HashMap<String, Object>();
+    private Map<String, String> _configs;
+
 
     HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
 
@@ -80,6 +83,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     protected ResourceManager _resourceMgr;
+
+    @Inject
+    protected ManagementServer _serverMgr;
 
     @Inject
     RetrieveDiagnosticsDao _retrieveDiagnosticsDao;
@@ -113,6 +119,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Initialising configuring values for retrieve diagnostics api : " + name);
         }
+        _configs = _configDao.getConfiguration();
 
         _timeOut = RetrieveDiagnosticsTimeOut.value();
         if (params != null) {
@@ -136,26 +143,21 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
         List<RetrieveDiagnosticsVO> listVO = _retrieveDiagnosticsDao.retrieveAllDiagnosticsData();
         DiagnosticsKey diagnosticsKey = null;
-        List<DiagnosticsKey> arrDiagnosticsKeys = null;
         for (RetrieveDiagnosticsVO vo : listVO) {
             if (allDefaultDiagnosticsTypeKeys != null) {
                 List<DiagnosticsKey> value = get(vo.getType());
                 if (value == null) {
+                    value = new ArrayList<>();
                     diagnosticsKey = new DiagnosticsKey(vo.getRole(), vo.getType(), vo.getDefaultValue(), "");
-                    arrDiagnosticsKeys = new ArrayList<>();
-                    arrDiagnosticsKeys.add(diagnosticsKey);
-                    allDefaultDiagnosticsTypeKeys.put(vo.getType(), arrDiagnosticsKeys);
+                    value.add(diagnosticsKey);
                 } else {
-                    for (DiagnosticsKey keyValue : value) {
-                        if (!keyValue.getRole().equalsIgnoreCase(vo.getRole()) && keyValue.getDiagnosticsClassType().equalsIgnoreCase(vo.getType())) {
-                            arrDiagnosticsKeys.add(keyValue);
-                            allDefaultDiagnosticsTypeKeys.put(vo.getType(), arrDiagnosticsKeys);
-                        }
-                    }
+                    diagnosticsKey = new DiagnosticsKey(vo.getRole(), vo.getType(), vo.getDefaultValue(), "");
+                    value.add(diagnosticsKey);
                 }
-            }
+                allDefaultDiagnosticsTypeKeys.put(vo.getType(), value);
+             }
         }
-      _diagnosticsDepot.setDiagnosticsKeyHashMap(allDefaultDiagnosticsTypeKeys);
+        _diagnosticsDepot.setDiagnosticsKeyHashMap(allDefaultDiagnosticsTypeKeys);
     }
 
    public Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd) {
@@ -195,6 +197,20 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
         }
+        final String disableThreshold =_configs.get("retrieveDiagnostics.disablethreshold");
+        final Float threshold = Float.parseFloat(disableThreshold);
+
+        final String filePath = _configs.get("retrieveDiagnostics.filepath");
+        final String fileAge = _configs.get("retrieveDiagnostics.max.fileage");
+        final Long fileAgeBeforeGC = Long.parseLong(fileAge);
+
+        final String timeIntervalGCexecution = _configs.get("retrieveDiagnostics.gc.interval");
+        final Long intervalGCexecution = Long.parseLong(timeIntervalGCexecution);
+
+        final boolean gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
+
+        String value = _configDao.getValue(RetrieveDiagnosticsTimeOut.key());
+        Long wait = NumbersUtil.parseLong(value, 3600);
         String systemVmType = null;
         String diagnosticsType = null;
         String fileDetails = null;
@@ -216,7 +232,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                     throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "No host was selected.");
                 }
                 if (diagnosticsType == null) {
-                    listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType,systemVmType);
+                    listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType);
                     for (String entry : filesToRetrieve ) {
                         diagnosticsFiles.add(entry);
                     }
@@ -241,7 +257,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                     }
                 }
                 final VMInstanceVO instance = _vmDao.findById(cmd.getId());
-                retrieveDiagnosticsFiles(cmd.getId(), diagnosticsType, diagnosticsFiles, instance);
+                retrieveDiagnosticsFiles(cmd, cmd.getId(), diagnosticsType, diagnosticsFiles, instance);
             }
         }
         return null;
@@ -257,7 +273,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return response;
     }
 
-    protected String[] getAllDefaultFilesForEachSystemVm(String diagnosticsType, String systemVmType) {
+    protected String[] getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
         StringBuilder listDefaultFilesForEachVm = new StringBuilder();
         List<DiagnosticsKey> diagnosticsKey = get(diagnosticsType);
         for (DiagnosticsKey key : diagnosticsKey) {
@@ -278,12 +294,15 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    protected boolean retrieveDiagnosticsFiles(Long hostId, String diagnosticsType, List<String> diagnosticsFiles, final VMInstanceVO systemVmId) {
+    protected boolean retrieveDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd, Long hostId, String diagnosticsType, List<String> diagnosticsFiles, final VMInstanceVO systemVmId) {
+        String value = _configDao.getValue("retrieveDiagnostics.retrieval.timeout");
+        Long wait = NumbersUtil.parseLong(value, 3600);
         RetrieveDiagnosticsCommand command = new RetrieveDiagnosticsCommand();
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVmId.getId()));
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVmId.getInstanceName() );
 
         Answer answer;
+        cmd.setTimeOut(value);
         try{
             answer = _agentMgr.send(systemVmId.getHostId(), command);
         }catch (Exception e){

@@ -58,6 +58,7 @@ public class VRScripts {
     public static final String MONITOR_SERVICE = "monitor_service.sh";
     public static final String PASSWORD = "savepassword.sh";
     public static final String ROUTER_ALERTS = "getRouterAlerts.sh";
+    public static final String ROUTER_RETRIEVEFILES = "retrieveDiagnostics.sh";
     public static final String RVR_CHECK = "checkrouter.sh";
     public static final String VMDATA = "vmdata.py";
     public static final String RVR_BUMPUP_PRI = "bumpup_priority.sh";

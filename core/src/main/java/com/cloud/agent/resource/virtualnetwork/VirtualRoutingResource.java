@@ -157,7 +157,18 @@ public class VirtualRoutingResource {
     }
 
     private RetrieveDiagnosticsAnswer execute(final RetrieveDiagnosticsCommand cmd) {
-        return null;
+        List<String> args = cmd.getDiagnosticFilesToRerieve();
+        String fileListToRetrieve = args.toString();
+        String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
+        ExecutionResult result = _vrDeployer.executeInVR(routerIp, VRScripts.ROUTER_RETRIEVEFILES, fileListToRetrieve);
+        if (result.isSuccess()) {
+            if (!result.getDetails().isEmpty() && !result.getDetails().trim().equals("No Alerts")) {
+
+            }
+            return new RetrieveDiagnosticsAnswer();
+        } else {
+            return new RetrieveDiagnosticsAnswer();
+        }
     }
 
     private Answer execute(final SetupKeyStoreCommand cmd) {
@@ -200,6 +211,8 @@ public class VirtualRoutingResource {
             return execute((CheckS2SVpnConnectionsCommand) cmd);
         } else if (cmd instanceof GetRouterAlertsCommand) {
             return execute((GetRouterAlertsCommand)cmd);
+        } else if (cmd instanceof RetrieveDiagnosticsCommand) {
+            return execute((RetrieveDiagnosticsCommand)cmd);
         } else {
             s_logger.error("Unknown query command in VirtualRoutingResource!");
             return Answer.createUnsupportedCommandAnswer(cmd);

@@ -19,10 +19,15 @@
 package com.cloud.agent.api;
 
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.host.HostVO;
+import com.cloud.utils.Pair;
+import com.cloud.vm.SecondaryStorageVmVO;
+import org.apache.log4j.Logger;
 
 import java.util.List;
 
 public class RetrieveDiagnosticsCommand extends NetworkElementCommand {
+    private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsCommand.class);
     String retrieveDiagnosticsType;
     List<String> diagnosticFilesToRerieve;
     List<Object> retrieveDiagnosticsConfigs;
@@ -50,4 +55,12 @@ public class RetrieveDiagnosticsCommand extends NetworkElementCommand {
     public List<Object> getRetrieveDiagnosticsConfigs() {
         return retrieveDiagnosticsConfigs;
     }
+
+    public Pair<HostVO, SecondaryStorageVmVO> assignSecStorageVmFromRunningPool(long zoneId, Command cmd) {
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Assign  secondary storage vm from running pool for request from data center : ");
+        }
+
+        return null;
+    } //in VMwareGuru.java
 }
