@@ -16,9 +16,6 @@
 // under the License.
 package com.cloud.agent.manager;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.StoragePoolInfo;
@@ -28,6 +25,9 @@ import com.cloud.simulator.dao.MockConfigurationDao;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.vm.VirtualMachine.PowerState;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public interface SimulatorManager extends Manager {
     public static final String Name = "simulator manager";

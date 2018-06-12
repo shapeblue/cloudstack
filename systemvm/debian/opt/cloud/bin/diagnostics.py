@@ -21,7 +21,6 @@ import shlex
 import sys
 
 
-# Execute shell command
 def run_cmd(command):
     if command is not None:
         p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

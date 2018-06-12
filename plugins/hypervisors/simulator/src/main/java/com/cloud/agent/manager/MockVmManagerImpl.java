@@ -76,8 +76,6 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachine.PowerState;
-import org.apache.cloudstack.diagnostics.DiagnosticsAnswer;
-import org.apache.cloudstack.diagnostics.DiagnosticsCommand;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -271,14 +269,6 @@ public class MockVmManagerImpl extends ManagerBase implements MockVmManager {
             ans.setState(VirtualRouter.RedundantState.BACKUP);
             return ans;
         }
-    }
-
-    @Override
-    public DiagnosticsAnswer executeDiagnostics(final DiagnosticsCommand cmd) {
-        final String router_name = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
-        final MockVm vm = _mockVmDao.findByVmName(router_name);
-
-        return new DiagnosticsAnswer(cmd, true, null);
     }
 
     @Override

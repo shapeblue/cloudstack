@@ -28,15 +28,16 @@ from marvin.lib.common import (get_domain,
                                get_zone,
                                get_test_template,
                                list_ssvms,
-                               list_routers,
-                               list_hosts)
+                               list_routers)
 
 from nose.plugins.attrib import attr
 
+
 class TestRemoteDiagnostics(cloudstackTestCase):
     """
-    Test remote diagnostics with system VMs as root admin
+    Test remote diagnostics with system VMs and VR as root admin
     """
+
     @classmethod
     def setUpClass(cls):
 
@@ -81,7 +82,6 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             cls.account,
             cls.service_offering
         ]
-        return
 
     @classmethod
     def tearDownClass(cls):
@@ -96,19 +96,19 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         except Exception as e:
             raise Exception("Warning: Exception during cleanup : %s" % e)
 
-
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
         self.hypervisor = self.testClient.getHypervisorInfo()
 
-
-    def tearDown(self):
-        pass
-
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_01_ping_in_system_vm(self):
+    def test_01_ping_in_vr(self):
+        '''
+        Test Ping command execution in VR
+        '''
 
-        # Test with VR
+        # Validate the following:
+        # 1. Ping command is executed remotely on VR
+
         list_router_response = list_routers(
             self.apiclient
         )
@@ -118,20 +118,37 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             "Check list response returns a valid list"
         )
         router = list_router_response[0]
-        self.debug("Starting the router with ID: %s" %router.id)
+        self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = router.id
-        cmd.ipaddress = "8.8.8.8;"
-        cmd.type = "ping"
+        cmd.ipaddress = '8.8.8.8'
+        cmd.type = 'ping'
         cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         cmd_response.success,
-                         msg="Failed to exeute remote Ping command in VR"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Ping in VR')
 
-        # Test with SSVM
+        # Validate Ping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '9999.9999.9999.9999.9999'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code')
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_02_ping_in_ssvm(self):
+        '''
+        Test Ping command execution in SSVM
+        '''
+
+        # Validate the following:
+        # 1. Ping command is executed remotely on SSVM
+
         list_ssvm_response = list_ssvms(
             self.apiclient,
             systemvmtype='secondarystoragevm',
@@ -141,45 +158,89 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.assertEqual(
             isinstance(list_ssvm_response, list),
             True,
-            "Check list response returns a valid list"
+            'Check list response returns a valid list'
         )
         ssvm = list_ssvm_response[0]
 
-        self.debug("Setting up SSVM with ID %s" %ssvm.id)
+        self.debug('Setting up SSVM with ID %s' % ssvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = ssvm.id
-        ssvm_response = self.apiclient.remoteDiganostics(cmd)
+        cmd.ipaddress = '8.8.8.8'
+        cmd.type = 'ping'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         ssvm_response.success,
-                         msg="Failed to execute remote Ping in SSVM"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Ping in SSVM'
+        )
 
-        # Test with CPVM
-        list_cpvm_response = list_ssvms(
+        # Validate Ping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '9999.9999.9999.9999.9999'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_03_ping_in_cpvm(self):
+        '''
+        Test Ping command execution in CPVM
+        '''
+
+        # Validate the following:
+        # 1. Ping command is executed remotely on CPVM
+
+        list_ssvm_response = list_ssvms(
             self.apiclient,
             systemvmtype='consoleproxy',
             state='Running',
         )
+
         self.assertEqual(
-            isinstance(list_cpvm_response, list),
-                        True,
-                        "Check list response returns a valid list"
-                        )
-        cpvm = list_cpvm_response[0]
+            isinstance(list_ssvm_response, list),
+            True,
+            'Check list response returns a valid list'
+        )
+        cpvm = list_ssvm_response[0]
 
-        self.debug("Setting up CPVM with ID %s" %cpvm.id)
+        self.debug('Setting up CPVM with ID %s' % cpvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = cpvm.id
-        cpvm_response = self.apiclient.executeDiagnostics(cmd)
+        cmd.ipaddress = '8.8.8.8'
+        cmd.type = 'ping'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                     cpvm_response.success,
-                     msg="Failed to execute remote Ping in CPVM"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Ping in CPVM'
+        )
+
+        # Validate Ping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '9999.9999.9999.9999.9999'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_02_traceroute_in_system_vm(self):
+    def test_04_arping_in_vr(self):
+        '''
+        Test Arping command execution in VR
+        '''
 
-        # Test with VR
+        # Validate the following:
+        # 1. Arping command is executed remotely on VR
+
         list_router_response = list_routers(
             self.apiclient
         )
@@ -189,20 +250,38 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             "Check list response returns a valid list"
         )
         router = list_router_response[0]
-        self.debug("Starting the router with ID: %s" %router.id)
+        self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = router.id
-        cmd.ipaddress = "8.8.8.8;"
-        cmd.type = "traceroute"
+        cmd.ipaddress = router.gateway
+        cmd.type = 'arping'
+        cmd.params = "-I eth2"
         cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         cmd_response.success,
-                         msg="Failed to exeute remote Traceroute command in VR"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Arping in VR')
 
-        # Test with SSVM
+        # Validate Arping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '8.8.8.8'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code')
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_05_arping_in_ssvm(self):
+        '''
+        Test Arping command execution in SSVM
+        '''
+
+        # Validate the following:
+        # 1. Arping command is executed remotely on SSVM
+
         list_ssvm_response = list_ssvms(
             self.apiclient,
             systemvmtype='secondarystoragevm',
@@ -212,46 +291,91 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.assertEqual(
             isinstance(list_ssvm_response, list),
             True,
-            "Check list response returns a valid list"
+            'Check list response returns a valid list'
         )
         ssvm = list_ssvm_response[0]
 
-        self.debug("Setting up SSVM with ID %s" %ssvm.id)
+        self.debug('Setting up SSVM with ID %s' % ssvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = ssvm.id
-        ssvm_response = self.apiclient.executeDiagnostics(cmd)
+        cmd.ipaddress = ssvm.gateway
+        cmd.type = 'arping'
+        cmd.params = '-I eth2'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         ssvm_response.success,
-                         msg="Failed to execute remote Traceroute in SSVM"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Arping in SSVM'
+        )
 
-        # Test with CPVM
+        # Validate Arping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '8.8.8.8'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_06_arping_in_cpvm(self):
+        '''
+        Test Arping command execution in CPVM
+        '''
+
+        # Validate the following:
+        # 1. Arping command is executed remotely on CPVM
+
         list_cpvm_response = list_ssvms(
             self.apiclient,
-            systemvmtype='consoleproxy',
+            systemvmtype='secondarystoragevm',
             state='Running',
         )
+
         self.assertEqual(
             isinstance(list_cpvm_response, list),
             True,
-            "Check list response returns a valid list"
+            'Check list response returns a valid list'
         )
         cpvm = list_cpvm_response[0]
 
-        self.debug("Setting up CPVM with ID %s" %cpvm.id)
+        self.debug('Setting up CPVM with ID %s' % cpvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = cpvm.id
-        cpvm_response = self.apiclient.executeDiagnostics(cmd)
+        cmd.ipaddress = cpvm.gateway
+        cmd.type = 'arping'
+        cmd.params = '-I eth2'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         cpvm_response.success,
-                         msg="Failed to execute remote Traceroute in CPVM"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Arping in CPVM'
+        )
 
+        # Validate Arping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '8.8.8.8'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_03_arping_in_system_vm(self):
+    def test_07_traceroute_in_vr(self):
+        '''
+        Test Arping command execution in VR
+        '''
 
-        # Test with VR
+        # Validate the following:
+        # 1. Arping command is executed remotely on VR
+
         list_router_response = list_routers(
             self.apiclient
         )
@@ -260,37 +384,40 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             True,
             "Check list response returns a valid list"
         )
-
         router = list_router_response[0]
-        self.debug("Starting the router with ID: %s" %router.id)
-
-        hosts = list_hosts(
-            self.apiclient,
-            zoneid=router.zoneid,
-            type='Routing',
-            state='Up',
-            id=router.hostid
-        )
-        self.assertEqual(
-            isinstance(hosts, list),
-            True,
-            "Check list host returns a valid list"
-        )
-        host = hosts[0]
+        self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = router.id
-        cmd.ipaddress = host.ipaddress
-        cmd.type = "arping"
-        cmd.params = "-I eth0 -c 4"
+        cmd.ipaddress = '8.8.4.4'
+        cmd.type = 'traceroute'
+        cmd.params = "-m 10"
         cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         cmd_response.success,
-                         msg="Failed to exeute remote Arping command in VR"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Arping in VR')
 
-        # Test with SSVM
+        # Validate Arping command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '9999.99999.99999.9999'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_08_traceroute_in_ssvm(self):
+        '''
+        Test Traceroute command execution in SSVM
+        '''
+
+        # Validate the following:
+        # 1. Traceroute command is executed remotely on SSVM
+
         list_ssvm_response = list_ssvms(
             self.apiclient,
             systemvmtype='secondarystoragevm',
@@ -300,37 +427,78 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.assertEqual(
             isinstance(list_ssvm_response, list),
             True,
-            "Check list response returns a valid list"
+            'Check list response returns a valid list'
         )
         ssvm = list_ssvm_response[0]
 
-        self.debug("Setting up SSVM with ID %s" %ssvm.id)
+        self.debug('Setting up SSVM with ID %s' % ssvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
         cmd.id = ssvm.id
-        ssvm_response = self.apiclient.executeDiagnostics(cmd)
+        cmd.ipaddress = '8.8.4.4'
+        cmd.type = 'traceroute'
+        cmd.params = '-m 10'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
 
-        self.assertEqual(True,
-                         ssvm_response.success,
-                         msg="Failed to execute remote Arping in SSVM"
-                         )
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Traceroute in SSVM'
+        )
 
-        # Test with CPVM
+        # Validate Traceroute command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '999.9999.9999.9999.9999'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_09_traceroute_in_cpvm(self):
+        '''
+        Test Traceroute command execution in CPVMM
+        '''
+
+        # Validate the following:
+        # 1. Traceroute command is executed remotely on CPVM
+
         list_cpvm_response = list_ssvms(
             self.apiclient,
             systemvmtype='consoleproxy',
             state='Running',
         )
+
         self.assertEqual(
             isinstance(list_cpvm_response, list),
             True,
-            "Check list response returns a valid list"
+            'Check list response returns a valid list'
         )
         cpvm = list_cpvm_response[0]
 
-        self.debug("Setting up CPVM with ID %s" %cpvm.id)
-        cmd.id = cpvm.id
-        cpvm_response = self.apiclient.executeDiagnostics(cmd)
+        self.debug('Setting up CPVMM with ID %s' % cpvm.id)
 
-        self.assertEqual(True,
-                         cpvm_response.success,
-                         msg="Failed to execute remote Arping in CPVM"
-                         )
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd.id = cpvm.id
+        cmd.ipaddress = '8.8.4.4'
+        cmd.type = 'traceroute'
+        cmd.params = '-m 10'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Failed to execute remote Traceroute in CPVM'
+        )
+
+        # Validate Traceroute command execution with a non-existent/pingable IP address
+        cmd.ipaddress = '999.9999.9999.9999.9999'
+        cmd_response = self.apiclient.executeDiagnostics(cmd)
+
+        self.assertNotEqual(
+            '0',
+            cmd_response.EXITCODE,
+            'Check diagnostics command returns a non-zero exit code'
+        )

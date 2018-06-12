@@ -33,9 +33,10 @@ public class DiagnosticsAnswer extends Answer {
     public Map<String, String> getExecutionDetails() {
         final Map<String, String> executionDetailsMap = new HashMap<>();
         final String[] parseDetails = details.split("}");
-        executionDetailsMap.put("STDOUT", parseDetails[0]);
-        executionDetailsMap.put("STDERR", parseDetails[1]);
-        executionDetailsMap.put("EXITCODE", parseDetails[2]);
+        executionDetailsMap.put("STDOUT", parseDetails[0].trim());
+        executionDetailsMap.put("STDERR", parseDetails[1].trim());
+        executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
+        executionDetailsMap.put("SUCCESS", String.valueOf(result));
         return executionDetailsMap;
     }
 }

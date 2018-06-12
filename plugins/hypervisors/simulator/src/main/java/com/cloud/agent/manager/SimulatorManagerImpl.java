@@ -118,7 +118,6 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import org.apache.cloudstack.ca.SetupCertificateCommand;
 import org.apache.cloudstack.ca.SetupKeyStoreCommand;
-import org.apache.cloudstack.diagnostics.DiagnosticsCommand;
 import org.apache.cloudstack.storage.command.DeleteCommand;
 import org.apache.cloudstack.storage.command.DownloadCommand;
 import org.apache.cloudstack.storage.command.DownloadProgressCommand;
@@ -389,8 +388,6 @@ public class SimulatorManagerImpl extends ManagerBase implements SimulatorManage
                     answer = _mockVmMgr.getVmStats((GetVmStatsCommand)cmd);
                 } else if (cmd instanceof CheckRouterCommand) {
                     answer = _mockVmMgr.checkRouter((CheckRouterCommand) cmd);
-                }else if (cmd instanceof DiagnosticsCommand) {
-                    answer = _mockVmMgr.executeDiagnostics((DiagnosticsCommand)cmd);
                 } else if (cmd instanceof GetDomRVersionCmd) {
                     answer = _mockVmMgr.getDomRVersion((GetDomRVersionCmd)cmd);
                 } else if (cmd instanceof CopyVolumeCommand) {

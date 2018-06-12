@@ -52,7 +52,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     @Inject
     private ConfigurationDao configurationDao;
 
-
     @Override
     public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException {
         final Long vmId = cmd.getId();

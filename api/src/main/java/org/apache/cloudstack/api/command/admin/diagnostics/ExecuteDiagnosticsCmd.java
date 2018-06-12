@@ -138,6 +138,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
                 response.setStdout(answerMap.get("STDOUT"));
                 response.setStderr(answerMap.get("STDERR"));
                 response.setExitCode(answerMap.get("EXITCODE"));
+                response.setResult(answerMap.get("SUCCESS"));
                 response.setObjectName("diagnostics");
                 response.setResponseName(getCommandName());
                 this.setResponseObject(response);
