@@ -32,7 +32,6 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 import org.apache.cloudstack.diangostics.DiagnosticsService;
-import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -49,29 +48,27 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private AgentManager agentManager;
     @Inject
     private VMInstanceDao instanceDao;
-    @Inject
-    private ConfigurationDao configurationDao;
 
     @Override
     public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException {
         final Long vmId = cmd.getId();
         final String cmdType = cmd.getType().getValue();
         final String cmdAddress = cmd.getAddress();
-        final String optionalArgunments = cmd.getOptionalArguments();
+        final String optionalArguments = cmd.getOptionalArguments();
         final VMInstanceVO vmInstance = instanceDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
-        final Long hostId = vmInstance.getHostId();
 
         if (vmInstance == null) {
-            LOGGER.error("Invalid system VM id provided " + vmId);
+            LOGGER.error("Invalid system vm id provided " + vmId);
             throw new InvalidParameterValueException("Unable to find a system vm with id " + vmId);
         }
+        final Long hostId = vmInstance.getHostId();
 
         if (hostId == null) {
             LOGGER.warn("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
             throw new CloudRuntimeException("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
         }
 
-        final DiagnosticsCommand command = new DiagnosticsCommand(cmdType, cmdAddress, optionalArgunments);
+        final DiagnosticsCommand command = new DiagnosticsCommand(cmdType, cmdAddress, optionalArguments);
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
 
         Answer answer;
