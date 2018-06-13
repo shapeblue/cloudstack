@@ -36,7 +36,7 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 @APICommand(name = RetrieveDiagnosticsCmd.APINAME,
-        description = "Retrieves diagnostics files from System VMs",
+        description = "Retrieves diagnostics files from host VMs",
         responseObject = RetrieveDiagnosticsResponse.class,
         requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false,
@@ -58,7 +58,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             type = CommandType.UUID,
             entityType = DomainRouterResponse.class,
             required = true,
-            description = "The System VM type that the diagnostics files requested are to be retrieved from")
+            description = "The host VM type that the diagnostics files requested are to be retrieved from")
     private Long id;
 
 
@@ -125,10 +125,10 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     @Override
     public void execute() {
         CallContext.current().setEventDetails("Vm Id: " + this._uuidMgr.getUuid(VirtualMachine.class, getId()));
-        RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = new RetrieveDiagnosticsResponse();
+
         try {
-            retrieveDiagnosticsService.getDiagnosticsFiles(this);
-            retrieveDiagnosticsResponse.setObjectName("retrievediagnostics");
+            RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = retrieveDiagnosticsService.getDiagnosticsFiles(this);
+            retrieveDiagnosticsResponse.setObjectName("retrieved information");
             retrieveDiagnosticsResponse.setResponseName(getCommandName());
             this.setResponseObject(retrieveDiagnosticsResponse);
         } catch (InvalidParameterValueException ipve) {
@@ -152,6 +152,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventDescription() {
-        return "Retrieved diagnostics files from System VM =" + id;
+        return "Retrieved diagnostics files from host =" + id;
     }
 }

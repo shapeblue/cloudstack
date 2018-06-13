@@ -23,6 +23,8 @@ import com.cloud.agent.api.RetrieveDiagnosticsCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.host.Host;
+import com.cloud.host.HostVO;
+import com.cloud.host.dao.HostDao;
 import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.resource.ResourceManager;
@@ -34,7 +36,9 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.vm.SecondaryStorageVmVO;
 import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
@@ -42,6 +46,8 @@ import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCm
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.framework.config.ConfigDepot;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
@@ -71,6 +77,15 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
 
     HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
+
+    @Inject
+    private HostDao _hostDao;
+
+    @Inject
+    private SecondaryStorageVmDao _secStorageVmDao;
+
+    @Inject
+    private DataStoreManager _dataStoreMgr;
 
     @Inject
     private AgentManager _agentMgr;
@@ -194,23 +209,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Override
     public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws InvalidParameterValueException, ConfigurationException {
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Initialising configuring values for retrieve diagnostics api : " + getConfigComponentName());
-        }
-        final String disableThreshold =_configs.get("retrieveDiagnostics.disablethreshold");
-        final Float threshold = Float.parseFloat(disableThreshold);
-
-        final String filePath = _configs.get("retrieveDiagnostics.filepath");
-        final String fileAge = _configs.get("retrieveDiagnostics.max.fileage");
-        final Long fileAgeBeforeGC = Long.parseLong(fileAge);
-
-        final String timeIntervalGCexecution = _configs.get("retrieveDiagnostics.gc.interval");
-        final Long intervalGCexecution = Long.parseLong(timeIntervalGCexecution);
-
-        final boolean gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
-
-        String value = _configDao.getValue(RetrieveDiagnosticsTimeOut.key());
-        Long wait = NumbersUtil.parseLong(value, 3600);
         String systemVmType = null;
         String diagnosticsType = null;
         String fileDetails = null;
@@ -257,7 +255,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                     }
                 }
                 final VMInstanceVO instance = _vmDao.findById(cmd.getId());
-                retrieveDiagnosticsFiles(cmd, cmd.getId(), diagnosticsType, diagnosticsFiles, instance);
+                retrieveDiagnosticsFiles(cmd.getId(), diagnosticsFiles, instance, RetrieveDiagnosticsTimeOut.value());
             }
         }
         return null;
@@ -294,22 +292,73 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    protected boolean retrieveDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd, Long hostId, String diagnosticsType, List<String> diagnosticsFiles, final VMInstanceVO systemVmId) {
-        String value = _configDao.getValue("retrieveDiagnostics.retrieval.timeout");
-        Long wait = NumbersUtil.parseLong(value, 3600);
+    protected void retrieveDiagnosticsFiles(Long ssHostId, List<String> diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout) {
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
+        }
+
+        Float disableThreshold = Float.parseFloat(_configs.get("retrieveDiagnostics.disablethreshold"));
+        String filePath = _configs.get("retrieveDiagnostics.filepath");
+        Long fileAge = Long.parseLong(_configs.get("retrieveDiagnostics.max.fileage"));
+        Long timeIntervalGCexecution = Long.parseLong(_configs.get("retrieveDiagnostics.gc.interval"));
+        boolean gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
+        Long wait = Long.parseLong(_configDao.getValue(RetrieveDiagnosticsTimeOut.key()), 3600);
+
+        if (ssHostId == null) {
+            LOGGER.info("No host selected." + getConfigComponentName());
+        }
+        if (wait <= 0) {
+            timeout = RetrieveDiagnosticsTimeOut.value();
+        }
+        if (filePath == null) {
+            filePath = "\\tmp";
+        }
+        if (fileAge == null) {
+            fileAge = 86400L;
+        }
+        if (disableThreshold == null) {
+            disableThreshold = 0.95F;
+        }
+        if (timeIntervalGCexecution == null) {
+            timeIntervalGCexecution = 86400L;
+        }
+        if (!gcEnabled) {
+            gcEnabled = true;
+        }
         RetrieveDiagnosticsCommand command = new RetrieveDiagnosticsCommand();
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVmId.getId()));
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVmId.getInstanceName() );
 
         Answer answer;
-        cmd.setTimeOut(value);
+        command.setWait(wait.intValue());
         try{
             answer = _agentMgr.send(systemVmId.getHostId(), command);
         }catch (Exception e){
             LOGGER.error("Unable to send command");
             throw new InvalidParameterValueException("Agent unavailable");
         }
-        return true;
+        if (answer != null && answer.getResult()) {
+            //zip the files and choose secondary storage to download the zip file.
+            if (assignSecStorageFromRunningPool(ssHostId) != null) {
+
+
+
+            }
+        }
+    }
+
+    protected String assignSecStorageFromRunningPool(Long zoneId) {
+        HostVO cssHost = _hostDao.findById(zoneId);
+        Long zone = cssHost.getDataCenterId();
+        if (cssHost.getType() == Host.Type.SecondaryStorageVM) {
+            SecondaryStorageVmVO secStorageVm = _secStorageVmDao.findByInstanceName(cssHost.getName());
+            if (secStorageVm == null) {
+                LOGGER.warn("secondary storage VM " + cssHost.getName() + " doesn't exist");
+                return null;
+            }
+        }
+        DataStore ssStore = _dataStoreMgr.getImageStore(zone);
+        return ssStore.getUri();
     }
 
     public Map<String, Object> getConfigParams() {

@@ -25,7 +25,7 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
-import java.util.Date;
+import java.util.Map;
 
 @EntityReference(value = VirtualMachine.class)
 public class RetrieveDiagnosticsResponse extends BaseResponse {
@@ -33,13 +33,18 @@ public class RetrieveDiagnosticsResponse extends BaseResponse {
     @Param(description = "Have the diagnostics files been copied successfully", since = "4.11", authorized = {RoleType.Admin})
     private Boolean success;
 
-    @SerializedName(ApiConstants.SENT)
-    @Param(description = "the date and time of the last download of the diagnostics files")
-    private Date lastSent;
-
     @SerializedName(ApiConstants.TIMEOUT)
     @Param(description = "the timeout (in seconds) for requests to the retrieve diagnostics API")
     private String timeout;
+
+    @SerializedName("numberoffilescopied")
+    @Param(description = "the total number of files copied")
+    private Long copiedFilesTotal;
+
+
+    @SerializedName(ApiConstants.DETAILS)
+    @Param(description = "details for the account")
+    private Map<String, String> details;
 
 
     public Boolean getSuccess() {
@@ -50,20 +55,28 @@ public class RetrieveDiagnosticsResponse extends BaseResponse {
         this.success = success;
     }
 
-    public Date getLastSent() {
-        return lastSent;
-    }
-
-    public void setLastSent(Date lastSent){
-        this.lastSent = lastSent;
-    }
-
     public String getTimeout() {
         return timeout;
     }
 
     public void setTimeout(String timeout) {
         this.timeout = timeout;
+    }
+
+    public Map<String, String> getDetails() {
+        return details;
+    }
+
+    public void setDetails(Map<String, String> details) {
+        this.details = details;
+    }
+
+    public Long getCopiedFilesTotal() {
+        return copiedFilesTotal;
+    }
+
+    public void setCopiedFilesTotal(Long copiedFilesTotal) {
+        this.copiedFilesTotal = copiedFilesTotal;
     }
 
 }

@@ -31,14 +31,14 @@ import java.util.List;
 @Component
 public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosticsVO, String> implements RetrieveDiagnosticsDao
 {
-    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByType;
+//    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByType;
     private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByTypeAndRole;
 
     public RetrieveDiagnosticsDaoImpl() {
         super();
-        DiagnosticsSearchByType = createSearchBuilder();
-        DiagnosticsSearchByType.and("class", DiagnosticsSearchByType.entity().getType(), SearchCriteria.Op.EQ);
-        DiagnosticsSearchByType.done();
+       // DiagnosticsSearchByType = createSearchBuilder();
+        //DiagnosticsSearchByType.and("class", DiagnosticsSearchByType.entity().getType(), SearchCriteria.Op.EQ);
+        //DiagnosticsSearchByType.done();
         DiagnosticsSearchByTypeAndRole = createSearchBuilder();
         DiagnosticsSearchByTypeAndRole.and("class", DiagnosticsSearchByTypeAndRole.entity().getType(), SearchCriteria.Op.EQ);
         DiagnosticsSearchByTypeAndRole.and("role", DiagnosticsSearchByTypeAndRole.entity().getRole(), SearchCriteria.Op.EQ);

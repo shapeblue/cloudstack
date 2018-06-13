@@ -27,7 +27,7 @@ import java.util.List;
 
 public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
 
-    private final static Logger s_logger = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
+    private final static Logger LOGGER = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
 

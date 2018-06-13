@@ -165,10 +165,10 @@ public class VirtualRoutingResource {
             if (!result.getDetails().isEmpty() && !result.getDetails().trim().equals("No Alerts")) {
 
             }
-            return new RetrieveDiagnosticsAnswer();
         } else {
-            return new RetrieveDiagnosticsAnswer();
+
         }
+        return new RetrieveDiagnosticsAnswer();
     }
 
     private Answer execute(final SetupKeyStoreCommand cmd) {
