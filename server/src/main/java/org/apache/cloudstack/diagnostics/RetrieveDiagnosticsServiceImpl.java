@@ -29,6 +29,11 @@ import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.resource.ResourceManager;
 import com.cloud.server.ManagementServer;
+import com.cloud.service.dao.ServiceOfferingDao;
+import com.cloud.storage.DiskOfferingVO;
+import com.cloud.storage.VolumeVO;
+import com.cloud.storage.dao.DiskOfferingDao;
+import com.cloud.storage.dao.VolumeDao;
 import com.cloud.user.AccountManager;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
@@ -36,8 +41,12 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.vm.DiskProfile;
 import com.cloud.vm.SecondaryStorageVmVO;
 import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.VirtualMachineProfile;
+import com.cloud.vm.VirtualMachineProfileImpl;
 import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
@@ -122,6 +131,16 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     protected VMInstanceDao _vmDao;
+
+    @Inject
+    private ServiceOfferingDao _offeringDao;
+
+    @Inject
+    private VolumeDao _volumeDao;
+
+    @Inject
+    private DiskOfferingDao _diskOfferingDao;
+
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
             "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
@@ -218,6 +237,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (configParams == null) {
             configParams = new HashMap<>();
         }
+        final Long vmId = cmd.getId();
+        final VMInstanceVO vmInstance = _vmDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
         loadDiagnosticsDataConfiguration();
         if (configure(getConfigComponentName(), configParams)) {
             if (cmd != null) {
@@ -254,8 +275,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
                     }
                 }
-                final VMInstanceVO instance = _vmDao.findById(cmd.getId());
-                retrieveDiagnosticsFiles(cmd.getId(), diagnosticsFiles, instance, RetrieveDiagnosticsTimeOut.value());
+                retrieveDiagnosticsFiles(cmd.getId(), diagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
             }
         }
         return null;
@@ -338,7 +358,27 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             throw new InvalidParameterValueException("Agent unavailable");
         }
         if (answer != null && answer.getResult()) {
-            //zip the files and choose secondary storage to download the zip file.
+            //zip the files on the fly (in the script), send the tar file to mgt-server
+            //and choose secondary storage to download the zip file. In this scenario, we will not have to worry about the disk space
+            //on the System VM but will have to check for free disk space on the mgt-server where the tar is temporarily copied to.
+            // Check if the vm is using any disks on local storage.
+            final VirtualMachineProfile vmProfile = new VirtualMachineProfileImpl(systemVmId, null, _offeringDao.findById(systemVmId.getId(), systemVmId.getServiceOfferingId()), null, null);
+            final List<VolumeVO> volumes = _volumeDao.findCreatedByInstance(vmProfile.getId());
+            boolean usesLocal = false;
+            for (final VolumeVO volume : volumes) {
+                final DiskOfferingVO diskOffering = _diskOfferingDao.findById(volume.getDiskOfferingId());
+                final DiskProfile diskProfile = new DiskProfile(volume, diskOffering, vmProfile.getHypervisorType());
+                if (diskProfile.useLocalStorage()) {
+                    usesLocal = true;
+                    break;
+                }
+            }
+            if (usesLocal) {
+
+            } else {
+
+            }
+
             if (assignSecStorageFromRunningPool(ssHostId) != null) {
 
 
