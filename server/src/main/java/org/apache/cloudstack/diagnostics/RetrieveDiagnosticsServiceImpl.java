@@ -21,6 +21,9 @@ import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.RetrieveDiagnosticsCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.capacity.Capacity;
+import com.cloud.capacity.dao.CapacityDao;
+import com.cloud.capacity.dao.CapacityDaoImpl;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.host.Host;
 import com.cloud.host.HostVO;
@@ -31,6 +34,7 @@ import com.cloud.resource.ResourceManager;
 import com.cloud.server.ManagementServer;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.DiskOfferingVO;
+import com.cloud.storage.StoragePool;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.VolumeDao;
@@ -66,6 +70,7 @@ import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -140,6 +145,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     private DiskOfferingDao _diskOfferingDao;
+
+    @Inject
+    private PrimaryDataStoreDao _poolDao;
+
+    @Inject
+    private CapacityDao _capacityDao;
 
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
@@ -283,11 +294,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     }
 
     @Override
-    public RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse(Host host) {
-        Map<String, String> rdDetails = _hostDetailDao.findDetails(host.getId());
+    public RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse() {
         RetrieveDiagnosticsResponse response = new RetrieveDiagnosticsResponse();
         response.setSuccess(true);
-        response.setTimeout(rdDetails.get("timeout"));
+        response.getDetails();
         return response;
     }
 
@@ -357,7 +367,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             LOGGER.error("Unable to send command");
             throw new InvalidParameterValueException("Agent unavailable");
         }
-        if (answer != null && answer.getResult()) {
+        createRetrieveDiagnosticsResponse();
+        if (answer != null && answer instanceof Answer) {
             //zip the files on the fly (in the script), send the tar file to mgt-server
             //and choose secondary storage to download the zip file. In this scenario, we will not have to worry about the disk space
             //on the System VM but will have to check for free disk space on the mgt-server where the tar is temporarily copied to.
@@ -365,26 +376,61 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             final VirtualMachineProfile vmProfile = new VirtualMachineProfileImpl(systemVmId, null, _offeringDao.findById(systemVmId.getId(), systemVmId.getServiceOfferingId()), null, null);
             final List<VolumeVO> volumes = _volumeDao.findCreatedByInstance(vmProfile.getId());
             boolean usesLocal = false;
+            VolumeVO localVolumeVO = null;
+            Long volClusterId = null;
             for (final VolumeVO volume : volumes) {
                 final DiskOfferingVO diskOffering = _diskOfferingDao.findById(volume.getDiskOfferingId());
                 final DiskProfile diskProfile = new DiskProfile(volume, diskOffering, vmProfile.getHypervisorType());
                 if (diskProfile.useLocalStorage()) {
                     usesLocal = true;
+                    localVolumeVO = volume;
                     break;
                 }
             }
             if (usesLocal) {
-
+                StoragePool storagePool = _poolDao.findById(localVolumeVO.getPoolId());
+                volClusterId = storagePool.getClusterId();
+                if (volClusterId != null) {
+                    if (storagePool.isLocal() || usesLocal) {
+                        if (localVolumeVO.getPath() == null) {
+                            String temp = _configs.get("retrieveDiagnostics.filepath");
+                            localVolumeVO.setPath(_configs.get(temp));
+                        }
+                    }
+                }
             } else {
 
             }
-
-            if (assignSecStorageFromRunningPool(ssHostId) != null) {
-
-
-
+            List<Short> clusterCapacityTypes = getCapacityTypesAtClusterLevel();
+            for (Short capacityType : clusterCapacityTypes) {
+                List<CapacityDaoImpl.SummedCapacity> capacity = new ArrayList<>();
+                capacity = _capacityDao.findCapacityBy(capacityType.intValue(), null, null, volClusterId);
+                if (capacityType.compareTo(Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED) != 0) {
+                    continue;
+                }
+                double totalCapacity = capacity.get(0).getTotalCapacity();
+                double usedCapacity = capacity.get(0).getUsedCapacity() + capacity.get(0).getReservedCapacity();
+                if (totalCapacity != 0 && usedCapacity / totalCapacity > disableThreshold) {
+                    LOGGER.error("Unlimited disk space");
+                }
             }
         }
+        if (assignSecStorageFromRunningPool(ssHostId) != null) {
+
+
+
+        }
+
+    }
+
+    private List<Short> getCapacityTypesAtClusterLevel() {
+        List<Short> clusterCapacityTypes = new ArrayList<Short>();
+        clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_CPU);
+        clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_MEMORY);
+        clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_STORAGE);
+        clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED);
+        clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_LOCAL_STORAGE);
+        return clusterCapacityTypes;
     }
 
     protected String assignSecStorageFromRunningPool(Long zoneId) {

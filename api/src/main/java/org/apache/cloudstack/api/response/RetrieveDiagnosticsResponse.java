@@ -43,7 +43,7 @@ public class RetrieveDiagnosticsResponse extends BaseResponse {
 
 
     @SerializedName(ApiConstants.DETAILS)
-    @Param(description = "details for the account")
+    @Param(description = "details for the diagnostics download")
     private Map<String, String> details;
 
 

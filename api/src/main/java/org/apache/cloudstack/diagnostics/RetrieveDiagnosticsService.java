@@ -40,7 +40,7 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
 
     Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);
 
-    RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse(Host host);
+    RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse();
 
     List<DiagnosticsKey> get(String key);
 }
