@@ -154,7 +154,7 @@ public class RetrieveDiagnosticsServiceImplTest {
         when(hostMock.getId()).thenReturn(1L);
         RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = mock(RetrieveDiagnosticsResponse.class);
         RetrieveDiagnosticsServiceImpl diagnosticsService = mock(RetrieveDiagnosticsServiceImpl.class);
-        when(diagnosticsService.createRetrieveDiagnosticsResponse(hostMock)).thenReturn(retrieveDiagnosticsResponse);
+        when(diagnosticsService.createRetrieveDiagnosticsResponse()).thenReturn(retrieveDiagnosticsResponse);
     }
 
     @Test
