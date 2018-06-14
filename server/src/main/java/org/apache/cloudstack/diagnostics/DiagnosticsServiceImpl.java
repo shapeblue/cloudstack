@@ -31,7 +31,6 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
-import org.apache.cloudstack.diangostics.DiagnosticsService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -69,6 +68,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
 
         final DiagnosticsCommand command = new DiagnosticsCommand(cmdType, cmdAddress, optionalArguments);
+        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, vmInstance.getInstanceName());
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
 
         Answer answer;

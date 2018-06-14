@@ -27,7 +27,6 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
-import org.apache.cloudstack.diangostics.DiagnosticsType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

@@ -16,27 +16,16 @@
 // specific language governing permissions and limitations
 // under the License.
 //
-package org.apache.cloudstack.diangostics;
+package org.apache.cloudstack.diagnostics;
 
-public enum DiagnosticsType {
-    PING("ping"), TRACEROUTE("traceroute"), ARPING("arping");
+import com.cloud.exception.AgentUnavailableException;
+import com.cloud.exception.InvalidParameterValueException;
+import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 
-    private String value;
+import java.util.Map;
 
-    DiagnosticsType(String value) {
-        this.value = value;
-    }
+public interface DiagnosticsService {
 
-    public String getValue() {
-        return value;
-    }
+    Map<String, String> runDiagnosticsCommand(ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
 
-    public static DiagnosticsType getCommand(String cmd) {
-        for (DiagnosticsType type : DiagnosticsType.values()) {
-            if (type.value.equalsIgnoreCase(cmd)) {
-                return type;
-            }
-        }
-        return null;
-    }
 }

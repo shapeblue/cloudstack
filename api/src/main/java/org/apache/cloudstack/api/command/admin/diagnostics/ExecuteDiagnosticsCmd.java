@@ -32,8 +32,8 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ExecuteDiagnosticsResponse;
 import org.apache.cloudstack.api.response.SystemVmResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.diangostics.DiagnosticsService;
-import org.apache.cloudstack.diangostics.DiagnosticsType;
+import org.apache.cloudstack.diagnostics.DiagnosticsService;
+import org.apache.cloudstack.diagnostics.DiagnosticsType;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -58,7 +58,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     @Parameter(name = ApiConstants.ID, type = CommandType.UUID, required = true, entityType = SystemVmResponse.class,
             validations = {ApiArgValidator.PositiveNumber},
-            description = "The ID of the System VM instance to diagnose")
+            description = "The ID of the system VM instance to diagnose")
     private Long id;
 
     @Parameter(name = ApiConstants.IP_ADDRESS, type = CommandType.STRING, required = true,
@@ -68,7 +68,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
 
     @Parameter(name = ApiConstants.TYPE, type = CommandType.STRING, required = true,
             validations = {ApiArgValidator.NotNullOrEmpty},
-            description = "The System Vm diagnostics type  valid options are: ping, traceroute, arping")
+            description = "The system VM diagnostics type  valid options are: ping, traceroute, arping")
     private String type;
 
     @Parameter(name = ApiConstants.PARAMS, type = CommandType.STRING,

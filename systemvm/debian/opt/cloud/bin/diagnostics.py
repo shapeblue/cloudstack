@@ -16,15 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import subprocess
 import shlex
+import subprocess
+
 import sys
 
 
 def run_cmd(command):
     if command is not None:
         p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (stdout, stderr) = p.communicate()
+
+        stdout, stderr = p.communicate()
         exit_code = p.returncode
         stdout = stdout.strip()
         stderr = stderr.strip()
@@ -43,35 +45,31 @@ def run_cmd(command):
         print "Unsupported diagnostics command type"
         sys.exit(1)
 
-
 def get_command():
-    input_arguments = sys.argv
-    cmd = " ".join(input_arguments[1:])
-
+    arguments = sys.argv
+    cmd = " ".join(arguments[1:])
     cmd_type = sys.argv[1]
 
     if cmd_type == 'ping':
-        if '-c' in input_arguments:
+        if '-c' in arguments:
             return cmd
         else:
             return cmd + " -c 4"
 
     elif cmd_type == 'traceroute':
-        if '-m' in input_arguments:
+        if '-m' in arguments:
             return cmd
         else:
             return cmd + " -m 20"
 
     elif cmd_type == 'arping':
-        if '-c' in input_arguments:
+        if '-c' in arguments:
             return cmd
         else:
             return cmd + " -c 4"
 
     else:
         return None
-
-    return cmd
 
 
 if __name__ == "__main__":

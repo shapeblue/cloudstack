@@ -295,7 +295,7 @@ public class VirtualRoutingResource {
     }
 
     private Answer execute(DiagnosticsCommand cmd) {
-        _eachTimeout = Duration.standardSeconds(NumbersUtil.parseInt("30",30));
+        _eachTimeout = Duration.standardSeconds(NumbersUtil.parseInt("60",60));
         final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.DIAGNOSTICS, cmd.getSrciptArguments(), _eachTimeout);
         if (!result.isSuccess()) {
             return new DiagnosticsAnswer(cmd, result.isSuccess(), "Diagnostics Command Execution failed: " + result.getDetails());
