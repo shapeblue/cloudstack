@@ -18,7 +18,6 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.host.Host;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
