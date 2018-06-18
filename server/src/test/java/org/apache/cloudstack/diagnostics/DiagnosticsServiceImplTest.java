@@ -24,6 +24,7 @@ import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.vm.NicVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
@@ -56,6 +57,8 @@ public class DiagnosticsServiceImplTest extends TestCase {
     private NicDao nicDao;
     @Mock
     private NicVO nicVO;
+    @Mock
+    private VirtualMachineManager vmManager;
 
     @InjectMocks
     private DiagnosticsServiceImpl diagnosticsService = new DiagnosticsServiceImpl();

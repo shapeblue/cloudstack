@@ -89,7 +89,6 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     public DiagnosticsType getType() {
         DiagnosticsType diagnosticsType = DiagnosticsType.getCommand(type);
         if (diagnosticsType == null) {
-            LOGGER.warn("An Invalid diagnostics command type passed: " + type);
             throw new IllegalArgumentException(type + " Is not a valid diagnostics command type. ");
         }
         return diagnosticsType;
@@ -98,7 +97,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     public String getOptionalArguments() {
         final String EMPTY_STRING = "";
 
-        if (optionalArguments == null ||  optionalArguments.isEmpty()) {
+        if (optionalArguments == null || optionalArguments.isEmpty()) {
             return EMPTY_STRING;
         }
         final String regex = "^[\\w\\-\\s]+$";

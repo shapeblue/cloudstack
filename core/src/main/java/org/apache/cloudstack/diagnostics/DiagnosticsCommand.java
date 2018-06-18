@@ -25,11 +25,13 @@ public class DiagnosticsCommand extends NetworkElementCommand {
     private final String cmdType;
     private final String cmdAddress;
     private final String optionals;
+    private final boolean executeInSequence;
 
-    public DiagnosticsCommand(String cmdType, String cmdAddress, String optionals) {
+    public DiagnosticsCommand(String cmdType, String cmdAddress, String optionals, boolean executeInSequece) {
         this.cmdType = cmdType;
         this.cmdAddress = cmdAddress;
         this.optionals = optionals;
+        this.executeInSequence = executeInSequece;
     }
 
     public String getSrciptArguments() {
@@ -43,6 +45,6 @@ public class DiagnosticsCommand extends NetworkElementCommand {
 
     @Override
     public boolean executeInSequence() {
-        return false;
+        return this.executeInSequence;
     }
 }
