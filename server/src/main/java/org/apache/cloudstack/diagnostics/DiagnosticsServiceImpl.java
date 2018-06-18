@@ -20,7 +20,6 @@ package org.apache.cloudstack.diagnostics;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
-import com.cloud.dc.DataCenter;
 import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.exception.AgentUnavailableException;
