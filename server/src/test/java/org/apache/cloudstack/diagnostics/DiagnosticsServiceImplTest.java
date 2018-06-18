@@ -73,14 +73,13 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
     @Test
     public void testRunDiagnosticsCommandTrue() throws Exception {
-
         Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
         Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.8");
         Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
 
-        Mockito.when(agentManager.send(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, "PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.\n" +
+        Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, "PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.\n" +
                 "64 bytes from 8.8.8.8: icmp_seq=1 ttl=125 time=7.88 ms\n" +
                 "64 bytes from 8.8.8.8: icmp_seq=2 ttl=125 time=251 ms\n" +
                 "64 bytes from 8.8.8.8: icmp_seq=3 ttl=125 time=64.9 ms\n" +
@@ -106,7 +105,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
                 "5 packets transmitted, 5 received, 0% packet loss, time 4003ms\n" +
                 "rtt min/avg/max/mdev = 7.881/88.587/251.410/84.191 ms";
 
-        assertEquals(4, detailsMap.size());
+        assertEquals(3, detailsMap.size());
         assertEquals("Mismatch between actual and expected STDERR", "", detailsMap.get("STDERR"));
         assertEquals("Mismatch between actual and expected EXITCODE", "0", detailsMap.get("EXITCODE"));
         assertEquals("Mismatch between actual and expected STDOUT", stdout, detailsMap.get("STDOUT"));
@@ -114,20 +113,19 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
     @Test
     public void testRunDiagnosticsCommandFalse() throws Exception {
-
         Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
         Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.");
         Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
 
-        Mockito.when(agentManager.send(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, false, "}\n" +
+        Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, false, "}\n" +
                 "ping: unknown host}\n" +
                 "1\n"));
 
         Map<String, String> detailsMap = diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
 
-        assertEquals(4, detailsMap.size());
+        assertEquals(3, detailsMap.size());
         assertEquals("Mismatch between actual and expected STDERR", "ping: unknown host", detailsMap.get("STDERR"));
         assertTrue("Mismatch between actual and expected EXITCODE", !detailsMap.get("EXITCODE").equalsIgnoreCase("0"));
         assertEquals("Mismatch between actual and expected STDOUT", "", detailsMap.get("STDOUT"));
@@ -135,7 +133,6 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
     @Test(expected = InvalidParameterValueException.class)
     public void testRunDiagnosticsThrowsInvalidParamException() throws Exception {
-        //Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong())).thenReturn(null);
         Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
         Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.");
         Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);

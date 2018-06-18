@@ -40,4 +40,9 @@ public class DiagnosticsCommand extends NetworkElementCommand {
     public boolean isQuery() {
         return true;
     }
+
+    @Override
+    public boolean executeInSequence() {
+        return false;
+    }
 }

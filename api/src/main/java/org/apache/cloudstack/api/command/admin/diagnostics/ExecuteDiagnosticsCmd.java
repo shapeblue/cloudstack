@@ -19,7 +19,6 @@ package org.apache.cloudstack.api.command.admin.diagnostics;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.user.Account;
-import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachine;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
@@ -99,15 +98,14 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     public String getOptionalArguments() {
         final String EMPTY_STRING = "";
 
-        if (optionalArguments == null || optionalArguments.isEmpty()) {
+        if (optionalArguments == null ||  optionalArguments.isEmpty()) {
             return EMPTY_STRING;
         }
         final String regex = "^[\\w\\-\\s]+$";
         final Pattern pattern = Pattern.compile(regex);
         final boolean hasInvalidChar = pattern.matcher(optionalArguments).find();
         if (!hasInvalidChar) {
-            LOGGER.error("An Invalid character has been passed as an optional parameter");
-            throw new IllegalArgumentException("Illegal argument passed as optional parameter.");
+            throw new IllegalArgumentException("Optional parameters contain unwanted characters: " + optionalArguments);
         }
         return optionalArguments;
     }
@@ -138,17 +136,13 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
                 response.setStdout(answerMap.get("STDOUT"));
                 response.setStderr(answerMap.get("STDERR"));
                 response.setExitCode(answerMap.get("EXITCODE"));
-                response.setResult(answerMap.get("SUCCESS"));
-                response.setObjectName("diagnostics");
+                response.setObjectName("diagnostics results");
                 response.setResponseName(getCommandName());
                 this.setResponseObject(response);
             }
         } catch (ServerApiException e) {
-            LOGGER.warn("Exception occurred while executing remote diagnostics command: ", e);
+            LOGGER.error("Exception occurred while executing remote diagnostics command: ", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
-        } catch (CloudRuntimeException ex) {
-            LOGGER.warn("Error occurred while executing diagnostics command: ");
-            throw new CloudRuntimeException("Error occurred while executing diagnostics command: " + ex);
         }
     }
 }

@@ -22,7 +22,6 @@ import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.exception.OperationTimedoutException;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
@@ -63,7 +62,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         final Long hostId = vmInstance.getHostId();
 
         if (hostId == null) {
-            LOGGER.warn("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
+            LOGGER.error("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
             throw new CloudRuntimeException("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
         }
 
@@ -71,27 +70,35 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, vmInstance.getInstanceName());
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
 
-        Answer answer;
+        Answer answer =  agentManager.easySend(hostId, command);
+        final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
 
-        try {
-            answer = agentManager.send(hostId, command);
-            if (answer instanceof DiagnosticsAnswer) {
-                final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
-                if (!detailsMap.isEmpty()) {
-                    return detailsMap;
-                } else {
-                    LOGGER.error("Failed to parse diagnostics command execution results: " + answer.getDetails());
-                    throw new CloudRuntimeException("Failed to parse diagnostics command execution results ");
-                }
-
-            } else {
-                LOGGER.error("Failed to execute diagnostics command: " + answer.getDetails());
-                throw new CloudRuntimeException("Failed to execute diagnostics command: " + answer.getDetails());
-            }
-        } catch (OperationTimedoutException e) {
-            LOGGER.warn("Timed Out", e);
-            throw new AgentUnavailableException("Unable to send commands to virtual machine ", hostId, e);
+        if (!detailsMap.isEmpty()) {
+            return detailsMap;
+        } else {
+            LOGGER.error("Failed to parse diagnostics command execution results: " + answer.getDetails());
+            throw new CloudRuntimeException("Failed to parse diagnostics command execution results ");
         }
+//
+//        try {
+//            answer = agentManager.send(hostId, command);
+//            if (answer instanceof DiagnosticsAnswer) {
+//                final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
+//                if (!detailsMap.isEmpty()) {
+//                    return detailsMap;
+//                } else {
+//                    LOGGER.error("Failed to parse diagnostics command execution results: " + answer.getDetails());
+//                    throw new CloudRuntimeException("Failed to parse diagnostics command execution results ");
+//                }
+//
+//            } else {
+//                LOGGER.error("Failed to execute diagnostics command: " + answer.getDetails());
+//                throw new CloudRuntimeException("Failed to execute diagnostics command: " + answer.getDetails());
+//            }
+//        } catch (OperationTimedoutException e) {
+//            LOGGER.warn("Timed Out", e);
+//            throw new AgentUnavailableException("Unable to send commands to virtual machine ", hostId, e);
+//        }
     }
 
     @Override

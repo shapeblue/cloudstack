@@ -22,16 +22,11 @@ package org.apache.cloudstack.api.response;
 import com.cloud.serializer.Param;
 import com.cloud.vm.VirtualMachine;
 import com.google.gson.annotations.SerializedName;
-import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
 public class ExecuteDiagnosticsResponse extends BaseResponse {
-    @SerializedName(ApiConstants.RESULT)
-    @Param(description = "true if the operation was successfully executed")
-    private String success;
-
     @SerializedName("STDOUT")
     @Param(description = "the standard output from the command execution")
     private String stdout;
@@ -68,11 +63,4 @@ public class ExecuteDiagnosticsResponse extends BaseResponse {
         this.exitCode = exitCode;
     }
 
-    public String getResult() {
-        return success;
-    }
-
-    public void setResult(String success) {
-        this.success = success;
-    }
 }

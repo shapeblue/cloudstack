@@ -18,8 +18,10 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.api.Answer;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,11 +34,15 @@ public class DiagnosticsAnswer extends Answer {
 
     public Map<String, String> getExecutionDetails() {
         final Map<String, String> executionDetailsMap = new HashMap<>();
-        final String[] parseDetails = details.split("}");
-        executionDetailsMap.put("STDOUT", parseDetails[0].trim());
-        executionDetailsMap.put("STDERR", parseDetails[1].trim());
-        executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
-        executionDetailsMap.put("SUCCESS", String.valueOf(result));
+
+        if (details != null){
+            final String[] parseDetails = details.split("}");
+            if (CollectionUtils.isNotEmpty(Arrays.asList(parseDetails))){
+                executionDetailsMap.put("STDOUT", parseDetails[0].trim());
+                executionDetailsMap.put("STDERR", parseDetails[1].trim());
+                executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
+            }
+        }
         return executionDetailsMap;
     }
 }
