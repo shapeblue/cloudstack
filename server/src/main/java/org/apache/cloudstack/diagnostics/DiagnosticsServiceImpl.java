@@ -20,14 +20,10 @@ package org.apache.cloudstack.diagnostics;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
-import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.hypervisor.Hypervisor;
-import com.cloud.network.Networks;
 import com.cloud.network.dao.NetworkDao;
-import com.cloud.network.dao.NetworkVO;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
@@ -83,13 +79,37 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
 
 
-
-
-
         final DiagnosticsCommand command = new DiagnosticsCommand(cmdType, cmdAddress, optionalArguments);
+
+        if (vmInstance.getType() == VirtualMachine.Type.DomainRouter) {
+            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
+        } else {
+            final NicVO nicVO = nicDao.getControlNicForVM(vmInstance.getId());
+            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, nicVO.getIPv4Address());
+        }
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, vmInstance.getInstanceName());
+
         //command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
-        command.setAccessDetail(NetworkElementCommand.ROUTER_IP, getControlIp(vmInstance));
+
+//        String controlIP = null;
+//
+//        // if(vmInstanceVO.getHypervisorType() == Hypervisor.HypervisorType.VMware  && dcVo.getNetworkType() == DataCenter.NetworkType.Basic ){
+//        if(vmInstance.getHypervisorType() == Hypervisor.HypervisorType.VMware){
+//
+//            final List<NicVO> nics = nicDao.listByVmId(vmInstance.getId());
+//            for (final NicVO nic : nics) {
+//                final NetworkVO nc = networkDao.findById(nic.getNetworkId());
+//                if (nc.getTrafficType() == Networks.TrafficType.Guest && nic.getIPv4Address() != null) {
+//                    controlIP = nic.getIPv4Address();
+//                    break;
+//                }
+//            }
+//
+//        }else{
+//            controlIP = routerControlHelper.getRouterControlIp(vmInstance.getId());
+//        }
+//
+//        command.setAccessDetail(NetworkElementCommand.ROUTER_IP, controlIP);
 
         Answer answer =  agentManager.easySend(hostId, command);
         final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
@@ -121,28 +141,28 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
 //            throw new AgentUnavailableException("Unable to send commands to virtual machine ", hostId, e);
 //        }
     }
-    private String getControlIp (VMInstanceVO vmInstanceVO){
-        final DataCenterVO dcVo = dataCenterDao.findById(vmInstanceVO.getDataCenterId());
-        String controlIP = null;
-
-       // if(vmInstanceVO.getHypervisorType() == Hypervisor.HypervisorType.VMware  && dcVo.getNetworkType() == DataCenter.NetworkType.Basic ){
-        if(vmInstanceVO.getHypervisorType() == Hypervisor.HypervisorType.VMware){
-
-            final List<NicVO> nics = nicDao.listByVmId(vmInstanceVO.getId());
-            for (final NicVO nic : nics) {
-                final NetworkVO nc = networkDao.findById(nic.getNetworkId());
-                if (nc.getTrafficType() == Networks.TrafficType.Guest && nic.getIPv4Address() != null) {
-                    controlIP = nic.getIPv4Address();
-                    break;
-                }
-            }
-
-        }else{
-            controlIP = routerControlHelper.getRouterControlIp(vmInstanceVO.getId());
-        }
-
-        return controlIP;
-    }
+//    private String getControlIp (VMInstanceVO vmInstanceVO){
+//        final DataCenterVO dcVo = dataCenterDao.findById(vmInstanceVO.getDataCenterId());
+//        String controlIP = null;
+//
+//       // if(vmInstanceVO.getHypervisorType() == Hypervisor.HypervisorType.VMware  && dcVo.getNetworkType() == DataCenter.NetworkType.Basic ){
+//        if(vmInstanceVO.getHypervisorType() == Hypervisor.HypervisorType.VMware){
+//
+//            final List<NicVO> nics = nicDao.listByVmId(vmInstanceVO.getId());
+//            for (final NicVO nic : nics) {
+//                final NetworkVO nc = networkDao.findById(nic.getNetworkId());
+//                if (nc.getTrafficType() == Networks.TrafficType.Guest && nic.getIPv4Address() != null) {
+//                    controlIP = nic.getIPv4Address();
+//                    break;
+//                }
+//            }
+//
+//        }else{
+//            controlIP = routerControlHelper.getRouterControlIp(vmInstanceVO.getId());
+//        }
+//
+//        return controlIP;
+//    }
 
 
 

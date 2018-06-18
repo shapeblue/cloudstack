@@ -35,7 +35,7 @@ public class DiagnosticsAnswer extends Answer {
     public Map<String, String> getExecutionDetails() {
         final Map<String, String> executionDetailsMap = new HashMap<>();
 
-        if (details != null){
+        if (details != null || !details.isEmpty()){
             final String[] parseDetails = details.split("}");
             if (CollectionUtils.isNotEmpty(Arrays.asList(parseDetails))){
                 executionDetailsMap.put("STDOUT", parseDetails[0].trim());

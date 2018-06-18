@@ -21,9 +21,10 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.network.router.RouterControlHelper;
+import com.cloud.vm.NicVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
@@ -46,13 +47,15 @@ public class DiagnosticsServiceImplTest extends TestCase {
     @Mock
     private VMInstanceDao instanceDao;
     @Mock
-    private RouterControlHelper routerControlHelper;
-    @Mock
     private ExecuteDiagnosticsCmd diagnosticsCmd;
     @Mock
     private DiagnosticsCommand command;
     @Mock
     private VMInstanceVO instanceVO;
+    @Mock
+    private NicDao nicDao;
+    @Mock
+    private NicVO nicVO;
 
     @InjectMocks
     private DiagnosticsServiceImpl diagnosticsService = new DiagnosticsServiceImpl();
@@ -69,6 +72,8 @@ public class DiagnosticsServiceImplTest extends TestCase {
         Mockito.reset(agentManager);
         Mockito.reset(instanceDao);
         Mockito.reset(instanceVO);
+        Mockito.reset(nicVO);
+        Mockito.reset(command);
     }
 
     @Test
@@ -78,6 +83,8 @@ public class DiagnosticsServiceImplTest extends TestCase {
         Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
+        Mockito.when(nicDao.getControlNicForVM(Mockito.anyLong())).thenReturn(nicVO);
+
 
         Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, "PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.\n" +
                 "64 bytes from 8.8.8.8: icmp_seq=1 ttl=125 time=7.88 ms\n" +
@@ -118,6 +125,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
         Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
+        Mockito.when(nicDao.getControlNicForVM(Mockito.anyLong())).thenReturn(nicVO);
 
         Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, false, "}\n" +
                 "ping: unknown host}\n" +
