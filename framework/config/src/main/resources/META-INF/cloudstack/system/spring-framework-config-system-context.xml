@@ -49,7 +49,7 @@
         class="org.apache.cloudstack.spring.lifecycle.registry.ExtensionRegistry" />
 
     <bean id="diagnosticsConfigDepotImpl"
-          class="org.apache.cloudstack.framework.config.impl.DiagnosticsConfigDepotImpl" />
+          class="org.apache.cloudstack.framework.config.impl.DiagnosticsConfiguratorImpl" />
 
     <bean id="RetrieveDiagnosticsDao"
           class="org.apache.cloudstack.framework.config.RetrieveDiagnosticsDaoImpl" />

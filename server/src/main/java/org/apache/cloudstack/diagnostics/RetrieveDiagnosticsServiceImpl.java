@@ -64,7 +64,7 @@ import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.framework.config.ConfigDepot;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
-import org.apache.cloudstack.framework.config.DiagnosticsConfigDepot;
+import org.apache.cloudstack.framework.config.DiagnosticsConfigurator;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
@@ -75,10 +75,12 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipOutputStream;
 
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
 
@@ -123,7 +125,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     ConfigDepot _configDepot;
 
     @Inject
-    DiagnosticsConfigDepot _diagnosticsDepot;
+    DiagnosticsConfigurator _diagnosticsDepot;
 
     @Inject
     ConfigDepot configDepot;
@@ -415,12 +417,20 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 }
             }
         }
+        //get the downloaded files from the /tmp directory and create a zip file to add the files
         if (assignSecStorageFromRunningPool(ssHostId) != null) {
 
 
 
         }
 
+    }
+
+    private void checkDiagnosticsFilesAndZip(String diagnosticsFileName, ZipOutputStream zipFile) {
+        File f = new File(diagnosticsFileName);
+        if (f.exists() && !f.isDirectory()) {
+
+        }
     }
 
     private List<Short> getCapacityTypesAtClusterLevel() {

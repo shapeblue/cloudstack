@@ -17,7 +17,7 @@
 package org.apache.cloudstack.framework.config.impl;
 
 import com.cloud.utils.exception.CloudRuntimeException;
-import org.apache.cloudstack.framework.config.DiagnosticsConfigDepot;
+import org.apache.cloudstack.framework.config.DiagnosticsConfigurator;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
 
@@ -25,16 +25,16 @@ import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 
-public class DiagnosticsConfigDepotImpl implements DiagnosticsConfigDepot {
+public class DiagnosticsConfiguratorImpl implements DiagnosticsConfigurator {
 
-    private final static Logger LOGGER = Logger.getLogger(DiagnosticsConfigDepotImpl.class);
+    private final static Logger LOGGER = Logger.getLogger(DiagnosticsConfiguratorImpl.class);
     @Inject
     RetrieveDiagnosticsDao _diagnosticsDao;
 
 
     HashMap<String, List<DiagnosticsKey>> diagnosticsKeyHashMap = null;
 
-    public DiagnosticsConfigDepotImpl() {
+    public DiagnosticsConfiguratorImpl() {
     }
 
     @Override

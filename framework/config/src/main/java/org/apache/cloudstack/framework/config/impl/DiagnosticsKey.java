@@ -77,7 +77,7 @@ public class DiagnosticsKey {
         return diagnosticsClassType;
     }
 
-    static DiagnosticsConfigDepotImpl s_depot = new DiagnosticsConfigDepotImpl();
+    static DiagnosticsConfiguratorImpl s_depot = new DiagnosticsConfiguratorImpl();
 
 
    public DiagnosticsKey() {

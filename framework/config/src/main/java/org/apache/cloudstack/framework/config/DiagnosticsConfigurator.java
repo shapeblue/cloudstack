@@ -24,7 +24,7 @@ import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import java.util.HashMap;
 import java.util.List;
 
-public interface DiagnosticsConfigDepot {
+public interface DiagnosticsConfigurator {
 
     void set(DiagnosticsKey key, String value);
 
