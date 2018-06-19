@@ -41,7 +41,7 @@ public class DiagnosticsAnswer extends Answer {
                 executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
                 return executionDetailsMap;
             } else {
-                throw new CloudRuntimeException("Error occurred during diagnostics command execution with resuls:" + details);
+                throw new CloudRuntimeException("Error occurred during diagnostics command execution:" + details);
             }
         }
         return executionDetailsMap;
