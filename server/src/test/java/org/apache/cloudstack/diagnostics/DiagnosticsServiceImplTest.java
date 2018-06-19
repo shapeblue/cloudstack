@@ -130,7 +130,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
         Mockito.when(nicDao.getControlNicForVM(Mockito.anyLong())).thenReturn(nicVO);
 
-        Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, false, "}\n" +
+        Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, "}\n" +
                 "ping: unknown host}\n" +
                 "1\n"));
 

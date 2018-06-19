@@ -18,10 +18,9 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.api.Answer;
-import org.apache.commons.collections.CollectionUtils;
+import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.log4j.Logger;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,13 +33,15 @@ public class DiagnosticsAnswer extends Answer {
 
     public Map<String, String> getExecutionDetails() {
         final Map<String, String> executionDetailsMap = new HashMap<>();
-
-        if (details != null || !details.isEmpty()){
+        if (result == true){
             final String[] parseDetails = details.split("}");
-            if (CollectionUtils.isNotEmpty(Arrays.asList(parseDetails))){
+            if (parseDetails.length >= 3 ){
                 executionDetailsMap.put("STDOUT", parseDetails[0].trim());
                 executionDetailsMap.put("STDERR", parseDetails[1].trim());
                 executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
+                return executionDetailsMap;
+            } else {
+                throw new CloudRuntimeException("Error occurred during diagnostics command execution with resuls:" + details);
             }
         }
         return executionDetailsMap;

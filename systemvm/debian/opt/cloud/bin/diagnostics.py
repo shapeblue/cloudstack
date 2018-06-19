@@ -25,7 +25,6 @@ import sys
 def run_cmd(command):
     if command is not None:
         p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
         stdout, stderr = p.communicate()
         exit_code = p.returncode
         stdout = stdout.strip()
@@ -35,7 +34,6 @@ def run_cmd(command):
             print('%s}' % stdout)
             print('%s}' % stderr)
             print('%s' % exit_code)
-            sys.exit(exit_code)
 
         else:
             print('%s}' % stdout)

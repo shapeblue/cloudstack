@@ -89,8 +89,8 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         if (!detailsMap.isEmpty()) {
             return detailsMap;
         } else {
-            LOGGER.error("Failed to parse diagnostics command execution results: " + answer.getDetails());
-            throw new CloudRuntimeException("Failed to parse diagnostics command execution results ");
+            LOGGER.error("Error occurred when executing diagnostics command on remote target: " + answer.getDetails());
+            throw new CloudRuntimeException("Error occurred when executing diagnostics command on remote target: " + answer.getDetails());
         }
     }
 
