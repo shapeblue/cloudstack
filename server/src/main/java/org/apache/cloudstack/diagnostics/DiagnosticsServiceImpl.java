@@ -19,20 +19,19 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
-import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
 import com.cloud.utils.exception.CloudRuntimeException;
-import com.cloud.vm.NicVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -53,6 +52,8 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private NicDao nicDao;
     @Inject
     private VirtualMachineManager vmManager;
+    @Inject
+    private NetworkOrchestrationService networkManager;
 
     @Override
     public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException {
@@ -63,25 +64,25 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         final VMInstanceVO vmInstance = instanceDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
 
         if (vmInstance == null) {
-            LOGGER.error("Invalid system vm id provided " + vmId);
             throw new InvalidParameterValueException("Unable to find a system vm with id " + vmId);
         }
         final Long hostId = vmInstance.getHostId();
 
         if (hostId == null) {
-            LOGGER.error("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
             throw new CloudRuntimeException("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
         }
 
         final DiagnosticsCommand command = new DiagnosticsCommand(cmdType, cmdAddress, optionalArguments, vmManager.getExecuteInSequence(vmInstance.getHypervisorType()));
+        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
+        command.setAccessDetail(accessDetails);
 
-        if (vmInstance.getType() == VirtualMachine.Type.DomainRouter) {
-            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
-        } else {
-            final NicVO nicVO = nicDao.getControlNicForVM(vmInstance.getId());
-            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, nicVO.getIPv4Address());
-        }
-        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, vmInstance.getInstanceName());
+//        if (vmInstance.getType() == VirtualMachine.Type.DomainRouter) {
+//            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
+//        } else {
+//            final NicVO nicVO = nicDao.getControlNicForVM(vmInstance.getId());
+//            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, nicVO.getIPv4Address());
+//        }
+//        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, vmInstance.getInstanceName());
 
         Answer answer =  agentManager.easySend(hostId, command);
         final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
@@ -89,7 +90,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         if (!detailsMap.isEmpty()) {
             return detailsMap;
         } else {
-            LOGGER.error("Error occurred when executing diagnostics command on remote target: " + answer.getDetails());
             throw new CloudRuntimeException("Error occurred when executing diagnostics command on remote target: " + answer.getDetails());
         }
     }
