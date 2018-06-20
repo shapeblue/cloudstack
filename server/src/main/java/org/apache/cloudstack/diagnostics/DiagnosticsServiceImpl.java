@@ -28,7 +28,6 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
-import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
@@ -48,8 +47,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private AgentManager agentManager;
     @Inject
     private VMInstanceDao instanceDao;
-    @Inject
-    private NicDao nicDao;
     @Inject
     private VirtualMachineManager vmManager;
     @Inject
@@ -72,17 +69,11 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
             throw new CloudRuntimeException("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
         }
 
-        final DiagnosticsCommand command = new DiagnosticsCommand(cmdType, cmdAddress, optionalArguments, vmManager.getExecuteInSequence(vmInstance.getHypervisorType()));
+        final String shellCmd = prepareShellCmd(String.format("%s %s %s", cmdType, cmdAddress, optionalArguments));
+
+        final DiagnosticsCommand command = new DiagnosticsCommand(shellCmd, vmManager.getExecuteInSequence(vmInstance.getHypervisorType()));
         final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
         command.setAccessDetail(accessDetails);
-
-//        if (vmInstance.getType() == VirtualMachine.Type.DomainRouter) {
-//            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(vmInstance.getId()));
-//        } else {
-//            final NicVO nicVO = nicDao.getControlNicForVM(vmInstance.getId());
-//            command.setAccessDetail(NetworkElementCommand.ROUTER_IP, nicVO.getIPv4Address());
-//        }
-//        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, vmInstance.getInstanceName());
 
         Answer answer =  agentManager.easySend(hostId, command);
         final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
@@ -92,6 +83,40 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         } else {
             throw new CloudRuntimeException("Error occurred when executing diagnostics command on remote target: " + answer.getDetails());
         }
+    }
+
+    protected String prepareShellCmd(CharSequence cmdArguments) {
+        List<String> tokens = new ArrayList<>();
+        boolean escaping = false;
+        boolean quoting = false;
+        char quoteChar = ' ';
+        StringBuilder current = new StringBuilder();
+
+        for (int i = 0; i < cmdArguments.length(); i++) {
+            char c = cmdArguments.charAt(i);
+            if (escaping) {
+                current.append(c);
+                escaping = false;
+            } else if (c == '\\' && !(quoting && quoteChar == '\'')) {
+                escaping = true;
+            } else if (quoting && c == quoteChar) {
+                quoting = false;
+            } else if (!quoting && (c == '\'' || c == '"')) {
+                quoting = true;
+                quoteChar = c;
+            } else if (!quoting && Character.isWhitespace(c)) {
+                if (current.length() > 0) {
+                    tokens.add(current.toString());
+                    current = new StringBuilder();
+                }
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) {
+            tokens.add(current.toString());
+        }
+        return String.join(" ", tokens);
     }
 
     @Override

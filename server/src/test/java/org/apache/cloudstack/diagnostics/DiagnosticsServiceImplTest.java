@@ -29,6 +29,7 @@ import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -59,6 +60,8 @@ public class DiagnosticsServiceImplTest extends TestCase {
     private NicVO nicVO;
     @Mock
     private VirtualMachineManager vmManager;
+    @Mock
+    private NetworkOrchestrationService networkManager;
 
     @InjectMocks
     private DiagnosticsServiceImpl diagnosticsService = new DiagnosticsServiceImpl();

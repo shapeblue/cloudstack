@@ -22,20 +22,17 @@ import com.cloud.agent.api.routing.NetworkElementCommand;
 
 public class DiagnosticsCommand extends NetworkElementCommand {
 
-    private final String cmdType;
-    private final String cmdAddress;
-    private final String optionals;
+
+    private final String scriptArguments;
     private final boolean executeInSequence;
 
-    public DiagnosticsCommand(String cmdType, String cmdAddress, String optionals, boolean executeInSequece) {
-        this.cmdType = cmdType;
-        this.cmdAddress = cmdAddress;
-        this.optionals = optionals;
+    public DiagnosticsCommand(String scriptArguments , boolean executeInSequece) {
+        this.scriptArguments = scriptArguments;
         this.executeInSequence = executeInSequece;
     }
 
     public String getSrciptArguments() {
-        return String.format("%s %s %s", cmdType, cmdAddress, optionals);
+        return scriptArguments;
     }
 
     @Override
