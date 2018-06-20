@@ -140,7 +140,6 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
                 this.setResponseObject(response);
             }
         } catch (ServerApiException e) {
-            LOGGER.error("Exception occurred while executing remote diagnostics command: ", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
         }
     }

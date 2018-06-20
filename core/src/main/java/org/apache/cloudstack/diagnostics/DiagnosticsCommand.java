@@ -26,9 +26,9 @@ public class DiagnosticsCommand extends NetworkElementCommand {
     private final String scriptArguments;
     private final boolean executeInSequence;
 
-    public DiagnosticsCommand(String scriptArguments , boolean executeInSequece) {
+    public DiagnosticsCommand(String scriptArguments, boolean executeInSequence) {
         this.scriptArguments = scriptArguments;
-        this.executeInSequence = executeInSequece;
+        this.executeInSequence = executeInSequence;
     }
 
     public String getSrciptArguments() {

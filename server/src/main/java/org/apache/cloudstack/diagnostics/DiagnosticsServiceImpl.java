@@ -19,9 +19,10 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.network.router.RouterControlHelper;
+import com.cloud.hypervisor.Hypervisor;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
 import com.cloud.utils.exception.CloudRuntimeException;
@@ -29,6 +30,7 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.base.Strings;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
@@ -41,8 +43,6 @@ import java.util.Map;
 public class DiagnosticsServiceImpl extends ManagerBase implements PluggableService, DiagnosticsService {
     private static final Logger LOGGER = Logger.getLogger(DiagnosticsServiceImpl.class);
 
-    @Inject
-    private RouterControlHelper routerControlHelper;
     @Inject
     private AgentManager agentManager;
     @Inject
@@ -70,18 +70,31 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
 
         final String shellCmd = prepareShellCmd(String.format("%s %s %s", cmdType, cmdAddress, optionalArguments));
+        final Hypervisor.HypervisorType hypervisorType = vmInstance.getHypervisorType();
 
-        final DiagnosticsCommand command = new DiagnosticsCommand(shellCmd, vmManager.getExecuteInSequence(vmInstance.getHypervisorType()));
+        final DiagnosticsCommand command = new DiagnosticsCommand(shellCmd, vmManager.getExecuteInSequence(hypervisorType));
         final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
+
+        if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
+            throw new CloudRuntimeException("Unable to set system vm ControlIP for system vm with ID: " + vmId);
+        }
+
         command.setAccessDetail(accessDetails);
 
-        Answer answer =  agentManager.easySend(hostId, command);
-        final Map<String, String> detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
+        Map<String, String> detailsMap;
 
-        if (!detailsMap.isEmpty()) {
-            return detailsMap;
-        } else {
-            throw new CloudRuntimeException("Error occurred when executing diagnostics command on remote target: " + answer.getDetails());
+        Answer answer;
+        try {
+            answer = agentManager.easySend(hostId, command);
+            if (answer != null && (answer instanceof DiagnosticsAnswer)) {
+                detailsMap = ((DiagnosticsAnswer) answer).getExecutionDetails();
+                return detailsMap;
+            } else {
+                throw new CloudRuntimeException("Failed to execute diagnostics command on remote host: " + answer.getDetails());
+            }
+
+        } catch (CloudRuntimeException e) {
+            throw new CloudRuntimeException("Diagnostics command execution failed: ", e);
         }
     }
 

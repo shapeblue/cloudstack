@@ -20,12 +20,12 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.vm.NicVO;
+import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
-import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
@@ -39,6 +39,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -55,13 +56,11 @@ public class DiagnosticsServiceImplTest extends TestCase {
     @Mock
     private VMInstanceVO instanceVO;
     @Mock
-    private NicDao nicDao;
-    @Mock
-    private NicVO nicVO;
-    @Mock
     private VirtualMachineManager vmManager;
     @Mock
     private NetworkOrchestrationService networkManager;
+    @Mock
+    private NetworkElementCommand elementCommand;
 
     @InjectMocks
     private DiagnosticsServiceImpl diagnosticsService = new DiagnosticsServiceImpl();
@@ -69,6 +68,10 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
     @Before
     public void setUp() throws Exception {
+        Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
+        Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
+        Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
+                Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
 
     }
 
@@ -78,19 +81,15 @@ public class DiagnosticsServiceImplTest extends TestCase {
         Mockito.reset(agentManager);
         Mockito.reset(instanceDao);
         Mockito.reset(instanceVO);
-        Mockito.reset(nicVO);
         Mockito.reset(command);
     }
 
     @Test
     public void testRunDiagnosticsCommandTrue() throws Exception {
-        Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
         Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.8");
-        Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
-        Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
-                Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
-        Mockito.when(nicDao.getControlNicForVM(Mockito.anyLong())).thenReturn(nicVO);
-
+        Map<String, String> accessDetailsMap = new HashMap<>();
+        accessDetailsMap.put(NetworkElementCommand.ROUTER_IP, "169.20.175.10");
+        Mockito.when(networkManager.getSystemVMAccessDetails(Mockito.any(VMInstanceVO.class))).thenReturn(accessDetailsMap);
 
         Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, "PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.\n" +
                 "64 bytes from 8.8.8.8: icmp_seq=1 ttl=125 time=7.88 ms\n" +
@@ -126,12 +125,12 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
     @Test
     public void testRunDiagnosticsCommandFalse() throws Exception {
-        Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
-        Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.");
-        Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
-        Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
-                Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
-        Mockito.when(nicDao.getControlNicForVM(Mockito.anyLong())).thenReturn(nicVO);
+        Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.8.8.8.8");
+
+        Map<String, String> accessDetailsMap = new HashMap<>();
+        accessDetailsMap.put(NetworkElementCommand.ROUTER_IP, "169.20.175.10");
+        Mockito.when(networkManager.getSystemVMAccessDetails(Mockito.any(VMInstanceVO.class))).thenReturn(accessDetailsMap);
+
 
         Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, "}\n" +
                 "ping: unknown host}\n" +
@@ -147,12 +146,23 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
     @Test(expected = InvalidParameterValueException.class)
     public void testRunDiagnosticsThrowsInvalidParamException() throws Exception {
-        Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
-        Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.");
-        Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
+        Mockito.when(diagnosticsCmd.getAddress()).thenReturn("");
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(null);
 
-        Map<String, String> detailsMap = diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+        diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+    }
+
+    @Test(expected = CloudRuntimeException.class)
+    public void testVMControlIPisNull() throws Exception {
+        Mockito.when(diagnosticsCmd.getAddress()).thenReturn("8.8.8.8.8.8.8");
+
+        Map<String, String> accessDetailsMap = new HashMap<>();
+        accessDetailsMap.put(NetworkElementCommand.ROUTER_IP, null);
+        Mockito.when(networkManager.getSystemVMAccessDetails(Mockito.any(VMInstanceVO.class))).thenReturn(accessDetailsMap);
+
+        diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+
+
     }
 }

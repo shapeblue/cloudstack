@@ -33,15 +33,15 @@ public class DiagnosticsAnswer extends Answer {
 
     public Map<String, String> getExecutionDetails() {
         final Map<String, String> executionDetailsMap = new HashMap<>();
-        if (result == true){
+        if (result == true) {
             final String[] parseDetails = details.split("}");
-            if (parseDetails.length >= 3 ){
+            if (parseDetails.length >= 3) {
                 executionDetailsMap.put("STDOUT", parseDetails[0].trim());
                 executionDetailsMap.put("STDERR", parseDetails[1].trim());
                 executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
                 return executionDetailsMap;
             } else {
-                throw new CloudRuntimeException("Error occurred during diagnostics command execution:" + details);
+                throw new CloudRuntimeException("Error occurred during diagnostics command execution: " + details);
             }
         }
         return executionDetailsMap;
