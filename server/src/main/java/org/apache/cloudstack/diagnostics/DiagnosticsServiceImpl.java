@@ -20,7 +20,6 @@ package org.apache.cloudstack.diagnostics;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
-import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.utils.component.ManagerBase;
@@ -39,6 +38,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class DiagnosticsServiceImpl extends ManagerBase implements PluggableService, DiagnosticsService {
     private static final Logger LOGGER = Logger.getLogger(DiagnosticsServiceImpl.class);
@@ -53,10 +53,10 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private NetworkOrchestrationService networkManager;
 
     @Override
-    public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException {
+    public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws InvalidParameterValueException {
         final Long vmId = cmd.getId();
         final String cmdType = cmd.getType().getValue();
-        final String cmdAddress = cmd.getAddress();
+        final String ipAddress = cmd.getAddress();
         final String optionalArguments = cmd.getOptionalArguments();
         final VMInstanceVO vmInstance = instanceDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
 
@@ -69,7 +69,12 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
             throw new CloudRuntimeException("Unable to find host for virtual machine instance: " + vmInstance.getInstanceName());
         }
 
-        final String shellCmd = prepareShellCmd(String.format("%s %s %s", cmdType, cmdAddress, optionalArguments));
+        final String shellCmd = prepareShellCmd(cmdType, ipAddress, optionalArguments);
+
+        if (Strings.isNullOrEmpty(shellCmd)) {
+            throw new IllegalArgumentException("Optional parameters contain unwanted characters: " + optionalArguments);
+        }
+
         final Hypervisor.HypervisorType hypervisorType = vmInstance.getHypervisorType();
 
         final DiagnosticsCommand command = new DiagnosticsCommand(shellCmd, vmManager.getExecuteInSequence(hypervisorType));
@@ -98,38 +103,28 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
     }
 
-    protected String prepareShellCmd(CharSequence cmdArguments) {
-        List<String> tokens = new ArrayList<>();
-        boolean escaping = false;
-        boolean quoting = false;
-        char quoteChar = ' ';
-        StringBuilder current = new StringBuilder();
+    protected boolean hasValidChars(String optionalArgs) {
+        if (Strings.isNullOrEmpty(optionalArgs)) {
+            return true;
+        } else {
+            final String regex = "^[\\w\\-\\s]+$";
+            final Pattern pattern = Pattern.compile(regex);
+            return pattern.matcher(optionalArgs).find();
+        }
 
-        for (int i = 0; i < cmdArguments.length(); i++) {
-            char c = cmdArguments.charAt(i);
-            if (escaping) {
-                current.append(c);
-                escaping = false;
-            } else if (c == '\\' && !(quoting && quoteChar == '\'')) {
-                escaping = true;
-            } else if (quoting && c == quoteChar) {
-                quoting = false;
-            } else if (!quoting && (c == '\'' || c == '"')) {
-                quoting = true;
-                quoteChar = c;
-            } else if (!quoting && Character.isWhitespace(c)) {
-                if (current.length() > 0) {
-                    tokens.add(current.toString());
-                    current = new StringBuilder();
-                }
+    }
+
+    protected String prepareShellCmd(String cmdType, String ipAddress, String optionalParams) {
+        final String CMD_TEMPLATE = String.format("%s %s", cmdType, ipAddress);
+        if (Strings.isNullOrEmpty(optionalParams)) {
+            return CMD_TEMPLATE;
+        } else {
+            if (hasValidChars(optionalParams)) {
+                return String.format("%s %s", CMD_TEMPLATE, optionalParams);
             } else {
-                current.append(c);
+                return null;
             }
         }
-        if (current.length() > 0) {
-            tokens.add(current.toString());
-        }
-        return String.join(" ", tokens);
     }
 
     @Override

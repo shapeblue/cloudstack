@@ -101,7 +101,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.hypervisor = self.testClient.getHypervisorInfo()
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_01_ping_in_vr(self):
+    def test_01_ping_in_vr_success(self):
         '''
         Test Ping command execution in VR
         '''
@@ -130,20 +130,46 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Ping in VR')
 
-        # Validate Ping command execution with a non-existent/pingable IP address
-        cmd.ipaddress = '9999.9999.9999.9999.9999'
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_02_ping_in_vr_failure(self):
+        '''
+        Test Ping command execution in VR
+        '''
+
+        # Validate the following:
+        # 1. Ping command is executed remotely on VR
+        # 2. Validate Ping command execution with a non-existent/pingable IP address
+
+        list_router_response = list_routers(
+            self.apiclient,
+            account=self.account.name,
+            domainid=self.account.domainid
+        )
+        self.assertEqual(
+            isinstance(list_router_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+        router = list_router_response[0]
+        self.debug('Starting the router with ID: %s' % router.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd.id = router.id
+        cmd.ipaddress = '192.0.2.2'
+        cmd.type = 'ping'
         cmd_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertNotEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Check diagnostics command returns a non-zero exit code')
 
+
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_02_ping_in_ssvm(self):
+    def test_03_ping_in_ssvm_success(self):
         '''
         Test Ping command execution in SSVM
         '''
@@ -174,22 +200,49 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Ping in SSVM'
         )
 
-        # Validate Ping command execution with a non-existent/pingable IP address
-        cmd.ipaddress = '9999.9999.9999.9999.9999'
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_04_ping_in_ssvm_failure(self):
+        '''
+        Test Ping command execution in SSVM
+        '''
+
+        # Validate the following:
+        # 1. Ping command is executed remotely on SSVM
+        # 2. Validate Ping command execution with a non-existent/pingable IP address
+
+        list_ssvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='secondarystoragevm',
+            state='Running',
+        )
+
+        self.assertEqual(
+            isinstance(list_ssvm_response, list),
+            True,
+            'Check list response returns a valid list'
+        )
+        ssvm = list_ssvm_response[0]
+
+        self.debug('Setting up SSVM with ID %s' % ssvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd.id = ssvm.id
+        cmd.ipaddress = '192.0.2.2'
+        cmd.type = 'ping'
         cmd_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertNotEqual(
             '0',
-            cmd_response.EXITCODE,
-            'Check diagnostics command returns a non-zero exit code'
+            cmd_response.exitcode,
+            'Failed to execute remote Ping in SSVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_03_ping_in_cpvm(self):
+    def test_05_ping_in_cpvm_success(self):
         '''
         Test Ping command execution in CPVM
         '''
@@ -220,22 +273,49 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Ping in CPVM'
         )
 
-        # Validate Ping command execution with a non-existent/pingable IP address
-        cmd.ipaddress = '9999.9999.9999.9999.9999'
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    def test_06_ping_in_cpvm_failure(self):
+        '''
+        Test Ping command execution in CPVM
+        '''
+
+        # Validate the following:
+        # 1. Ping command is executed remotely on CPVM
+        # 2. Validate Ping command execution with a non-existent/pingable IP address
+
+        list_ssvm_response = list_ssvms(
+            self.apiclient,
+            systemvmtype='consoleproxy',
+            state='Running',
+        )
+
+        self.assertEqual(
+            isinstance(list_ssvm_response, list),
+            True,
+            'Check list response returns a valid list'
+        )
+        cpvm = list_ssvm_response[0]
+
+        self.debug('Setting up CPVM with ID %s' % cpvm.id)
+
+        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd.id = cpvm.id
+        cmd.ipaddress = '192.0.2.2'
+        cmd.type = 'ping'
         cmd_response = self.apiclient.executeDiagnostics(cmd)
 
         self.assertNotEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Check diagnostics command returns a non-zero exit code'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_04_arping_in_vr(self):
+    def test_07_arping_in_vr(self):
         '''
         Test Arping command execution in VR
         '''
@@ -265,11 +345,11 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Arping in VR')
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_05_arping_in_ssvm(self):
+    def test_08_arping_in_ssvm(self):
         '''
         Test Arping command execution in SSVM
         '''
@@ -301,12 +381,12 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Arping in SSVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_06_arping_in_cpvm(self):
+    def test_09_arping_in_cpvm(self):
         '''
         Test Arping command execution in CPVM
         '''
@@ -338,13 +418,12 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Arping in CPVM'
         )
 
-
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_07_traceroute_in_vr(self):
+    def test_10_traceroute_in_vr(self):
         '''
         Test Arping command execution in VR
         '''
@@ -374,21 +453,11 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Arping in VR')
 
-        # Validate Traceroute command execution with a non-existent/pingable IP address
-        cmd.ipaddress = '9999.99999.99999.9999'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
-
-        self.assertNotEqual(
-            '0',
-            cmd_response.EXITCODE,
-            'Check diagnostics command returns a non-zero exit code'
-        )
-
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_08_traceroute_in_ssvm(self):
+    def test_11_traceroute_in_ssvm(self):
         '''
         Test Traceroute command execution in SSVM
         '''
@@ -420,22 +489,12 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Traceroute in SSVM'
         )
 
-        # Validate Traceroute command execution with a non-existent/pingable IP address
-        cmd.ipaddress = '999.9999.9999.9999.9999'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
-
-        self.assertNotEqual(
-            '0',
-            cmd_response.EXITCODE,
-            'Check diagnostics command returns a non-zero exit code'
-        )
-
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
-    def test_09_traceroute_in_cpvm(self):
+    def test_12_traceroute_in_cpvm(self):
         '''
         Test Traceroute command execution in CPVMM
         '''
@@ -467,16 +526,6 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.assertEqual(
             '0',
-            cmd_response.EXITCODE,
+            cmd_response.exitcode,
             'Failed to execute remote Traceroute in CPVM'
-        )
-
-        # Validate Traceroute command execution with a non-existent/pingable IP address
-        cmd.ipaddress = '999.9999.9999.9999.9999'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
-
-        self.assertNotEqual(
-            '0',
-            cmd_response.EXITCODE,
-            'Check diagnostics command returns a non-zero exit code'
         )

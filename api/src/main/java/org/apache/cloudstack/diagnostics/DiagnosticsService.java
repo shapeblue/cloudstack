@@ -18,7 +18,6 @@
 //
 package org.apache.cloudstack.diagnostics;
 
-import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.InvalidParameterValueException;
 import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
 
@@ -26,6 +25,6 @@ import java.util.Map;
 
 public interface DiagnosticsService {
 
-    Map<String, String> runDiagnosticsCommand(ExecuteDiagnosticsCmd cmd) throws AgentUnavailableException, InvalidParameterValueException;
+    Map<String, String> runDiagnosticsCommand(ExecuteDiagnosticsCmd cmd) throws InvalidParameterValueException;
 
 }

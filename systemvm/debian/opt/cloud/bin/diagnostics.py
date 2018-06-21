@@ -31,17 +31,12 @@ def run_cmd(command):
         except OSError as e:
             stdout = "Check your command type"
             stderr = "Exception occurred: %s" % e
-            return_code = 127
+            return_code = 1
 
         finally:
-            print('%s}' % stdout.strip())
-            print('%s}' % stderr.strip())
-            print('{}'.format(return_code))
-
-    else:
-        print("Unexpected command}")
-        print("Unexpected command}")
-        print("0")
+            print('%s&&' % stdout.strip())
+            print('%s&&' % stderr.strip())
+            print('%s' %return_code)
 
 
 def get_command():

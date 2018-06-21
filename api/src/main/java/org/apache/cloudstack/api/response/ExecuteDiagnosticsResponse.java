@@ -22,20 +22,21 @@ package org.apache.cloudstack.api.response;
 import com.cloud.serializer.Param;
 import com.cloud.vm.VirtualMachine;
 import com.google.gson.annotations.SerializedName;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
 public class ExecuteDiagnosticsResponse extends BaseResponse {
-    @SerializedName("STDOUT")
+    @SerializedName(ApiConstants.STDOUT)
     @Param(description = "the standard output from the command execution")
     private String stdout;
 
-    @SerializedName("STDERR")
+    @SerializedName(ApiConstants.STDERR)
     @Param(description = "the standard error output from the command execution")
     private String stderr;
 
-    @SerializedName("EXITCODE")
+    @SerializedName(ApiConstants.EXITCODE)
     @Param(description = "the command execution return code")
     private String exitCode;
 

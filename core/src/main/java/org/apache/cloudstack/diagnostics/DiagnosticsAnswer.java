@@ -19,6 +19,8 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.google.common.base.Strings;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.log4j.Logger;
 
 import java.util.HashMap;
@@ -33,17 +35,18 @@ public class DiagnosticsAnswer extends Answer {
 
     public Map<String, String> getExecutionDetails() {
         final Map<String, String> executionDetailsMap = new HashMap<>();
-        if (result == true) {
-            final String[] parseDetails = details.split("}");
+        if (result == true && !Strings.isNullOrEmpty(details)) {
+            final String[] parseDetails = details.split("&&");
             if (parseDetails.length >= 3) {
-                executionDetailsMap.put("STDOUT", parseDetails[0].trim());
-                executionDetailsMap.put("STDERR", parseDetails[1].trim());
-                executionDetailsMap.put("EXITCODE", String.valueOf(parseDetails[2]).trim());
+                executionDetailsMap.put(ApiConstants.STDOUT, parseDetails[0].trim());
+                executionDetailsMap.put(ApiConstants.STDERR, parseDetails[1].trim());
+                executionDetailsMap.put(ApiConstants.EXITCODE, String.valueOf(parseDetails[2]).trim());
                 return executionDetailsMap;
             } else {
-                throw new CloudRuntimeException("Error occurred during diagnostics command execution: " + details);
+                throw new CloudRuntimeException("Unsupported diagnostics command type supplied");
             }
+        } else {
+            throw new CloudRuntimeException("Command execution failed: " + details);
         }
-        return executionDetailsMap;
     }
 }

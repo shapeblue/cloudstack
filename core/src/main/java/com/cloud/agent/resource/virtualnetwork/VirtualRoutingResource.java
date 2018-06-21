@@ -298,7 +298,7 @@ public class VirtualRoutingResource {
         _eachTimeout = Duration.standardSeconds(NumbersUtil.parseInt("60",60));
         final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.DIAGNOSTICS, cmd.getSrciptArguments(), _eachTimeout);
         if (!result.isSuccess()) {
-            return new DiagnosticsAnswer(cmd, result.isSuccess(), "Diagnostics Command Execution failed: " + result.getDetails());
+            return new DiagnosticsAnswer(cmd, false, result.getDetails());
         }
         return new DiagnosticsAnswer(cmd, result.isSuccess(), result.getDetails());
     }

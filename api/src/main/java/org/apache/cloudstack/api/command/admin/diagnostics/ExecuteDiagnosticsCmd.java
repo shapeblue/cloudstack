@@ -33,11 +33,12 @@ import org.apache.cloudstack.api.response.SystemVmResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.DiagnosticsService;
 import org.apache.cloudstack.diagnostics.DiagnosticsType;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
+import java.util.Collections;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @APICommand(name = ExecuteDiagnosticsCmd.APINAME, responseObject = ExecuteDiagnosticsResponse.class, entityType = {VirtualMachine.class},
         responseHasSensitiveInfo = false,
@@ -95,17 +96,6 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     }
 
     public String getOptionalArguments() {
-        final String EMPTY_STRING = "";
-
-        if (optionalArguments == null || optionalArguments.isEmpty()) {
-            return EMPTY_STRING;
-        }
-        final String regex = "^[\\w\\-\\s]+$";
-        final Pattern pattern = Pattern.compile(regex);
-        final boolean hasInvalidChar = pattern.matcher(optionalArguments).find();
-        if (!hasInvalidChar) {
-            throw new IllegalArgumentException("Optional parameters contain unwanted characters: " + optionalArguments);
-        }
         return optionalArguments;
     }
 
@@ -131,11 +121,11 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
         ExecuteDiagnosticsResponse response = new ExecuteDiagnosticsResponse();
         try {
             final Map<String, String> answerMap = diagnosticsService.runDiagnosticsCommand(this);
-            if (answerMap != null || !answerMap.isEmpty()) {
-                response.setStdout(answerMap.get("STDOUT"));
-                response.setStderr(answerMap.get("STDERR"));
-                response.setExitCode(answerMap.get("EXITCODE"));
-                response.setObjectName("diagnostics results");
+            if (CollectionUtils.isNotEmpty(Collections.singleton(answerMap))) {
+                response.setStdout(answerMap.get(ApiConstants.STDOUT));
+                response.setStderr(answerMap.get(ApiConstants.STDERR));
+                response.setExitCode(answerMap.get(ApiConstants.EXITCODE));
+                response.setObjectName("diagnostics");
                 response.setResponseName(getCommandName());
                 this.setResponseObject(response);
             }
