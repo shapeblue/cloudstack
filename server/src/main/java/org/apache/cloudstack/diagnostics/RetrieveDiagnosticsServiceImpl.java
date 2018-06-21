@@ -335,6 +335,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         Long timeIntervalGCexecution = Long.parseLong(_configs.get("retrieveDiagnostics.gc.interval"));
         boolean gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
         Long wait = Long.parseLong(_configDao.getValue(RetrieveDiagnosticsTimeOut.key()), 3600);
+        String tempStr = null;
+        String scriptNameRetrieve = null;
+        String scriptNameRemove = null;
 
         if (ssHostId == null) {
             LOGGER.info("No host selected." + getConfigComponentName());
@@ -356,6 +359,17 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
         if (!gcEnabled) {
             gcEnabled = true;
+        }
+        for (String squareBracketsString : diagnosticsFiles) {
+            if (squareBracketsString.contains("[]")) {
+                tempStr = squareBracketsString.trim().replaceAll("(^\\[(.*?)\\].*)",("$2").trim());
+                if (!tempStr.equalsIgnoreCase("IPTABLES") || !tempStr.equalsIgnoreCase("IFCONFIG")) {
+                    throw new InvalidParameterValueException("CloudStack does not support " + squareBracketsString);
+                }
+                //make the script file name to run from VRScript.java. This name should already be in VRScript.java
+                scriptNameRetrieve = tempStr.toLowerCase().concat("retrieve.py");
+                scriptNameRemove = tempStr.toLowerCase().concat("remove.py");
+            }
         }
         RetrieveDiagnosticsCommand command = new RetrieveDiagnosticsCommand();
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVmId.getId()));
