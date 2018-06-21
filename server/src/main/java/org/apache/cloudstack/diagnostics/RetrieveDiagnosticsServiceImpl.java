@@ -91,6 +91,11 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     protected Map<String, Object> configParams = new HashMap<String, Object>();
     private Map<String, String> _configs;
 
+    private String scriptNameRetrieve = null;
+
+    private String scriptNameRemove = null;
+
+
 
     HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
 
@@ -336,8 +341,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         boolean gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
         Long wait = Long.parseLong(_configDao.getValue(RetrieveDiagnosticsTimeOut.key()), 3600);
         String tempStr = null;
-        String scriptNameRetrieve = null;
-        String scriptNameRemove = null;
 
         if (ssHostId == null) {
             LOGGER.info("No host selected." + getConfigComponentName());
@@ -501,5 +504,22 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         cmdList.add(RetrieveDiagnosticsCmd.class);
         return cmdList;
     }
+
+    public String getScriptNameRetrieve() {
+        return scriptNameRetrieve;
+    }
+
+    public void setScriptNameRetrieve(String scriptNameRetrieve) {
+        this.scriptNameRetrieve = scriptNameRetrieve;
+    }
+
+    public String getScriptNameRemove() {
+        return scriptNameRemove;
+    }
+
+    public void setScriptNameRemove(String scriptNameRemove) {
+        this.scriptNameRemove = scriptNameRemove;
+    }
+
 
 }
