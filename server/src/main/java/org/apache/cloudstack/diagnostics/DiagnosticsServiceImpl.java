@@ -30,7 +30,7 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.base.Strings;
-import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
+import org.apache.cloudstack.api.command.admin.diagnostics.RunDiagnosticsCmd;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
 
@@ -53,7 +53,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private NetworkOrchestrationService networkManager;
 
     @Override
-    public Map<String, String> runDiagnosticsCommand(final ExecuteDiagnosticsCmd cmd) throws InvalidParameterValueException {
+    public Map<String, String> runDiagnosticsCommand(final RunDiagnosticsCmd cmd) throws InvalidParameterValueException {
         final Long vmId = cmd.getId();
         final String cmdType = cmd.getType().getValue();
         final String ipAddress = cmd.getAddress();
@@ -107,7 +107,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         if (Strings.isNullOrEmpty(optionalArgs)) {
             return true;
         } else {
-            final String regex = "^[\\w\\-\\s]+$";
+            final String regex = "^[\\w\\-\\s.]+$";
             final Pattern pattern = Pattern.compile(regex);
             return pattern.matcher(optionalArgs).find();
         }
@@ -130,7 +130,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> cmdList = new ArrayList<>();
-        cmdList.add(ExecuteDiagnosticsCmd.class);
+        cmdList.add(RunDiagnosticsCmd.class);
         return cmdList;
     }
 }

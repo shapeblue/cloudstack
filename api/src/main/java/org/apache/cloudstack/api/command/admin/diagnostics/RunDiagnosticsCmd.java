@@ -28,7 +28,7 @@ import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.ExecuteDiagnosticsResponse;
+import org.apache.cloudstack.api.response.RunDiagnosticsResponse;
 import org.apache.cloudstack.api.response.SystemVmResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.DiagnosticsService;
@@ -40,15 +40,15 @@ import javax.inject.Inject;
 import java.util.Collections;
 import java.util.Map;
 
-@APICommand(name = ExecuteDiagnosticsCmd.APINAME, responseObject = ExecuteDiagnosticsResponse.class, entityType = {VirtualMachine.class},
+@APICommand(name = RunDiagnosticsCmd.APINAME, responseObject = RunDiagnosticsResponse.class, entityType = {VirtualMachine.class},
         responseHasSensitiveInfo = false,
         requestHasSensitiveInfo = false,
         description = "Execute network-utility command (ping/arping/tracert) on system VMs remotely",
         authorized = {RoleType.Admin},
         since = "4.12.0.0")
-public class ExecuteDiagnosticsCmd extends BaseCmd {
-    private static final Logger LOGGER = Logger.getLogger(ExecuteDiagnosticsCmd.class);
-    public static final String APINAME = "executeDiagnostics";
+public class RunDiagnosticsCmd extends BaseCmd {
+    private static final Logger LOGGER = Logger.getLogger(RunDiagnosticsCmd.class);
+    public static final String APINAME = "runDiagnostics";
 
     @Inject
     private DiagnosticsService diagnosticsService;
@@ -56,7 +56,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
-    @Parameter(name = ApiConstants.ID, type = CommandType.UUID, required = true, entityType = SystemVmResponse.class,
+    @Parameter(name = ApiConstants.TARGET_ID, type = CommandType.UUID, required = true, entityType = SystemVmResponse.class,
             validations = {ApiArgValidator.PositiveNumber},
             description = "The ID of the system VM instance to diagnose")
     private Long id;
@@ -118,7 +118,7 @@ public class ExecuteDiagnosticsCmd extends BaseCmd {
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException {
-        ExecuteDiagnosticsResponse response = new ExecuteDiagnosticsResponse();
+        RunDiagnosticsResponse response = new RunDiagnosticsResponse();
         try {
             final Map<String, String> answerMap = diagnosticsService.runDiagnosticsCommand(this);
             if (CollectionUtils.isNotEmpty(Collections.singleton(answerMap))) {

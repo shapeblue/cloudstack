@@ -167,7 +167,6 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             cmd_response.exitcode,
             'Check diagnostics command returns a non-zero exit code')
 
-
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
     def test_03_ping_in_ssvm_success(self):
         '''

@@ -14,14 +14,11 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
-
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.api.routing.NetworkElementCommand;
 
 public class DiagnosticsCommand extends NetworkElementCommand {
-
 
     private final String scriptArguments;
     private final boolean executeInSequence;

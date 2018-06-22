@@ -27,7 +27,7 @@ import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
-public class ExecuteDiagnosticsResponse extends BaseResponse {
+public class RunDiagnosticsResponse extends BaseResponse {
     @SerializedName(ApiConstants.STDOUT)
     @Param(description = "the standard output from the command execution")
     private String stdout;

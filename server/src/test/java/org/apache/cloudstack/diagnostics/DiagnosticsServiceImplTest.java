@@ -16,7 +16,6 @@
 // specific language governing permissions and limitations
 // under the License.
 //
-
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
@@ -29,7 +28,7 @@ import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
 import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.api.command.admin.diagnostics.ExecuteDiagnosticsCmd;
+import org.apache.cloudstack.api.command.admin.diagnostics.RunDiagnosticsCmd;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.junit.After;
 import org.junit.Before;
@@ -51,7 +50,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
     @Mock
     private VMInstanceDao instanceDao;
     @Mock
-    private ExecuteDiagnosticsCmd diagnosticsCmd;
+    private RunDiagnosticsCmd diagnosticsCmd;
     @Mock
     private DiagnosticsCommand command;
     @Mock
@@ -181,13 +180,15 @@ public class DiagnosticsServiceImplTest extends TestCase {
         assertFalse(diagnosticsService.hasValidChars(" &2 >> "));
         assertFalse(diagnosticsService.hasValidChars(" | "));
         assertFalse(diagnosticsService.hasValidChars("|"));
-        assertFalse(diagnosticsService.hasValidChars("."));
         assertFalse(diagnosticsService.hasValidChars(","));
     }
 
     @Test
     public void testValidCharsInParams() throws Exception {
         assertTrue(diagnosticsService.hasValidChars(""));
+        assertTrue(diagnosticsService.hasValidChars("."));
+        assertTrue(diagnosticsService.hasValidChars(" "));
+        assertTrue(diagnosticsService.hasValidChars("-I eth0 www.google.com"));
         assertTrue(diagnosticsService.hasValidChars(" "));
         assertTrue(diagnosticsService.hasValidChars(" -I cloudbr0 --sport "));
         assertTrue(diagnosticsService.hasValidChars(" --back -m20 "));
