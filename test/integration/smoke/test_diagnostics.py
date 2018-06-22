@@ -19,7 +19,7 @@
 # Import Local Modules
 from marvin.codes import FAILED
 from marvin.cloudstackTestCase import cloudstackTestCase
-from marvin.cloudstackAPI import executeDiagnostics
+from marvin.cloudstackAPI import runDiagnostics
 from marvin.lib.utils import (cleanup_resources)
 from marvin.lib.base import (Account,
                              ServiceOffering,
@@ -122,16 +122,16 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         router = list_router_response[0]
         self.debug('Starting the router with ID: %s' % router.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = router.id
         cmd.ipaddress = '8.8.8.8'
         cmd.type = 'ping'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Ping in VR')
+            'Failed to run remote Ping in VR')
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
     def test_02_ping_in_vr_failure(self):
@@ -156,11 +156,11 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         router = list_router_response[0]
         self.debug('Starting the router with ID: %s' % router.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = router.id
         cmd.ipaddress = '192.0.2.2'
         cmd.type = 'ping'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertNotEqual(
             '0',
@@ -191,16 +191,16 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = ssvm.id
         cmd.ipaddress = '8.8.8.8'
         cmd.type = 'ping'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Ping in SSVM'
+            'Failed to run remote Ping in SSVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
@@ -228,16 +228,16 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = ssvm.id
         cmd.ipaddress = '192.0.2.2'
         cmd.type = 'ping'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertNotEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Ping in SSVM'
+            'Failed to run remote Ping in SSVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
@@ -264,16 +264,16 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up CPVM with ID %s' % cpvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = cpvm.id
         cmd.ipaddress = '8.8.8.8'
         cmd.type = 'ping'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Ping in CPVM'
+            'Failed to run remote Ping in CPVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
@@ -301,11 +301,11 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up CPVM with ID %s' % cpvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = cpvm.id
         cmd.ipaddress = '192.0.2.2'
         cmd.type = 'ping'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertNotEqual(
             '0',
@@ -335,17 +335,17 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         router = list_router_response[0]
         self.debug('Starting the router with ID: %s' % router.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = router.id
         cmd.ipaddress = router.gateway
         cmd.type = 'arping'
         cmd.params = "-I eth2"
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Arping in VR')
+            'Failed to run remote Arping in VR')
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
     def test_08_arping_in_ssvm(self):
@@ -371,17 +371,17 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = ssvm.id
         cmd.ipaddress = ssvm.gateway
         cmd.type = 'arping'
         cmd.params = '-I eth2'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Arping in SSVM'
+            'Failed to run remote Arping in SSVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
@@ -408,17 +408,17 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up CPVM with ID %s' % cpvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = cpvm.id
         cmd.ipaddress = cpvm.gateway
         cmd.type = 'arping'
         cmd.params = '-I eth2'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Arping in CPVM'
+            'Failed to run remote Arping in CPVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
@@ -443,17 +443,17 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         router = list_router_response[0]
         self.debug('Starting the router with ID: %s' % router.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = router.id
         cmd.ipaddress = '8.8.4.4'
         cmd.type = 'traceroute'
         cmd.params = "-m 10"
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Arping in VR')
+            'Failed to run remote Arping in VR')
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
     def test_11_traceroute_in_ssvm(self):
@@ -479,17 +479,17 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = ssvm.id
         cmd.ipaddress = '8.8.4.4'
         cmd.type = 'traceroute'
         cmd.params = '-m 10'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Traceroute in SSVM'
+            'Failed to run remote Traceroute in SSVM'
         )
 
     @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
@@ -516,15 +516,15 @@ class TestRemoteDiagnostics(cloudstackTestCase):
 
         self.debug('Setting up CPVMM with ID %s' % cpvm.id)
 
-        cmd = executeDiagnostics.executeDiagnosticsCmd()
+        cmd = runDiagnostics.runDiagnosticsCmd()
         cmd.id = cpvm.id
         cmd.ipaddress = '8.8.4.4'
         cmd.type = 'traceroute'
         cmd.params = '-m 10'
-        cmd_response = self.apiclient.executeDiagnostics(cmd)
+        cmd_response = self.apiclient.runDiagnostics(cmd)
 
         self.assertEqual(
             '0',
             cmd_response.exitcode,
-            'Failed to execute remote Traceroute in CPVM'
+            'Failed to run remote Traceroute in CPVM'
         )
