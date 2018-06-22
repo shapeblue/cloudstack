@@ -69,6 +69,12 @@ Audit:
     - environment-info.sh
   script:
     - mvn --activate-profiles developer,systemvm -Dsimulator --projects='org.apache.cloudstack:cloudstack' clean org.apache.rat:apache-rat-plugin:0.12:check
+  artifacts:
+    name: "audit_report_${CI_BUILD_REF_SLUG}"
+    paths:
+      - "target/rat.txt"
+    when: on_failure
+    expire_in: 1 day
 
 # Compile and test and verify build
 Verify:
@@ -80,6 +86,20 @@ Verify:
     - environment-info.sh
   script:
     - mvn --activate-profiles developer,systemvm -Dsimulator clean verify
+  artifacts:
+    name: "test_report_${CI_BUILD_REF_SLUG}"
+    paths:
+      - "*/target/surefire-reports"
+      - "*/*/target/surefire-reports"
+      - "*/*/*/target/surefire-reports"
+      - "*/*/*/*/target/surefire-reports"
+
+      - "*/target/checkstyle-result.xml"
+      - "*/*/target/checkstyle-result.xml"
+      - "*/*/*/target/checkstyle-result.xml"
+      - "*/*/*/*/target/checkstyle-result.xml"
+    when: on_failure
+    expire_in: 1 day
 
 # Archive RPMs to object storage
 RPM:
