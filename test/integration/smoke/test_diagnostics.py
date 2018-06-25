@@ -123,7 +123,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = router.id
+        cmd.targetid = router.id
         cmd.ipaddress = '8.8.8.8'
         cmd.type = 'ping'
         cmd_response = self.apiclient.runDiagnostics(cmd)
@@ -157,7 +157,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = router.id
+        cmd.targetid = router.id
         cmd.ipaddress = '192.0.2.2'
         cmd.type = 'ping'
         cmd_response = self.apiclient.runDiagnostics(cmd)
@@ -192,7 +192,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = ssvm.id
+        cmd.targetid = ssvm.id
         cmd.ipaddress = '8.8.8.8'
         cmd.type = 'ping'
         cmd_response = self.apiclient.runDiagnostics(cmd)
@@ -229,7 +229,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = ssvm.id
+        cmd.targetid = ssvm.id
         cmd.ipaddress = '192.0.2.2'
         cmd.type = 'ping'
         cmd_response = self.apiclient.runDiagnostics(cmd)
@@ -265,7 +265,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up CPVM with ID %s' % cpvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = cpvm.id
+        cmd.targetid = cpvm.id
         cmd.ipaddress = '8.8.8.8'
         cmd.type = 'ping'
         cmd_response = self.apiclient.runDiagnostics(cmd)
@@ -302,7 +302,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up CPVM with ID %s' % cpvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = cpvm.id
+        cmd.targetid = cpvm.id
         cmd.ipaddress = '192.0.2.2'
         cmd.type = 'ping'
         cmd_response = self.apiclient.runDiagnostics(cmd)
@@ -336,7 +336,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = router.id
+        cmd.targetid = router.id
         cmd.ipaddress = router.gateway
         cmd.type = 'arping'
         cmd.params = "-I eth2"
@@ -372,7 +372,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = ssvm.id
+        cmd.targetid = ssvm.id
         cmd.ipaddress = ssvm.gateway
         cmd.type = 'arping'
         cmd.params = '-I eth2'
@@ -409,7 +409,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up CPVM with ID %s' % cpvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = cpvm.id
+        cmd.targetid = cpvm.id
         cmd.ipaddress = cpvm.gateway
         cmd.type = 'arping'
         cmd.params = '-I eth2'
@@ -444,7 +444,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Starting the router with ID: %s' % router.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = router.id
+        cmd.targetid = router.id
         cmd.ipaddress = '8.8.4.4'
         cmd.type = 'traceroute'
         cmd.params = "-m 10"
@@ -480,7 +480,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up SSVM with ID %s' % ssvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = ssvm.id
+        cmd.targetid = ssvm.id
         cmd.ipaddress = '8.8.4.4'
         cmd.type = 'traceroute'
         cmd.params = '-m 10'
@@ -517,7 +517,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
         self.debug('Setting up CPVMM with ID %s' % cpvm.id)
 
         cmd = runDiagnostics.runDiagnosticsCmd()
-        cmd.id = cpvm.id
+        cmd.targetid = cpvm.id
         cmd.ipaddress = '8.8.4.4'
         cmd.type = 'traceroute'
         cmd.params = '-m 10'
