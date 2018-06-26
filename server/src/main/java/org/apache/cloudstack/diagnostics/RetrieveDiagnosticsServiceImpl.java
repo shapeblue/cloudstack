@@ -19,7 +19,7 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
-import com.cloud.agent.api.RetrieveDiagnosticsCommand;
+import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
@@ -374,7 +374,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 scriptNameRemove = tempStr.toLowerCase().concat("remove.py");
             }
         }
-        RetrieveDiagnosticsCommand command = new RetrieveDiagnosticsCommand();
+        RetrieveFilesCommand command = new RetrieveFilesCommand();
         command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVmId.getId()));
         command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVmId.getInstanceName() );
 

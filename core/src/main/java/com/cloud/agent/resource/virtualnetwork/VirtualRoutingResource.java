@@ -28,7 +28,7 @@ import com.cloud.agent.api.GetDomRVersionAnswer;
 import com.cloud.agent.api.GetDomRVersionCmd;
 import com.cloud.agent.api.GetRouterAlertsAnswer;
 import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
-import com.cloud.agent.api.RetrieveDiagnosticsCommand;
+import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.AggregationControlCommand;
 import com.cloud.agent.api.routing.AggregationControlCommand.Action;
 import com.cloud.agent.api.routing.GetRouterAlertsCommand;
@@ -125,8 +125,8 @@ public class VirtualRoutingResource {
                 return execute((AggregationControlCommand)cmd);
             }
 
-            if (cmd instanceof RetrieveDiagnosticsCommand) {
-                return execute((RetrieveDiagnosticsCommand)cmd);
+            if (cmd instanceof RetrieveFilesCommand) {
+                return execute((RetrieveFilesCommand)cmd);
             }
 
             if (_vrAggregateCommandsSet.containsKey(routerName)) {
@@ -156,7 +156,7 @@ public class VirtualRoutingResource {
         }
     }
 
-    private RetrieveDiagnosticsAnswer execute(final RetrieveDiagnosticsCommand cmd) {
+    private RetrieveDiagnosticsAnswer execute(final RetrieveFilesCommand cmd) {
         List<String> args = cmd.getDiagnosticFilesToRerieve();
         String fileListToRetrieve = args.toString();
         String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
@@ -211,8 +211,8 @@ public class VirtualRoutingResource {
             return execute((CheckS2SVpnConnectionsCommand) cmd);
         } else if (cmd instanceof GetRouterAlertsCommand) {
             return execute((GetRouterAlertsCommand)cmd);
-        } else if (cmd instanceof RetrieveDiagnosticsCommand) {
-            return execute((RetrieveDiagnosticsCommand)cmd);
+        } else if (cmd instanceof RetrieveFilesCommand) {
+            return execute((RetrieveFilesCommand)cmd);
         } else {
             s_logger.error("Unknown query command in VirtualRoutingResource!");
             return Answer.createUnsupportedCommandAnswer(cmd);

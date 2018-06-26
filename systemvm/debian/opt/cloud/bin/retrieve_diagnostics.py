@@ -14,6 +14,78 @@
 #KIND, either express or implied.  See the License for the
 #specific language governing permissions and limitations
 #under the License.
+#!/usr/bin/python
+import sys
+import fnmatch
+
+class FindFiles:
+    arguments = []
+    argCount = 0
+
+    def __init__(self, arguments):
+        self.arguments = sys.argv - 1
+        FindFiles.argCount = len(sys.argv) - 1
+
+    def display(self):
+        position = 1
+        while (self.arguments >= position):
+            print("parameter %1: %s" % (position, sys.argv[position]))
+            position = position + 1
+
+    def find(fileName, path):
+        result = []
+        for root, dirs, files in os.walk(path):
+            if fileName in files:
+                result.append(os.path.join(root, fileName))
+        return result
+
+    def findWithPattern(pattern, path):
+        result = []
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                if fnmatch.fnmatch(name, pattern):
+                    result.append(os.path.join(root, name))
+        return result
+
+    def ensure_dir(file_path):
+        file_path = "/temp"
+        directory = os.path.dirname(file_path)
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # importing required modules
 

@@ -23,8 +23,8 @@ import org.apache.log4j.Logger;
 
 import java.util.List;
 
-public class RetrieveDiagnosticsCommand extends NetworkElementCommand {
-    private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsCommand.class);
+public class RetrieveFilesCommand extends NetworkElementCommand {
+    private static final Logger LOGGER = Logger.getLogger(RetrieveFilesCommand.class);
     List<String> diagnosticFilesToRetrieve;
 
     @Override
