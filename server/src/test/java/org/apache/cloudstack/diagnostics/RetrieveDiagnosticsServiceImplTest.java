@@ -140,7 +140,7 @@ public class RetrieveDiagnosticsServiceImplTest {
         RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = mock(RetrieveDiagnosticsResponse.class);
         RetrieveDiagnosticsCmd retrieveDiagnosticsCmd = mock(RetrieveDiagnosticsCmd.class);
         RetrieveDiagnosticsServiceImpl diagnosticsService = mock(RetrieveDiagnosticsServiceImpl.class);
-        when(diagnosticsService.getDiagnosticsFiles(retrieveDiagnosticsCmd)).thenReturn(retrieveDiagnosticsResponse);
+        when(diagnosticsService.getDiagnosticsFiles(retrieveDiagnosticsCmd)).thenReturn(null);
     }
 
     @Test
@@ -154,7 +154,7 @@ public class RetrieveDiagnosticsServiceImplTest {
         when(hostMock.getId()).thenReturn(1L);
         RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = mock(RetrieveDiagnosticsResponse.class);
         RetrieveDiagnosticsServiceImpl diagnosticsService = mock(RetrieveDiagnosticsServiceImpl.class);
-        when(diagnosticsService.createRetrieveDiagnosticsResponse()).thenReturn(retrieveDiagnosticsResponse);
+        //when(diagnosticsService.createRetrieveDiagnosticsResponse()).thenReturn(retrieveDiagnosticsResponse);
     }
 
     @Test

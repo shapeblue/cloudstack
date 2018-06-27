@@ -25,8 +25,6 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
-import java.util.Map;
-
 @EntityReference(value = VirtualMachine.class)
 public class RetrieveDiagnosticsResponse extends BaseResponse {
     @SerializedName(ApiConstants.STDOUT)
