@@ -19,16 +19,24 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.Command;
+import com.cloud.agent.api.ExecuteScriptCommand;
+import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
 import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.agent.manager.Commands;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
+import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.OperationTimedoutException;
+import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.host.Host;
 import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.host.dao.HostDetailsDao;
+import com.cloud.hypervisor.Hypervisor;
 import com.cloud.network.router.RouterControlHelper;
 import com.cloud.resource.ResourceManager;
 import com.cloud.server.ManagementServer;
@@ -45,20 +53,23 @@ import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.DiskProfile;
 import com.cloud.vm.SecondaryStorageVmVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.VirtualMachineProfile;
 import com.cloud.vm.VirtualMachineProfileImpl;
 import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
-import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.framework.config.ConfigDepot;
@@ -121,25 +132,28 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     protected ResourceManager _resourceMgr;
 
     @Inject
+    private NetworkOrchestrationService networkManager;
+
+    @Inject
     protected ManagementServer _serverMgr;
 
     @Inject
-    RetrieveDiagnosticsDao _retrieveDiagnosticsDao;
+    private RetrieveDiagnosticsDao _retrieveDiagnosticsDao;
 
     @Inject
-    ConfigDepot _configDepot;
+    private ConfigDepot _configDepot;
 
     @Inject
-    DiagnosticsConfigurator _diagnosticsDepot;
+    private DiagnosticsConfigurator _diagnosticsDepot;
 
     @Inject
-    ConfigDepot configDepot;
+    private ConfigDepot configDepot;
 
     @Inject
-    RouterControlHelper routerControlHelper;
+    private RouterControlHelper routerControlHelper;
 
     @Inject
-    HostDetailsDao _hostDetailDao;
+    private HostDetailsDao _hostDetailDao;
 
     @Inject
     protected VMInstanceDao _vmDao;
@@ -158,6 +172,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     private CapacityDao _capacityDao;
+
+    @Inject
+    private VirtualMachineManager vmManager;
 
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
@@ -245,7 +262,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
    }
 
     @Override
-    public RetrieveDiagnosticsResponse getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws InvalidParameterValueException, ConfigurationException {
+    public Map<String, String> getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd)
+            throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException, InvalidParameterValueException, ConfigurationException {
         String systemVmType = null;
         String diagnosticsType = null;
         String fileDetails = null;
@@ -257,6 +275,14 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
         final Long vmId = cmd.getId();
         final VMInstanceVO vmInstance = _vmDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
+        if (vmInstance == null) {
+            throw new InvalidParameterValueException("Unable to find a system VM with id " + vmId);
+        }
+        final Long hostId = vmInstance.getHostId();
+        if (hostId == null) {
+            throw new CloudRuntimeException("Unable to find host for virtual machine instance -> " + vmInstance.getInstanceName());
+        }
+
         loadDiagnosticsDataConfiguration();
         if (configure(getConfigComponentName(), configParams)) {
             if (cmd != null) {
@@ -293,19 +319,13 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
                     }
                 }
-                retrieveDiagnosticsFiles(cmd.getId(), diagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
+                Map<String, String> response = retrieveDiagnosticsFiles(cmd.getId(), diagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
+                if (response != null)
+                    return response;
             }
         }
         return null;
 
-    }
-
-    @Override
-    public RetrieveDiagnosticsResponse createRetrieveDiagnosticsResponse() {
-        RetrieveDiagnosticsResponse response = new RetrieveDiagnosticsResponse();
-        response.setSuccess(true);
-        response.getDetails();
-        return response;
     }
 
     protected String[] getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
@@ -329,7 +349,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    protected void retrieveDiagnosticsFiles(Long ssHostId, List<String> diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout) {
+
+    protected Map<String, String> retrieveDiagnosticsFiles(Long ssHostId, List<String> diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
+            throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
         }
@@ -363,85 +385,116 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (!gcEnabled) {
             gcEnabled = true;
         }
+        final Hypervisor.HypervisorType hypervisorType = systemVmId.getHypervisorType();
+        List<String> deleteSquareBracketedEntries = new ArrayList<>();
+        List<String> scripts = new ArrayList<>();
+        boolean isSquareBracketed = false;
+        Commands cmds = null;
         for (String squareBracketsString : diagnosticsFiles) {
             if (squareBracketsString.contains("[]")) {
-                tempStr = squareBracketsString.trim().replaceAll("(^\\[(.*?)\\].*)",("$2").trim());
+                isSquareBracketed = true;
+                deleteSquareBracketedEntries.add(squareBracketsString);
+                tempStr = squareBracketsString.trim().replaceAll("(^\\[(.*?)\\].*)", ("$2").trim());
                 if (!tempStr.equalsIgnoreCase("IPTABLES") || !tempStr.equalsIgnoreCase("IFCONFIG")) {
                     throw new InvalidParameterValueException("CloudStack does not support " + squareBracketsString);
                 }
-                //make the script file name to run from VRScript.java. This name should already be in VRScript.java
-                scriptNameRetrieve = tempStr.toLowerCase().concat("retrieve.py");
-                scriptNameRemove = tempStr.toLowerCase().concat("remove.py");
+                scriptNameRetrieve = tempStr.toLowerCase().concat(".py");
+                scripts.add(scriptNameRetrieve);
             }
         }
-        RetrieveFilesCommand command = new RetrieveFilesCommand();
-        command.setAccessDetail(NetworkElementCommand.ROUTER_IP, routerControlHelper.getRouterControlIp(systemVmId.getId()));
-        command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, systemVmId.getInstanceName() );
+        if (isSquareBracketed) {
+            for (String deleteSquareBracketed : deleteSquareBracketedEntries) {
+                diagnosticsFiles.remove(deleteSquareBracketed);
+            }
+        }
+        cmds = new Commands(Command.OnError.Stop);
+        ExecuteScriptCommand execCmd = null;
+        if (!scripts.isEmpty()) {
+            for (String script : scripts) {
+                execCmd = new ExecuteScriptCommand(script, vmManager.getExecuteInSequence(hypervisorType));
+                cmds.addCommand(execCmd);
+            }
+        }
+        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
+        execCmd.setAccessDetail(accessDetails);
+        String filesToRetrieveCommaSeparated = String.join(",", diagnosticsFiles);
+        RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(filesToRetrieveCommaSeparated, vmManager.getExecuteInSequence(hypervisorType));
+        retrieveFilesCommand.setAccessDetail(accessDetails);
+        cmds.addCommand(retrieveFilesCommand);
 
-        Answer answer;
-        command.setWait(wait.intValue());
-        try{
-            answer = _agentMgr.send(systemVmId.getHostId(), command);
-        }catch (Exception e){
-            LOGGER.error("Unable to send command");
-            throw new InvalidParameterValueException("Agent unavailable");
+        if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
+            throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
         }
-        createRetrieveDiagnosticsResponse();
-        if (answer != null && answer instanceof Answer) {
-            //zip the files on the fly (in the script), send the tar file to mgt-server
-            //and choose secondary storage to download the zip file. In this scenario, we will not have to worry about the disk space
-            //on the System VM but will have to check for free disk space on the mgt-server where the tar is temporarily copied to.
-            // Check if the vm is using any disks on local storage.
-            final VirtualMachineProfile vmProfile = new VirtualMachineProfileImpl(systemVmId, null, _offeringDao.findById(systemVmId.getId(), systemVmId.getServiceOfferingId()), null, null);
-            final List<VolumeVO> volumes = _volumeDao.findCreatedByInstance(vmProfile.getId());
-            boolean usesLocal = false;
-            VolumeVO localVolumeVO = null;
-            Long volClusterId = null;
-            for (final VolumeVO volume : volumes) {
-                final DiskOfferingVO diskOffering = _diskOfferingDao.findById(volume.getDiskOfferingId());
-                final DiskProfile diskProfile = new DiskProfile(volume, diskOffering, vmProfile.getHypervisorType());
-                if (diskProfile.useLocalStorage()) {
-                    usesLocal = true;
-                    localVolumeVO = volume;
-                    break;
+        Map<String, String> resultsMap;
+        final Long hostId = systemVmId.getHostId();
+        _agentMgr.send(hostId, cmds);
+        if (!cmds.isSuccessful()) {
+            for (final Answer answer : cmds.getAnswers()) {
+                if (!answer.getResult()) {
+                    LOGGER.warn("Failed to retrieve results due to: " + answer.getDetails());
+
+                    throw new CloudRuntimeException("Unable to retrieve results " + systemVmId + " due to " + answer.getDetails());
                 }
+                if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
+                    resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
+                    return resultsMap;
+                } else {
+                    throw new CloudRuntimeException("Diagnostics command failed");
+                }
+
             }
-            if (usesLocal) {
-                StoragePool storagePool = _poolDao.findById(localVolumeVO.getPoolId());
-                volClusterId = storagePool.getClusterId();
-                if (volClusterId != null) {
-                    if (storagePool.isLocal() || usesLocal) {
-                        if (localVolumeVO.getPath() == null) {
-                            String temp = _configs.get("retrieveDiagnostics.filepath");
-                            localVolumeVO.setPath(_configs.get(temp));
-                        }
+        }
+        return null;
+    }
+
+    private void checkForDiskSpace(VirtualMachine systemVmId, Float disableThreshold) {
+        //zip the files on the fly (in the script), send the tar file to mgt-server
+        //and choose secondary storage to download the zip file. In this scenario, we will not have to worry about the disk space
+        //on the System VM but will have to check for free disk space on the mgt-server where the tar is temporarily copied to.
+        // Check if the vm is using any disks on local storage.
+        final VirtualMachineProfile vmProfile = new VirtualMachineProfileImpl(systemVmId, null, _offeringDao.findById(systemVmId.getId(), systemVmId.getServiceOfferingId()), null, null);
+        final List<VolumeVO> volumes = _volumeDao.findCreatedByInstance(vmProfile.getId());
+        boolean usesLocal = false;
+        VolumeVO localVolumeVO = null;
+        Long volClusterId = null;
+        for (final VolumeVO volume : volumes) {
+            final DiskOfferingVO diskOffering = _diskOfferingDao.findById(volume.getDiskOfferingId());
+            final DiskProfile diskProfile = new DiskProfile(volume, diskOffering, vmProfile.getHypervisorType());
+            if (diskProfile.useLocalStorage()) {
+                usesLocal = true;
+                localVolumeVO = volume;
+                break;
+            }
+        }
+        if (usesLocal) {
+            StoragePool storagePool = _poolDao.findById(localVolumeVO.getPoolId());
+            volClusterId = storagePool.getClusterId();
+            if (volClusterId != null) {
+                if (storagePool.isLocal() || usesLocal) {
+                    if (localVolumeVO.getPath() == null) {
+                        String temp = _configs.get("retrieveDiagnostics.filepath");
+                        localVolumeVO.setPath(_configs.get(temp));
                     }
                 }
-            } else {
-
             }
-            List<Short> clusterCapacityTypes = getCapacityTypesAtClusterLevel();
-            for (Short capacityType : clusterCapacityTypes) {
-                List<CapacityDaoImpl.SummedCapacity> capacity = new ArrayList<>();
-                capacity = _capacityDao.findCapacityBy(capacityType.intValue(), null, null, volClusterId);
-                if (capacityType.compareTo(Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED) != 0) {
-                    continue;
-                }
-                double totalCapacity = capacity.get(0).getTotalCapacity();
-                double usedCapacity = capacity.get(0).getUsedCapacity() + capacity.get(0).getReservedCapacity();
-                if (totalCapacity != 0 && usedCapacity / totalCapacity > disableThreshold) {
-                    LOGGER.error("Unlimited disk space");
-                }
-            }
-        }
-        //get the downloaded files from the /tmp directory and create a zip file to add the files
-        if (assignSecStorageFromRunningPool(ssHostId) != null) {
-
-
+        } else {
 
         }
-
+        List<Short> clusterCapacityTypes = getCapacityTypesAtClusterLevel();
+        for (Short capacityType : clusterCapacityTypes) {
+            List<CapacityDaoImpl.SummedCapacity> capacity = new ArrayList<>();
+            capacity = _capacityDao.findCapacityBy(capacityType.intValue(), null, null, volClusterId);
+            if (capacityType.compareTo(Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED) != 0) {
+                continue;
+            }
+            double totalCapacity = capacity.get(0).getTotalCapacity();
+            double usedCapacity = capacity.get(0).getUsedCapacity() + capacity.get(0).getReservedCapacity();
+            if (totalCapacity != 0 && usedCapacity / totalCapacity > disableThreshold) {
+                LOGGER.error("Unlimited disk space");
+            }
+        }
     }
+    //get the downloaded files from the /tmp directory and create a zip file to add the files
 
     private void checkDiagnosticsFilesAndZip(String diagnosticsFileName, ZipOutputStream zipFile) {
         File f = new File(diagnosticsFileName);

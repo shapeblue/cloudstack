@@ -29,54 +29,40 @@ import java.util.Map;
 
 @EntityReference(value = VirtualMachine.class)
 public class RetrieveDiagnosticsResponse extends BaseResponse {
-    @SerializedName(ApiConstants.RESULT)
-    @Param(description = "Have the diagnostics files been copied successfully", since = "4.11", authorized = {RoleType.Admin})
-    private Boolean success;
+    @SerializedName(ApiConstants.STDOUT)
+    @Param(description = "standard output from the command execution", since = "4.11", authorized = {RoleType.Admin})
+    private String stdout;
 
-    @SerializedName(ApiConstants.TIMEOUT)
-    @Param(description = "the timeout (in seconds) for requests to the retrieve diagnostics API")
-    private String timeout;
+    @SerializedName(ApiConstants.STDERR)
+    @Param(description = "standard error from the command execution.")
+    private String stderror;
 
-    @SerializedName("numberoffilescopied")
-    @Param(description = "the total number of files copied")
-    private Long copiedFilesTotal;
+    @SerializedName(ApiConstants.EXITCODE)
+    @Param(description = "the command execution return code.")
+    private String exitCode;
 
-
-    @SerializedName(ApiConstants.DETAILS)
-    @Param(description = "details for the diagnostics download")
-    private Map<String, String> details;
-
-
-    public Boolean getSuccess() {
-        return success;
+    public void setStdout(String stdout) {
+        this.stdout = stdout;
     }
 
-    public void setSuccess(Boolean success) {
-        this.success = success;
+    public String getStderror() {
+        return stderror;
     }
 
-    public String getTimeout() {
-        return timeout;
+    public void setStderror(String stderror) {
+        this.stderror = stderror;
     }
 
-    public void setTimeout(String timeout) {
-        this.timeout = timeout;
+    public String getStdout() {
+        return stdout;
     }
 
-    public Map<String, String> getDetails() {
-        return details;
+    public String getExitCode() {
+        return exitCode;
     }
 
-    public void setDetails(Map<String, String> details) {
-        this.details = details;
-    }
-
-    public Long getCopiedFilesTotal() {
-        return copiedFilesTotal;
-    }
-
-    public void setCopiedFilesTotal(Long copiedFilesTotal) {
-        this.copiedFilesTotal = copiedFilesTotal;
+    public void setExitCode(String exitCode) {
+        this.exitCode = exitCode;
     }
 
 }

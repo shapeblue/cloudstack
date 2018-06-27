@@ -24,6 +24,7 @@ import com.cloud.agent.api.CheckRouterAnswer;
 import com.cloud.agent.api.CheckRouterCommand;
 import com.cloud.agent.api.CheckS2SVpnConnectionsAnswer;
 import com.cloud.agent.api.CheckS2SVpnConnectionsCommand;
+import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.GetDomRVersionAnswer;
 import com.cloud.agent.api.GetDomRVersionCmd;
 import com.cloud.agent.api.GetRouterAlertsAnswer;
@@ -157,19 +158,23 @@ public class VirtualRoutingResource {
     }
 
     private RetrieveDiagnosticsAnswer execute(final RetrieveFilesCommand cmd) {
-        List<String> args = cmd.getDiagnosticFilesToRerieve();
-        String fileListToRetrieve = args.toString();
-        String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
-        ExecutionResult result = _vrDeployer.executeInVR(routerIp, VRScripts.ROUTER_RETRIEVEFILES, fileListToRetrieve);
+        String args = cmd.getDiagnosticFilesToRetrieve();
+        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.ROUTER_RETRIEVEFILES, args);
         if (result.isSuccess()) {
-            if (!result.getDetails().isEmpty() && !result.getDetails().trim().equals("No Alerts")) {
-
-            }
-        } else {
-
+            return new RetrieveDiagnosticsAnswer(cmd, false, result.getDetails());
         }
-        return new RetrieveDiagnosticsAnswer();
+        return new RetrieveDiagnosticsAnswer(cmd, result.isSuccess(), result.getDetails());
     }
+
+    private RetrieveDiagnosticsAnswer execute(final ExecuteScriptCommand cmd) {
+        String args = cmd.getCommandScript();
+        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.ROUTER_RETRIEVEFILES, args);
+        if (result.isSuccess()) {
+            return new RetrieveDiagnosticsAnswer(cmd, false, result.getDetails());
+        }
+        return new RetrieveDiagnosticsAnswer(cmd, result.isSuccess(), result.getDetails());
+    }
+
 
     private Answer execute(final SetupKeyStoreCommand cmd) {
         final String args = String.format("/usr/local/cloud/systemvm/conf/agent.properties " +
@@ -212,7 +217,9 @@ public class VirtualRoutingResource {
         } else if (cmd instanceof GetRouterAlertsCommand) {
             return execute((GetRouterAlertsCommand)cmd);
         } else if (cmd instanceof RetrieveFilesCommand) {
-            return execute((RetrieveFilesCommand)cmd);
+            return execute((RetrieveFilesCommand) cmd);
+        } else if (cmd instanceof ExecuteScriptCommand) {
+            return execute((ExecuteScriptCommand) cmd);
         } else {
             s_logger.error("Unknown query command in VirtualRoutingResource!");
             return Answer.createUnsupportedCommandAnswer(cmd);

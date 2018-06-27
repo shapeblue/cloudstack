@@ -18,5 +18,37 @@
 
 package com.cloud.agent.api;
 
+import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.utils.exception.CloudRuntimeException;
+import com.google.common.base.Strings;
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.log4j.Logger;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class RetrieveDiagnosticsAnswer extends Answer {
+    public static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsAnswer.class);
+
+    public RetrieveDiagnosticsAnswer(NetworkElementCommand cmd, boolean result, String details) {
+        super(cmd, result, details);
+    }
+
+    public Map<String, String> getResultDetails() {
+        final Map<String, String> resultDetailsMap = new HashMap<>();
+        if (result == true && !Strings.isNullOrEmpty(details)) {
+            final String[] parseDetails = details.split("&&");
+            if (parseDetails.length >= 3) {
+                resultDetailsMap.put(ApiConstants.STDOUT, parseDetails[0].trim());
+                resultDetailsMap.put(ApiConstants.STDERR, parseDetails[1].trim());
+                resultDetailsMap.put(ApiConstants.EXITCODE, String.valueOf(parseDetails[2].trim()));
+                return resultDetailsMap;
+            } else {
+                throw new CloudRuntimeException("Unsupported diagnostics command type.");
+            }
+        } else {
+            throw new CloudRuntimeException("Command execution failed ->" + details);
+        }
+    }
+
 }

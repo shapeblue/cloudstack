@@ -21,16 +21,22 @@ package com.cloud.agent.api;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import org.apache.log4j.Logger;
 
-import java.util.List;
-
 public class RetrieveFilesCommand extends NetworkElementCommand {
     private static final Logger LOGGER = Logger.getLogger(RetrieveFilesCommand.class);
-    List<String> diagnosticFilesToRetrieve;
+
+    private String diagnosticFilesToRetrieve;
+    private final boolean executeInSequence;
+
+    public RetrieveFilesCommand(String filesToRetrieve, boolean executeInSequence) {
+        this.diagnosticFilesToRetrieve = filesToRetrieve;
+        this.executeInSequence = executeInSequence;
+    }
+
 
     @Override
     public boolean executeInSequence()
     {
-        return false;
+        return this.executeInSequence;
     }
 
     @Override
@@ -39,7 +45,7 @@ public class RetrieveFilesCommand extends NetworkElementCommand {
         return true;
     }
 
-    public List<String> getDiagnosticFilesToRerieve() {
+    public String getDiagnosticFilesToRetrieve() {
         return diagnosticFilesToRetrieve;
     }
 

@@ -121,6 +121,7 @@ public class ApiConstants {
     public static final String EXTRA_DHCP_OPTION_NAME = "extradhcpoptionname";
     public static final String EXTRA_DHCP_OPTION_CODE = "extradhcpoptioncode";
     public static final String EXTRA_DHCP_OPTION_VALUE = "extradhcpvalue";
+    public static final String EXITCODE = "exitcode";
     public static final String FENCE = "fence";
     public static final String FETCH_LATEST = "fetchlatest";
     public static final String FIRSTNAME = "firstname";
@@ -289,6 +290,8 @@ public class ApiConstants {
     public static final String START_PORT = "startport";
     public static final String STATE = "state";
     public static final String STATUS = "status";
+    public static final String STDOUT = "stdout";
+    public static final String STDERR = "stderr";
     public static final String STORAGE_TYPE = "storagetype";
     public static final String STORAGE_POLICY = "storagepolicy";
     public static final String STORAGE_MOTION_ENABLED = "storagemotionenabled";

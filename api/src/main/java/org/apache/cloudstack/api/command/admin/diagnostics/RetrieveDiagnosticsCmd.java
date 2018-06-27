@@ -17,27 +17,34 @@
 
 package org.apache.cloudstack.api.command.admin.diagnostics;
 
+import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.vm.VirtualMachine;
+import net.sf.cglib.core.CollectionUtils;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiArgValidator;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.DomainRouterResponse;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
+import org.apache.cloudstack.api.response.SystemVmResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.RetrieveDiagnosticsService;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
+import java.util.Collections;
+import java.util.Map;
 
 @APICommand(name = RetrieveDiagnosticsCmd.APINAME,
         description = "Retrieves diagnostics files from host VMs",
         responseObject = RetrieveDiagnosticsResponse.class,
+        entityType = {VirtualMachine.class},
         requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false,
         since = "4.12.0",
@@ -56,10 +63,11 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     @Parameter(name = ApiConstants.ID,
             type = CommandType.UUID,
-            entityType = DomainRouterResponse.class,
+            entityType = SystemVmResponse.class,
+            validations = {ApiArgValidator.PositiveNumber},
             required = true,
             description = "The host VM type that the diagnostics files requested are to be retrieved from")
-    private Long id;
+    private Long systemVmId;
 
 
     @Parameter(name = ApiConstants.TYPE,
@@ -85,7 +93,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
 
     public void setId(Long id) {
-        this.id = id;
+        this.systemVmId = id;
     }
 
     public void setType(String type) {
@@ -109,7 +117,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     }
 
     public Long getId() {
-        return id;
+        return systemVmId;
     }
 
     @Override
@@ -123,11 +131,14 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
 
     @Override
-    public void execute() {
+    public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException {
         CallContext.current().setEventDetails("Vm Id: " + this._uuidMgr.getUuid(VirtualMachine.class, getId()));
-
+        RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = new RetrieveDiagnosticsResponse();
         try {
-            RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = retrieveDiagnosticsService.getDiagnosticsFiles(this);
+            final Map<String, String> resultMap = retrieveDiagnosticsService.getDiagnosticsFiles(this);
+            retrieveDiagnosticsResponse.setStdout(resultMap.get(ApiConstants.STDOUT));
+            retrieveDiagnosticsResponse.setStderror(resultMap.get(ApiConstants.STDERR));
+            retrieveDiagnosticsResponse.setExitCode(resultMap.get(ApiConstants.EXITCODE));
             retrieveDiagnosticsResponse.setObjectName("retrieved information");
             retrieveDiagnosticsResponse.setResponseName(getCommandName());
             this.setResponseObject(retrieveDiagnosticsResponse);
@@ -152,6 +163,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventDescription() {
-        return "Retrieved diagnostics files from host =" + id;
+        return "Retrieved diagnostics files from host =" + systemVmId;
     }
 }
