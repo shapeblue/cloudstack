@@ -18,14 +18,22 @@
  */
 package org.apache.cloudstack.diagnostics;
 
+import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.ExecuteScriptCommand;
+import com.cloud.agent.api.RetrieveFilesCommand;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.configuration.ConfigurationManagerImpl;
 import com.cloud.host.HostVO;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.VirtualMachineManager;
+import com.cloud.vm.dao.VMInstanceDao;
+import junit.framework.TestCase;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
@@ -40,6 +48,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.Arrays;
@@ -53,26 +62,25 @@ import static org.mockito.Mockito.when;
 
 
 @RunWith(MockitoJUnitRunner.class)
-public class RetrieveDiagnosticsServiceImplTest {
+public class RetrieveDiagnosticsServiceImplTest extends TestCase {
     private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsServiceImplTest.class);
 
-    RetrieveDiagnosticsCmd retrieveDiagnosticsCmd = new RetrieveDiagnosticsCmd();
-
     @Mock
-    private RetrieveDiagnosticsServiceImpl diagnosticsService;
-
-    private final String msCSVList = "agent.log, management.log, cloud.log, server.log";
-    private final List<String> msListDiagnosticsFiles = Arrays.asList(msCSVList.replace(" ","").split(","));
-    ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
-            "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
-    private final String type = "PROPERTYFILES";
-
-    @InjectMocks
-    ConfigurationManagerImpl configurationMgr = new ConfigurationManagerImpl();
-
+    private AgentManager _agentManager;
     @Mock
-    ConfigurationDao _configDao;
-
+    private VMInstanceDao instanceDao;
+    @Mock
+    private RetrieveDiagnosticsCmd retrieveDiagnosticsCmd;
+    @Mock
+    private RetrieveFilesCommand retrieveFilesCommand;
+    @Mock
+    private ExecuteScriptCommand executeScriptCommand;
+    @Mock
+    private VMInstanceVO instanceVO;
+    @Mock
+    private VirtualMachineManager vmManager;
+    @Mock
+    private NetworkOrchestrationService networkManager;
     @Mock
     private RetrieveDiagnosticsVO retrieveDiagnosticsVOMock;
 
@@ -85,19 +93,40 @@ public class RetrieveDiagnosticsServiceImplTest {
     @Mock
     private VMInstanceVO vmInstanceMock;
 
+    @InjectMocks
+    private RetrieveDiagnosticsServiceImpl retrieveDiagnosticsService = new RetrieveDiagnosticsServiceImpl();
+    @InjectMocks
+    ConfigurationManagerImpl configurationMgr = new ConfigurationManagerImpl();
+    @InjectMocks
+    RetrieveDiagnosticsVO retrieveDiagnosticsVO;
+
+    RetrieveDiagnosticsCmd diagnosticsCmd = new RetrieveDiagnosticsCmd();
+
+    private final String msCSVList = "/var/log/agent.log,/usr/data/management.log,/cloudstack/cloud.log,[IPTABLES]";
+    private final List<String> msListDiagnosticsFiles = Arrays.asList(msCSVList.replace(" ","").split(","));
+    ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
+            "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
+    private final String type = "LOGFILES";
+
+
 
     @Before
-    public void setUp() {
-        RetrieveDiagnostics diagnostic = mock(RetrieveDiagnosticsVO.class);
-        RetrieveDiagnosticsServiceImpl diagnosticsService = mock(RetrieveDiagnosticsServiceImpl.class);
-        HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
-        when(diagnostic.getDefaultValue()).thenReturn(msCSVList);
-        when(diagnosticsService.getDefaultDiagnosticsData()).thenReturn(allDefaultDiagnosticsTypeKeys);
+    public void setUp() throws Exception {
+        Mockito.when(retrieveDiagnosticsCmd.getId()).thenReturn(2L);
+        Mockito.when(retrieveDiagnosticsCmd.getType()).thenReturn("LOGFILES");
+        Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class),
+                Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
     }
 
     @After
-    public void tearDown() {
-        CallContext.unregister();
+    public void tearDown() throws Exception {
+        Mockito.reset(retrieveDiagnosticsCmd);
+        Mockito.reset(_agentManager);
+        Mockito.reset(instanceDao);
+        Mockito.reset(instanceVO);
+        Mockito.reset(retrieveFilesCommand);
+        Mockito.reset(executeScriptCommand);
+
     }
 
     @Test
@@ -182,7 +211,14 @@ public class RetrieveDiagnosticsServiceImplTest {
     }
 
     @Test
-    public void runRetrieveDiagnosticsFilesTest() throws Exception {
+    public void runRetrieveDiagnosticsFilesTrueTest() throws Exception {
+        Mockito.when(retrieveDiagnosticsCmd.getType()).thenReturn(type);
+        Mockito.when(retrieveDiagnosticsCmd.getOptionalListOfFiles()).thenReturn(msCSVList);
+        Map<String, String> accessDetailsMap = new HashMap<>();
+        accessDetailsMap.put(NetworkElementCommand.ROUTER_IP, "192.20.120.12");
+        Mockito.when(networkManager.getSystemVMAccessDetails(Mockito.any(VMInstanceVO.class))).thenReturn(accessDetailsMap);
+        final String details = "Copied files : "
+
         RetrieveDiagnosticsServiceImpl diagnosticsService = new RetrieveDiagnosticsServiceImpl();
         try {
             String[] allDefaultDiagnosticsTypeKeys  = diagnosticsService.getDefaultFilesForVm("SecondaryStorageVm", "myVm");
