@@ -19,9 +19,9 @@ package org.apache.cloudstack.api.command.admin.diagnostics;
 
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.OperationTimedoutException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.vm.VirtualMachine;
-import net.sf.cglib.core.CollectionUtils;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiArgValidator;
@@ -38,7 +38,6 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-import java.util.Collections;
 import java.util.Map;
 
 @APICommand(name = RetrieveDiagnosticsCmd.APINAME,
@@ -146,6 +145,9 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             LOGGER.error("Failed to retrieve diagnostics files from ", ipve);
             throw new ServerApiException(ApiErrorCode.PARAM_ERROR, ipve.getMessage());
         } catch (ConfigurationException cre) {
+            LOGGER.error("Failed to retrieve diagnostics files from ", cre);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
+        } catch (OperationTimedoutException cre) {
             LOGGER.error("Failed to retrieve diagnostics files from ", cre);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
         }
