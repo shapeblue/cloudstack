@@ -443,8 +443,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 }
 
             }
+            checkForDiskSpace(systemVmId, disableThreshold);
         }
         return null;
+
     }
 
     private void checkForDiskSpace(VirtualMachine systemVmId, Float disableThreshold) {
