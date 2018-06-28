@@ -50,6 +50,7 @@ import com.cloud.user.AccountManager;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
+import com.cloud.utils.concurrency.NamedThreadFactory;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
@@ -91,6 +92,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
 
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
@@ -106,9 +111,11 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     private String scriptNameRemove = null;
 
-
+    ScheduledExecutorService _executor = null;
 
     HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
+
+    private Boolean gcEnabled;
 
     @Inject
     private HostDao _hostDao;
@@ -195,6 +202,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             params.put(RetrieveDiagnosticsTimeOut.key(), (Long)RetrieveDiagnosticsTimeOut.value());
             return true;
         }
+
+        _executor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("Diagnostics-GarbageCollector"));
 
         return false;
     }
@@ -360,7 +369,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         String filePath = _configs.get("retrieveDiagnostics.filepath");
         Long fileAge = Long.parseLong(_configs.get("retrieveDiagnostics.max.fileage"));
         Long timeIntervalGCexecution = Long.parseLong(_configs.get("retrieveDiagnostics.gc.interval"));
-        boolean gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
+        gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
         Long wait = Long.parseLong(_configDao.getValue(RetrieveDiagnosticsTimeOut.key()), 3600);
         String tempStr = null;
 
@@ -558,6 +567,55 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         List<Class<?>> cmdList = new ArrayList<Class<?>>();
         cmdList.add(RetrieveDiagnosticsCmd.class);
         return cmdList;
+    }
+
+    protected class DiagnosticsGarbageCollector implements Runnable {
+
+        public DiagnosticsGarbageCollector() {
+        }
+
+        @Override
+        public void run() {
+            try {
+                LOGGER.trace("Diagnostics Garbage Collection Thread is running.");
+
+                cleanupDiagnostics();
+
+            } catch (Exception e) {
+                LOGGER.error("Caught the following Exception", e);
+            }
+        }
+    }
+
+    @Override
+    public void cleanupDiagnostics() {
+    }
+
+    @Override
+    public boolean start() {
+        gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
+        Long interval = Long.parseLong(_configs.get("retrieveDiagnostics.gc.interval"));
+        Integer cleanupInterval = (int)(long) interval;
+        if (!super.start()) {
+            return false;
+        }
+        if (gcEnabled.booleanValue()) {
+            Random generator = new Random();
+            int initialDelay = generator.nextInt(cleanupInterval);
+            _executor.scheduleWithFixedDelay(new DiagnosticsGarbageCollector(), initialDelay, cleanupInterval.intValue(), TimeUnit.SECONDS);
+        } else {
+            LOGGER.debug("Diagnostics garbage collector is not enabled, so the cleanup thread is not being scheduled.");
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean stop() {
+        if (gcEnabled.booleanValue()) {
+            _executor.shutdown();
+        }
+        return true;
     }
 
     public String getScriptNameRetrieve() {

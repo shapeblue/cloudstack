@@ -42,4 +42,6 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
     Pair<List<? extends Configuration>, Integer> searchForDiagnosticsConfigurations(final RetrieveDiagnosticsCmd cmd);
 
     List<DiagnosticsKey> get(String key);
+
+    void cleanupDiagnostics();
 }
