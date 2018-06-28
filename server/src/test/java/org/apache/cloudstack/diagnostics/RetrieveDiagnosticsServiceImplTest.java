@@ -19,9 +19,13 @@
 package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.Command;
 import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.agent.manager.Commands;
+import com.cloud.agent.resource.virtualnetwork.VRScripts;
 import com.cloud.configuration.ConfigurationManagerImpl;
 import com.cloud.host.HostVO;
 import com.cloud.utils.db.TransactionLegacy;
@@ -30,14 +34,13 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.VMInstanceDao;
 import junit.framework.TestCase;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
 import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
-import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
-import org.apache.cloudstack.framework.config.impl.RetrieveDiagnostics;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.log4j.Logger;
@@ -217,7 +220,18 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
         Map<String, String> accessDetailsMap = new HashMap<>();
         accessDetailsMap.put(NetworkElementCommand.ROUTER_IP, "192.20.120.12");
         Mockito.when(networkManager.getSystemVMAccessDetails(Mockito.any(VMInstanceVO.class))).thenReturn(accessDetailsMap);
-        final String details = "Copied files : "
+        final String details = "Copied files : /var/log/agent.log," +
+                "/usr/data/management.log," +
+                "/cloudstack/cloud.log";
+        retrieveFilesCommand = new RetrieveFilesCommand(details, true);
+        executeScriptCommand = new ExecuteScriptCommand(VRScripts.RETRIEVE_DIAGNOSTICS, true);
+
+        Commands commands = new Commands(Command.OnError.Stop);
+        commands.addCommand(retrieveFilesCommand);
+        commands.addCommand(executeScriptCommand);
+
+        final Answer[] answers = {new Answer(Mockito.any(RetrieveFilesCommand.class))};
+        Mockito.when(_agentManager.send(Mockito.anyLong(), commands)).thenReturn(answers);
 
         RetrieveDiagnosticsServiceImpl diagnosticsService = new RetrieveDiagnosticsServiceImpl();
         try {
@@ -228,6 +242,11 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
         } finally {
 
         }
+
+        Map<String, String> resultsMap = retrieveDiagnosticsService.getDiagnosticsFiles(retrieveDiagnosticsCmd);
+        assertEquals(3, resultsMap.size());
+        assertEquals("Different values between actual and expected STDERR ","", resultsMap.get(ApiConstants.STDERR));
+        
     }
 
 }
