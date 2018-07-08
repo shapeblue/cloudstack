@@ -153,9 +153,10 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
     public void runGetAllDefaultFilesForEachSystemVmTest() throws Exception {
         final String msCSVList = "agent.log,management.log,cloud.log";
         final String[] msList = msCSVList.split(",");
+        final String list = msList.toString();
         RetrieveDiagnosticsVO retrieveDiagnosticsVOMock = mock(RetrieveDiagnosticsVO.class);
         RetrieveDiagnosticsServiceImpl diagnosticsService = mock(RetrieveDiagnosticsServiceImpl.class);
-        when(diagnosticsService.getAllDefaultFilesForEachSystemVm(retrieveDiagnosticsVOMock.getType())).thenReturn(msList);
+        when(diagnosticsService.getAllDefaultFilesForEachSystemVm(retrieveDiagnosticsVOMock.getType())).thenReturn(list);
         assertTrue(msList != null);
     }
 
@@ -165,7 +166,7 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
         DiagnosticsKey key = new DiagnosticsKey("ConsoleProxy", "LOGFILES", "agent.log. management.log,cloud.log", "");
         try {
 
-            String[] allDefaultDiagnosticsTypeKeys  = diagnosticsService.getDefaultFilesForVm(key.getDiagnosticsClassType(), "myVm");
+            String allDefaultDiagnosticsTypeKeys  = diagnosticsService.getDefaultFilesForVm(key.getDiagnosticsClassType(), "myVm");
             Assert.assertNotNull(allDefaultDiagnosticsTypeKeys);
         } catch (Exception e) {
             LOGGER.info("exception in testing runGetDefaultFilesForVmTest message: " + e.toString());
@@ -198,7 +199,7 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
 
         RetrieveDiagnosticsServiceImpl diagnosticsService = new RetrieveDiagnosticsServiceImpl();
         try {
-            String[] allDefaultDiagnosticsTypeKeys  = diagnosticsService.getDefaultFilesForVm("SecondaryStorageVm", "myVm");
+            String allDefaultDiagnosticsTypeKeys  = diagnosticsService.getDefaultFilesForVm("SecondaryStorageVm", "myVm");
             Assert.assertNotNull(allDefaultDiagnosticsTypeKeys);
         } catch (Exception e) {
             LOGGER.info("exception in testing runRetrieveDiagnosticsFilesTest message: " + e.toString());

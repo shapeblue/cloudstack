@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #Licensed to the Apache Software Foundation (ASF) under one
 #or more contributor license agreements.  See the NOTICE file
 #distributed with this work for additional information
@@ -16,42 +17,53 @@
 #under the License.
 #!/usr/bin/python
 import sys
-import fnmatch
+import os, shutil, glob
 
-class FindFiles:
-    arguments = []
+class FindFiles(object):
     argCount = 0
+    wildcards = ['*', '?', '']
 
     def __init__(self, arguments):
-        self.arguments = sys.argv - 1
-        FindFiles.argCount = len(sys.argv) - 1
+        self.arguments = sys.argv
+        self.FindFiles.argCount = len(sys.argv) - 1
 
-    def display(self):
-        position = 1
-        while (self.arguments >= position):
-            print("parameter %1: %s" % (position, sys.argv[position]))
-            position = position + 1
-
-    def find(fileName, path):
+    def searchFiles(self, fileName):
         result = []
-        for root, dirs, files in os.walk(path):
+        for root, dirs, files in os.walk(fileName):
             if fileName in files:
                 result.append(os.path.join(root, fileName))
-        return result
+        self.copy_files("/temp", result)
 
-    def findWithPattern(pattern, path):
+    def searchWithPattern(self, path):
         result = []
         for root, dirs, files in os.walk(path):
-            for name in files:
-                if fnmatch.fnmatch(name, pattern):
-                    result.append(os.path.join(root, name))
-        return result
+            for name in sorted(glob.glob(files)):
+                result.append(os.path.join(root, name))
+        self.copy_files("/temp", result)
 
-    def ensure_dir(file_path):
-        file_path = "/temp"
-        directory = os.path.dirname(file_path)
-        if not os.path.exists(directory):
-            os.mkdir(directory)
+    def copy_files(self, dest, file_list):
+        for file in file_list:
+            dst_file_path = dest + file
+            if os.path.exists(file):
+                print "Copying: " + file
+                try:
+                    shutil.copyfile(file, dst_file_path)
+                except IOError:
+                    print file + " does not exist"
+            else:
+                with open("manifest.txt", "a") as manifest_file:
+                    manifest_file.write(file + " not found.")
+
+
+if __name__ == "__main__":
+    arguments = sys.argv
+    file_path = "/temp"
+    find_files = FindFiles(arguments)
+    find_files.searchWithPattern(arguments)
+
+
+
+
 
 
 

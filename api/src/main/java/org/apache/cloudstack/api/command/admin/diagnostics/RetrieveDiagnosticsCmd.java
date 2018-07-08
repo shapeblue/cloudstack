@@ -60,12 +60,12 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
-    @Parameter(name = ApiConstants.ID,
+    @Parameter(name = ApiConstants.SYSTEM_VM_TYPE,
             type = CommandType.UUID,
             entityType = SystemVmResponse.class,
             validations = {ApiArgValidator.PositiveNumber},
             required = true,
-            description = "The host VM type that the diagnostics files requested are to be retrieved from")
+            description = "the system VM type. Possible types are \"domainrouter\", \"consoleproxy\" and \"secondarystoragevm\".")
     private Long systemVmId;
 
 

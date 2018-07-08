@@ -22,12 +22,13 @@ import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
-import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.manager.Commands;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
+import com.cloud.cluster.ManagementServerHostVO;
+import com.cloud.cluster.dao.ManagementServerHostDao;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.OperationTimedoutException;
@@ -47,6 +48,7 @@ import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.VolumeDao;
 import com.cloud.user.AccountManager;
+import com.cloud.utils.ExecutionResult;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
@@ -55,6 +57,7 @@ import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.ssh.SshHelper;
 import com.cloud.vm.DiskProfile;
 import com.cloud.vm.SecondaryStorageVmVO;
 import com.cloud.vm.VMInstanceVO;
@@ -65,6 +68,7 @@ import com.cloud.vm.VirtualMachineProfileImpl;
 import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.base.Strings;
+import com.jcraft.jsch.JSchException;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
@@ -83,11 +87,13 @@ import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -107,15 +113,18 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     protected Map<String, Object> configParams = new HashMap<String, Object>();
     private Map<String, String> _configs;
 
-    private String scriptNameRetrieve = null;
-
-    private String scriptNameRemove = null;
+    private String scriptName = null;
 
     ScheduledExecutorService _executor = null;
 
     HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
 
     private Boolean gcEnabled;
+    private Long interval;
+
+    private Float disableThreshold;
+    private String filePath;
+    private Long fileAge;
 
     @Inject
     private HostDao _hostDao;
@@ -128,6 +137,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     private AgentManager _agentMgr;
+
+    @Inject
+    private ManagementServerHostDao managementServerHostDao;
 
     @Inject
     public AccountManager _accountMgr;
@@ -186,6 +198,16 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
             "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
+    ConfigKey<Boolean> RetrieveDiagnosticsGCEnable = new ConfigKey<Boolean>("Advanced", Boolean.class, "retrieveDiagnostics.gc.enabled", "true",
+            "Garbage collection on/off switch", true, ConfigKey.Scope.Global);
+    ConfigKey<Long> RetrieveDiagnosticsInterval = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.gc.interval", "86400",
+            "Interval between garbage collection execution", true, ConfigKey.Scope.Global);
+    ConfigKey<Float> RetrieveDiagnosticsDisableThreshold = new ConfigKey<Float>("Advanced", Float.class, "retrieveDiagnostics.disablethreshold", "0.95",
+            "Percentage disk space cut-off before API will fail", true, ConfigKey.Scope.Global);
+    ConfigKey<String> RetrieveDiagnosticsFilePath = new ConfigKey<String>("Advanced", String.class, "retrieveDiagnostics.filepath", "/tmp",
+            "The path to use on the management server for all temporary data", true, ConfigKey.Scope.Global);
+    ConfigKey<Long> RetrieveDiagnosticsFileAge = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.max.fileage", "86400",
+            "The Diagnostics file age in seconds before considered for garbage collection", true, ConfigKey.Scope.Global);
 
     public RetrieveDiagnosticsServiceImpl() {
     }
@@ -198,8 +220,20 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         _configs = _configDao.getConfiguration();
 
         _timeOut = RetrieveDiagnosticsTimeOut.value();
+        gcEnabled = RetrieveDiagnosticsGCEnable.value();
+        interval = RetrieveDiagnosticsInterval.value();
+        disableThreshold = RetrieveDiagnosticsDisableThreshold.value();
+        filePath = RetrieveDiagnosticsFilePath.value();
+        fileAge = RetrieveDiagnosticsFileAge.value();
+
         if (params != null) {
             params.put(RetrieveDiagnosticsTimeOut.key(), (Long)RetrieveDiagnosticsTimeOut.value());
+            params.put(RetrieveDiagnosticsGCEnable.key(), (Boolean)RetrieveDiagnosticsGCEnable.value());
+            params.put(RetrieveDiagnosticsInterval.key(), (Long)RetrieveDiagnosticsInterval.value());
+            params.put(RetrieveDiagnosticsDisableThreshold.key(), (Float)RetrieveDiagnosticsDisableThreshold.value());
+            params.put(RetrieveDiagnosticsFilePath.key(), (String)RetrieveDiagnosticsFilePath.value());
+            params.put(RetrieveDiagnosticsFileAge.key(), (Long)RetrieveDiagnosticsFileAge.value());
+
             return true;
         }
 
@@ -276,8 +310,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         String systemVmType = null;
         String diagnosticsType = null;
         String fileDetails = null;
-        String[] filesToRetrieve = null;
-        String[] listOfDiagnosticsFiles = null;
+        String listOfDiagnosticsFiles = null;
         List<String> diagnosticsFiles = new ArrayList<>();
         if (configParams == null) {
             configParams = new HashMap<>();
@@ -305,30 +338,29 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 }
                 if (diagnosticsType == null) {
                     listOfDiagnosticsFiles = getAllDefaultFilesForEachSystemVm(diagnosticsType);
-                    for (String entry : filesToRetrieve ) {
-                        diagnosticsFiles.add(entry);
-                    }
                 } else {
                     fileDetails = cmd.getOptionalListOfFiles();
                     if (fileDetails != null) {
-                        filesToRetrieve = fileDetails.split(",");
+                        StringBuilder filesToRetrieve = new StringBuilder();
+                        filesToRetrieve.append(fileDetails);
                         listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType);
-                        for (String entry : filesToRetrieve ) {
-                            diagnosticsFiles.add(entry);
+                        if (listOfDiagnosticsFiles != null) {
+                            filesToRetrieve.append("," + listOfDiagnosticsFiles);
                         }
-                        for (String defaultFileList : listOfDiagnosticsFiles) {
-                            diagnosticsFiles.add(defaultFileList);
-                        }
+                        listOfDiagnosticsFiles = filesToRetrieve.toString();
                     } else {
                         //retrieve default files from diagnostics data class for the system vm
                          listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType);
-                        for (String key : listOfDiagnosticsFiles) {
-                            diagnosticsFiles.add(key);
-                        }
-
                     }
                 }
-                Map<String, String> response = retrieveDiagnosticsFiles(cmd.getId(), diagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
+                Map<String, String> response = null;
+                try {
+                    response = retrieveDiagnosticsFiles(vmId, listOfDiagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
+                } catch(JSchException ex) {
+                    System.exit(1);
+                } catch (IOException e) {
+                    System.exit(1);
+                }
                 if (response != null)
                     return response;
             }
@@ -337,108 +369,98 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     }
 
-    protected String[] getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
+    protected String getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
         StringBuilder listDefaultFilesForEachVm = new StringBuilder();
         List<DiagnosticsKey> diagnosticsKey = get(diagnosticsType);
         for (DiagnosticsKey key : diagnosticsKey) {
             listDefaultFilesForEachVm.append(key.getDetail());
         }
-        return listDefaultFilesForEachVm.toString().split(",");
+        return listDefaultFilesForEachVm.toString();
     }
 
-    protected String[] getDefaultFilesForVm(String diagnosticsType, String systemVmType) {
+    protected String getDefaultFilesForVm(String diagnosticsType, String systemVmType) {
         String listDefaultFilesForVm = null;
         List<DiagnosticsKey> diagnosticsKey = allDefaultDiagnosticsTypeKeys.get(diagnosticsType);
         for (DiagnosticsKey key : diagnosticsKey) {
             if (key.getRole().equalsIgnoreCase(systemVmType)) {
                 listDefaultFilesForVm = key.getDetail();
+                return listDefaultFilesForVm;
             }
-            return listDefaultFilesForVm.split(",");
+
         }
         return null;
     }
 
+    public ExecutionResult copyFileFromSystemVm(final String ip, final String filename) {
 
-    protected Map<String, String> retrieveDiagnosticsFiles(Long ssHostId, List<String> diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
-            throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException {
+        final File permKey = new File("/root/.ssh/id_rsa.cloud");
+        boolean success = true;
+        String details = "Copying file in System VM, with ip: " + ip + ", file: " + filename;
+        LOGGER.debug(details);
+
+        try {
+            SshHelper.scpTo(ip, 22, "root", permKey, null, null, filename.getBytes(), filename, null);
+        } catch (final Exception e) {
+            LOGGER.warn("Fail to copy file " + filename + " in System VM " + ip, e);
+            details = e.getMessage();
+            success = false;
+        }
+        return new ExecutionResult(success, details);
+    }
+
+
+    protected Map<String, String> retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
+            throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException, JSchException, IOException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
         }
-
-        Float disableThreshold = Float.parseFloat(_configs.get("retrieveDiagnostics.disablethreshold"));
-        String filePath = _configs.get("retrieveDiagnostics.filepath");
-        Long fileAge = Long.parseLong(_configs.get("retrieveDiagnostics.max.fileage"));
-        Long timeIntervalGCexecution = Long.parseLong(_configs.get("retrieveDiagnostics.gc.interval"));
-        gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
-        Long wait = Long.parseLong(_configDao.getValue(RetrieveDiagnosticsTimeOut.key()), 3600);
         String tempStr = null;
-
-        if (ssHostId == null) {
-            LOGGER.info("No host selected." + getConfigComponentName());
-        }
-        if (wait <= 0) {
-            timeout = RetrieveDiagnosticsTimeOut.value();
-        }
-        if (filePath == null) {
-            filePath = "\\tmp";
-        }
-        if (fileAge == null) {
-            fileAge = 86400L;
-        }
-        if (disableThreshold == null) {
-            disableThreshold = 0.95F;
-        }
-        if (timeIntervalGCexecution == null) {
-            timeIntervalGCexecution = 86400L;
-        }
-        if (!gcEnabled) {
-            gcEnabled = true;
-        }
         final Hypervisor.HypervisorType hypervisorType = systemVmId.getHypervisorType();
-        List<String> deleteSquareBracketedEntries = new ArrayList<>();
         List<String> scripts = new ArrayList<>();
-        boolean isSquareBracketed = false;
         Commands cmds = null;
-        for (String squareBracketsString : diagnosticsFiles) {
-            if (squareBracketsString.contains("[]")) {
-                isSquareBracketed = true;
-                deleteSquareBracketedEntries.add(squareBracketsString);
-                tempStr = squareBracketsString.trim().replaceAll("(^\\[(.*?)\\].*)", ("$2").trim());
-                if (!tempStr.equalsIgnoreCase("IPTABLES") || !tempStr.equalsIgnoreCase("IFCONFIG")) {
-                    throw new InvalidParameterValueException("CloudStack does not support " + squareBracketsString);
-                }
-                scriptNameRetrieve = tempStr.toLowerCase().concat(".py");
-                scripts.add(scriptNameRetrieve);
+        String[] files = diagnosticsFiles.split(",");
+        for (int i = files.length - 1; i >= 0; i--) {
+            if (files[i].contains("[") || files[i].contains("]")) {
+                tempStr = files[i].trim().replaceAll("(^\\[(.*?)\\].*?)", ("$2").trim());
+                scriptName = tempStr.toLowerCase().concat(".py");
+                scripts.add(scriptName);
+                files = (String[])ArrayUtils.removeElement(files, files[i]);
             }
         }
-        if (isSquareBracketed) {
-            for (String deleteSquareBracketed : deleteSquareBracketedEntries) {
-                diagnosticsFiles.remove(deleteSquareBracketed);
-            }
+        ManagementServerHostVO managementServerHostVO = managementServerHostDao.findById(systemVmId.getHostId());
+        String ipHostAddress = managementServerHostVO.getServiceIP();
+        StringBuilder filesSpaceDelimited = new StringBuilder();
+        for (String file : files) {
+            filesSpaceDelimited.append(file);
+            copyFileFromSystemVm(ipHostAddress, file);
+            filesSpaceDelimited.append(" ");
         }
+        String filesToRetrieveCommaSeparated = filesSpaceDelimited.toString();
         cmds = new Commands(Command.OnError.Stop);
         ExecuteScriptCommand execCmd = null;
+        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
         if (!scripts.isEmpty()) {
             for (String script : scripts) {
                 execCmd = new ExecuteScriptCommand(script, vmManager.getExecuteInSequence(hypervisorType));
+                execCmd.setAccessDetail(accessDetails);
                 cmds.addCommand(execCmd);
             }
         }
-        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
-        execCmd.setAccessDetail(accessDetails);
-        String filesToRetrieveCommaSeparated = String.join(",", diagnosticsFiles);
-        RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(filesToRetrieveCommaSeparated, vmManager.getExecuteInSequence(hypervisorType));
-        retrieveFilesCommand.setAccessDetail(accessDetails);
-        cmds.addCommand(retrieveFilesCommand);
+
+        //RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(filesToRetrieveCommaSeparated, vmManager.getExecuteInSequence(hypervisorType));
+        //retrieveFilesCommand.setAccessDetail(accessDetails);
+        //cmds.addCommand(retrieveFilesCommand);
 
         if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
             throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
         }
         Map<String, String> resultsMap;
         final Long hostId = systemVmId.getHostId();
-        _agentMgr.send(hostId, cmds);
+        Answer[] answers = _agentMgr.send(hostId, cmds);
+
         if (!cmds.isSuccessful()) {
-            for (final Answer answer : cmds.getAnswers()) {
+            copyFileFromSystemVm(ipHostAddress, scriptName + ".log");
+            for (final Answer answer : answers) {
                 if (!answer.getResult()) {
                     LOGGER.warn("Failed to retrieve results due to: " + answer.getDetails());
 
@@ -594,7 +616,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Override
     public boolean start() {
         gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
-        Long interval = Long.parseLong(_configs.get("retrieveDiagnostics.gc.interval"));
+        if (interval == null) {
+            interval = 86400L;
+        }
         Integer cleanupInterval = (int)(long) interval;
         if (!super.start()) {
             return false;
@@ -618,21 +642,14 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return true;
     }
 
-    public String getScriptNameRetrieve() {
-        return scriptNameRetrieve;
+    public String getScriptName() {
+        return scriptName;
     }
 
-    public void setScriptNameRetrieve(String scriptNameRetrieve) {
-        this.scriptNameRetrieve = scriptNameRetrieve;
+    public void setScriptName(String scriptName) {
+        this.scriptName = scriptName;
     }
 
-    public String getScriptNameRemove() {
-        return scriptNameRemove;
-    }
-
-    public void setScriptNameRemove(String scriptNameRemove) {
-        this.scriptNameRemove = scriptNameRemove;
-    }
 
 
 }
