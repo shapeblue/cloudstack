@@ -2776,10 +2776,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         validateVolumes(volumes);
         detachAndDeleteVolumes(volumes);
 
-        if (true) {
-            throw new CloudRuntimeException("For test purposes");
-        }
-
         UserVm destroyedVm = destroyVm(vmId, expunge);
         if (expunge) {
             if (!expunge(vm, ctx.getCallingUserId(), ctx.getCallingAccount())) {
@@ -6498,6 +6494,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         for (VolumeVO volume : volumes) {
             _volumeService.detachVolumesFromVM(volume.getInstanceId(), volume.getId());
+        }
+
+        for (VolumeVO volume : volumes) {
+            _volumeService.deleteVolume(volume.getId(), CallContext.current().getCallingAccount());
         }
     }
 }
