@@ -89,7 +89,6 @@
     };
 
     var vmDestroyAction = function(args) {
-
         var action = {
             messages: {
                 notification: function(args) {
