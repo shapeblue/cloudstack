@@ -23,6 +23,8 @@ import com.cloud.agent.api.Command;
 import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.agent.api.to.DataStoreTO;
+import com.cloud.agent.api.to.NfsTO;
 import com.cloud.agent.manager.Commands;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
@@ -43,6 +45,7 @@ import com.cloud.resource.ResourceManager;
 import com.cloud.server.ManagementServer;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.DiskOfferingVO;
+import com.cloud.storage.StorageLayer;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.DiskOfferingDao;
@@ -57,6 +60,8 @@ import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.script.OutputInterpreter;
+import com.cloud.utils.script.Script;
 import com.cloud.utils.ssh.SshHelper;
 import com.cloud.vm.DiskProfile;
 import com.cloud.vm.SecondaryStorageVmVO;
@@ -92,28 +97,40 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
 
+
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
 
     private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsServiceImpl.class);
 
+    protected StorageLayer _storage;
     private Long _timeOut;
 
     protected Map<String, Object> configParams = new HashMap<String, Object>();
     private Map<String, String> _configs;
 
     private String scriptName = null;
+
+    private Long hostId = null;
 
     ScheduledExecutorService _executor = null;
 
@@ -125,6 +142,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private Float disableThreshold;
     private String filePath;
     private Long fileAge;
+
+    private Integer nfsVersion;
+
+    protected String _parent = "/mnt/SecStorage";
+
+    protected boolean inSystemVm = false;
 
     @Inject
     private HostDao _hostDao;
@@ -320,7 +343,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (vmInstance == null) {
             throw new InvalidParameterValueException("Unable to find a system VM with id " + vmId);
         }
-        final Long hostId = vmInstance.getHostId();
+        hostId = vmInstance.getHostId();
         if (hostId == null) {
             throw new CloudRuntimeException("Unable to find host for virtual machine instance -> " + vmInstance.getInstanceName());
         }
@@ -446,11 +469,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 cmds.addCommand(execCmd);
             }
         }
-
-        //RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(filesToRetrieveCommaSeparated, vmManager.getExecuteInSequence(hypervisorType));
-        //retrieveFilesCommand.setAccessDetail(accessDetails);
-        //cmds.addCommand(retrieveFilesCommand);
-
         if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
             throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
         }
@@ -592,6 +610,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     }
 
     protected class DiagnosticsGarbageCollector implements Runnable {
+        private String zipFileName = null;
+        private String path = "/diagnosticsdata/";
+        private Answer answer = null;
+
 
         public DiagnosticsGarbageCollector() {
         }
@@ -600,8 +622,27 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         public void run() {
             try {
                 LOGGER.trace("Diagnostics Garbage Collection Thread is running.");
-
-                cleanupDiagnostics();
+                File zipFile = new File(path + zipFileName);
+                Path zipFilePath = zipFile.toPath();
+                BasicFileAttributes attributes = null;
+                try {
+                    attributes = Files.readAttributes(zipFilePath, BasicFileAttributes.class);
+                } catch (IOException exception) {
+                    LOGGER.error("Could not find the zip file.", exception);
+                }
+                long milliseconds = attributes.creationTime().to(TimeUnit.MILLISECONDS);
+                VolumeVO volume = null;
+                volume = _volumeDao.findById(hostId);
+                Long zoneId = volume.getDataCenterId();
+                DataStore store = _dataStoreMgr.getImageStore(zoneId);
+                if (store == null) {
+                    throw new CloudRuntimeException("cannot find an image store for zone " + zoneId);
+                }
+                DataStoreTO destStoreTO = store.getTO();
+                if (milliseconds > RetrieveDiagnosticsFileAge.value()) {
+                    DeleteZipCommand cmd = new DeleteZipCommand(zipFilePath.toString(), destStoreTO);
+                    answer = cleanupDiagnostics(cmd);
+                }
 
             } catch (Exception e) {
                 LOGGER.error("Caught the following Exception", e);
@@ -610,7 +651,212 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     }
 
     @Override
-    public void cleanupDiagnostics() {
+    public Answer cleanupDiagnostics(DeleteZipCommand cmd) {
+        if (!inSystemVm) {
+            return new Answer(cmd, true, null);
+        }
+        DataStoreTO dstore = cmd.getDestStore();
+        if (dstore instanceof NfsTO) {
+            NfsTO nfs = (NfsTO) dstore;
+            String nfsMountPoint = getRootDir(nfs.getUrl(), nfsVersion);
+            File zipFile = new File(nfsMountPoint, cmd.getZipFile());
+            if(!zipFile.exists()) {
+                LOGGER.debug("Zip file does not exist.");
+            }
+            try {
+                Files.deleteIfExists(zipFile.toPath());
+            } catch (IOException e) {
+                return new Answer(cmd, e);
+            }
+            return new Answer(cmd);
+        } else {
+            return new Answer(cmd, false, "Not implemented yet");
+        }
+    }
+
+    private String getRootDir(String secUrl, Integer nfsVersion) {
+        if (!inSystemVm) {
+            return _parent;
+        }
+        try {
+            URI uri = new URI(secUrl);
+            String dir = mountUri(uri, nfsVersion);
+            return _parent + "/" + dir;
+        } catch (Exception e) {
+            String msg = "GetRootDir for " + secUrl + " failed due to " + e.toString();
+            LOGGER.error(msg, e);
+            throw new CloudRuntimeException(msg);
+        }
+    }
+
+    protected String mountUri(URI uri, Integer nfsVersion) throws UnknownHostException {
+        String uriHostIp = getUriHostIp(uri);
+        String nfsPath = uriHostIp + ":" + uri.getPath();
+
+        String dir = UUID.nameUUIDFromBytes(nfsPath.getBytes(com.cloud.utils.StringUtils.getPreferredCharset())).toString();
+        String localRootPath = _parent + "/" + dir;
+
+        String remoteDevice;
+        if (uri.getScheme().equals("cifs")) {
+            remoteDevice = "//" + uriHostIp + uri.getPath();
+            LOGGER.debug("Mounting device with cifs-style path of " + remoteDevice);
+        } else {
+            remoteDevice = nfsPath;
+            LOGGER.debug("Mounting device with nfs-style path of " + remoteDevice);
+        }
+        mount(localRootPath, remoteDevice, uri, nfsVersion);
+        return dir;
+    }
+
+    protected String getUriHostIp(URI uri) throws UnknownHostException {
+        String nfsHost = uri.getHost();
+        InetAddress nfsHostAddr = InetAddress.getByName(nfsHost);
+        String nfsHostIp = nfsHostAddr.getHostAddress();
+        LOGGER.info("Determined host " + nfsHost + " corresponds to IP " + nfsHostIp);
+        return nfsHostIp;
+    }
+
+    protected void mount(String localRootPath, String remoteDevice, URI uri, Integer nfsVersion) {
+        LOGGER.debug("mount " + uri.toString() + " on " + localRootPath + ((nfsVersion != null) ? " nfsVersion=" + nfsVersion : ""));
+        ensureLocalRootPathExists(localRootPath, uri);
+
+        if (mountExists(localRootPath, uri)) {
+            return;
+        }
+
+        attemptMount(localRootPath, remoteDevice, uri, nfsVersion);
+
+        checkForVolumesDir(localRootPath);
+    }
+
+    protected boolean checkForVolumesDir(String mountPoint) {
+        String volumesDirLocation = mountPoint + "/" + "volumes";
+        return createDir("volumes", volumesDirLocation, mountPoint);
+    }
+
+    protected boolean createDir(String dirName, String dirLocation, String mountPoint) {
+        boolean dirExists = false;
+
+        File dir = new File(dirLocation);
+        if (dir.exists()) {
+            if (dir.isDirectory()) {
+                LOGGER.debug(dirName + " already exists on secondary storage, and is mounted at " + mountPoint);
+                dirExists = true;
+            } else {
+                if (dir.delete() && _storage.mkdir(dirLocation)) {
+                    dirExists = true;
+                }
+            }
+        } else if (_storage.mkdir(dirLocation)) {
+            dirExists = true;
+        }
+
+        if (dirExists) {
+            LOGGER.info(dirName + " directory created/exists on Secondary Storage.");
+        } else {
+            LOGGER.info(dirName + " directory does not exist on Secondary Storage.");
+        }
+
+        return dirExists;
+    }
+
+    protected boolean mountExists(String localRootPath, URI uri) {
+        Script script = null;
+        script = new Script(!inSystemVm, "mount", 80000, LOGGER);
+
+        List<String> res = new ArrayList<String>();
+        ZfsPathParser parser = new ZfsPathParser(localRootPath);
+        script.execute(parser);
+        res.addAll(parser.getPaths());
+        for (String s : res) {
+            if (s.contains(localRootPath)) {
+                LOGGER.debug("Some device already mounted at " + localRootPath + ", no need to mount " + uri.toString());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static class ZfsPathParser extends OutputInterpreter {
+        String _parent;
+        List<String> paths = new ArrayList<String>();
+
+        public ZfsPathParser(String parent) {
+            _parent = parent;
+        }
+
+        @Override
+        public String interpret(BufferedReader reader) throws IOException {
+            String line = null;
+            while ((line = reader.readLine()) != null) {
+                paths.add(line);
+            }
+            return null;
+        }
+
+        public List<String> getPaths() {
+            return paths;
+        }
+
+        @Override
+        public boolean drain() {
+            return true;
+        }
+    }
+
+    protected void ensureLocalRootPathExists(String localRootPath, URI uri) {
+        LOGGER.debug("making available " + localRootPath + " on " + uri.toString());
+        File file = new File(localRootPath);
+        LOGGER.debug("local folder for mount will be " + file.getPath());
+        if (!file.exists()) {
+            LOGGER.debug("create mount point: " + file.getPath());
+            _storage.mkdir(file.getPath());
+
+            // Need to check after mkdir to allow O/S to complete operation
+            if (!file.exists()) {
+                String errMsg = "Unable to create local folder for: " + localRootPath + " in order to mount " + uri.toString();
+                LOGGER.error(errMsg);
+                throw new CloudRuntimeException(errMsg);
+            }
+        }
+    }
+
+    protected void attemptMount(String localRootPath, String remoteDevice, URI uri, Integer nfsVersion) {
+        String result;
+        LOGGER.debug("Make cmdline call to mount " + remoteDevice + " at " + localRootPath + " based on uri " + uri + ((nfsVersion != null) ? " nfsVersion=" + nfsVersion : ""));
+        Script command = new Script(!inSystemVm, "mount", 80000, LOGGER);
+
+        String scheme = uri.getScheme().toLowerCase();
+        command.add("-t", scheme);
+
+        if (scheme.equals("nfs")) {
+            if ("Mac OS X".equalsIgnoreCase(System.getProperty("os.name"))) {
+                // See http://wiki.qnap.com/wiki/Mounting_an_NFS_share_from_OS_X
+                command.add("-o", "resvport");
+            }
+            if (inSystemVm) {
+                command.add("-o", "soft,timeo=133,retrans=2147483647,tcp,acdirmax=0,acdirmin=0" + ((nfsVersion != null) ? ",vers=" + nfsVersion : ""));
+            }
+        } else {
+            String errMsg = "Unsupported storage device scheme " + scheme + " in uri " + uri.toString();
+            LOGGER.error(errMsg);
+            throw new CloudRuntimeException(errMsg);
+        }
+
+        command.add(remoteDevice);
+        command.add(localRootPath);
+        result = command.execute();
+        if (result != null) {
+            // Fedora Core 12 errors out with any -o option executed from java
+            String errMsg = "Unable to mount " + remoteDevice + " at " + localRootPath + " due to " + result;
+            LOGGER.error(errMsg);
+            File file = new File(localRootPath);
+            if (file.exists()) {
+                file.delete();
+            }
+            throw new CloudRuntimeException(errMsg);
+        }
+        LOGGER.debug("Successfully mounted " + remoteDevice + " at " + localRootPath);
     }
 
     @Override
@@ -649,7 +895,4 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     public void setScriptName(String scriptName) {
         this.scriptName = scriptName;
     }
-
-
-
 }

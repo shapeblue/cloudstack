@@ -17,6 +17,7 @@
 
 package org.apache.cloudstack.diagnostics;
 
+import com.cloud.agent.api.Answer;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.OperationTimedoutException;
@@ -33,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 
 
+
+
 public interface RetrieveDiagnosticsService extends Manager, PluggableService {
 
     Map<String, String> getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd) throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException, InvalidParameterValueException, ConfigurationException;
@@ -43,5 +46,5 @@ public interface RetrieveDiagnosticsService extends Manager, PluggableService {
 
     List<DiagnosticsKey> get(String key);
 
-    void cleanupDiagnostics();
+    Answer cleanupDiagnostics(DeleteZipCommand cmd);
 }
