@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.google.common.base.Strings;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.affinity.AffinityGroupService;
@@ -514,6 +515,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     private static final ConfigKey<Boolean> AllowDeployVmIfGivenHostFails = new ConfigKey<Boolean>("Advanced", Boolean.class, "allow.deploy.vm.if.deploy.on.given.host.fails", "false",
             "allow vm to deploy on different host if vm fails to deploy on the given host ", true);
+
+    private static final ConfigKey<Boolean> EnableAdditionalVmConfig = new ConfigKey<>("Advanced", Boolean.class, "enable.additional.vm.configuration", "false", "allow additional arbitrary configuration to vm", true);
 
 
     @Override
@@ -4852,6 +4855,14 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 _tmplService.attachIso(tmpl.getId(), vm.getId());
             }
         }
+
+        // Add extraConfig to user_vm_details table
+        if (EnableAdditionalVmConfig.value()) {
+            String extraConfig = cmd.getExtraConfig();
+            if (!Strings.isNullOrEmpty(extraConfig)) {
+                _uservmDetailsDao.addDetail(vm.getId(), "extraConfig", extraConfig, true);
+            }
+        }
         return vm;
     }
 
@@ -6399,7 +6410,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax, VmIpFetchThreadPoolMax,
-            VmIpFetchTaskWorkers, AllowDeployVmIfGivenHostFails};
+            VmIpFetchTaskWorkers, AllowDeployVmIfGivenHostFails, EnableAdditionalVmConfig};
     }
 
     @Override

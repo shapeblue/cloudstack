@@ -17,7 +17,9 @@
 
 package com.cloud.vm;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -1103,6 +1105,19 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     vmGuru.finalizeVirtualMachineProfile(vmProfile, dest, ctx);
 
                     final VirtualMachineTO vmTO = hvGuru.implement(vmProfile);
+
+                    UserVmDetailVO detailVO = userVmDetailsDao.findDetail(vm.getId(), "extraConfig");
+
+                    if (detailVO != null) {
+                        vmTO.setEnableExtraConfig(true);
+                        String decodeURL;
+                        try {
+                            decodeURL = URLDecoder.decode(detailVO.getValue(), "UTF-8");
+                        } catch (UnsupportedEncodingException e) {
+                            throw new CloudRuntimeException("Failed to decode provided URL string");
+                        }
+                        vmTO.setExtraConfig(decodeURL);
+                    }
 
                     handlePath(vmTO.getDisks(), vm.getHypervisorType());
 

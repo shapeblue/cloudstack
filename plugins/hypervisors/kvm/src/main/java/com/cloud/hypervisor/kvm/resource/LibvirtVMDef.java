@@ -1834,4 +1834,17 @@ public class LibvirtVMDef {
         vmBuilder.append("</domain>\n");
         return vmBuilder.toString();
     }
+
+    public static class GenericXML {
+        private String extraConfig;
+
+        public void setExtraConfig(String extraConfig) {
+            this.extraConfig = extraConfig;
+        }
+
+        @Override
+        public String toString() {
+            return extraConfig;
+        }
+    }
 }
