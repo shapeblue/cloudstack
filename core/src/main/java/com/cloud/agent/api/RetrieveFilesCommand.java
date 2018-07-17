@@ -24,11 +24,11 @@ import org.apache.log4j.Logger;
 public class RetrieveFilesCommand extends NetworkElementCommand {
     private static final Logger LOGGER = Logger.getLogger(RetrieveFilesCommand.class);
 
-    private String diagnosticFilesToRetrieve;
+    private String diagnosticFileToRetrieve;
     private final boolean executeInSequence;
 
-    public RetrieveFilesCommand(String filesToRetrieve, boolean executeInSequence) {
-        this.diagnosticFilesToRetrieve = filesToRetrieve;
+    public RetrieveFilesCommand(String fileToRetrieve, boolean executeInSequence) {
+        this.diagnosticFileToRetrieve = fileToRetrieve;
         this.executeInSequence = executeInSequence;
     }
 
@@ -45,8 +45,8 @@ public class RetrieveFilesCommand extends NetworkElementCommand {
         return true;
     }
 
-    public String getDiagnosticFilesToRetrieve() {
-        return diagnosticFilesToRetrieve;
+    public String getDiagnosticFileToRetrieve() {
+        return diagnosticFileToRetrieve;
     }
 
 }

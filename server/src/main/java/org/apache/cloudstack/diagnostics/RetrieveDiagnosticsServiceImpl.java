@@ -22,6 +22,7 @@ import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
+import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.NfsTO;
@@ -31,6 +32,7 @@ import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
 import com.cloud.cluster.ManagementServerHostVO;
 import com.cloud.cluster.dao.ManagementServerHostDao;
+import com.cloud.dc.DataCenter;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.OperationTimedoutException;
@@ -51,7 +53,6 @@ import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.VolumeDao;
 import com.cloud.user.AccountManager;
-import com.cloud.utils.ExecutionResult;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
@@ -92,7 +93,6 @@ import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
@@ -102,6 +102,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -131,6 +132,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private String scriptName = null;
 
     private Long hostId = null;
+    private VMInstanceVO vmInstance;
 
     ScheduledExecutorService _executor = null;
 
@@ -233,6 +235,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             "The Diagnostics file age in seconds before considered for garbage collection", true, ConfigKey.Scope.Global);
 
     public RetrieveDiagnosticsServiceImpl() {
+        _executor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("Diagnostics-GarbageCollector"));
     }
 
     @Override
@@ -259,8 +262,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
             return true;
         }
-
-        _executor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("Diagnostics-GarbageCollector"));
 
         return false;
     }
@@ -339,7 +340,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             configParams = new HashMap<>();
         }
         final Long vmId = cmd.getId();
-        final VMInstanceVO vmInstance = _vmDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
+        vmInstance = _vmDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
         if (vmInstance == null) {
             throw new InvalidParameterValueException("Unable to find a system VM with id " + vmId);
         }
@@ -414,7 +415,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    public ExecutionResult copyFileFromSystemVm(final String ip, final String filename) {
+   /* public ExecutionResult copyFileFromSystemVm(final String ip, final String filename) {
 
         final File permKey = new File("/root/.ssh/id_rsa.cloud");
         boolean success = true;
@@ -429,55 +430,205 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             success = false;
         }
         return new ExecutionResult(success, details);
+    }*/
+
+    public File getSystemVMKeyFile() {
+        final URL url = this.getClass().getClassLoader().getResource("scripts/vm/systemvm/id_rsa.cloud");
+        File keyFile = null;
+        if (url != null) {
+            keyFile = new File(url.getPath());
+        }
+        if (keyFile == null || !keyFile.exists()) {
+            keyFile = new File("/usr/share/cloudstack-common/scripts/vm/systemvm/id_rsa.cloud");
+        }
+        assert keyFile != null;
+        if (!keyFile.exists()) {
+            LOGGER.error("Unable to locate id_rsa.cloud in your setup at " + keyFile.toString());
+        }
+        return keyFile;
     }
 
+    private static String getRouterSshControlIp(final NetworkElementCommand cmd) {
+        final String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
+        final String routerGuestIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_GUEST_IP);
+        final String zoneNetworkType = cmd.getAccessDetail(NetworkElementCommand.ZONE_NETWORK_TYPE);
+
+        if (routerGuestIp != null && zoneNetworkType != null && DataCenter.NetworkType.valueOf(zoneNetworkType) == DataCenter.NetworkType.Basic) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("In Basic zone mode, use router's guest IP for SSH control. guest IP : " + routerGuestIp);
+            }
+
+            return routerGuestIp;
+        }
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Use router's private IP for SSH control. IP : " + routerIp);
+        }
+        return routerIp;
+    }
+
+    protected Answer copyFileFromSystemVm(final NetworkElementCommand cmd, String script) throws Exception {
+        final File keyFile = getSystemVMKeyFile();
+
+        final String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
+        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
+        cmd.setAccessDetail(accessDetails);
+        if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
+            throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + vmInstance);
+        }
+        Pair<Boolean, String> result = null;
+        final String controlIp = getRouterSshControlIp(cmd);
+        assert controlIp != null;
+        try {
+            String command = null;
+            if (cmd instanceof ExecuteScriptCommand) {
+                LOGGER.debug("Executing script " + script);
+                if (script != null && "iptables.py".equalsIgnoreCase(script)) {
+                    command = "sudo iptables-save > " + script + ".log";
+                } else if (script != null && "ifconfig.py".equalsIgnoreCase(script)) {
+                    command = "ifconfig +  > " + script + ".log";
+
+                } else if (script != null && "router.py".equalsIgnoreCase(script)) {
+                    command = "netstat -rn > " + script + ".log";
+                } else {
+                    throw new CloudRuntimeException("Script name is missing.");
+                }
+                result =
+                        SshHelper.sshExecute(controlIp, 22, "root", getSystemVMKeyFile(), null, command);
+            } else if (cmd instanceof RetrieveFilesCommand) {
+                 try {
+                     result =
+                             SshHelper.sshExecute(controlIp, 22, "root", null, "password", "scp " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve() + " /temp/" + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve());
+                 }  catch (final Throwable e) {
+                     LOGGER.error("Unexpected exception: " + e.toString(), e);
+                     return new Answer(cmd, false, "copyFileFromSystemVm failed due to " + e.getMessage());
+                 }
+             } else {
+                throw new CloudRuntimeException("Unknown Command -> " + cmd);
+             }
+            try {
+
+                if (!result.first()) {
+                    if (cmd instanceof RetrieveFilesCommand)
+                        LOGGER.error("Unable to copy " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve());
+                    else
+                        LOGGER.error("Unable to execute script " + script);
+                    return new Answer(cmd, false, "Unable to copy " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve() + " or failed to run script " + script);
+                }
+
+                if (LOGGER.isInfoEnabled()) {
+                    LOGGER.info(cmd + " on System VM " + controlIp + " completed");
+                }
+            } finally {
+                if (script != null) {
+                    SshHelper.sshExecute(controlIp, 3922, "root", getSystemVMKeyFile(), null, "rm " + script + ".log");
+                } else {
+                    SshHelper.sshExecute(controlIp, 3922, "root", getSystemVMKeyFile(), null, "rm " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve());
+                }
+            }
+
+            return new Answer(cmd);
+        } catch (final Throwable e) {
+            LOGGER.error("Unexpected exception: " + e.toString(), e);
+            if (cmd instanceof RetrieveFilesCommand)
+                return new Answer(cmd, false, "Failed to retrieve file " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve() + "->" + e.getMessage());
+            else
+                return new Answer(cmd, false, "Failed to execute script " + script + "->" + e.getMessage());
+        }
+    }
 
     protected Map<String, String> retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
             throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException, JSchException, IOException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
         }
+        if (gcEnabled) {
+            start();
+        }
         String tempStr = null;
         final Hypervisor.HypervisorType hypervisorType = systemVmId.getHypervisorType();
         List<String> scripts = new ArrayList<>();
         Commands cmds = null;
         String[] files = diagnosticsFiles.split(",");
+        List<String> filesToRetrieve = new ArrayList<>();
         for (int i = files.length - 1; i >= 0; i--) {
             if (files[i].contains("[") || files[i].contains("]")) {
                 tempStr = files[i].trim().replaceAll("(^\\[(.*?)\\].*?)", ("$2").trim());
                 scriptName = tempStr.toLowerCase().concat(".py");
                 scripts.add(scriptName);
-                files = (String[])ArrayUtils.removeElement(files, files[i]);
+            } else {
+                filesToRetrieve.add(files[i]);
             }
         }
+        checkForDiskSpace(systemVmId, disableThreshold);
         ManagementServerHostVO managementServerHostVO = managementServerHostDao.findById(systemVmId.getHostId());
-        String ipHostAddress = managementServerHostVO.getServiceIP();
-        StringBuilder filesSpaceDelimited = new StringBuilder();
-        for (String file : files) {
-            filesSpaceDelimited.append(file);
-            copyFileFromSystemVm(ipHostAddress, file);
-            filesSpaceDelimited.append(" ");
+        String ipHostAddress = "172.20.25.169";//managementServerHostVO.getServiceIP();
+        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
+        RetrieveFilesCommand retrieveFilesCommand = null;
+        Map<String, String> resultsMap;
+        final Long hostId = systemVmId.getHostId();
+        //Answer answer = null;
+        for (String file : filesToRetrieve) {
+            retrieveFilesCommand = new RetrieveFilesCommand(file, vmManager.getExecuteInSequence(hypervisorType));
+            retrieveFilesCommand.setAccessDetail(accessDetails);
+            final Answer answer = _agentMgr.easySend(hostId, retrieveFilesCommand);
+            if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
+                resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
+                return resultsMap;
+            } else {
+                throw new CloudRuntimeException("Failed to execute RetrieveDiagnosticsCommand on remote host: " + answer.getDetails());
+            }
+            /*try {
+                answer = copyFileFromSystemVm(retrieveFilesCommand, null);
+            } catch (Exception e) {
+                LOGGER.info("Unable to copy file " + retrieveFilesCommand.getDiagnosticFileToRetrieve());
+                throw new FileNotFoundException(e.getMessage());
+            }*/
         }
-        String filesToRetrieveCommaSeparated = filesSpaceDelimited.toString();
         cmds = new Commands(Command.OnError.Stop);
         ExecuteScriptCommand execCmd = null;
-        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
+
         if (!scripts.isEmpty()) {
             for (String script : scripts) {
                 execCmd = new ExecuteScriptCommand(script, vmManager.getExecuteInSequence(hypervisorType));
                 execCmd.setAccessDetail(accessDetails);
-                cmds.addCommand(execCmd);
+                final Answer answer = _agentMgr.easySend(hostId, execCmd);
+                if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
+                    resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
+                    return resultsMap;
+                } else {
+                    throw new CloudRuntimeException("Failed to execute ExecuteScriptCommand on remote host: " + answer.getDetails());
+                }
+
+               /* try {
+                    answer = copyFileFromSystemVm(execCmd, script);
+                } catch (Exception e) {
+                    LOGGER.info("Unable to execute script " + script);
+                    throw new FileNotFoundException(e.getMessage());
+                }*/
+                //cmds.addCommand(execCmd);
             }
         }
         if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
             throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
         }
-        Map<String, String> resultsMap;
-        final Long hostId = systemVmId.getHostId();
+//        Map<String, String> resultsMap;
+        /*if (!answer.getResult()) {
+            LOGGER.warn("Failed to retrieve results due to: " + answer.getDetails());
+
+            throw new CloudRuntimeException("Unable to retrieve results " + systemVmId + " due to " + answer.getDetails());
+        }
+        if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
+            resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
+            return resultsMap;
+        } else {
+            throw new CloudRuntimeException("Diagnostics command failed");
+        }*/
+   //     final Long hostId = systemVmId.getHostId();
         Answer[] answers = _agentMgr.send(hostId, cmds);
 
-        if (!cmds.isSuccessful()) {
-            copyFileFromSystemVm(ipHostAddress, scriptName + ".log");
+        /*if (!cmds.isSuccessful()) {
+            //copyFileFromSystemVm(ipHostAddress, scriptName + ".log");
             for (final Answer answer : answers) {
                 if (!answer.getResult()) {
                     LOGGER.warn("Failed to retrieve results due to: " + answer.getDetails());
@@ -493,7 +644,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
             }
             checkForDiskSpace(systemVmId, disableThreshold);
-        }
+        }*/
         return null;
 
     }
@@ -861,7 +1012,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Override
     public boolean start() {
-        gcEnabled = Boolean.parseBoolean("retrieveDiagnostics.gc.enabled");
         if (interval == null) {
             interval = 86400L;
         }

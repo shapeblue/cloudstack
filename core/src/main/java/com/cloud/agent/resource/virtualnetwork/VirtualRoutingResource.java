@@ -158,7 +158,7 @@ public class VirtualRoutingResource {
     }
 
     private RetrieveDiagnosticsAnswer execute(final RetrieveFilesCommand cmd) {
-        String args = cmd.getDiagnosticFilesToRetrieve();
+        String args = cmd.getDiagnosticFileToRetrieve();
         ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.ROUTER_RETRIEVEFILES, args);
         if (result.isSuccess()) {
             return new RetrieveDiagnosticsAnswer(cmd, false, result.getDetails());
@@ -168,13 +168,12 @@ public class VirtualRoutingResource {
 
     private RetrieveDiagnosticsAnswer execute(final ExecuteScriptCommand cmd) {
         String args = cmd.getCommandScript();
-        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.ROUTER_RETRIEVEFILES, args);
+        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), args, null);
         if (result.isSuccess()) {
             return new RetrieveDiagnosticsAnswer(cmd, false, result.getDetails());
         }
         return new RetrieveDiagnosticsAnswer(cmd, result.isSuccess(), result.getDetails());
     }
-
 
     private Answer execute(final SetupKeyStoreCommand cmd) {
         final String args = String.format("/usr/local/cloud/systemvm/conf/agent.properties " +

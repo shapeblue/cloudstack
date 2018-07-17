@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #Licensed to the Apache Software Foundation (ASF) under one
 #or more contributor license agreements.  See the NOTICE file
 #distributed with this work for additional information
@@ -16,15 +17,32 @@
 #under the License.
 
 import os
+import sys
 
 class SaveIptablesToLogFile:
-    def saveIpTableEntries(self, name):
-        command = 'sudo iptables-save > ' + name + '.log'
+
+    def __init__(self, arguments):
+        self.arguments = sys.argv
+        self.FindFiles.argCount = len(sys.argv) - 1
+
+    def saveIpTableEntries(self,dest):
+        name = "iptables"
+        filename = os.path.splitext(name[0])
+        command = 'sudo iptables-save > ' + dest + filename + '.log'
         os.system(command)
 
-    def ensure_dir(file_path):
-        file_path = "/temp"
+    def ensure_dir(self, filepath):
         directory = os.path.dirname(file_path)
         if not os.path.exists(directory):
             os.mkdir(directory)
+
+if __name__ == "__main__":
+    arguments = sys.argv
+    file_path = "/temp/"
+    save_files = SaveIptablesToLogFile(arguments)
+    save_files.ensure_dir(file_path)
+    save_files.saveIpTableEntries()
+
+
+
 
