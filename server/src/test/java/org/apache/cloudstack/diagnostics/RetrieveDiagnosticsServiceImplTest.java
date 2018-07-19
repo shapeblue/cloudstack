@@ -47,6 +47,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.internal.util.reflection.Whitebox;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.Arrays;
@@ -109,9 +110,6 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
         Mockito.reset(_agentManager);
         Mockito.reset(instanceDao);
         Mockito.reset(instanceVO);
-        //Mockito.reset(retrieveFilesCommand);
-        //Mockito.reset(executeScriptCommand);
-
     }
 
     @Test
@@ -212,6 +210,19 @@ public class RetrieveDiagnosticsServiceImplTest extends TestCase {
         resultsMap.put("STDOUT", "output");
         resultsMap.put("EXITCODE", "0");
         assertEquals(3, resultsMap.size());
+    }
+
+    @Test
+    public void testGarbageCollectStartExecution() throws Exception {
+        RetrieveDiagnosticsServiceImpl diagnosticsServiceMock = mock(RetrieveDiagnosticsServiceImpl.class);
+        when(diagnosticsServiceMock.start()).thenReturn(true);
+        Whitebox.setInternalState(retrieveDiagnosticsService, "RetrieveDiagnosticsFileAge", diagnosticsServiceMock);
+
+        try {
+            retrieveDiagnosticsService.start();
+        } catch (NullPointerException e) {
+            fail();
+        }
     }
 
 }
