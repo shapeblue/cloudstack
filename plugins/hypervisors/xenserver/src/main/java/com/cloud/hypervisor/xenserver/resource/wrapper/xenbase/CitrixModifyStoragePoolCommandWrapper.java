@@ -19,11 +19,6 @@
 
 package com.cloud.hypervisor.xenserver.resource.wrapper.xenbase;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.log4j.Logger;
-
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.ModifyStoragePoolAnswer;
 import com.cloud.agent.api.ModifyStoragePoolCommand;
@@ -36,6 +31,10 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.xensource.xenapi.Connection;
 import com.xensource.xenapi.SR;
 import com.xensource.xenapi.Types.XenAPIException;
+import org.apache.log4j.Logger;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @ResourceWrapper(handles =  ModifyStoragePoolCommand.class)
 public final class CitrixModifyStoragePoolCommandWrapper extends CommandWrapper<ModifyStoragePoolCommand, Answer, CitrixResourceBase> {
@@ -47,9 +46,22 @@ public final class CitrixModifyStoragePoolCommandWrapper extends CommandWrapper<
         final Connection conn = citrixResourceBase.getConnection();
         final StorageFilerTO pool = command.getPool();
         final boolean add = command.getAdd();
+        final Map<String, TemplateProp> tInfo = new HashMap<String, TemplateProp>();
+
+
         if (add) {
             try {
+
                 final String srName = command.getStoragePath() != null ? command.getStoragePath() : pool.getUuid();
+                if(CitrixResourceBase.SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value()) &&
+                        pool.isManaged()){
+
+                    final SR sr = citrixResourceBase.getVdiLunSr(conn, pool.getHost());
+                    long capacity = sr.getPhysicalSize(conn); // TODO handle this gracefully
+
+                    return new ModifyStoragePoolAnswer(command, capacity, capacity, tInfo);
+                }
+
                 final SR sr = citrixResourceBase.getStorageRepository(conn, srName);
                 citrixResourceBase.setupHeartbeatSr(conn, sr, false);
                 final long capacity = sr.getPhysicalSize(conn);
@@ -59,7 +71,6 @@ public final class CitrixModifyStoragePoolCommandWrapper extends CommandWrapper<
                     s_logger.warn(msg);
                     return new Answer(command, false, msg);
                 }
-                final Map<String, TemplateProp> tInfo = new HashMap<String, TemplateProp>();
                 final ModifyStoragePoolAnswer answer = new ModifyStoragePoolAnswer(command, capacity, available, tInfo);
                 return answer;
             } catch (final XenAPIException e) {

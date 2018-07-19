@@ -229,6 +229,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         hTypes.add(HypervisorType.LXC);
         hTypes.add(HypervisorType.Hyperv);
         hTypes.add(HypervisorType.Ovm3);
+        hTypes.add(HypervisorType.BareMetal);
     }
 
     @Override

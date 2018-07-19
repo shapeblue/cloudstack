@@ -138,6 +138,7 @@ perl -pi -e "s/$currentversion/$version/" services/iam/pom.xml
 perl -pi -e "s/$currentversion/$version/" services/iam/server/pom.xml
 perl -pi -e "s/$currentversion/$version/" tools/checkstyle/pom.xml
 perl -pi -e "s/$currentversion/$version/" services/console-proxy/plugin/pom.xml
+perl -pi -e "s/$currentversion/$version/" tools/appliance/definitions/systemvmtemplate/configure_systemvm_services.sh
 # Dockerfiles
 perl -pi -e "s/Version=\"$currentversion\"/Version=\"$version\"/" tools/docker/Dockerfile
 perl -pi -e "s/Version=\"$currentversion\"/Version=\"$version\"/" tools/docker/Dockerfile.marvin

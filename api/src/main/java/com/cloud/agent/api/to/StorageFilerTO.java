@@ -20,6 +20,7 @@ import com.cloud.storage.Storage.StoragePoolType;
 import com.cloud.storage.StoragePool;
 
 public class StorageFilerTO {
+    boolean isManaged;
     long id;
     String uuid;
     String host;
@@ -36,6 +37,7 @@ public class StorageFilerTO {
         this.type = pool.getPoolType();
         this.uuid = pool.getUuid();
         this.userInfo = pool.getUserInfo();
+        this.isManaged = pool.isManaged();
     }
 
     public long getId() {
@@ -64,6 +66,10 @@ public class StorageFilerTO {
 
     public StoragePoolType getType() {
         return type;
+    }
+
+    public boolean isManaged(){
+        return isManaged;
     }
 
     protected StorageFilerTO() {

@@ -30,6 +30,8 @@
   <description>This is sample source code on how to write a plugin for CloudStack</description>
   <build>
     <defaultGoal>install</defaultGoal>
+    <sourceDirectory>src</sourceDirectory>
+    <testSourceDirectory>test</testSourceDirectory>
   </build>
   <dependencies>
     <dependency>

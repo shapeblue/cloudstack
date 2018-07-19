@@ -2075,6 +2075,7 @@ var dictionary = {
     "message.enable.vpn.access": "VPN er deaktivert for denne IP-adressen. Ønsker du å aktivere VPN-tilgang?",
     "message.enabled.vpn": "Din fjerntilkoblings-VPN er aktivert og kan nås via IPen",
     "message.enabled.vpn.ip.sec": "Din IPSec delte nøkkel (psk) er",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Aktiver nettverkstilbud",
     "message.enabling.security.group.provider": "Aktiverer sikkerhetsgruppetilbyder",
     "message.enabling.vpc.offering": "Aktiverer VPC tilbud",

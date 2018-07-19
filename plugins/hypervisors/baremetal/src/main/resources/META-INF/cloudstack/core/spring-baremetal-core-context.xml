@@ -32,10 +32,12 @@
        <property name="backends">
            <map>
                <entry key="Force10" value-ref="Force10BaremetalSwitchBackend"/>
+               <entry key="Brocade" value-ref="BrocadeFastIronBaremetalSwitchBackend"/>
            </map>
        </property>
     </bean>
     <bean id="Force10BaremetalSwitchBackend" class="com.cloud.baremetal.networkservice.Force10BaremetalSwitchBackend" />
+    <bean id="BrocadeFastIronBaremetalSwitchBackend" class="com.cloud.baremetal.networkservice.BrocadeFastIronBaremetalSwitchBackend" />
 
     <bean id="BaremetalKickStartPxeService"
         class="com.cloud.baremetal.networkservice.BaremetalKickStartServiceImpl" />

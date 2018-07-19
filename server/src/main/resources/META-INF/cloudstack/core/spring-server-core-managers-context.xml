@@ -171,6 +171,8 @@
         <property name="vpnServiceProviders" value="#{remoteAccessVPNServiceProviderRegistry.registered}" />
     </bean>
 
+    <bean id="pkiEngineManagerImpl" class="org.apache.cloudstack.pki.PkiManagerImpl" />
+
     <bean id="resourceLimitManagerImpl" class="com.cloud.resourcelimit.ResourceLimitManagerImpl" />
 
     <bean id="rulesManagerImpl" class="com.cloud.network.rules.RulesManagerImpl" />

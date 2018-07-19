@@ -2075,6 +2075,7 @@ var dictionary = {
     "message.enable.vpn.access": "VPN ist zurzeit nicht für diese IP Addresse aktiviert. Möchten Sie den VPN Zugriff aktivieren?",
     "message.enabled.vpn": "Ihr VPN Zugriff ist zurzeit aktiv und via IP können Sie darauf zugreifen",
     "message.enabled.vpn.ip.sec": "Ihr IPSec Preshared-Schlüssel ist",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Netzwerkangebot wird aktiviert",
     "message.enabling.security.group.provider": "Sicherheitsgruppenanbieter wird aktiviert",
     "message.enabling.vpc.offering": "VPC-Angebot wird aktiviert",
