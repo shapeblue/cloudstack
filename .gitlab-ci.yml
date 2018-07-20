@@ -264,7 +264,7 @@ integration test:
   when: manual
   before_script:
     - environment-info.sh
-    - *LOAD_REPO_SWIFT
+    - *YUM_REPO_PATH
   script:
     - |
       mkdir -p ~/.ssh
