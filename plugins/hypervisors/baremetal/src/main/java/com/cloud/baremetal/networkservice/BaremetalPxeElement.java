@@ -20,6 +20,7 @@ package com.cloud.baremetal.networkservice;
 
 import com.cloud.baremetal.database.BaremetalPxeVO;
 import com.cloud.baremetal.manager.BaremetalVlanManager;
+import com.cloud.baremetal.manager.VlanType;
 import com.cloud.dc.DataCenter;
 import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.Pod;
@@ -28,12 +29,15 @@ import com.cloud.deploy.DeployDestination;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.ResourceUnavailableException;
+import com.cloud.host.HostVO;
+import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.network.Network;
 import com.cloud.network.Network.Capability;
 import com.cloud.network.Network.GuestType;
 import com.cloud.network.Network.Provider;
 import com.cloud.network.Network.Service;
+import com.cloud.network.Networks;
 import com.cloud.network.Networks.TrafficType;
 import com.cloud.network.PhysicalNetworkServiceProvider;
 import com.cloud.network.element.NetworkElement;
@@ -72,6 +76,8 @@ public class BaremetalPxeElement extends AdapterBase implements NetworkElement {
     BaremetalVlanManager vlanMgr;
     @Inject
     DataCenterDao zoneDao;
+    @Inject
+    HostDao hostDao;
 
     static {
         Capability cap = new Capability(BaremetalPxeManager.BAREMETAL_PXE_CAPABILITY);
@@ -146,7 +152,10 @@ public class BaremetalPxeElement extends AdapterBase implements NetworkElement {
     }
 
     private void prepareVlan(Network network, DeployDestination dest) {
-        vlanMgr.prepareVlan(network, dest);
+
+        String macAddress = dest.getHost().getPrivateMacAddress();
+        int vlan = Integer.parseInt(Networks.BroadcastDomainType.getValue(network.getBroadcastUri()));
+        vlanMgr.prepareVlan(vlan, macAddress, VlanType.UNTAGGED);
     }
 
     @Override
@@ -164,7 +173,11 @@ public class BaremetalPxeElement extends AdapterBase implements NetworkElement {
     }
 
     private void releaseVlan(Network network, VirtualMachineProfile vm) {
-        vlanMgr.releaseVlan(network, vm);
+
+        HostVO host = hostDao.findById(vm.getVirtualMachine().getHostId());
+        int vlan = Integer.parseInt(Networks.BroadcastDomainType.getValue(network.getBroadcastUri()));
+
+        vlanMgr.releaseVlan(vlan, host.getPrivateMacAddress(), VlanType.UNTAGGED);
     }
 
     @Override

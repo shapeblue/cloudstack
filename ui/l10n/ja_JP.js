@@ -2077,6 +2077,7 @@ var dictionary = {
     "message.enable.vpn.access": "現在この IP アドレスに対する VPN は無効です。VPN アクセスを有効にしてもよろしいですか?",
     "message.enabled.vpn": "現在、リモート アクセス VPN が有効になっています。次の IP アドレス経由でアクセスできます。",
     "message.enabled.vpn.ip.sec": "IPSec 事前共有キー:",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "ネットワーク オファリングを有効にしています",
     "message.enabling.security.group.provider": "セキュリティ グループ プロバイダーを有効にしています",
     "message.enabling.vpc.offering": "VPC オファリングを有効にしています",

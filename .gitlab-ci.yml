@@ -373,4 +373,3 @@ cca-r1-beta02-mtg02:
   variables:
     LAB_ENV_NAME: "cca-r1-beta02-mtg02"
     LAB_ENV_IP: "172.27.2.119"
-

@@ -54,6 +54,7 @@
     <cs.pool.version>2.4.3</cs.pool.version>
     <cs.codec.version>1.11</cs.codec.version>
     <cs.configuration.version>1.10</cs.configuration.version>
+    <cs.collections.version>3.2.2</cs.collections.version>
     <cs.logging.version>1.1.1</cs.logging.version>
     <cs.discovery.version>0.5</cs.discovery.version>
     
@@ -502,6 +503,11 @@
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-util</artifactId>
         <version>${cs.jetty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.bettercloud</groupId>
+        <artifactId>vault-java-driver</artifactId>
+        <version>3.1.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

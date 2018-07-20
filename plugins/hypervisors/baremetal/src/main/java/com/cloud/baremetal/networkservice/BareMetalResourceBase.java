@@ -36,6 +36,8 @@ import com.cloud.agent.api.MigrateAnswer;
 import com.cloud.agent.api.MigrateCommand;
 import com.cloud.agent.api.PingCommand;
 import com.cloud.agent.api.PingRoutingCommand;
+import com.cloud.agent.api.PlugNicAnswer;
+import com.cloud.agent.api.PlugNicCommand;
 import com.cloud.agent.api.PrepareForMigrationAnswer;
 import com.cloud.agent.api.PrepareForMigrationCommand;
 import com.cloud.agent.api.ReadyAnswer;
@@ -49,6 +51,9 @@ import com.cloud.agent.api.StartupCommand;
 import com.cloud.agent.api.StartupRoutingCommand;
 import com.cloud.agent.api.StopAnswer;
 import com.cloud.agent.api.StopCommand;
+import com.cloud.agent.api.UnPlugNicAnswer;
+import com.cloud.agent.api.UnPlugNicCommand;
+import com.cloud.agent.api.baremetal.DestroyCommand;
 import com.cloud.agent.api.baremetal.IpmISetBootDevCommand;
 import com.cloud.agent.api.baremetal.IpmISetBootDevCommand.BootDev;
 import com.cloud.agent.api.baremetal.IpmiBootorResetCommand;
@@ -461,6 +466,18 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
         return hc.call(cmd.getGuestIp(), cmd);
     }
 
+    protected Answer execute(DestroyCommand cmd) {
+        return new Answer(cmd, true, "Success");
+    }
+
+    protected PlugNicAnswer execute(PlugNicCommand cmd) {
+        return new PlugNicAnswer(cmd, false, "Adding NIC not suppored");
+    }
+
+    protected UnPlugNicAnswer execute(UnPlugNicCommand cmd) {
+        return new UnPlugNicAnswer(cmd, false, "Adding NIC not suppored");
+    }
+
     @Override
     public Answer executeRequest(Command cmd) {
         try {
@@ -488,6 +505,12 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
                 return execute((SecurityGroupRulesCmd) cmd);
             } else if (cmd instanceof CheckNetworkCommand) {
                 return execute((CheckNetworkCommand) cmd);
+            } else if (cmd instanceof DestroyCommand) {
+                return execute((DestroyCommand) cmd);
+            } else if (cmd instanceof PlugNicCommand) {
+                return execute((PlugNicCommand) cmd);
+            } else if (cmd instanceof UnPlugNicCommand) {
+                return execute((UnPlugNicCommand) cmd);
             } else {
                 return Answer.createUnsupportedCommandAnswer(cmd);
             }

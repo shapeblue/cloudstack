@@ -89,4 +89,9 @@ public class SwiftTO implements DataStoreTO, SwiftUtil.SwiftClientCfg {
     public String getPathSeparator() {
         return pathSeparator;
     }
+
+    @Override
+    public boolean isPartialBackupCapable() {
+        return false;
+    }
 }

@@ -1789,6 +1789,24 @@ span.compact {
   top: 2px;
 }
 
+.ui-tabs li a.download-certificate {
+  float: none;
+  padding: 0;
+  min-width: 0;
+  text-align: left;
+  font-size: 11px;
+  margin-right: 0;
+  color: #0B84DC;
+  text-decoration: none;
+  position: relative;
+  left: 0;
+  top: 0;
+}
+.ui-tabs li a.download-certificate:hover {
+	color: #000000;
+	text-decoration: underline;
+}
+
 .ui-tabs li {
   float: left;
 }

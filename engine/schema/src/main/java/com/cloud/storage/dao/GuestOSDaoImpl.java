@@ -16,8 +16,13 @@
 // under the License.
 package com.cloud.storage.dao;
 
+import java.util.Map;
+
+import javax.inject.Inject;
 
 import org.springframework.stereotype.Component;
+
+import org.apache.cloudstack.resourcedetail.dao.GuestOsDetailsDao;
 
 import com.cloud.storage.GuestOSVO;
 import com.cloud.utils.db.GenericDaoBase;
@@ -28,6 +33,9 @@ import com.cloud.utils.db.SearchCriteria;
 public class GuestOSDaoImpl extends GenericDaoBase<GuestOSVO, Long> implements GuestOSDao {
 
     protected final SearchBuilder<GuestOSVO> Search;
+
+    @Inject
+    private GuestOsDetailsDao _guestOsDetailsDao;
 
     protected GuestOSDaoImpl() {
         Search = createSearchBuilder();
@@ -40,6 +48,11 @@ public class GuestOSDaoImpl extends GenericDaoBase<GuestOSVO, Long> implements G
         SearchCriteria<GuestOSVO> sc = Search.create();
         sc.setParameters("display_name", displayName);
         return findOneBy(sc);
+    }
+
+    @Override
+    public Map<String, String> loadDetails(GuestOSVO guestOS) {
+        return _guestOsDetailsDao.listDetailsKeyPairs(guestOS.getId());
     }
 
 }

@@ -2075,6 +2075,7 @@ var dictionary = {
     "message.enable.vpn.access": "A VPN jelenleg ki van kapcsolva erre az IP címre. Szeretnéd bekapcsolni a VPN hozzáférést?",
     "message.enabled.vpn": "A távoli hozzáférésű VPN jelenleg be van kapcsolva és hozzáférhető az IP címmel",
     "message.enabled.vpn.ip.sec": "Your IPSec pre-shared key is",
+    "message.enabled.vpn.ca.certificate": "Download your client <a href=\"#\" class=\"download-certificate\">Certificate</a>",
     "message.enabling.network.offering": "Hálózat ajánlat bekapcsolása",
     "message.enabling.security.group.provider": "Biztonsági csoport szolgáltató bekapcsolása",
     "message.enabling.vpc.offering": "VPC ajánlat bekapcsolása",

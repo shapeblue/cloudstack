@@ -2322,7 +2322,35 @@
                                     complete: function(args) {
                                         var msg;
                                         if (args.remoteaccessvpn.state == "Running") {
-                                            msg = _l('message.enabled.vpn') + ' ' + args.remoteaccessvpn.publicip + '.' + '<br/>' + _l('message.enabled.vpn.ip.sec') + '<br/>' + args.remoteaccessvpn.presharedkey;
+                                            var pskOrCert = '';
+                                            if (args.remoteaccessvpn.type === 'ikev2') {
+                                                var cert = args.remoteaccessvpn.certificate;
+                                                pskOrCert = _l('message.enabled.vpn.ca.certificate');
+
+                                                $('.message > a.download-certificate').live('click', function(event) {
+                                                    event.stopPropagation();
+                                                    event.preventDefault();
+
+                                                    var blob = new Blob([cert], {type: 'application/x-x509-ca-cert'});
+                                                    var filename = args.remoteaccessvpn.publicip + "-server-key.pem";
+                                                    if(window.navigator.msSaveOrOpenBlob) {
+                                                        window.navigator.msSaveBlob(blob, filename);
+                                                    } else{
+                                                        var elem = window.document.createElement('a');
+                                                        elem.href = window.URL.createObjectURL(blob);
+                                                        elem.download = filename;
+                                                        document.body.appendChild(elem)
+                                                        elem.click();
+                                                        document.body.removeChild(elem);
+                                                    }
+
+                                                    $('.message > a.download-certificate').die();
+                                                });
+                                            } else if (args.remoteaccessvpn.type === 'l2tp') {
+                                                pskOrCert = _l('message.enabled.vpn.ip.sec') + '<br/>' + args.remoteaccessvpn.presharedkey;
+                                            }
+
+                                            msg = _l('message.enabled.vpn') + ' <b>' + args.remoteaccessvpn.publicip + '</b><br/>' + pskOrCert;
                                         } else {
                                             msg = _l('message.network.remote.access.vpn.configuration');
                                         }
@@ -4321,28 +4349,52 @@
                                 title: 'label.vpn',
                                 custom: function(args) {
                                     var ipAddress = args.context.ipAddresses[0].ipaddress;
-                                    var psk = "";
-                                    if (args.context.ipAddresses[0].remoteaccessvpn != null)
-                                        psk = args.context.ipAddresses[0].remoteaccessvpn.presharedkey;
+                                    var remotevpnobj = args.context.ipAddresses[0].remoteaccessvpn;
+                                    var $pskOrCert;
+
+                                    if (remotevpnobj != null && remotevpnobj.type === 'ikev2') {
+                                        var cert = remotevpnobj.certificate;
+                                        // CERT
+                                        $pskOrCert = $('<li>')
+                                            .addClass('cert')
+                                            .append(_l('message.enabled.vpn.ca.certificate'));
+
+                                        $($pskOrCert).find('a.download-certificate').click(function(event) {
+                                                event.stopPropagation();
+                                                event.preventDefault();
+
+                                                var blob = new Blob([cert], {type: 'application/x-x509-ca-cert'});
+                                                var filename = remotevpnobj.publicip + "-server-key.pem";
+                                                if(window.navigator.msSaveOrOpenBlob) {
+                                                    window.navigator.msSaveBlob(blob, filename);
+                                                } else{
+                                                    var elem = window.document.createElement('a');
+                                                    elem.href = window.URL.createObjectURL(blob);
+                                                    elem.download = filename;
+                                                    document.body.appendChild(elem)
+                                                    elem.click();
+                                                    document.body.removeChild(elem);
+                                                }
+                                            });
+                                    } else if (remotevpnobj != null && remotevpnobj.type === 'l2tp') {
+                                        var psk = remotevpnobj.presharedkey;
+                                        // PSK
+                                        $pskOrCert = $('<li>')
+                                            .addClass('psk')
+                                            .html(_l('message.enabled.vpn.ip.sec') + ' ')
+                                            .append($('<strong>').html(psk))
+                                    }
 
                                     return $('<div>')
                                         .append(
-                                        $('<ul>').addClass('info')
+                                            $('<ul>').addClass('info')
                                             .append(
-                                            // VPN IP
-                                            $('<li>').addClass('ip').html(_l('message.enabled.vpn') + ' ')
+                                                // VPN IP
+                                                $('<li>').addClass('ip').html(_l('message.enabled.vpn') + ' ')
                                                 .append($('<strong>').html(ipAddress))
-                                        )
-                                            .append(
-                                            // PSK
-                                            $('<li>').addClass('psk').html(_l('message.enabled.vpn.ip.sec') + ' ')
-                                                .append($('<strong>').html(psk))
-                                        )
-                                            .append(
-                                                //Note
-                                                $('<li>').html(_l('message.enabled.vpn.note'))
+                                                .append('&nbsp;')
                                             )
-                                    )
+                                    );
                                 }
                             }
                         }

@@ -32,6 +32,7 @@ import com.cloud.utils.fsm.StateMachine2;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.BaremetalProvisionDoneNotificationCmd;
+import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.AddBaremetalHostCmd;
@@ -52,6 +53,9 @@ public class BaremetalManagerImpl extends ManagerBase implements BaremetalManage
     protected HostDao _hostDao;
     @Inject
     protected VMInstanceDao vmDao;
+
+    public static final ConfigKey<Boolean> eraseDiskWhenDestroyed = null;
+    public static final ConfigKey<Boolean> fullDiskErase = null;
 
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {

@@ -71,6 +71,7 @@ import com.cloud.vm.snapshot.VMSnapshotVO;
 import com.cloud.vm.snapshot.dao.VMSnapshotDao;
 import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreVO;
+import org.apache.cloudstack.engine.subsystem.api.storage.ObjectInDataStoreStateMachine;
 import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotService;
 
 import static org.mockito.Matchers.any;
@@ -336,4 +337,18 @@ public class SnapshotManagerTest {
         Snapshot snapshot = _snapshotMgr.backupSnapshotFromVmSnapshot(TEST_SNAPSHOT_ID, TEST_VM_ID, TEST_VOLUME_ID, TEST_VM_SNAPSHOT_ID);
         Assert.assertNull(snapshot);
     }
+
+    @Test(expected = CloudRuntimeException.class)
+    public void testArchiveSnapshotSnapshotNotOnPrimary() {
+        when(snapshotFactory.getSnapshot(anyLong(), Mockito.eq(DataStoreRole.Primary))).thenReturn(null);
+        _snapshotMgr.archiveSnapshot(TEST_SNAPSHOT_ID);
+    }
+
+    @Test(expected = CloudRuntimeException.class)
+    public void testArchiveSnapshotSnapshotNotReady() {
+        when(snapshotFactory.getSnapshot(anyLong(), Mockito.eq(DataStoreRole.Primary))).thenReturn(snapshotInfoMock);
+        when(snapshotInfoMock.getStatus()).thenReturn(ObjectInDataStoreStateMachine.State.Destroyed);
+        _snapshotMgr.archiveSnapshot(TEST_SNAPSHOT_ID);
+    }
+
 }
