@@ -179,14 +179,18 @@ RPM:
 SysVM Template:
   stage: archive
   when: manual
+  variables:
+    MAVEN_OPTS: '-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=INFO 
+                 -Dorg.slf4j.simpleLogger.showDateTime=true 
+                 -Djava.awt.headless=true 
+                 -Dmaven.repo.local=~/maven-repo/repository'
   before_script:
     - *LOAD_TEMPLATE_SWIFT
     - *TEMPLATE_PATH
   script:
     - |
-      # export PATH=/home/jcn/.rvm/bin:$PATH
-      # export rvm_path=/home/jcn/.rvm
-      # export HOME=/home/jcn/
+      export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+      export WORKSPACE_PATH=/home/`whoami`/${CI_PROJECT_DIR}
 
       # get the version before going any further
       VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
@@ -194,21 +198,24 @@ SysVM Template:
 
       # clear out BUILD_NUMBER to not be shown in system vm template file name
       BUILD_NUMBER=""
-
-      cd tools/appliance
-
-      if [ -d /home/jcn/iso ]; then
-          cp -rv /home/jcn/iso .
-      fi
-
-      if [ ! -d iso ]; then
-          mkdir iso
-          ln -s ${CI_PROJECT_DIR}/*.iso iso/
-      fi
-
       MAJOR_VERSION=`echo ${VERSION} | cut -d. -f1`.`echo ${VERSION} | cut -d. -f2`
 
+      cd ${WORKSPACE_PATH}/tools/appliance
+
       if [ "$MAJOR_VERSION" == "4.10" ]; then
+          export PATH=/home/`whoami`/.rvm/bin:$PATH
+          export rvm_path=/home/`whoami`/.rvm
+          export HOME=/home/`whoami`/
+
+          if [ -d ~/iso ]; then
+              cp -rv ~/iso .
+          fi
+
+          if [ ! -d iso ]; then
+              mkdir iso
+              ln -s ${CI_PROJECT_DIR}/*.iso iso/
+          fi
+
           build_appliance="systemvm64template"
           build_version=$(echo $VERSION | sed 's/\-SNAPSHOT/\-'${TIMESTAMP}'/g')
           build_branch="custom"
@@ -231,17 +238,17 @@ SysVM Template:
       namespace="systemvm"
 
       # move file to end destination
-      mkdir -p ${CI_PROJECT_DIR}/target/templates
-      mv ${CI_PROJECT_DIR}/tools/appliance/dist/*-xen.vhd.bz2 ${CI_PROJECT_DIR}/target/templates
-      mv ${CI_PROJECT_DIR}/tools/appliance/dist/*-kvm.qcow2.bz2 ${CI_PROJECT_DIR}/target/templates
+      mkdir -p ${WORKSPACE_PATH}/target/templates
+      mv ${WORKSPACE_PATH}/tools/appliance/dist/*-xen.vhd.bz2 ${WORKSPACE_PATH}/target/templates
+      mv ${WORKSPACE_PATH}/tools/appliance/dist/*-kvm.qcow2.bz2 ${WORKSPACE_PATH}/target/templates
 
       # create md5sum file
-      full_name=`basename ${CI_PROJECT_DIR}/target/templates/*.qcow2.bz2 | sed 's/\-kvm\.qcow2\.bz2//g'`
+      full_name=`basename ${WORKSPACE_PATH}/target/templates/*.qcow2.bz2 | sed 's/\-kvm\.qcow2\.bz2//g'`
       partial_name=$(echo ${full_name} | sed 's/systemvmtemplate\-//g' | sed 's/systemvm64template\-//g')
-      md5sum=$(cd ${CI_PROJECT_DIR}/target/templates; md5sum * > ${full_name}.md5sum; cat ${full_name}.md5sum)
+      md5sum=$(cd ${WORKSPACE_PATH}/target/templates; md5sum * > ${full_name}.md5sum; cat ${full_name}.md5sum)
 
       # upload to swift
-      swift upload ${namespace} --object-name ${swift_path} ${CI_PROJECT_DIR}/target/templates
+      swift upload ${namespace} --object-name ${swift_path} ${WORKSPACE_PATH}/target/templates
   except:
     - master
   tags:
@@ -264,7 +271,7 @@ integration test:
   when: manual
   before_script:
     - environment-info.sh
-    - *LOAD_REPO_SWIFT
+    - *YUM_REPO_PATH
   script:
     - |
       mkdir -p ~/.ssh
