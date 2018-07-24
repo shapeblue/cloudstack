@@ -2749,8 +2749,13 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         // check if VM exists
         UserVmVO vm = _vmDao.findById(vmId);
 
-        if (vm == null) {
+        if (vm == null || vm.getRemoved() != null) {
             throw new InvalidParameterValueException("unable to find a virtual machine with id " + vmId);
+        }
+
+        if (vm.getState() == State.Destroyed || vm.getState() == State.Expunging) {
+            s_logger.trace("Vm id=" + vmId + " is already destroyed");
+            return vm;
         }
 
         // check if there are active volume snapshots tasks
@@ -2762,14 +2767,15 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         List<VolumeVO> volumes = new ArrayList<>();
 
-        for (Long volId : cmd.getVolumes()) {
-            VolumeVO vol = _volsDao.findById(volId);
+        if (cmd.getVolumes() != null) {
+            for (Long volId : cmd.getVolumes()) {
+                VolumeVO vol = _volsDao.findById(volId);
 
-            if (vol == null) {
-                throw new InvalidParameterValueException("Unable to find volume with ID: " + volId);
+                if (vol == null) {
+                    throw new InvalidParameterValueException("Unable to find volume with ID: " + volId);
+                }
+                volumes.add(vol);
             }
-
-            volumes.add(vol);
         }
 
         checkForUnattachedVolumes(vmId, volumes);
@@ -6466,7 +6472,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         StringBuilder sb = new StringBuilder();
 
         for (VolumeVO volume : volumes) {
-            if (vmId != volume.getInstanceId()) {
+            if (volume.getInstanceId() == null || vmId != volume.getInstanceId()) {
                 sb.append(volume.toString() + "; ");
             }
         }

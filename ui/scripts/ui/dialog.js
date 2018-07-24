@@ -430,6 +430,65 @@
                             );
                         });
 
+                    } else if (field.multiDataArray) {
+                        $input = $('<div>')
+                            .addClass('multi-array').addClass(key).appendTo($value);
+
+                        multiArgs = {
+                            context: args.context,
+                            response: {
+                                success: function(args) {
+                                    if (args.data == undefined || args.data.length == 0) {
+
+                                    } else {
+                                        $(args.data).each(function() {
+
+                                            var desc;
+                                            if (args.descriptionField)
+                                                desc = this[args.descriptionField];
+                                            else
+                                                desc = _l(this.description);
+
+                                            $input.append(
+                                                $('<div>').addClass('item')
+                                                    .append(
+                                                        $.merge(
+                                                            $('<div>').addClass('name').html(_l(itemValue.label)),
+                                                            $('<div>').addClass('value').append(
+                                                                $('<input>').attr({
+                                                                    name: itemKey,
+                                                                    type: 'checkbox'
+                                                                }).appendTo($value)
+                                                            )
+                                                        )
+                                                    )
+                                            );
+                                        });
+                                    }
+                                }
+                            }
+                        }
+
+                        multiFn = field.multiData;
+                        multiFn(multiArgs);
+
+//                        $.each(field.multiArray, function(itemKey, itemValue) {
+//                            $input.append(
+//                                $('<div>').addClass('item')
+//                                    .append(
+//                                        $.merge(
+//                                            $('<div>').addClass('name').html(_l(itemValue.label)),
+//                                            $('<div>').addClass('value').append(
+//                                                $('<input>').attr({
+//                                                    name: itemKey,
+//                                                    type: 'checkbox'
+//                                                }).appendTo($value)
+//                                            )
+//                                        )
+//                                    )
+//                            );
+//                        });
+
                     } else {
                         $input = $('<input>').attr({
                             name: key,
