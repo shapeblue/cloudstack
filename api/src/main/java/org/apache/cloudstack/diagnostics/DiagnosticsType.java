@@ -1,3 +1,4 @@
+//
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -14,20 +15,28 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.cloudstack.api.response.solidfire;
+//
+package org.apache.cloudstack.diagnostics;
 
-import com.cloud.serializer.Param;
+public enum DiagnosticsType {
+    PING("ping"), TRACEROUTE("traceroute"), ARPING("arping");
 
-import com.google.gson.annotations.SerializedName;
+    private String value;
 
-import org.apache.cloudstack.api.BaseResponse;
+    DiagnosticsType(String value) {
+        this.value = value;
+    }
 
-public class ApiSolidFireVolumeAccessGroupIdResponse extends BaseResponse {
-    @SerializedName("solidFireVolumeAccessGroupId")
-    @Param(description = "SolidFire Volume Access Group Id")
-    private long solidFireVolumeAccessGroupId;
+    public String getValue() {
+        return value;
+    }
 
-    public ApiSolidFireVolumeAccessGroupIdResponse(long sfVolumeAccessGroupId) {
-        solidFireVolumeAccessGroupId = sfVolumeAccessGroupId;
+    public static DiagnosticsType getCommand(String cmd) {
+        for (DiagnosticsType type : DiagnosticsType.values()) {
+            if (type.value.equalsIgnoreCase(cmd)) {
+                return type;
+            }
+        }
+        return null;
     }
 }

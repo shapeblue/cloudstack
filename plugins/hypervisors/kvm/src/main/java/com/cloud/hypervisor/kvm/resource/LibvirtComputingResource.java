@@ -47,6 +47,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.GenericXML;
 import com.cloud.resource.RequestWrapper;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
@@ -2185,6 +2186,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         }
 
         vm.addComp(devices);
+
+        GenericXML genericXML = new GenericXML();
+        genericXML.setExtraConfig(vmTO.getExtraConfig());
+        vm.addComp(genericXML);
 
         return vm;
     }

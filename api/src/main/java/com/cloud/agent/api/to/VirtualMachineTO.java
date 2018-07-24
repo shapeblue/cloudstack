@@ -72,6 +72,18 @@ public class VirtualMachineTO {
 
     Double cpuQuotaPercentage = null;
 
+    boolean enableExtraConfig = false;
+
+    public boolean isExtraConfigEnabled() {
+        return enableExtraConfig;
+    }
+
+    public String getExtraConfig() {
+        return extraConfig;
+    }
+
+    String extraConfig = null;
+
     Map<String, String> guestOsDetails = new HashMap<String, String>();
 
     public VirtualMachineTO(long id, String instanceName, VirtualMachine.Type type, int cpus, Integer speed, long minRam, long maxRam, BootloaderType bootloader,
@@ -349,5 +361,13 @@ public class VirtualMachineTO {
 
     public void setCpuQuotaPercentage(Double cpuQuotaPercentage) {
         this.cpuQuotaPercentage = cpuQuotaPercentage;
+    }
+
+    public void setEnableExtraConfig(boolean enableExtraConfig) {
+        this.enableExtraConfig = enableExtraConfig;
+    }
+
+    public void setExtraConfig(String extraConfig) {
+        this.extraConfig = extraConfig;
     }
 }
