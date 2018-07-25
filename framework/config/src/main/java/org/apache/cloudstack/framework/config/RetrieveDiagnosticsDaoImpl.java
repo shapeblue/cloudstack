@@ -22,23 +22,24 @@ package org.apache.cloudstack.framework.config;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.utils.db.TransactionLegacy;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.springframework.stereotype.Component;
+import org.apache.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.util.List;
 
 @Component
 public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosticsVO, String> implements RetrieveDiagnosticsDao
 {
-//    private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByType;
+    private static final Logger LOGGER = Logger.getLogger(RetrieveDiagnosticsDaoImpl.class);
     private final SearchBuilder<RetrieveDiagnosticsVO> DiagnosticsSearchByTypeAndRole;
+    public static final String UPDATE_RETRIEVEDIAGNOSTICS_SQL = "INSERT INTO diagnosticsdata VALUES (?, ?, ?)";
 
     public RetrieveDiagnosticsDaoImpl() {
         super();
-       // DiagnosticsSearchByType = createSearchBuilder();
-        //DiagnosticsSearchByType.and("class", DiagnosticsSearchByType.entity().getType(), SearchCriteria.Op.EQ);
-        //DiagnosticsSearchByType.done();
         DiagnosticsSearchByTypeAndRole = createSearchBuilder();
         DiagnosticsSearchByTypeAndRole.and("class", DiagnosticsSearchByTypeAndRole.entity().getType(), SearchCriteria.Op.EQ);
         DiagnosticsSearchByTypeAndRole.and("role", DiagnosticsSearchByTypeAndRole.entity().getRole(), SearchCriteria.Op.EQ);
@@ -64,6 +65,22 @@ public class RetrieveDiagnosticsDaoImpl extends GenericDaoBase<RetrieveDiagnosti
         sc.addAnd("class", SearchCriteria.Op.IN, "ConsoleProxy, SecondaryStorageVm, VirtualRouter");
         return listBy(sc, null);
     }
+
+    @Override
+    public boolean update(String role, String clazz, String value) {
+        TransactionLegacy txn = TransactionLegacy.currentTxn();
+        try (PreparedStatement stmt = txn.prepareStatement(UPDATE_RETRIEVEDIAGNOSTICS_SQL);){
+            stmt.setString(1, role);
+            stmt.setString(2, clazz);
+            stmt.setString(3, value);
+            stmt.executeUpdate();
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn("Unable to update Diagnosticsdata Table", e);
+        }
+        return false;
+    }
+
 }
 
 

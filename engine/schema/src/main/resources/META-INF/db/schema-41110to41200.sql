@@ -49,7 +49,7 @@ INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('Domain
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'VPN', '<vpn configuration file>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'LOGFILES', 'cloud.log,agent.log');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ConsoleProxy', 'PROPERTYFILES', '<CPVM property file>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptablesretrieve.sh');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.remove', 'iptablesremove.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptables.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IFCONFIG.retrieve', 'ifconfig.sh');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'ROUTE.retrieve', 'route.sh');
+

@@ -58,7 +58,7 @@ public class VRScripts {
     public static final String MONITOR_SERVICE = "monitor_service.sh";
     public static final String PASSWORD = "savepassword.sh";
     public static final String ROUTER_ALERTS = "getRouterAlerts.sh";
-    public static final String ROUTER_RETRIEVEFILES = "retrieve_diagnostics.py";
+    public static final String ROUTER_RETRIEVEFILES = "router.py";
     public static final String IPTABLES_RETRIEVEFILES = "iptables.py";
     public static final String IFCONFIG_RETRIEVEFILES = "ifconfig.py";
     public static final String ROUTE_RETRIEVEFILES = "route.py";

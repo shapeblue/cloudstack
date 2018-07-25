@@ -19,30 +19,29 @@ package org.apache.cloudstack.diagnostics;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
-import com.cloud.agent.api.Command;
 import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
 import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.agent.api.storage.CreateEntityDownloadURLAnswer;
+import com.cloud.agent.api.storage.CreateEntityDownloadURLCommand;
 import com.cloud.agent.api.to.DataStoreTO;
+import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.NfsTO;
-import com.cloud.agent.manager.Commands;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
-import com.cloud.cluster.ManagementServerHostVO;
 import com.cloud.cluster.dao.ManagementServerHostDao;
-import com.cloud.dc.DataCenter;
+import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.exception.OperationTimedoutException;
-import com.cloud.exception.ResourceUnavailableException;
-import com.cloud.host.Host;
-import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.hypervisor.Hypervisor;
-import com.cloud.network.router.RouterControlHelper;
+import com.cloud.network.NetworkModel;
+import com.cloud.network.dao.NetworkDao;
+import com.cloud.network.dao.NetworkVO;
+import com.cloud.network.guru.NetworkGuru;
 import com.cloud.resource.ResourceManager;
 import com.cloud.server.ManagementServer;
 import com.cloud.service.dao.ServiceOfferingDao;
@@ -63,21 +62,23 @@ import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.script.OutputInterpreter;
 import com.cloud.utils.script.Script;
-import com.cloud.utils.ssh.SshHelper;
 import com.cloud.vm.DiskProfile;
-import com.cloud.vm.SecondaryStorageVmVO;
+import com.cloud.vm.NicVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.VirtualMachineProfile;
 import com.cloud.vm.VirtualMachineProfileImpl;
+import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.base.Strings;
-import com.jcraft.jsch.JSchException;
+import com.trilead.ssh2.Connection;
+import com.trilead.ssh2.Session;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
+import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
@@ -92,17 +93,25 @@ import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
+import org.apache.cloudstack.storage.command.DeleteCommand;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -116,8 +125,6 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipOutputStream;
-
 
 public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements RetrieveDiagnosticsService, Configurable {
 
@@ -130,9 +137,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private Map<String, String> _configs;
 
     private String scriptName = null;
+    private String diagnosticsType = null;
+    private String dir;
 
     private Long hostId = null;
     private VMInstanceVO vmInstance;
+    private String uuid;
 
     ScheduledExecutorService _executor = null;
 
@@ -144,12 +154,24 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private Float disableThreshold;
     private String filePath;
     private Long fileAge;
+    private String diagnosticsZipFileName;
 
     private Integer nfsVersion;
 
     protected String _parent = "/mnt/SecStorage";
 
     protected boolean inSystemVm = false;
+    List<NetworkGuru> networkGurus;
+    private String secUrl;
+
+    @Inject
+    NetworkModel _networkModel;
+
+    @Inject
+    NetworkDao _networksDao = null;
+
+    @Inject
+    NicDao _nicDao = null;
 
     @Inject
     private HostDao _hostDao;
@@ -194,9 +216,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private ConfigDepot configDepot;
 
     @Inject
-    private RouterControlHelper routerControlHelper;
-
-    @Inject
     private HostDetailsDao _hostDetailDao;
 
     @Inject
@@ -220,6 +239,11 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Inject
     private VirtualMachineManager vmManager;
 
+    @Inject
+    protected DataCenterDao _dcDao = null;
+
+    @Inject
+    protected PrimaryDataStoreDao _storagePoolDao = null;
 
     ConfigKey<Long> RetrieveDiagnosticsTimeOut = new ConfigKey<Long>("Advanced", Long.class, "retrieveDiagnostics.retrieval.timeout", "3600",
             "The timeout setting in seconds for the overall API call", true, ConfigKey.Scope.Global);
@@ -329,10 +353,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
    }
 
     @Override
-    public Map<String, String> getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd)
-            throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException, InvalidParameterValueException, ConfigurationException {
+    public String getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd)
+            throws ConcurrentOperationException, InvalidParameterValueException, ConfigurationException {
         String systemVmType = null;
-        String diagnosticsType = null;
         String fileDetails = null;
         String listOfDiagnosticsFiles = null;
         List<String> diagnosticsFiles = new ArrayList<>();
@@ -341,6 +364,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
         final Long vmId = cmd.getId();
         vmInstance = _vmDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
+        //vmInstance.getDetails()
+
         if (vmInstance == null) {
             throw new InvalidParameterValueException("Unable to find a system VM with id " + vmId);
         }
@@ -377,16 +402,46 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                          listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType);
                     }
                 }
-                Map<String, String> response = null;
+                RetrieveDiagnosticsResponse response = null;
                 try {
                     response = retrieveDiagnosticsFiles(vmId, listOfDiagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
-                } catch(JSchException ex) {
-                    System.exit(1);
-                } catch (IOException e) {
-                    System.exit(1);
+                    if (response != null) {
+                        String path = "/diagnosticsdata";
+                        createFolder(path);
+
+                        if (!copyFileFromSystemVmToServer()) {
+                            throw new CloudRuntimeException("Unable to copy compressed files from " + vmInstance.getHostName());
+                        } else {
+                            CreateEntityDownloadURLCommand downloadcmd = new CreateEntityDownloadURLCommand(dir, _parent + "/diagnosticsdata", uuid, null);
+                            //String fileFullPath = path + diagnosticsCompressedFileName;
+                            File dir = new File("/diagnosticsdata");
+                            FilenameFilter filter = new FilenameFilter() {
+                                @Override
+                                public boolean accept(File dir, String name) {
+                                    return name.startsWith("diagnosticsFile_");
+                                }
+                            };
+                            String[] diagnosticsCompressedFileNames = dir.list(filter);
+                            if (diagnosticsCompressedFileNames == null) {
+                                LOGGER.info("Directory /diagnosticsdata does not exist. ");
+                            } else {
+                                for (int i = 0; i < diagnosticsCompressedFileNames.length; i++) {
+                                    CreateEntityDownloadURLAnswer downloadURLAnswer = downloadCompressedFileToSSVM(downloadcmd, diagnosticsCompressedFileNames[i]);
+                                    if (downloadURLAnswer == null || !downloadURLAnswer.getResult()) {
+                                        String errorString = "Unable to create a link :" + (downloadURLAnswer == null ? "" : downloadURLAnswer.getDetails());
+                                        LOGGER.error(errorString);
+                                        throw new CloudRuntimeException(errorString);
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                } catch(ConcurrentOperationException ex) {
+                    throw new CloudRuntimeException("Unable to retrieve diagnostic files" + ex.getCause());
                 }
-                if (response != null)
-                    return response;
+                response = createDiagnosticsResponse(secUrl);
+                return response.getUrl();
             }
         }
         return null;
@@ -410,159 +465,204 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 listDefaultFilesForVm = key.getDetail();
                 return listDefaultFilesForVm;
             }
-
         }
         return null;
     }
 
-   /* public ExecutionResult copyFileFromSystemVm(final String ip, final String filename) {
+    private boolean checkAndStartApache() {
+        //Check whether the Apache server is running
+        Script command = new Script("/bin/systemctl", LOGGER);
+        command.add("is-active");
+        command.add("apache2");
+        String result = command.execute();
 
-        final File permKey = new File("/root/.ssh/id_rsa.cloud");
-        boolean success = true;
-        String details = "Copying file in System VM, with ip: " + ip + ", file: " + filename;
-        LOGGER.debug(details);
-
-        try {
-            SshHelper.scpTo(ip, 22, "root", permKey, null, null, filename.getBytes(), filename, null);
-        } catch (final Exception e) {
-            LOGGER.warn("Fail to copy file " + filename + " in System VM " + ip, e);
-            details = e.getMessage();
-            success = false;
-        }
-        return new ExecutionResult(success, details);
-    }*/
-
-    public File getSystemVMKeyFile() {
-        final URL url = this.getClass().getClassLoader().getResource("scripts/vm/systemvm/id_rsa.cloud");
-        File keyFile = null;
-        if (url != null) {
-            keyFile = new File(url.getPath());
-        }
-        if (keyFile == null || !keyFile.exists()) {
-            keyFile = new File("/usr/share/cloudstack-common/scripts/vm/systemvm/id_rsa.cloud");
-        }
-        assert keyFile != null;
-        if (!keyFile.exists()) {
-            LOGGER.error("Unable to locate id_rsa.cloud in your setup at " + keyFile.toString());
-        }
-        return keyFile;
-    }
-
-    private static String getRouterSshControlIp(final NetworkElementCommand cmd) {
-        final String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
-        final String routerGuestIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_GUEST_IP);
-        final String zoneNetworkType = cmd.getAccessDetail(NetworkElementCommand.ZONE_NETWORK_TYPE);
-
-        if (routerGuestIp != null && zoneNetworkType != null && DataCenter.NetworkType.valueOf(zoneNetworkType) == DataCenter.NetworkType.Basic) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("In Basic zone mode, use router's guest IP for SSH control. guest IP : " + routerGuestIp);
+        //Apache Server is not running. Try to start it.
+        if (result != null && !result.equals("active")) {
+            command = new Script("/bin/systemctl", LOGGER);
+            command.add("start");
+            command.add("apache2");
+            result = command.execute();
+            if (result != null) {
+                LOGGER.warn("Error in starting apache2 service err=" + result);
+                return false;
             }
-
-            return routerGuestIp;
         }
 
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Use router's private IP for SSH control. IP : " + routerIp);
-        }
-        return routerIp;
+        return true;
     }
 
-    protected Answer copyFileFromSystemVm(final NetworkElementCommand cmd, String script) throws Exception {
-        final File keyFile = getSystemVMKeyFile();
-
-        final String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
-        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
-        cmd.setAccessDetail(accessDetails);
-        if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
-            throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + vmInstance);
+    protected void createFolder(String path) {
+        File dir = new File(path);
+        if (!dir.exists()) {
+            dir.mkdirs();
         }
-        Pair<Boolean, String> result = null;
-        final String controlIp = getRouterSshControlIp(cmd);
-        assert controlIp != null;
-        try {
-            String command = null;
-            if (cmd instanceof ExecuteScriptCommand) {
-                LOGGER.debug("Executing script " + script);
-                if (script != null && "iptables.py".equalsIgnoreCase(script)) {
-                    command = "sudo iptables-save > " + script + ".log";
-                } else if (script != null && "ifconfig.py".equalsIgnoreCase(script)) {
-                    command = "ifconfig +  > " + script + ".log";
+    }
 
-                } else if (script != null && "router.py".equalsIgnoreCase(script)) {
-                    command = "netstat -rn > " + script + ".log";
+    private CreateEntityDownloadURLAnswer downloadCompressedFileToSSVM(CreateEntityDownloadURLCommand cmd, final String diagnosticsZipFileName) {
+        boolean isApacheUp = checkAndStartApache();
+        if (!isApacheUp) {
+            String errorString = "Error in starting Apache server ";
+            LOGGER.error(errorString);
+            return new CreateEntityDownloadURLAnswer(errorString, CreateEntityDownloadURLAnswer.RESULT_FAILURE);
+        }
+
+        String errorString = "";
+        long totalBytes = 0;
+        long entitySizeinBytes;
+        String sourcePath;
+        BufferedInputStream inputStream = null;
+        BufferedOutputStream outputStream = null;
+        final int CHUNK_SIZE = 1024 * 1024; //1M
+        StringBuffer sb = new StringBuffer(secUrl);
+        // Create the directory structure so that its visible under apache server root
+        String extractDir = "/var/www/html/diagnosticsdata/";
+        Script command = new Script("/bin/su", LOGGER);
+        command.add("-s");
+        command.add("/bin/bash");
+        command.add("-c");
+        command.add("mkdir -p " + extractDir);
+        command.add("www-data");
+        String result = command.execute();
+        if (result != null) {
+            errorString = "Error in creating directory =" + result;
+            LOGGER.error(errorString);
+            return new CreateEntityDownloadURLAnswer(errorString, CreateEntityDownloadURLAnswer.RESULT_FAILURE);
+        }
+        // Create a random file under the directory for security reasons.
+        uuid = cmd.getExtractLinkUUID();
+        // Create a symbolic link from the actual directory to the template location. The entity would be directly visible under /var/www/html/userdata/cmd.getInstallPath();
+        command = new Script("/bin/bash", LOGGER);
+        command.add("-c");
+        command.add("ln -sf /mnt/SecStorage/" + cmd.getParent() + File.separator + cmd.getInstallPath() + " " + extractDir + uuid);
+        result = command.execute();
+        try {
+            URL url = new URL(sb.toString());
+            URLConnection urlc = url.openConnection();
+
+            File sourceFile = new File(diagnosticsZipFileName);
+            entitySizeinBytes = sourceFile.length();
+
+            outputStream = new BufferedOutputStream(urlc.getOutputStream());
+            inputStream = new BufferedInputStream(new FileInputStream(sourceFile));
+            int bytes = 0;
+            byte[] block = new byte[CHUNK_SIZE];
+            boolean done = false;
+            while (!done) {
+                if ((bytes = inputStream.read(block, 0, CHUNK_SIZE)) > -1) {
+                    outputStream.write(block, 0, bytes);
+                    totalBytes += bytes;
                 } else {
-                    throw new CloudRuntimeException("Script name is missing.");
+                    done = true;
                 }
-                result =
-                        SshHelper.sshExecute(controlIp, 22, "root", getSystemVMKeyFile(), null, command);
-            } else if (cmd instanceof RetrieveFilesCommand) {
-                 try {
-                     result =
-                             SshHelper.sshExecute(controlIp, 22, "root", null, "password", "scp " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve() + " /temp/" + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve());
-                 }  catch (final Throwable e) {
-                     LOGGER.error("Unexpected exception: " + e.toString(), e);
-                     return new Answer(cmd, false, "copyFileFromSystemVm failed due to " + e.getMessage());
-                 }
-             } else {
-                throw new CloudRuntimeException("Unknown Command -> " + cmd);
-             }
+            }
+            return new CreateEntityDownloadURLAnswer("Diagnostics zip file downloaded successfully.", CreateEntityDownloadURLAnswer.RESULT_SUCCESS);
+        } catch (MalformedURLException e) {
+            errorString = e.getMessage();
+            LOGGER.error(errorString);
+        } catch (IOException e) {
+             errorString = e.getMessage();
+            LOGGER.error(errorString);
+        } finally {
             try {
-
-                if (!result.first()) {
-                    if (cmd instanceof RetrieveFilesCommand)
-                        LOGGER.error("Unable to copy " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve());
-                    else
-                        LOGGER.error("Unable to execute script " + script);
-                    return new Answer(cmd, false, "Unable to copy " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve() + " or failed to run script " + script);
+                if (inputStream != null) {
+                    inputStream.close();
                 }
-
-                if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info(cmd + " on System VM " + controlIp + " completed");
+                if (outputStream != null) {
+                    outputStream.close();
                 }
-            } finally {
-                if (script != null) {
-                    SshHelper.sshExecute(controlIp, 3922, "root", getSystemVMKeyFile(), null, "rm " + script + ".log");
-                } else {
-                    SshHelper.sshExecute(controlIp, 3922, "root", getSystemVMKeyFile(), null, "rm " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve());
-                }
+            } catch (IOException ioe) {
+                LOGGER.error(" Caught exception while closing the resources");
             }
-
-            return new Answer(cmd);
-        } catch (final Throwable e) {
-            LOGGER.error("Unexpected exception: " + e.toString(), e);
-            if (cmd instanceof RetrieveFilesCommand)
-                return new Answer(cmd, false, "Failed to retrieve file " + ((RetrieveFilesCommand) cmd).getDiagnosticFileToRetrieve() + "->" + e.getMessage());
-            else
-                return new Answer(cmd, false, "Failed to execute script " + script + "->" + e.getMessage());
         }
+        return null;
     }
 
-    protected Map<String, String> retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
-            throws ResourceUnavailableException, OperationTimedoutException, ConcurrentOperationException, JSchException, IOException {
+    private boolean copyFileFromSystemVmToServer() {
+
+        LOGGER.info("Copying the diagnostics zip file from the system vm.");
+        if (!checkForDiskSpace(vmInstance, disableThreshold)) {
+            throw new CloudRuntimeException("Unlimited disk space on primary storage.");
+        }
+        String publicIp = null;
+        //final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
+        VirtualMachine vm = vmManager.findById(vmInstance.getId());
+        final List<NicVO> nics = _nicDao.listByVmId(vm.getId());
+        for (final NicVO nic : nics) {
+            final NetworkVO network = _networksDao.findById(nic.getNetworkId());
+            final NicVO nicVO = _nicDao.findByNtwkIdAndInstanceId(network.getId(), vm.getId());
+            publicIp = nicVO.getIPv4Address();
+        }
+        try {
+            LOGGER.info("Attempting to SSH into linux host " + publicIp);
+            Connection conn = new Connection(publicIp);
+            conn.connect(null, 600000, 600000);
+
+            LOGGER.info("SSHed successfully into linux host " + publicIp);
+
+            boolean isAuthenticated = conn.authenticateWithPassword("root", "password");
+
+            if (isAuthenticated == false) {
+                LOGGER.info("Authentication failed");
+                return false;
+            }
+            //execute copy command
+            Session sess = conn.openSession();
+            String copyCommand = new String("scp root@" + vmInstance.getPrivateIpAddress() + ":/temp/diagnostics_* " + "/diagnosticsdata");
+            LOGGER.info("Executing " + copyCommand);
+            sess.execCommand(copyCommand);
+            Thread.sleep(120000);
+            sess.close();
+            //close the connection
+            conn.close();
+        } catch (Exception ex) {
+            LOGGER.error(ex);
+            return false;
+        }
+        return true;
+     }
+
+    protected RetrieveDiagnosticsResponse retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
+            throws ConcurrentOperationException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
         }
         if (gcEnabled) {
-            start();
+            if (!start()) {
+                LOGGER.info("Failed to start the Diagnostics GarbageCollector");
+            }
         }
         String tempStr = null;
+        String executionDetail = null;
         final Hypervisor.HypervisorType hypervisorType = systemVmId.getHypervisorType();
         List<String> scripts = new ArrayList<>();
-        Commands cmds = null;
         String[] files = diagnosticsFiles.split(",");
         List<String> filesToRetrieve = new ArrayList<>();
         for (int i = files.length - 1; i >= 0; i--) {
             if (files[i].contains("[") || files[i].contains("]")) {
                 tempStr = files[i].trim().replaceAll("(^\\[(.*?)\\].*?)", ("$2").trim());
+                boolean entityInDB = false;
                 scriptName = tempStr.toLowerCase().concat(".py");
+                String listDefaultFilesForVm = null;
+                List<DiagnosticsKey> diagnosticsKey = allDefaultDiagnosticsTypeKeys.get(diagnosticsType);
+                for (DiagnosticsKey key : diagnosticsKey) {
+                    if (key.getRole().equalsIgnoreCase("ALL")) {
+                        listDefaultFilesForVm = key.getDetail();
+                        if (listDefaultFilesForVm.equalsIgnoreCase(scriptName)) {
+                            entityInDB = true;
+                        }
+                    }
+                }
+                if (!entityInDB) {
+                    _retrieveDiagnosticsDao.update("ALL", diagnosticsType, scriptName);
+                    throw new CloudRuntimeException("The script name is not in the ISO, please add the script " + scriptName + "to the ISO");
+                }
                 scripts.add(scriptName);
             } else {
                 filesToRetrieve.add(files[i]);
             }
         }
-        checkForDiskSpace(systemVmId, disableThreshold);
-        ManagementServerHostVO managementServerHostVO = managementServerHostDao.findById(systemVmId.getHostId());
-        String ipHostAddress = "172.20.25.169";//managementServerHostVO.getServiceIP();
+       // ManagementServerHostVO managementServerHostVO = managementServerHostDao.findById(systemVmId..getHostId());
+        //String ipHostAddress = managementServerHostVO.getServiceIP();
         final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
         RetrieveFilesCommand retrieveFilesCommand = null;
         Map<String, String> resultsMap;
@@ -573,83 +673,33 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             retrieveFilesCommand.setAccessDetail(accessDetails);
             final Answer answer = _agentMgr.easySend(hostId, retrieveFilesCommand);
             if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
-                resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
-                return resultsMap;
+                executionDetail = ((RetrieveDiagnosticsAnswer) answer).getOutput();
+                return createDiagnosticsResponse(executionDetail);
             } else {
                 throw new CloudRuntimeException("Failed to execute RetrieveDiagnosticsCommand on remote host: " + answer.getDetails());
             }
-            /*try {
-                answer = copyFileFromSystemVm(retrieveFilesCommand, null);
-            } catch (Exception e) {
-                LOGGER.info("Unable to copy file " + retrieveFilesCommand.getDiagnosticFileToRetrieve());
-                throw new FileNotFoundException(e.getMessage());
-            }*/
         }
-        cmds = new Commands(Command.OnError.Stop);
         ExecuteScriptCommand execCmd = null;
-
         if (!scripts.isEmpty()) {
             for (String script : scripts) {
                 execCmd = new ExecuteScriptCommand(script, vmManager.getExecuteInSequence(hypervisorType));
                 execCmd.setAccessDetail(accessDetails);
                 final Answer answer = _agentMgr.easySend(hostId, execCmd);
                 if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
-                    resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
-                    return resultsMap;
+                    executionDetail = ((RetrieveDiagnosticsAnswer) answer).getOutput();
+                    return createDiagnosticsResponse(executionDetail);
                 } else {
                     throw new CloudRuntimeException("Failed to execute ExecuteScriptCommand on remote host: " + answer.getDetails());
                 }
-
-               /* try {
-                    answer = copyFileFromSystemVm(execCmd, script);
-                } catch (Exception e) {
-                    LOGGER.info("Unable to execute script " + script);
-                    throw new FileNotFoundException(e.getMessage());
-                }*/
-                //cmds.addCommand(execCmd);
             }
         }
         if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
             throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
         }
-//        Map<String, String> resultsMap;
-        /*if (!answer.getResult()) {
-            LOGGER.warn("Failed to retrieve results due to: " + answer.getDetails());
-
-            throw new CloudRuntimeException("Unable to retrieve results " + systemVmId + " due to " + answer.getDetails());
-        }
-        if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
-            resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
-            return resultsMap;
-        } else {
-            throw new CloudRuntimeException("Diagnostics command failed");
-        }*/
-   //     final Long hostId = systemVmId.getHostId();
-        Answer[] answers = _agentMgr.send(hostId, cmds);
-
-        /*if (!cmds.isSuccessful()) {
-            //copyFileFromSystemVm(ipHostAddress, scriptName + ".log");
-            for (final Answer answer : answers) {
-                if (!answer.getResult()) {
-                    LOGGER.warn("Failed to retrieve results due to: " + answer.getDetails());
-
-                    throw new CloudRuntimeException("Unable to retrieve results " + systemVmId + " due to " + answer.getDetails());
-                }
-                if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
-                    resultsMap = ((RetrieveDiagnosticsAnswer) answer).getResultDetails();
-                    return resultsMap;
-                } else {
-                    throw new CloudRuntimeException("Diagnostics command failed");
-                }
-
-            }
-            checkForDiskSpace(systemVmId, disableThreshold);
-        }*/
         return null;
-
     }
 
-    private void checkForDiskSpace(VirtualMachine systemVmId, Float disableThreshold) {
+    private boolean checkForDiskSpace(VirtualMachine systemVmId, Float disableThreshold) {
         //zip the files on the fly (in the script), send the tar file to mgt-server
         //and choose secondary storage to download the zip file. In this scenario, we will not have to worry about the disk space
         //on the System VM but will have to check for free disk space on the mgt-server where the tar is temporarily copied to.
@@ -692,18 +742,13 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             double totalCapacity = capacity.get(0).getTotalCapacity();
             double usedCapacity = capacity.get(0).getUsedCapacity() + capacity.get(0).getReservedCapacity();
             if (totalCapacity != 0 && usedCapacity / totalCapacity > disableThreshold) {
-                LOGGER.error("Unlimited disk space");
+                LOGGER.error("Unlimited disk space on primary storage.");
+                return false;
             }
         }
+        return true;
     }
     //get the downloaded files from the /tmp directory and create a zip file to add the files
-
-    private void checkDiagnosticsFilesAndZip(String diagnosticsFileName, ZipOutputStream zipFile) {
-        File f = new File(diagnosticsFileName);
-        if (f.exists() && !f.isDirectory()) {
-
-        }
-    }
 
     private List<Short> getCapacityTypesAtClusterLevel() {
         List<Short> clusterCapacityTypes = new ArrayList<Short>();
@@ -713,20 +758,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED);
         clusterCapacityTypes.add(Capacity.CAPACITY_TYPE_LOCAL_STORAGE);
         return clusterCapacityTypes;
-    }
-
-    protected String assignSecStorageFromRunningPool(Long zoneId) {
-        HostVO cssHost = _hostDao.findById(zoneId);
-        Long zone = cssHost.getDataCenterId();
-        if (cssHost.getType() == Host.Type.SecondaryStorageVM) {
-            SecondaryStorageVmVO secStorageVm = _secStorageVmDao.findByInstanceName(cssHost.getName());
-            if (secStorageVm == null) {
-                LOGGER.warn("secondary storage VM " + cssHost.getName() + " doesn't exist");
-                return null;
-            }
-        }
-        DataStore ssStore = _dataStoreMgr.getImageStore(zone);
-        return ssStore.getUri();
     }
 
     public Map<String, Object> getConfigParams() {
@@ -749,7 +780,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     @Override
     public ConfigKey<?>[] getConfigKeys()
     {
-        return new ConfigKey<?>[] { RetrieveDiagnosticsTimeOut };
+        return new ConfigKey<?>[] { RetrieveDiagnosticsTimeOut, RetrieveDiagnosticsTimeOut, RetrieveDiagnosticsGCEnable,
+                RetrieveDiagnosticsInterval, RetrieveDiagnosticsDisableThreshold, RetrieveDiagnosticsFileAge };
     }
 
 
@@ -761,23 +793,22 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     }
 
     protected class DiagnosticsGarbageCollector implements Runnable {
-        private String zipFileName = null;
+        private String diagnosticsZipFileName = null;
         private String path = "/diagnosticsdata/";
-        private Answer answer = null;
 
-
-        public DiagnosticsGarbageCollector() {
+        public DiagnosticsGarbageCollector(String diagnosticsZipFileName) {
+            this.diagnosticsZipFileName = diagnosticsZipFileName;
         }
 
         @Override
         public void run() {
             try {
                 LOGGER.trace("Diagnostics Garbage Collection Thread is running.");
-                File zipFile = new File(path + zipFileName);
-                Path zipFilePath = zipFile.toPath();
+                File diagnosticszipFile = new File(path + diagnosticsZipFileName);
+                Path diagnosticsZipFilePath = diagnosticszipFile.toPath();
                 BasicFileAttributes attributes = null;
                 try {
-                    attributes = Files.readAttributes(zipFilePath, BasicFileAttributes.class);
+                    attributes = Files.readAttributes(diagnosticsZipFilePath, BasicFileAttributes.class);
                 } catch (IOException exception) {
                     LOGGER.error("Could not find the zip file.", exception);
                 }
@@ -786,13 +817,22 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 volume = _volumeDao.findById(hostId);
                 Long zoneId = volume.getDataCenterId();
                 DataStore store = _dataStoreMgr.getImageStore(zoneId);
+                DataStoreTO destStore = store.getTO();
+
+                VolumeObjectTO volTO = new VolumeObjectTO();
+                volTO.setDataStore(store.getTO());
+
                 if (store == null) {
                     throw new CloudRuntimeException("cannot find an image store for zone " + zoneId);
                 }
-                DataStoreTO destStoreTO = store.getTO();
+                //DataStoreTO destStoreTO = store.getTO();
                 if (milliseconds > RetrieveDiagnosticsFileAge.value()) {
-                    DeleteZipCommand cmd = new DeleteZipCommand(zipFilePath.toString(), destStoreTO);
-                    answer = cleanupDiagnostics(cmd);
+                    DeleteCommand cmd = new DeleteCommand(volTO);
+                    String result = cleanupDiagnostics(cmd);
+                    if (result != null) {
+                        String msg = "Unable to delete diagnostics zip file: " + result;
+                        LOGGER.error(msg);
+                    }
                 }
 
             } catch (Exception e) {
@@ -801,29 +841,62 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
     }
 
-    @Override
-    public Answer cleanupDiagnostics(DeleteZipCommand cmd) {
-        if (!inSystemVm) {
-            return new Answer(cmd, true, null);
-        }
-        DataStoreTO dstore = cmd.getDestStore();
+    protected  String cleanupDiagnostics(DeleteCommand cmd) {
+        DataTO obj = cmd.getData();
+        DataStoreTO dstore = obj.getDataStore();
         if (dstore instanceof NfsTO) {
             NfsTO nfs = (NfsTO) dstore;
-            String nfsMountPoint = getRootDir(nfs.getUrl(), nfsVersion);
-            File zipFile = new File(nfsMountPoint, cmd.getZipFile());
-            if(!zipFile.exists()) {
-                LOGGER.debug("Zip file does not exist.");
+            String parent = getRootDir(nfs.getUrl(), nfsVersion);
+            secUrl = nfs.getUrl();
+            if (!parent.endsWith(File.separator)) {
+                parent += File.separator;
             }
-            try {
-                Files.deleteIfExists(zipFile.toPath());
-            } catch (IOException e) {
-                return new Answer(cmd, e);
+            String diagnosticsZipPath = obj.getPath();
+            if (diagnosticsZipPath.startsWith(File.separator)) {
+                diagnosticsZipPath = diagnosticsZipPath.substring(1);
             }
-            return new Answer(cmd);
-        } else {
-            return new Answer(cmd, false, "Not implemented yet");
+            String fullDiagnosticsFilePath = parent + diagnosticsZipPath;
+            File diagnosticsFileDir = new File(fullDiagnosticsFilePath);
+            if (diagnosticsFileDir.exists() && diagnosticsFileDir.isDirectory()) {
+                LOGGER.debug("Diagnostics zip file path " + diagnosticsFileDir + " is a directory, already deleted so no need to delete");
+                return  "Diagnostics zip file path " + diagnosticsFileDir + " is a directory, already deleted so no need to delete";
+            }
+            int index = diagnosticsZipPath.lastIndexOf("/");
+            String diagnosticsZipFileName = diagnosticsZipPath.substring(index + 1);
+            diagnosticsZipPath = diagnosticsZipPath.substring(0, index);
+            String absolutediagnosticsZipFilePath = parent + diagnosticsZipPath;
+            File diagnosticsZipDir = new File(absolutediagnosticsZipFilePath);
+            String details = null;
+            if (!diagnosticsZipDir.exists()) {
+                details = "Diagnostics zip file directory " + diagnosticsZipDir.getName() + " doesn't exist";
+                LOGGER.debug(details);
+                return details;
+            }
+            String lPath = absolutediagnosticsZipFilePath + "/*" + diagnosticsZipFileName + "*";
+            String result = deleteLocalFile(lPath);
+            if (result != null) {
+                details = "Failed to delete diagnostics zip file " + lPath + " , err=" + result;
+                LOGGER.warn(details);
+                return details;
+            }
         }
+
+        return null;
     }
+
+    private String deleteLocalFile(String fullPath) {
+        Script command = new Script("/bin/bash", LOGGER);
+        command.add("-c");
+        command.add("rm -rf " + fullPath);
+        String result = command.execute();
+        if (result != null) {
+            String errMsg = "Failed to delete file " + fullPath + ", err=" + result;
+            LOGGER.warn(errMsg);
+            return errMsg;
+        }
+        return null;
+    }
+
 
     private String getRootDir(String secUrl, Integer nfsVersion) {
         if (!inSystemVm) {
@@ -844,7 +917,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         String uriHostIp = getUriHostIp(uri);
         String nfsPath = uriHostIp + ":" + uri.getPath();
 
-        String dir = UUID.nameUUIDFromBytes(nfsPath.getBytes(com.cloud.utils.StringUtils.getPreferredCharset())).toString();
+        dir = UUID.nameUUIDFromBytes(nfsPath.getBytes(com.cloud.utils.StringUtils.getPreferredCharset())).toString();
         String localRootPath = _parent + "/" + dir;
 
         String remoteDevice;
@@ -881,8 +954,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     }
 
     protected boolean checkForVolumesDir(String mountPoint) {
-        String volumesDirLocation = mountPoint + "/" + "volumes";
-        return createDir("volumes", volumesDirLocation, mountPoint);
+        String volumesDirLocation = mountPoint + "/" + "diagnosticsdata";
+        return createDir("diagnosticsdata", volumesDirLocation, mountPoint);
     }
 
     protected boolean createDir(String dirName, String dirLocation, String mountPoint) {
@@ -1010,6 +1083,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         LOGGER.debug("Successfully mounted " + remoteDevice + " at " + localRootPath);
     }
 
+    protected RetrieveDiagnosticsResponse createDiagnosticsResponse(String urlString) {
+        RetrieveDiagnosticsResponse response = new RetrieveDiagnosticsResponse();
+        response.setUrl(urlString);
+        return response;
+    }
+
     @Override
     public boolean start() {
         if (interval == null) {
@@ -1022,7 +1101,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (gcEnabled.booleanValue()) {
             Random generator = new Random();
             int initialDelay = generator.nextInt(cleanupInterval);
-            _executor.scheduleWithFixedDelay(new DiagnosticsGarbageCollector(), initialDelay, cleanupInterval.intValue(), TimeUnit.SECONDS);
+            _executor.scheduleWithFixedDelay(new DiagnosticsGarbageCollector(diagnosticsZipFileName), initialDelay, cleanupInterval.intValue(), TimeUnit.SECONDS);
         } else {
             LOGGER.debug("Diagnostics garbage collector is not enabled, so the cleanup thread is not being scheduled.");
         }

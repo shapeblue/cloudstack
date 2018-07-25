@@ -20,47 +20,22 @@ package org.apache.cloudstack.api.response;
 import com.cloud.serializer.Param;
 import com.cloud.vm.VirtualMachine;
 import com.google.gson.annotations.SerializedName;
-import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.EntityReference;
 
 @EntityReference(value = VirtualMachine.class)
 public class RetrieveDiagnosticsResponse extends BaseResponse {
-    @SerializedName(ApiConstants.STDOUT)
-    @Param(description = "standard output from the command execution", since = "4.11", authorized = {RoleType.Admin})
-    private String stdout;
+    @SerializedName(ApiConstants.URL)
+    @Param(description = "Secondary storage URL were files have been downloaded to")
+    private String url;
 
-    @SerializedName(ApiConstants.STDERR)
-    @Param(description = "standard error from the command execution.")
-    private String stderror;
 
-    @SerializedName(ApiConstants.EXITCODE)
-    @Param(description = "the command execution return code.")
-    private String exitCode;
-
-    public void setStdout(String stdout) {
-        this.stdout = stdout;
+    public String getUrl() {
+        return url;
     }
 
-    public String getStderror() {
-        return stderror;
+    public void setUrl(String url) {
+        this.url = url;
     }
-
-    public void setStderror(String stderror) {
-        this.stderror = stderror;
-    }
-
-    public String getStdout() {
-        return stdout;
-    }
-
-    public String getExitCode() {
-        return exitCode;
-    }
-
-    public void setExitCode(String exitCode) {
-        this.exitCode = exitCode;
-    }
-
 }

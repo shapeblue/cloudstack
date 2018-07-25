@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #Licensed to the Apache Software Foundation (ASF) under one
 #or more contributor license agreements.  See the NOTICE file
 #distributed with this work for additional information
@@ -16,15 +17,47 @@
 #under the License.
 
 import os
+import sys
+import time
 
-class SaveIpRouteEntries:
-    def saveIpRouteToLog(self, name):
-        command = 'netstat -rn > ' + name + '.log'
+from zipfile import ZipFile
+
+import subprocess as sp
+import shlex
+
+class SaveRoutetablesToLogFile:
+
+    def __init__(self, arguments):
+        self.arguments = sys.argv
+
+    def saveRouteTableEntries(self):
+        name = "temp/route.log"
+        command = 'netstat -rn > temp/route.log'
         os.system(command)
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        print "Zip file name = " + zipFileName
+        zip_archive = ZipFile(zipFileName, "a")
+        if os.path.isfile(name):
+            zip_archive.write(name)
+        else:
+            print name + " not found."
+        zip_archive.close()
+        print("All diagnostics files zipped successfully")
 
-    def ensure_dir(file_path):
-        file_path = "/temp"
+    def ensure_dir(self, filepath):
         directory = os.path.dirname(file_path)
         if not os.path.exists(directory):
-            os.mkdir(directory)
+            try:
+                p = sp.Popen(shlex.split("mkdir -p temp"), stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
+                stdout, stderr = p.communicate()
+            except OSError as e:
+                print("Failed to create directory temp")
 
+
+if __name__ == "__main__":
+    arguments = sys.argv
+    file_path = "/temp/"
+    save_files = SaveRoutetablesToLogFile(arguments)
+    save_files.ensure_dir(file_path)
+    save_files.saveRouteTableEntries()

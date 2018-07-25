@@ -18,23 +18,43 @@
 
 import os
 import sys
+import time
+
+from zipfile import ZipFile
+
+import subprocess as sp
+import shlex
+
 
 class SaveIfconfigEntries:
 
     def __init__(self, arguments):
         self.arguments = sys.argv
-        self.FindFiles.argCount = len(sys.argv) - 1
 
     def saveIfConfigToLog(self):
-        name = "ifconfig"
-        filename = os.path.splitext(name[0])
-        command = name + ' > ' + filename + '.log'
+        name = "temp/ifconfig.log"
+        command = 'ifconfig > temp/ifconfig.log'
         os.system(command)
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        print "Zip file name = " + zipFileName
+        zip_archive = ZipFile(zipFileName, "a")
+        if os.path.isfile(name):
+            zip_archive.write(name)
+        else:
+            print name + " not found."
+        zip_archive.close()
+        print("All diagnostics files zipped successfully")
 
     def ensure_dir(self, filepath):
         directory = os.path.dirname(file_path)
         if not os.path.exists(directory):
-            os.mkdir(directory)
+            try:
+                p = sp.Popen(shlex.split("mkdir -p temp"), stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
+                stdout, stderr = p.communicate()
+            except OSError as e:
+                print("Failed to create directory temp")
+
 
 if __name__ == "__main__":
     arguments = sys.argv

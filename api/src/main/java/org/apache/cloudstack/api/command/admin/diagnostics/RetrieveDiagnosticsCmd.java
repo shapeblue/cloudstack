@@ -38,7 +38,6 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-import java.util.Map;
 
 @APICommand(name = RetrieveDiagnosticsCmd.APINAME,
         description = "Retrieves diagnostics files from host VMs",
@@ -60,12 +59,12 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
-    @Parameter(name = ApiConstants.SYSTEM_VM_TYPE,
+    @Parameter(name = ApiConstants.TARGET_ID,
             type = CommandType.UUID,
             entityType = SystemVmResponse.class,
             validations = {ApiArgValidator.PositiveNumber},
             required = true,
-            description = "the system VM type. Possible types are \"domainrouter\", \"consoleproxy\" and \"secondarystoragevm\".")
+            description = "the Id of the system VM instance.")
     private Long systemVmId;
 
 
@@ -75,7 +74,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             description = "The type of diagnostics files requested, if DIAGNOSTICS_TYPE is not provided then the default files specified in the database will be retrieved")
     private String type;
 
-    @Parameter(name = ApiConstants.DETAIL,
+    @Parameter(name = ApiConstants.DETAILS,
             type = CommandType.STRING,
             description = "Optional comma separated list of diagnostics files or items, can be specified as filenames only or full file path. These come in addition to the defaults set in diagnosticstype")
     private String optionalListOfFiles;
@@ -132,15 +131,14 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException {
         CallContext.current().setEventDetails("Vm Id: " + this._uuidMgr.getUuid(VirtualMachine.class, getId()));
-        RetrieveDiagnosticsResponse retrieveDiagnosticsResponse = new RetrieveDiagnosticsResponse();
+        RetrieveDiagnosticsResponse response = new RetrieveDiagnosticsResponse();
+
         try {
-            final Map<String, String> resultMap = retrieveDiagnosticsService.getDiagnosticsFiles(this);
-            retrieveDiagnosticsResponse.setStdout(resultMap.get(ApiConstants.STDOUT));
-            retrieveDiagnosticsResponse.setStderror(resultMap.get(ApiConstants.STDERR));
-            retrieveDiagnosticsResponse.setExitCode(resultMap.get(ApiConstants.EXITCODE));
-            retrieveDiagnosticsResponse.setObjectName("retrieved information");
-            retrieveDiagnosticsResponse.setResponseName(getCommandName());
-            this.setResponseObject(retrieveDiagnosticsResponse);
+            final String url = retrieveDiagnosticsService.getDiagnosticsFiles(this);
+            response.setUrl(url);
+            response.setObjectName("retrieved information");
+            response.setResponseName(getCommandName());
+            this.setResponseObject(response);
         } catch (InvalidParameterValueException ipve) {
             LOGGER.error("Failed to retrieve diagnostics files from ", ipve);
             throw new ServerApiException(ApiErrorCode.PARAM_ERROR, ipve.getMessage());

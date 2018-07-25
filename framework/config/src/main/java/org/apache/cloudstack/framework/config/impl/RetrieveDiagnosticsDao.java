@@ -26,6 +26,7 @@ public interface RetrieveDiagnosticsDao extends GenericDao<RetrieveDiagnosticsVO
     List<RetrieveDiagnosticsVO> findByEntityType(String entityType);
     List<RetrieveDiagnosticsVO> findByEntity(String entityType, String entityUuid);
     List<RetrieveDiagnosticsVO> retrieveAllDiagnosticsData();
+    boolean update(String role, String clazz, String value);
 }
 
 

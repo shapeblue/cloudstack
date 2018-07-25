@@ -18,7 +18,9 @@
 #!/usr/bin/python
 import sys
 import os, shutil, glob
-
+import subprocess as sp
+import shlex
+import time
 
 from zipfile import ZipFile
 
@@ -43,68 +45,46 @@ class FindFiles(object):
                 print "Peter " + name
                 self.copy_files("/temp", name)
 
-    def copy_files(self, dest, file):
-        zip_file_name = "diagnosticsFiles.zip"
-        dir = os.path.dirname(dest)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        dst_file_path = dest + file
-        zipFileName = dest + zip_file_name
-        zip_archive = ZipFile(zipFileName, "w")
-        print "Testing 1....." + file
-        if os.path.isfile(file):
-            print "Copying: " + file
+    def copy_and_compress_files(self, listOfFiles):
+        number = 0
+        filename = None
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        print "Zip file name = " + zipFileName
+        if not os.path.exists("temp"):
             try:
-                shutil.copyfile(file, dst_file_path)
-            except IOError:
-                print file + " does not exist"
-        else:
-            with open("manifest.txt", "a") as manifest_file:
-                manifest_file.write(file + " not found.")
-                zip_archive.write(manifest_file)
+                p = sp.Popen(shlex.split("mkdir -p temp"), stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
+                stdout, stderr = p.communicate()
+            except OSError as e:
+                print("Failed to create directory temp")
+
+        #manifest_file = open("temp/" + "manifest.txt", "w+")
+
+        print "arguments " + ", ".join(listOfFiles)
+        for file_name in listOfFiles:
+            if number == 0:
+                number = number + 1
+                continue
+            print("filename " + file_name)
+            filename = file_name
+            #zipFileName = "temp/" + zipFileName
+            zip_archive = ZipFile(zipFileName, "a")
+            if os.path.isfile(filename):
+                zip_archive.write(filename)
+            else:
+                print filename + " not found"
+                #manifest_file.write(filename + " not found.")
+
+        #zip_archive.write(manifest_file)
+        #manifest_file.close()
+        zip_archive.close()
+        print("All diagnostics files zipped successfully")
+
 
 if __name__ == "__main__":
-    file_path = "/temp/"
-    number = 0
-    filename = None
-    zipFileName = "diagnosticsFiles.zip"
-    manifest_file = open(file_path + "manifest.txt", "a")
-    directory = os.path.dirname(file_path)
     arguments = sys.argv
-    print "arguments " + ", ".join(arguments)
     find_files = FindFiles(arguments)
-    for file in arguments:
-        if number == 0:
-            number = number + 1
-            continue
-        print("filename " + file)
-        filename = file
-        dir = os.path.dirname(file_path)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        dst_file_path = file_path + file
-        zipFileName = file_path + zipFileName
-        zip_archive = ZipFile(zipFileName, "w")
-        if os.path.isfile(filename):
-            zip_archive.write(filename)
-        else:
-            manifest_file.write(filename + " not found.")
-    zip_archive.write(manifest_file)
-    manifest_file.close()
-    zip_archive.close()
-    print("All diagnostics files zipped successfully")
-
-
-        #find_files.searchWithPattern(filename)
-    #dir = os.path.dirname(file_path)
-    #if not os.path.exists(dir):
-    #    os.makedirs(dir)
-    #zip_file_object = ZipFile(zipFileName, "w")
-    #with ZipFile(file_path + "diagnosticsFiles.zip", "w") as zip:
-    #    zip.write(filename)
-    #zip.close()
-
-    #print("All diagnostics files zipped successfully")
+    find_files.copy_and_compress_files(arguments)
 
 
 
