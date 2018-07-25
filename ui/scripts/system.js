@@ -2683,7 +2683,26 @@
                                                         height: 640
                                                     }
                                                 }
+                                            },
+
+                                            diagnose: {
+                                                label: 'Run Diagnostics',
+                                                messages: {
+                                                    confirm: function (args) {
+                                                        return 'confirm action';
+                                                    },
+                                                    notification: function (args) {
+                                                        return 'action notification';
+                                                    }
+                                                },
+                                                action: function (args) {
+                                                    alert("Hello I was clicked!");
+                                                },
+                                                notification: {
+                                                    poll: pollAsyncJobResult
+                                                }
                                             }
+
                                         },
                                         tabs: {
                                             details: {
@@ -3227,7 +3246,8 @@
                                                         height: 640
                                                     }
                                                 }
-                                            }
+                                            },
+
                                         },
                                         tabs: {
                                             details: {
@@ -6661,7 +6681,27 @@
                                                         height: 640
                                                     }
                                                 }
+                                            },
+
+                                            diagnose: {
+                                                label: 'Run Diagnostics',
+                                                messages: {
+                                                    confirm: function (args) {
+                                                        return 'Want to run diagnostics?';
+                                                    },
+                                                    notification: function (args) {
+                                                        return 'Notification after diagnostics is started!';
+                                                    }
+                                                },
+                                                action: function (args) {
+                                                    alert("Hello I was clicked!");
+                                                    console.log("Logging to console for Charles!");
+                                                },
+                                                notification: {
+                                                    poll: pollAsyncJobResult
+                                                }
                                             }
+
                                         },
                                         tabs: {
                                             details: {
@@ -8957,7 +8997,26 @@
                                                                 height: 640
                                                             }
                                                         }
+                                                    },
+
+                                                    diagnose: {
+                                                        label: 'Run Diagnostics',
+                                                        messages: {
+                                                            confirm: function (args) {
+                                                                return 'confirm action';
+                                                            },
+                                                            notification: function (args) {
+                                                                return 'action notification';
+                                                            }
+                                                        },
+                                                        action: function (args) {
+                                                            alert("Hello I was clicked!");
+                                                        },
+                                                        notification: {
+                                                            poll: pollAsyncJobResult
+                                                        }
                                                     }
+
                                                 },
                                                 tabs: {
                                                     details: {
@@ -10282,7 +10341,27 @@
                                                 height: 640
                                             }
                                         }
+                                    },
+
+                                    diagnose: {
+                                        label: 'Run Diagnostics',
+                                        messages: {
+                                            confirm: function (args) {
+                                                return 'Want to run diagnostics?';
+                                            },
+                                            notification: function (args) {
+                                                return 'Notification after diagnostics is started!';
+                                            }
+                                        },
+                                        action: function (args) {
+                                            alert("Hello I was clicked!");
+                                            console.log("Logging to console for Charles!");
+                                        },
+                                        notification: {
+                                            poll: pollAsyncJobResult
+                                        }
                                     }
+
                                 },
                                 tabs: {
                                     details: {
@@ -11558,7 +11637,26 @@
                                         height: 640
                                     }
                                 }
+                            },
+
+                            diagnose: {
+                                label: 'Run Diagnostics',
+                                messages: {
+                                    confirm: function (args) {
+                                        return 'confirm action';
+                                    },
+                                    notification: function (args) {
+                                        return 'action notification';
+                                    }
+                                },
+                                action: function (args) {
+                                    alert("Hello I was clicked!");
+                                },
+                                notification: {
+                                    poll: pollAsyncJobResult
+                                }
                             }
+
                         },
                         tabs: {
                             details: {
@@ -22093,6 +22191,7 @@
             allowedActions.push("restart");
             allowedActions.push("remove");
             allowedActions.push("viewConsole");
+            allowedActions.push("diagnose");
 
             if (isAdmin())
             allowedActions.push("migrate");
@@ -22115,6 +22214,7 @@
             allowedActions.push("stop");
 
             allowedActions.push("viewConsole");
+            allowedActions.push("diagnose");
             if (isAdmin())
             allowedActions.push("migrate");
         } else if (jsonObj.state == 'Stopped') {
@@ -22138,6 +22238,7 @@
             }
 
             allowedActions.push("viewConsole");
+            allowedActions.push("diagnose");
             if (isAdmin())
             allowedActions.push("migrate");
         } else if (jsonObj.state == 'Stopped') {

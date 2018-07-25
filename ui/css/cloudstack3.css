@@ -13057,6 +13057,14 @@ div.ui-dialog div.autoscaler div.field-group div.form-container form div.form-it
   background-position: -229px -586px;
 }
 
+.diagnose .icon {
+  background-position: -165px -122px;
+}
+
+.diagnose:hover .icon {
+  background-position: -165px -704px;
+}
+
 .moveTop .icon {
   background-position: -24px -161px;
 }
