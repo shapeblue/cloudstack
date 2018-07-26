@@ -402,7 +402,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                          listOfDiagnosticsFiles = getDefaultFilesForVm(diagnosticsType, systemVmType);
                     }
                 }
-                RetrieveDiagnosticsResponse response = null;
+                String response = null;
                 try {
                     response = retrieveDiagnosticsFiles(vmId, listOfDiagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
                     if (response != null) {
@@ -440,8 +440,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 } catch(ConcurrentOperationException ex) {
                     throw new CloudRuntimeException("Unable to retrieve diagnostic files" + ex.getCause());
                 }
-                response = createDiagnosticsResponse(secUrl);
-                return response.getUrl();
+
+                return response;
             }
         }
         return null;
@@ -621,7 +621,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return true;
      }
 
-    protected RetrieveDiagnosticsResponse retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
+    protected String retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
             throws ConcurrentOperationException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
@@ -661,24 +661,19 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 filesToRetrieve.add(files[i]);
             }
         }
-       // ManagementServerHostVO managementServerHostVO = managementServerHostDao.findById(systemVmId..getHostId());
-        //String ipHostAddress = managementServerHostVO.getServiceIP();
+
+        String details = String.join(",", filesToRetrieve);
         final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
-        RetrieveFilesCommand retrieveFilesCommand = null;
-        Map<String, String> resultsMap;
-        final Long hostId = systemVmId.getHostId();
-        //Answer answer = null;
-        for (String file : filesToRetrieve) {
-            retrieveFilesCommand = new RetrieveFilesCommand(file, vmManager.getExecuteInSequence(hypervisorType));
-            retrieveFilesCommand.setAccessDetail(accessDetails);
-            final Answer answer = _agentMgr.easySend(hostId, retrieveFilesCommand);
-            if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
-                executionDetail = ((RetrieveDiagnosticsAnswer) answer).getOutput();
-                return createDiagnosticsResponse(executionDetail);
-            } else {
-                throw new CloudRuntimeException("Failed to execute RetrieveDiagnosticsCommand on remote host: " + answer.getDetails());
-            }
+        RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(details, vmManager.getExecuteInSequence(hypervisorType));
+        retrieveFilesCommand.setAccessDetail(accessDetails);
+        Answer retrieveAnswer = _agentMgr.easySend(vmInstance.getHostId(), retrieveFilesCommand);
+
+        if (retrieveAnswer != null) {
+            executionDetail = ((RetrieveDiagnosticsAnswer) retrieveAnswer).getOutput();
+        } else {
+            throw new CloudRuntimeException("Failed to execute RetrieveDiagnosticsCommand on remote host: " + retrieveAnswer.getDetails());
         }
+
         ExecuteScriptCommand execCmd = null;
         if (!scripts.isEmpty()) {
             for (String script : scripts) {
@@ -687,7 +682,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 final Answer answer = _agentMgr.easySend(hostId, execCmd);
                 if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
                     executionDetail = ((RetrieveDiagnosticsAnswer) answer).getOutput();
-                    return createDiagnosticsResponse(executionDetail);
                 } else {
                     throw new CloudRuntimeException("Failed to execute ExecuteScriptCommand on remote host: " + answer.getDetails());
                 }
@@ -696,7 +690,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
             throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
         }
-        return null;
+        return executionDetail;
     }
 
     private boolean checkForDiskSpace(VirtualMachine systemVmId, Float disableThreshold) {

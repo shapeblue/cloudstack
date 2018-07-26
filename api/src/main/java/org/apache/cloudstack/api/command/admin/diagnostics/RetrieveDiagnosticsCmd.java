@@ -79,8 +79,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             description = "Optional comma separated list of diagnostics files or items, can be specified as filenames only or full file path. These come in addition to the defaults set in diagnosticstype")
     private String optionalListOfFiles;
 
-    // Configuration parameters //////
-
     @Parameter(name = ApiConstants.TIMEOUT,
             type = CommandType.STRING,
             description = "Time out setting in seconds for the overall API call.")
@@ -90,28 +88,12 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
 
-    public void setId(Long id) {
-        this.systemVmId = id;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
     public String getOptionalListOfFiles() {
         return optionalListOfFiles;
     }
 
-    public void setOptionalListOfFiles(String optionalListOfFiles) {
-        this.optionalListOfFiles = optionalListOfFiles;
-    }
-
     public String getTimeOut() {
         return timeOut;
-    }
-
-    public void setTimeOut(String timeOut) {
-        this.timeOut = timeOut;
     }
 
     public Long getId() {
@@ -127,6 +109,20 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         return type;
     }
 
+    @Override
+    public String getCommandName() {
+        return APINAME.toLowerCase() + BaseAsyncCmd.RESPONSE_SUFFIX;
+    }
+
+    @Override
+    public long getEntityOwnerId() {
+        return CallContext.current().getCallingAccount().getId();
+    }
+
+    @Override
+    public String getEventDescription() {
+        return "Retrieved diagnostics files from host =" + systemVmId;
+    }
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException {
@@ -145,24 +141,6 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
         } catch (ConfigurationException cre) {
             LOGGER.error("Failed to retrieve diagnostics files from ", cre);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
-        } catch (OperationTimedoutException cre) {
-            LOGGER.error("Failed to retrieve diagnostics files from ", cre);
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseAsyncCmd.RESPONSE_SUFFIX;
-    }
-
-    @Override
-    public long getEntityOwnerId() {
-        return CallContext.current().getCallingAccount().getId();
-    }
-
-    @Override
-    public String getEventDescription() {
-        return "Retrieved diagnostics files from host =" + systemVmId;
     }
 }

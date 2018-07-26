@@ -297,7 +297,7 @@ public class ApiConstants {
     public static final String STORAGE_MOTION_ENABLED = "storagemotionenabled";
     public static final String STORAGE_CAPABILITIES = "storagecapabilities";
     public static final String SYSTEM_VM_TYPE = "systemvmtype";
-    public static final String TARGET_ID = "systemvmId";
+    public static final String TARGET_ID = "targetid";
     public static final String TAGS = "tags";
     public static final String TARGET_IQN = "targetiqn";
     public static final String TEMPLATE_FILTER = "templatefilter";
