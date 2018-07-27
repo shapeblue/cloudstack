@@ -30,8 +30,10 @@ import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
 import com.cloud.cluster.dao.ManagementServerHostDao;
 import com.cloud.dc.dao.DataCenterDao;
+import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.OperationTimedoutException;
 import com.cloud.host.dao.HostDao;
 import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.hypervisor.Hypervisor;
@@ -392,20 +394,26 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                         final Map<String, String> vmAccessDetail = networkManager.getSystemVMAccessDetails(vmInstance);
                         String ip = vmAccessDetail.get(NetworkElementCommand.ROUTER_IP);
                         if (response != null) {
-                            RetrieveZipFilesCommand filesCommand = new RetrieveZipFilesCommand(null, true);
-                            CopyVolumeAnswer copyToHost = (CopyVolumeAnswer) _agentMgr.easySend(vmInstance.getHostId(), filesCommand);
-                            if (copyToHost == null || !copyToHost.getResult()) {
-                                if (copyToHost != null && !StringUtils.isEmpty(copyToHost.getDetails())) {
-                                    throw new CloudRuntimeException(copyToHost.getDetails());
+                            try {
+                                RetrieveZipFilesCommand filesCommand = new RetrieveZipFilesCommand(null, true);
+                                CopyVolumeAnswer copyToHost = (CopyVolumeAnswer) _agentMgr.send(vmInstance.getHostId(), filesCommand);
+                                if (copyToHost == null || !copyToHost.getResult()) {
+                                    if (copyToHost != null && !StringUtils.isEmpty(copyToHost.getDetails())) {
+                                        throw new CloudRuntimeException(copyToHost.getDetails());
+                                    }
                                 }
-                            }
-                            filesCommand = new RetrieveZipFilesCommand(null, false);
-                            CopyVolumeAnswer copyToSec = (CopyVolumeAnswer) _agentMgr.easySend(vmInstance.getHostId(), filesCommand);
-                            if (copyToSec == null || !copyToSec.getResult()) {
-                                if (copyToSec != null && !StringUtils.isEmpty(copyToSec.getDetails())) {
-                                    throw new CloudRuntimeException(copyToSec.getDetails());
+                                filesCommand = new RetrieveZipFilesCommand(null, false);
+                                CopyVolumeAnswer copyToSec = (CopyVolumeAnswer) _agentMgr.send(vmInstance.getHostId(), filesCommand);
+                                if (copyToSec == null || !copyToSec.getResult()) {
+                                    if (copyToSec != null && !StringUtils.isEmpty(copyToSec.getDetails())) {
+                                        throw new CloudRuntimeException(copyToSec.getDetails());
+                                    }
+                                    secondaryUrl = copyToSec.getVolumePath();
                                 }
-                                secondaryUrl = copyToSec.getVolumePath();
+                            } catch (AgentUnavailableException e) {
+
+                            } catch (OperationTimedoutException ex) {
+
                             }
                         }
 
@@ -661,14 +669,19 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         command.add("-c");
         command.add("rm -rf " + secondaryUrl);
         RetrieveZipFilesCommand diagnosticsCleanup = new RetrieveZipFilesCommand(command.toString(), null);
-        Answer answer = (CopyVolumeAnswer) _agentMgr.easySend(vmInstance.getHostId(), diagnosticsCleanup);
-        if (answer == null || !answer.getResult()) {
-            if (answer != null && !StringUtils.isEmpty(answer.getDetails())) {
-                throw new CloudRuntimeException(answer.getDetails());
+        try {
+            CopyVolumeAnswer answer = (CopyVolumeAnswer) _agentMgr.send(vmInstance.getHostId(), diagnosticsCleanup);
+            if (answer == null || !answer.getResult()) {
+                if (answer != null && !StringUtils.isEmpty(answer.getDetails())) {
+                    throw new CloudRuntimeException(answer.getDetails());
+                }
             }
+            return answer.getDetails();
+        }catch (AgentUnavailableException ex) {
+            throw new CloudRuntimeException("Agent not available.");
+        } catch (OperationTimedoutException e) {
+            throw new CloudRuntimeException("operation timed out.");
         }
-        return answer.getDetails();
-
     }
 
     @Override

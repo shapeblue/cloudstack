@@ -41,20 +41,6 @@ import java.util.Map;
 @ResourceWrapper(handles =  RetrieveZipFilesCommand.class)
 public final class LibvirtRetrieveZipFilesCommandWrapper extends CommandWrapper<RetrieveZipFilesCommand, Answer, LibvirtComputingResource> {
     private static final Logger LOGGER = Logger.getLogger(LibvirtRetrieveZipFilesCommandWrapper.class);
-
-    //execute should take Command as an argument to facilitate the DeleteZipFilesCommand (to be added), to clean up
-    //the copied files.
-    //There must be a function in the libvirtComputingResource class to be called by the GC to clean up.
-    //this function will be executed by the GC in the else statements if command is neither RetrieveZipFilesCommand
-    // or DeleteZipFilesCommand.
-    //In the Service layer, another script, retrieve_cleanup.py should be added to be executed in the system vm to gc
-    //the zip files.
-    //A boolean within the Command class should determine whether to copy to secondary or to host
-
-    //Create an Answer class similar to CopyVolumeAnswer, that will include the URL (secondaryStorageUrl + File.separator + destVolumePath)
-    //of the secondary storage the zip file has been copied to. This will be used in service class to pass to the response
-
-
     @Override
     public Answer execute(final RetrieveZipFilesCommand command, final LibvirtComputingResource libvirtComputingResource) {
         Map<String, String> srcDetails = command.getSrcDetails();
