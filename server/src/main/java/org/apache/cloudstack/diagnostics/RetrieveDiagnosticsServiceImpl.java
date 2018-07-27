@@ -23,11 +23,8 @@ import com.cloud.agent.api.ExecuteScriptCommand;
 import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
 import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
-import com.cloud.agent.api.storage.CreateEntityDownloadURLAnswer;
-import com.cloud.agent.api.storage.CreateEntityDownloadURLCommand;
+import com.cloud.agent.api.storage.CopyVolumeAnswer;
 import com.cloud.agent.api.to.DataStoreTO;
-import com.cloud.agent.api.to.DataTO;
-import com.cloud.agent.api.to.NfsTO;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
@@ -40,7 +37,6 @@ import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.network.NetworkModel;
 import com.cloud.network.dao.NetworkDao;
-import com.cloud.network.dao.NetworkVO;
 import com.cloud.network.guru.NetworkGuru;
 import com.cloud.resource.ResourceManager;
 import com.cloud.server.ManagementServer;
@@ -60,10 +56,8 @@ import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.exception.CloudRuntimeException;
-import com.cloud.utils.script.OutputInterpreter;
 import com.cloud.utils.script.Script;
 import com.cloud.vm.DiskProfile;
-import com.cloud.vm.NicVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
@@ -73,12 +67,9 @@ import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.base.Strings;
-import com.trilead.ssh2.Connection;
-import com.trilead.ssh2.Session;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCmd;
-import org.apache.cloudstack.api.response.RetrieveDiagnosticsResponse;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
@@ -93,26 +84,15 @@ import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
 import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
-import org.apache.cloudstack.storage.command.DeleteCommand;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -121,7 +101,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -148,6 +127,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     HashMap<String, List<DiagnosticsKey>> allDefaultDiagnosticsTypeKeys = new HashMap<String, List<DiagnosticsKey>>();
 
+    private Map<String, String> accessDetails;
+
     private Boolean gcEnabled;
     private Long interval;
 
@@ -155,6 +136,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private String filePath;
     private Long fileAge;
     private String diagnosticsZipFileName;
+    private String secondaryUrl;
 
     private Integer nfsVersion;
 
@@ -404,44 +386,34 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 }
                 String response = null;
                 try {
-                    response = retrieveDiagnosticsFiles(vmId, listOfDiagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
-                    if (response != null) {
-                        String path = "/diagnosticsdata";
-                        createFolder(path);
+                    if (checkForDiskSpace(vmInstance, disableThreshold)) {
+                        response = retrieveDiagnosticsFiles(vmId, listOfDiagnosticsFiles, vmInstance, RetrieveDiagnosticsTimeOut.value());
 
-                        if (!copyFileFromSystemVmToServer()) {
-                            throw new CloudRuntimeException("Unable to copy compressed files from " + vmInstance.getHostName());
-                        } else {
-                            CreateEntityDownloadURLCommand downloadcmd = new CreateEntityDownloadURLCommand(dir, _parent + "/diagnosticsdata", uuid, null);
-                            //String fileFullPath = path + diagnosticsCompressedFileName;
-                            File dir = new File("/diagnosticsdata");
-                            FilenameFilter filter = new FilenameFilter() {
-                                @Override
-                                public boolean accept(File dir, String name) {
-                                    return name.startsWith("diagnosticsFile_");
-                                }
-                            };
-                            String[] diagnosticsCompressedFileNames = dir.list(filter);
-                            if (diagnosticsCompressedFileNames == null) {
-                                LOGGER.info("Directory /diagnosticsdata does not exist. ");
-                            } else {
-                                for (int i = 0; i < diagnosticsCompressedFileNames.length; i++) {
-                                    CreateEntityDownloadURLAnswer downloadURLAnswer = downloadCompressedFileToSSVM(downloadcmd, diagnosticsCompressedFileNames[i]);
-                                    if (downloadURLAnswer == null || !downloadURLAnswer.getResult()) {
-                                        String errorString = "Unable to create a link :" + (downloadURLAnswer == null ? "" : downloadURLAnswer.getDetails());
-                                        LOGGER.error(errorString);
-                                        throw new CloudRuntimeException(errorString);
-                                    }
+                        final Map<String, String> vmAccessDetail = networkManager.getSystemVMAccessDetails(vmInstance);
+                        String ip = vmAccessDetail.get(NetworkElementCommand.ROUTER_IP);
+                        if (response != null) {
+                            RetrieveZipFilesCommand filesCommand = new RetrieveZipFilesCommand(null, true);
+                            CopyVolumeAnswer copyToHost = (CopyVolumeAnswer) _agentMgr.easySend(vmInstance.getHostId(), filesCommand);
+                            if (copyToHost == null || !copyToHost.getResult()) {
+                                if (copyToHost != null && !StringUtils.isEmpty(copyToHost.getDetails())) {
+                                    throw new CloudRuntimeException(copyToHost.getDetails());
                                 }
                             }
-
+                            filesCommand = new RetrieveZipFilesCommand(null, false);
+                            CopyVolumeAnswer copyToSec = (CopyVolumeAnswer) _agentMgr.easySend(vmInstance.getHostId(), filesCommand);
+                            if (copyToSec == null || !copyToSec.getResult()) {
+                                if (copyToSec != null && !StringUtils.isEmpty(copyToSec.getDetails())) {
+                                    throw new CloudRuntimeException(copyToSec.getDetails());
+                                }
+                                secondaryUrl = copyToSec.getVolumePath();
+                            }
                         }
+
                     }
                 } catch(ConcurrentOperationException ex) {
                     throw new CloudRuntimeException("Unable to retrieve diagnostic files" + ex.getCause());
                 }
-
-                return response;
+                return secondaryUrl;
             }
         }
         return null;
@@ -469,28 +441,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
     }
 
-    private boolean checkAndStartApache() {
-        //Check whether the Apache server is running
-        Script command = new Script("/bin/systemctl", LOGGER);
-        command.add("is-active");
-        command.add("apache2");
-        String result = command.execute();
-
-        //Apache Server is not running. Try to start it.
-        if (result != null && !result.equals("active")) {
-            command = new Script("/bin/systemctl", LOGGER);
-            command.add("start");
-            command.add("apache2");
-            result = command.execute();
-            if (result != null) {
-                LOGGER.warn("Error in starting apache2 service err=" + result);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     protected void createFolder(String path) {
         File dir = new File(path);
         if (!dir.exists()) {
@@ -498,130 +448,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
     }
 
-    private CreateEntityDownloadURLAnswer downloadCompressedFileToSSVM(CreateEntityDownloadURLCommand cmd, final String diagnosticsZipFileName) {
-        boolean isApacheUp = checkAndStartApache();
-        if (!isApacheUp) {
-            String errorString = "Error in starting Apache server ";
-            LOGGER.error(errorString);
-            return new CreateEntityDownloadURLAnswer(errorString, CreateEntityDownloadURLAnswer.RESULT_FAILURE);
-        }
-
-        String errorString = "";
-        long totalBytes = 0;
-        long entitySizeinBytes;
-        String sourcePath;
-        BufferedInputStream inputStream = null;
-        BufferedOutputStream outputStream = null;
-        final int CHUNK_SIZE = 1024 * 1024; //1M
-        StringBuffer sb = new StringBuffer(secUrl);
-        // Create the directory structure so that its visible under apache server root
-        String extractDir = "/var/www/html/diagnosticsdata/";
-        Script command = new Script("/bin/su", LOGGER);
-        command.add("-s");
-        command.add("/bin/bash");
-        command.add("-c");
-        command.add("mkdir -p " + extractDir);
-        command.add("www-data");
-        String result = command.execute();
-        if (result != null) {
-            errorString = "Error in creating directory =" + result;
-            LOGGER.error(errorString);
-            return new CreateEntityDownloadURLAnswer(errorString, CreateEntityDownloadURLAnswer.RESULT_FAILURE);
-        }
-        // Create a random file under the directory for security reasons.
-        uuid = cmd.getExtractLinkUUID();
-        // Create a symbolic link from the actual directory to the template location. The entity would be directly visible under /var/www/html/userdata/cmd.getInstallPath();
-        command = new Script("/bin/bash", LOGGER);
-        command.add("-c");
-        command.add("ln -sf /mnt/SecStorage/" + cmd.getParent() + File.separator + cmd.getInstallPath() + " " + extractDir + uuid);
-        result = command.execute();
-        try {
-            URL url = new URL(sb.toString());
-            URLConnection urlc = url.openConnection();
-
-            File sourceFile = new File(diagnosticsZipFileName);
-            entitySizeinBytes = sourceFile.length();
-
-            outputStream = new BufferedOutputStream(urlc.getOutputStream());
-            inputStream = new BufferedInputStream(new FileInputStream(sourceFile));
-            int bytes = 0;
-            byte[] block = new byte[CHUNK_SIZE];
-            boolean done = false;
-            while (!done) {
-                if ((bytes = inputStream.read(block, 0, CHUNK_SIZE)) > -1) {
-                    outputStream.write(block, 0, bytes);
-                    totalBytes += bytes;
-                } else {
-                    done = true;
-                }
-            }
-            return new CreateEntityDownloadURLAnswer("Diagnostics zip file downloaded successfully.", CreateEntityDownloadURLAnswer.RESULT_SUCCESS);
-        } catch (MalformedURLException e) {
-            errorString = e.getMessage();
-            LOGGER.error(errorString);
-        } catch (IOException e) {
-             errorString = e.getMessage();
-            LOGGER.error(errorString);
-        } finally {
-            try {
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-                if (outputStream != null) {
-                    outputStream.close();
-                }
-            } catch (IOException ioe) {
-                LOGGER.error(" Caught exception while closing the resources");
-            }
-        }
-        return null;
-    }
-
-    private boolean copyFileFromSystemVmToServer() {
-
-        LOGGER.info("Copying the diagnostics zip file from the system vm.");
-        if (!checkForDiskSpace(vmInstance, disableThreshold)) {
-            throw new CloudRuntimeException("Unlimited disk space on primary storage.");
-        }
-        String publicIp = null;
-        //final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
-        VirtualMachine vm = vmManager.findById(vmInstance.getId());
-        final List<NicVO> nics = _nicDao.listByVmId(vm.getId());
-        for (final NicVO nic : nics) {
-            final NetworkVO network = _networksDao.findById(nic.getNetworkId());
-            final NicVO nicVO = _nicDao.findByNtwkIdAndInstanceId(network.getId(), vm.getId());
-            publicIp = nicVO.getIPv4Address();
-        }
-        try {
-            LOGGER.info("Attempting to SSH into linux host " + publicIp);
-            Connection conn = new Connection(publicIp);
-            conn.connect(null, 600000, 600000);
-
-            LOGGER.info("SSHed successfully into linux host " + publicIp);
-
-            boolean isAuthenticated = conn.authenticateWithPassword("root", "password");
-
-            if (isAuthenticated == false) {
-                LOGGER.info("Authentication failed");
-                return false;
-            }
-            //execute copy command
-            Session sess = conn.openSession();
-            String copyCommand = new String("scp root@" + vmInstance.getPrivateIpAddress() + ":/temp/diagnostics_* " + "/diagnosticsdata");
-            LOGGER.info("Executing " + copyCommand);
-            sess.execCommand(copyCommand);
-            Thread.sleep(120000);
-            sess.close();
-            //close the connection
-            conn.close();
-        } catch (Exception ex) {
-            LOGGER.error(ex);
-            return false;
-        }
-        return true;
-     }
-
-    protected String retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO systemVmId, Long timeout)
+    protected String retrieveDiagnosticsFiles(Long ssHostId, String diagnosticsFiles, final VMInstanceVO vmInstance, Long timeout)
             throws ConcurrentOperationException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Retrieving diagnostics files : " + getConfigComponentName());
@@ -633,7 +460,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
         String tempStr = null;
         String executionDetail = null;
-        final Hypervisor.HypervisorType hypervisorType = systemVmId.getHypervisorType();
+        final Hypervisor.HypervisorType hypervisorType = vmInstance.getHypervisorType();
         List<String> scripts = new ArrayList<>();
         String[] files = diagnosticsFiles.split(",");
         List<String> filesToRetrieve = new ArrayList<>();
@@ -663,10 +490,10 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
 
         String details = String.join(",", filesToRetrieve);
-        final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(systemVmId);
+        accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
         RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(details, vmManager.getExecuteInSequence(hypervisorType));
         retrieveFilesCommand.setAccessDetail(accessDetails);
-        Answer retrieveAnswer = _agentMgr.easySend(vmInstance.getHostId(), retrieveFilesCommand);
+        Answer retrieveAnswer = _agentMgr.easySend(this.vmInstance.getHostId(), retrieveFilesCommand);
 
         if (retrieveAnswer != null) {
             executionDetail = ((RetrieveDiagnosticsAnswer) retrieveAnswer).getOutput();
@@ -688,16 +515,12 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             }
         }
         if (Strings.isNullOrEmpty(accessDetails.get(NetworkElementCommand.ROUTER_IP))) {
-            throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + systemVmId);
+            throw new CloudRuntimeException("Unable to set system vm ControlIP for the system vm with ID -> " + vmInstance);
         }
         return executionDetail;
     }
 
     private boolean checkForDiskSpace(VirtualMachine systemVmId, Float disableThreshold) {
-        //zip the files on the fly (in the script), send the tar file to mgt-server
-        //and choose secondary storage to download the zip file. In this scenario, we will not have to worry about the disk space
-        //on the System VM but will have to check for free disk space on the mgt-server where the tar is temporarily copied to.
-        // Check if the vm is using any disks on local storage.
         final VirtualMachineProfile vmProfile = new VirtualMachineProfileImpl(systemVmId, null, _offeringDao.findById(systemVmId.getId(), systemVmId.getServiceOfferingId()), null, null);
         final List<VolumeVO> volumes = _volumeDao.findCreatedByInstance(vmProfile.getId());
         boolean usesLocal = false;
@@ -742,7 +565,6 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
         return true;
     }
-    //get the downloaded files from the /tmp directory and create a zip file to add the files
 
     private List<Short> getCapacityTypesAtClusterLevel() {
         List<Short> clusterCapacityTypes = new ArrayList<Short>();
@@ -821,8 +643,7 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                 }
                 //DataStoreTO destStoreTO = store.getTO();
                 if (milliseconds > RetrieveDiagnosticsFileAge.value()) {
-                    DeleteCommand cmd = new DeleteCommand(volTO);
-                    String result = cleanupDiagnostics(cmd);
+                    String result = cleanupDiagnostics();
                     if (result != null) {
                         String msg = "Unable to delete diagnostics zip file: " + result;
                         LOGGER.error(msg);
@@ -835,252 +656,19 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         }
     }
 
-    protected  String cleanupDiagnostics(DeleteCommand cmd) {
-        DataTO obj = cmd.getData();
-        DataStoreTO dstore = obj.getDataStore();
-        if (dstore instanceof NfsTO) {
-            NfsTO nfs = (NfsTO) dstore;
-            String parent = getRootDir(nfs.getUrl(), nfsVersion);
-            secUrl = nfs.getUrl();
-            if (!parent.endsWith(File.separator)) {
-                parent += File.separator;
-            }
-            String diagnosticsZipPath = obj.getPath();
-            if (diagnosticsZipPath.startsWith(File.separator)) {
-                diagnosticsZipPath = diagnosticsZipPath.substring(1);
-            }
-            String fullDiagnosticsFilePath = parent + diagnosticsZipPath;
-            File diagnosticsFileDir = new File(fullDiagnosticsFilePath);
-            if (diagnosticsFileDir.exists() && diagnosticsFileDir.isDirectory()) {
-                LOGGER.debug("Diagnostics zip file path " + diagnosticsFileDir + " is a directory, already deleted so no need to delete");
-                return  "Diagnostics zip file path " + diagnosticsFileDir + " is a directory, already deleted so no need to delete";
-            }
-            int index = diagnosticsZipPath.lastIndexOf("/");
-            String diagnosticsZipFileName = diagnosticsZipPath.substring(index + 1);
-            diagnosticsZipPath = diagnosticsZipPath.substring(0, index);
-            String absolutediagnosticsZipFilePath = parent + diagnosticsZipPath;
-            File diagnosticsZipDir = new File(absolutediagnosticsZipFilePath);
-            String details = null;
-            if (!diagnosticsZipDir.exists()) {
-                details = "Diagnostics zip file directory " + diagnosticsZipDir.getName() + " doesn't exist";
-                LOGGER.debug(details);
-                return details;
-            }
-            String lPath = absolutediagnosticsZipFilePath + "/*" + diagnosticsZipFileName + "*";
-            String result = deleteLocalFile(lPath);
-            if (result != null) {
-                details = "Failed to delete diagnostics zip file " + lPath + " , err=" + result;
-                LOGGER.warn(details);
-                return details;
-            }
-        }
-
-        return null;
-    }
-
-    private String deleteLocalFile(String fullPath) {
+    protected  String cleanupDiagnostics() {
         Script command = new Script("/bin/bash", LOGGER);
         command.add("-c");
-        command.add("rm -rf " + fullPath);
-        String result = command.execute();
-        if (result != null) {
-            String errMsg = "Failed to delete file " + fullPath + ", err=" + result;
-            LOGGER.warn(errMsg);
-            return errMsg;
-        }
-        return null;
-    }
-
-
-    private String getRootDir(String secUrl, Integer nfsVersion) {
-        if (!inSystemVm) {
-            return _parent;
-        }
-        try {
-            URI uri = new URI(secUrl);
-            String dir = mountUri(uri, nfsVersion);
-            return _parent + "/" + dir;
-        } catch (Exception e) {
-            String msg = "GetRootDir for " + secUrl + " failed due to " + e.toString();
-            LOGGER.error(msg, e);
-            throw new CloudRuntimeException(msg);
-        }
-    }
-
-    protected String mountUri(URI uri, Integer nfsVersion) throws UnknownHostException {
-        String uriHostIp = getUriHostIp(uri);
-        String nfsPath = uriHostIp + ":" + uri.getPath();
-
-        dir = UUID.nameUUIDFromBytes(nfsPath.getBytes(com.cloud.utils.StringUtils.getPreferredCharset())).toString();
-        String localRootPath = _parent + "/" + dir;
-
-        String remoteDevice;
-        if (uri.getScheme().equals("cifs")) {
-            remoteDevice = "//" + uriHostIp + uri.getPath();
-            LOGGER.debug("Mounting device with cifs-style path of " + remoteDevice);
-        } else {
-            remoteDevice = nfsPath;
-            LOGGER.debug("Mounting device with nfs-style path of " + remoteDevice);
-        }
-        mount(localRootPath, remoteDevice, uri, nfsVersion);
-        return dir;
-    }
-
-    protected String getUriHostIp(URI uri) throws UnknownHostException {
-        String nfsHost = uri.getHost();
-        InetAddress nfsHostAddr = InetAddress.getByName(nfsHost);
-        String nfsHostIp = nfsHostAddr.getHostAddress();
-        LOGGER.info("Determined host " + nfsHost + " corresponds to IP " + nfsHostIp);
-        return nfsHostIp;
-    }
-
-    protected void mount(String localRootPath, String remoteDevice, URI uri, Integer nfsVersion) {
-        LOGGER.debug("mount " + uri.toString() + " on " + localRootPath + ((nfsVersion != null) ? " nfsVersion=" + nfsVersion : ""));
-        ensureLocalRootPathExists(localRootPath, uri);
-
-        if (mountExists(localRootPath, uri)) {
-            return;
-        }
-
-        attemptMount(localRootPath, remoteDevice, uri, nfsVersion);
-
-        checkForVolumesDir(localRootPath);
-    }
-
-    protected boolean checkForVolumesDir(String mountPoint) {
-        String volumesDirLocation = mountPoint + "/" + "diagnosticsdata";
-        return createDir("diagnosticsdata", volumesDirLocation, mountPoint);
-    }
-
-    protected boolean createDir(String dirName, String dirLocation, String mountPoint) {
-        boolean dirExists = false;
-
-        File dir = new File(dirLocation);
-        if (dir.exists()) {
-            if (dir.isDirectory()) {
-                LOGGER.debug(dirName + " already exists on secondary storage, and is mounted at " + mountPoint);
-                dirExists = true;
-            } else {
-                if (dir.delete() && _storage.mkdir(dirLocation)) {
-                    dirExists = true;
-                }
-            }
-        } else if (_storage.mkdir(dirLocation)) {
-            dirExists = true;
-        }
-
-        if (dirExists) {
-            LOGGER.info(dirName + " directory created/exists on Secondary Storage.");
-        } else {
-            LOGGER.info(dirName + " directory does not exist on Secondary Storage.");
-        }
-
-        return dirExists;
-    }
-
-    protected boolean mountExists(String localRootPath, URI uri) {
-        Script script = null;
-        script = new Script(!inSystemVm, "mount", 80000, LOGGER);
-
-        List<String> res = new ArrayList<String>();
-        ZfsPathParser parser = new ZfsPathParser(localRootPath);
-        script.execute(parser);
-        res.addAll(parser.getPaths());
-        for (String s : res) {
-            if (s.contains(localRootPath)) {
-                LOGGER.debug("Some device already mounted at " + localRootPath + ", no need to mount " + uri.toString());
-                return true;
+        command.add("rm -rf " + secondaryUrl);
+        RetrieveZipFilesCommand diagnosticsCleanup = new RetrieveZipFilesCommand(command.toString(), null);
+        Answer answer = (CopyVolumeAnswer) _agentMgr.easySend(vmInstance.getHostId(), diagnosticsCleanup);
+        if (answer == null || !answer.getResult()) {
+            if (answer != null && !StringUtils.isEmpty(answer.getDetails())) {
+                throw new CloudRuntimeException(answer.getDetails());
             }
         }
-        return false;
-    }
+        return answer.getDetails();
 
-    public static class ZfsPathParser extends OutputInterpreter {
-        String _parent;
-        List<String> paths = new ArrayList<String>();
-
-        public ZfsPathParser(String parent) {
-            _parent = parent;
-        }
-
-        @Override
-        public String interpret(BufferedReader reader) throws IOException {
-            String line = null;
-            while ((line = reader.readLine()) != null) {
-                paths.add(line);
-            }
-            return null;
-        }
-
-        public List<String> getPaths() {
-            return paths;
-        }
-
-        @Override
-        public boolean drain() {
-            return true;
-        }
-    }
-
-    protected void ensureLocalRootPathExists(String localRootPath, URI uri) {
-        LOGGER.debug("making available " + localRootPath + " on " + uri.toString());
-        File file = new File(localRootPath);
-        LOGGER.debug("local folder for mount will be " + file.getPath());
-        if (!file.exists()) {
-            LOGGER.debug("create mount point: " + file.getPath());
-            _storage.mkdir(file.getPath());
-
-            // Need to check after mkdir to allow O/S to complete operation
-            if (!file.exists()) {
-                String errMsg = "Unable to create local folder for: " + localRootPath + " in order to mount " + uri.toString();
-                LOGGER.error(errMsg);
-                throw new CloudRuntimeException(errMsg);
-            }
-        }
-    }
-
-    protected void attemptMount(String localRootPath, String remoteDevice, URI uri, Integer nfsVersion) {
-        String result;
-        LOGGER.debug("Make cmdline call to mount " + remoteDevice + " at " + localRootPath + " based on uri " + uri + ((nfsVersion != null) ? " nfsVersion=" + nfsVersion : ""));
-        Script command = new Script(!inSystemVm, "mount", 80000, LOGGER);
-
-        String scheme = uri.getScheme().toLowerCase();
-        command.add("-t", scheme);
-
-        if (scheme.equals("nfs")) {
-            if ("Mac OS X".equalsIgnoreCase(System.getProperty("os.name"))) {
-                // See http://wiki.qnap.com/wiki/Mounting_an_NFS_share_from_OS_X
-                command.add("-o", "resvport");
-            }
-            if (inSystemVm) {
-                command.add("-o", "soft,timeo=133,retrans=2147483647,tcp,acdirmax=0,acdirmin=0" + ((nfsVersion != null) ? ",vers=" + nfsVersion : ""));
-            }
-        } else {
-            String errMsg = "Unsupported storage device scheme " + scheme + " in uri " + uri.toString();
-            LOGGER.error(errMsg);
-            throw new CloudRuntimeException(errMsg);
-        }
-
-        command.add(remoteDevice);
-        command.add(localRootPath);
-        result = command.execute();
-        if (result != null) {
-            // Fedora Core 12 errors out with any -o option executed from java
-            String errMsg = "Unable to mount " + remoteDevice + " at " + localRootPath + " due to " + result;
-            LOGGER.error(errMsg);
-            File file = new File(localRootPath);
-            if (file.exists()) {
-                file.delete();
-            }
-            throw new CloudRuntimeException(errMsg);
-        }
-        LOGGER.debug("Successfully mounted " + remoteDevice + " at " + localRootPath);
-    }
-
-    protected RetrieveDiagnosticsResponse createDiagnosticsResponse(String urlString) {
-        RetrieveDiagnosticsResponse response = new RetrieveDiagnosticsResponse();
-        response.setUrl(urlString);
-        return response;
     }
 
     @Override
@@ -1111,11 +699,4 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return true;
     }
 
-    public String getScriptName() {
-        return scriptName;
-    }
-
-    public void setScriptName(String scriptName) {
-        this.scriptName = scriptName;
-    }
 }
