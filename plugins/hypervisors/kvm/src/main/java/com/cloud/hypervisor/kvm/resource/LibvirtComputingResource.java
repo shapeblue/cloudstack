@@ -33,6 +33,7 @@ import com.cloud.agent.api.routing.IpAssocCommand;
 import com.cloud.agent.api.routing.IpAssocVpcCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.api.routing.SetSourceNatCommand;
+import com.cloud.agent.api.storage.CopyVolumeCommand;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
@@ -490,7 +491,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         return null;
     }
 
-    public Answer deleteFilesFromHost(RetrieveZipFilesCommand command) {
+    public Answer deleteFilesFromHost(CopyVolumeCommand command) {
         Script script = new Script(command.getCopyCommand());
         String result = script.execute();
         if (result != null) {

@@ -26,41 +26,41 @@ from zipfile import ZipFile
 
 class FindFiles(object):
     argCount = 0
+    arguments = None
 
-    def __init__(self, arguments):
-        self.arguments = arguments
+    def __init__(self):
+        self.arguments = sys.argv
 
-    def copy_and_compress_files(self, listOfFiles):
+    def copy_and_compress_files(self):
         number = 0
-        filename = None
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        zipFileName = "/tmp/diagnosticsFiles_" + timestr + ".zip"
         print "Zip file name = " + zipFileName
-        if not os.path.exists("temp"):
+        print "arguments " + ", ".join(sys.argv[1:])
+        #arguments = sys.argv
+        for file_name in sys.argv[1:]:
+            if os.path.isfile(file_name):
+                zip_archive = ZipFile(zipFileName, "a")
+                zip_archive.write(file_name)
+                zip_archive.close()
+        #print("All diagnostics files zipped successfully: %s", ",".join(sys.argv[1:]))
+
+    def ensure_dir(self, filepath):
+        directory = os.path.dirname(file_path)
+        if not os.path.exists(directory):
             try:
                 p = sp.Popen(shlex.split("mkdir -p temp"), stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
                 stdout, stderr = p.communicate()
             except OSError as e:
                 print("Failed to create directory temp")
-        print "arguments " + ", ".join(listOfFiles)
-        for file_name in listOfFiles:
-            if number == 0:
-                number = number + 1
-                continue
-            filename = file_name
-            zip_archive = ZipFile(zipFileName, "a")
-            if os.path.isfile(filename):
-                zip_archive.write(filename)
-            else:
-                print filename + " not found"
-        zip_archive.close()
-        print("All diagnostics files zipped successfully: %s", ",".join(arguments))
 
 
 if __name__ == "__main__":
-    arguments = sys.argv
-    find_files = FindFiles(arguments)
-    find_files.copy_and_compress_files(arguments)
+    file_path = "/tmp/"
+    find_files = FindFiles()
+#    find_files.ensure_dir(file_path)
+#    for file_name in sys.argv[1:]:
+    find_files.copy_and_compress_files()
 
 
 

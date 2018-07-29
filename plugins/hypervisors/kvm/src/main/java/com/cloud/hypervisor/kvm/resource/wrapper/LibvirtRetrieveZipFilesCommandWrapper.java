@@ -21,6 +21,7 @@ package com.cloud.hypervisor.kvm.resource.wrapper;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.storage.CopyVolumeAnswer;
+import com.cloud.agent.api.storage.CopyVolumeCommand;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.StorageFilerTO;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
@@ -30,7 +31,6 @@ import com.cloud.hypervisor.kvm.storage.KVMStoragePoolManager;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
 import com.cloud.utils.exception.CloudRuntimeException;
-import org.apache.cloudstack.diagnostics.RetrieveZipFilesCommand;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.log4j.Logger;
@@ -38,11 +38,11 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.util.Map;
 
-@ResourceWrapper(handles =  RetrieveZipFilesCommand.class)
-public final class LibvirtRetrieveZipFilesCommandWrapper extends CommandWrapper<RetrieveZipFilesCommand, Answer, LibvirtComputingResource> {
+@ResourceWrapper(handles = CopyVolumeCommand.class)
+public final class LibvirtRetrieveZipFilesCommandWrapper extends CommandWrapper<CopyVolumeCommand, Answer, LibvirtComputingResource> {
     private static final Logger LOGGER = Logger.getLogger(LibvirtRetrieveZipFilesCommandWrapper.class);
     @Override
-    public Answer execute(final RetrieveZipFilesCommand command, final LibvirtComputingResource libvirtComputingResource) {
+    public Answer execute(final CopyVolumeCommand command, final LibvirtComputingResource libvirtComputingResource) {
         Map<String, String> srcDetails = command.getSrcDetails();
 
         if (srcDetails != null) {
@@ -77,7 +77,7 @@ public final class LibvirtRetrieveZipFilesCommandWrapper extends CommandWrapper<
             if (command.getSecCleanup()) {
                 final String destVolumeName = volumeName + ".zip";
                 final KVMPhysicalDisk volume = primaryPool.getPhysicalDisk(command.getVolumePath());
-                final String volumeDestPath = "/root/temp/" + command.getVolumeId() + File.separator;
+                final String volumeDestPath = "/temp/" + command.getVolumeId() + File.separator;
 
                 secondaryStoragePool = storagePoolMgr.getStoragePoolByURI(secondaryStorageUrl);
                 secondaryStoragePool.createFolder(volumeDestPath);
@@ -87,10 +87,10 @@ public final class LibvirtRetrieveZipFilesCommandWrapper extends CommandWrapper<
 
                 return new CopyVolumeAnswer(command, true, null, null, volumeName);
             } else if (command.getSecCleanup() == false){
-                volumePath = "/root/temp/" + command.getVolumeId() + File.separator;
+                volumePath = "/temp/" + command.getVolumeId() + File.separator;
                 secondaryStoragePool = storagePoolMgr.getStoragePoolByURI(secondaryStorageUrl + volumePath);
 
-                final KVMPhysicalDisk volume = secondaryStoragePool.getPhysicalDisk(command.getVolumePath() + ".qcow2");
+                final KVMPhysicalDisk volume = secondaryStoragePool.getPhysicalDisk(command.getVolumePath() + ".zip");
 
                 storagePoolMgr.copyPhysicalDisk(volume, volumeName, primaryPool, 0);
 
@@ -109,7 +109,7 @@ public final class LibvirtRetrieveZipFilesCommandWrapper extends CommandWrapper<
         return null;
     }
 
-    private Answer handleCopyDataFromVolumeToSecondaryStorageUsingSrcDetails(RetrieveZipFilesCommand command, LibvirtComputingResource libvirtComputingResource) {
+    private Answer handleCopyDataFromVolumeToSecondaryStorageUsingSrcDetails(CopyVolumeCommand command, LibvirtComputingResource libvirtComputingResource) {
         KVMStoragePoolManager storagePoolMgr = libvirtComputingResource.getStoragePoolMgr();
         PrimaryDataStoreTO srcPrimaryDataStore = null;
         KVMStoragePool secondaryStoragePool = null;

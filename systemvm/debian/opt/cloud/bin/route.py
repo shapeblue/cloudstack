@@ -27,21 +27,18 @@ import shlex
 
 class SaveRoutetablesToLogFile:
 
-    def __init__(self, arguments):
-        self.arguments = sys.argv
+    def __init__(self):
+        self.arguments = None
 
     def saveRouteTableEntries(self):
-        name = "temp/route.log"
-        command = 'netstat -rn > temp/route.log'
+        name = "/tmp/route.log"
+        command = 'netstat -rn > /tmp/route.log'
         os.system(command)
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        zipFileName = "/tmp/diagnosticsFiles_" + timestr + ".zip"
         print "Zip file name = " + zipFileName
         zip_archive = ZipFile(zipFileName, "a")
-        if os.path.isfile(name):
-            zip_archive.write(name)
-        else:
-            print name + " not found."
+        zip_archive.write(name)
         zip_archive.close()
         print("All diagnostics files zipped successfully")
 
@@ -56,8 +53,8 @@ class SaveRoutetablesToLogFile:
 
 
 if __name__ == "__main__":
-    arguments = sys.argv
-    file_path = "/temp/"
-    save_files = SaveRoutetablesToLogFile(arguments)
-    save_files.ensure_dir(file_path)
+#    arguments = sys.argv
+    file_path = "/tmp/"
+    save_files = SaveRoutetablesToLogFile()
+    #save_files.ensure_dir(file_path)
     save_files.saveRouteTableEntries()

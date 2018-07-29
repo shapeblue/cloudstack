@@ -35,10 +35,30 @@ public class CopyVolumeCommand extends StorageNfsVersionCommand {
     private DataTO srcData;
     private Map<String, String> srcDetails;
     private boolean executeInSequence;
+    private String copyCommand;
+    private Boolean secCleanup = null;
 
     public CopyVolumeCommand() {
     }
 
+    public CopyVolumeCommand(long volumeId, String volumePath, StoragePool pool, String secondaryStorageURL, boolean toSecondaryStorage, int wait,
+                             boolean executeInSequence, String command, Boolean secCleanup) {
+        this.volumeId = volumeId;
+        this.volumePath = volumePath;
+        this.pool = new StorageFilerTO(pool);
+        this.secondaryStorageURL = secondaryStorageURL;
+        this.toSecondaryStorage = toSecondaryStorage;
+        setWait(wait);
+        this.executeInSequence = executeInSequence;
+        this.copyCommand = copyCommand;
+        this.secCleanup = secCleanup;
+    }
+
+
+    public CopyVolumeCommand(String copyCommand, Boolean secCleanup) {
+        this.copyCommand = copyCommand;
+        this.secCleanup = secCleanup;
+    }
     public CopyVolumeCommand(long volumeId, String volumePath, StoragePool pool, String secondaryStorageURL, boolean toSecondaryStorage, int wait,
             boolean executeInSequence) {
         this.volumeId = volumeId;
@@ -75,6 +95,10 @@ public class CopyVolumeCommand extends StorageNfsVersionCommand {
         return toSecondaryStorage;
     }
 
+    public String getCopyCommand() {
+        return copyCommand;
+    }
+
     public String getVmName() {
         return vmName;
     }
@@ -89,6 +113,18 @@ public class CopyVolumeCommand extends StorageNfsVersionCommand {
 
     public void setSrcDetails(Map<String, String> srcDetails) {
         this.srcDetails = srcDetails;
+    }
+
+    public void setCopyCommand(String copyCommand) {
+        this.copyCommand = copyCommand;
+    }
+
+    public Boolean getSecCleanup() {
+        return secCleanup;
+    }
+
+    public void setSecCleanup(Boolean secCleanup) {
+        this.secCleanup = secCleanup;
     }
 
     public Map<String, String> getSrcDetails() {

@@ -26,23 +26,20 @@ import subprocess as sp
 import shlex
 
 
-class SaveIfconfigEntries:
+class SaveIfconfigToLogFile:
 
-    def __init__(self, arguments):
-        self.arguments = sys.argv
+    def __init__(self):
+        self.arguments = None
 
-    def saveIfConfigToLog(self):
-        name = "temp/ifconfig.log"
-        command = 'ifconfig > temp/ifconfig.log'
+    def saveIfconfigEntries(self,dest):
+        name = "/tmp/ifconfig.log"
+        command = 'ifconfig > /tmp/ifconfig.log'
         os.system(command)
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        zipFileName = "/tmp/diagnosticsFiles_" + timestr + ".zip"
         print "Zip file name = " + zipFileName
         zip_archive = ZipFile(zipFileName, "a")
-        if os.path.isfile(name):
-            zip_archive.write(name)
-        else:
-            print name + " not found."
+        zip_archive.write(name)
         zip_archive.close()
         print("All diagnostics files zipped successfully")
 
@@ -57,8 +54,8 @@ class SaveIfconfigEntries:
 
 
 if __name__ == "__main__":
-    arguments = sys.argv
-    file_path = "/temp"
-    config_files = SaveIfconfigEntries(arguments)
-    config_files.ensure_dir(file_path)
-    config_files.saveIfConfigToLog()
+    #   arguments = sys.argv
+    file_path = "/tmp/"
+    save_files = SaveIfconfigToLogFile()
+    #save_files.ensure_dir(file_path)
+    save_files.saveIfconfigEntries(file_path)

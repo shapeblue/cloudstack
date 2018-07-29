@@ -19,14 +19,14 @@
 
 package org.apache.cloudstack.diagnostics;
 
-import com.cloud.agent.api.Command;
+import com.cloud.agent.api.storage.StorageNfsVersionCommand;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.StorageFilerTO;
 import com.cloud.storage.StoragePool;
 
 import java.util.Map;
 
-public class RetrieveZipFilesCommand extends Command {
+public class RetrieveZipFilesCommand extends StorageNfsVersionCommand {
     private long volumeId;
     private String volumePath;
     private StorageFilerTO pool;

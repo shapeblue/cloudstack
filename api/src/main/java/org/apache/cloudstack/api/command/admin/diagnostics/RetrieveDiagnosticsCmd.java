@@ -73,7 +73,7 @@ public class RetrieveDiagnosticsCmd extends BaseAsyncCmd {
             description = "The type of diagnostics files requested, if DIAGNOSTICS_TYPE is not provided then the default files specified in the database will be retrieved")
     private String type;
 
-    @Parameter(name = ApiConstants.DETAILS,
+    @Parameter(name = ApiConstants.DETAIL,
             type = CommandType.STRING,
             description = "Optional comma separated list of diagnostics files or items, can be specified as filenames only or full file path. These come in addition to the defaults set in diagnosticstype")
     private String optionalListOfFiles;

@@ -24,16 +24,20 @@ import com.cloud.agent.api.RetrieveDiagnosticsAnswer;
 import com.cloud.agent.api.RetrieveFilesCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.api.storage.CopyVolumeAnswer;
+import com.cloud.agent.api.storage.CopyVolumeCommand;
 import com.cloud.agent.api.to.DataStoreTO;
+import com.cloud.agent.api.to.DiskTO;
 import com.cloud.capacity.Capacity;
 import com.cloud.capacity.dao.CapacityDao;
 import com.cloud.capacity.dao.CapacityDaoImpl;
 import com.cloud.cluster.dao.ManagementServerHostDao;
+import com.cloud.dc.dao.ClusterDao;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.OperationTimedoutException;
+import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.hypervisor.Hypervisor;
@@ -41,14 +45,18 @@ import com.cloud.network.NetworkModel;
 import com.cloud.network.dao.NetworkDao;
 import com.cloud.network.guru.NetworkGuru;
 import com.cloud.resource.ResourceManager;
+import com.cloud.resource.ResourceState;
 import com.cloud.server.ManagementServer;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.DiskOfferingVO;
 import com.cloud.storage.StorageLayer;
+import com.cloud.storage.StorageManager;
 import com.cloud.storage.StoragePool;
+import com.cloud.storage.VolumeDetailVO;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.VolumeDao;
+import com.cloud.storage.dao.VolumeDetailsDao;
 import com.cloud.user.AccountManager;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
@@ -60,6 +68,7 @@ import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.script.Script;
 import com.cloud.vm.DiskProfile;
+import com.cloud.vm.SecondaryStorageVmVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
@@ -68,6 +77,7 @@ import com.cloud.vm.VirtualMachineProfileImpl;
 import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.SecondaryStorageVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
@@ -75,8 +85,12 @@ import org.apache.cloudstack.api.command.admin.diagnostics.RetrieveDiagnosticsCm
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
+import org.apache.cloudstack.engine.subsystem.api.storage.ChapInfo;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeService;
 import org.apache.cloudstack.framework.config.ConfigDepot;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
@@ -87,6 +101,7 @@ import org.apache.cloudstack.framework.config.impl.DiagnosticsKey;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsDao;
 import org.apache.cloudstack.framework.config.impl.RetrieveDiagnosticsVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -99,6 +114,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,12 +157,19 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private String secondaryUrl;
 
     private Integer nfsVersion;
+    private static final Random RANDOM = new Random(System.nanoTime());
 
     protected String _parent = "/mnt/SecStorage";
 
     protected boolean inSystemVm = false;
     List<NetworkGuru> networkGurus;
     private String secUrl;
+
+    @Inject
+    VolumeDataFactory volumeFactory;
+
+    @Inject
+    private VolumeDetailsDao volumeDetailsDao;
 
     @Inject
     NetworkModel _networkModel;
@@ -197,6 +220,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
     private DiagnosticsConfigurator _diagnosticsDepot;
 
     @Inject
+    private VolumeService _volumeService;
+
+    @Inject
     private ConfigDepot configDepot;
 
     @Inject
@@ -210,6 +236,8 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
 
     @Inject
     private VolumeDao _volumeDao;
+
+    @Inject private ClusterDao clusterDao;
 
     @Inject
     private DiskOfferingDao _diskOfferingDao;
@@ -336,6 +364,47 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
        return new Pair<List<? extends Configuration>, Integer>(configVOList, configVOList.size());
    }
 
+    private String getVolumeProperty(long volumeId, String property) {
+        VolumeDetailVO volumeDetails = volumeDetailsDao.findDetail(volumeId, property);
+
+        if (volumeDetails != null) {
+            return volumeDetails.getValue();
+        }
+
+        return null;
+    }
+
+    private Map<String, String> getVolumeDetails(VolumeInfo volumeInfo) {
+        long storagePoolId = volumeInfo.getPoolId();
+        StoragePoolVO storagePoolVO = _storagePoolDao.findById(storagePoolId);
+
+        if (!storagePoolVO.isManaged()) {
+            return null;
+        }
+
+        Map<String, String> volumeDetails = new HashMap<>();
+
+        VolumeVO volumeVO = _volumeDao.findById(volumeInfo.getId());
+
+        volumeDetails.put(DiskTO.STORAGE_HOST, storagePoolVO.getHostAddress());
+        volumeDetails.put(DiskTO.STORAGE_PORT, String.valueOf(storagePoolVO.getPort()));
+        volumeDetails.put(DiskTO.IQN, volumeVO.get_iScsiName());
+
+        volumeDetails.put(DiskTO.VOLUME_SIZE, String.valueOf(volumeVO.getSize()));
+        volumeDetails.put(DiskTO.SCSI_NAA_DEVICE_ID, getVolumeProperty(volumeInfo.getId(), DiskTO.SCSI_NAA_DEVICE_ID));
+
+        ChapInfo chapInfo = _volumeService.getChapInfo(volumeInfo, volumeInfo.getDataStore());
+
+        if (chapInfo != null) {
+            volumeDetails.put(DiskTO.CHAP_INITIATOR_USERNAME, chapInfo.getInitiatorUsername());
+            volumeDetails.put(DiskTO.CHAP_INITIATOR_SECRET, chapInfo.getInitiatorSecret());
+            volumeDetails.put(DiskTO.CHAP_TARGET_USERNAME, chapInfo.getTargetUsername());
+            volumeDetails.put(DiskTO.CHAP_TARGET_SECRET, chapInfo.getTargetSecret());
+        }
+
+        return volumeDetails;
+    }
+
     @Override
     public String getDiagnosticsFiles(final RetrieveDiagnosticsCmd cmd)
             throws ConcurrentOperationException, InvalidParameterValueException, ConfigurationException {
@@ -395,20 +464,52 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
                         String ip = vmAccessDetail.get(NetworkElementCommand.ROUTER_IP);
                         if (response != null) {
                             try {
-                                RetrieveZipFilesCommand filesCommand = new RetrieveZipFilesCommand(null, true);
-                                CopyVolumeAnswer copyToHost = (CopyVolumeAnswer) _agentMgr.send(vmInstance.getHostId(), filesCommand);
+
+                                VolumeVO volume = null;
+                                volume = _volumeDao.findById(hostId);
+                                Long zoneId = volume.getDataCenterId();
+                                DataStore store = _dataStoreMgr.getImageStore(zoneId);
+                                VolumeInfo volInfo = volumeFactory.getVolume(volume.getId());
+                                boolean srcVolumeDetached = volInfo.getAttachedVM() == null;
+                                StoragePoolVO storagePoolVO = _storagePoolDao.findById(volInfo.getPoolId());
+                                Map<String, String> srcDetails = getVolumeDetails(volInfo);
+                                VolumeObjectTO volTO = new VolumeObjectTO();
+                                CopyVolumeCommand filesCommand = new CopyVolumeCommand(volInfo.getId(), "/temp/", storagePoolVO,
+                                        volInfo.getDataStore().getUri(), false, StorageManager.KvmStorageOfflineMigrationWait.value(),
+                                        true, null, true);
+                                filesCommand.setSrcData(volInfo.getTO());
+                                filesCommand.setSrcDetails(srcDetails);
+                                final Hypervisor.HypervisorType hypervisorType = vmInstance.getHypervisorType();
+                                HostVO hostVO = getHost(volInfo.getDataCenterId(), hypervisorType, false);
+                                if (srcVolumeDetached) {
+                                    _volumeService.grantAccess(volInfo, hostVO, volInfo.getDataStore());
+                                }
+                                Answer copyToHost = _agentMgr.send(vmInstance.getHostId(), filesCommand);
                                 if (copyToHost == null || !copyToHost.getResult()) {
-                                    if (copyToHost != null && !StringUtils.isEmpty(copyToHost.getDetails())) {
+                                    if (copyToHost == null && !StringUtils.isEmpty(copyToHost.getDetails())) {
                                         throw new CloudRuntimeException(copyToHost.getDetails());
                                     }
                                 }
-                                filesCommand = new RetrieveZipFilesCommand(null, false);
-                                CopyVolumeAnswer copyToSec = (CopyVolumeAnswer) _agentMgr.send(vmInstance.getHostId(), filesCommand);
+                                long ssZoneid = hostVO.getDataCenterId();
+
+                                SecondaryStorageVmVO secStorageVm = _secStorageVmDao.findByInstanceName(hostVO.getName());
+                                if (secStorageVm == null) {
+                                    LOGGER.warn("secondary storage VM " + hostVO.getName() + " doesn't exist");
+
+                                }
+
+                                DataStore ssStores = _dataStoreMgr.getImageStore(ssZoneid);
+                                VolumeInfo destvol = volumeFactory.getVolume(volume.getId(), ssStores);//(VolumeInfo)ssStores;
+                                String secUrl = ssStores.getUri();
+                                filesCommand = new CopyVolumeCommand(volInfo.getId(), "/temp/", storagePoolVO,
+                                        destvol.getDataStore().getUri(), false, StorageManager.KvmStorageOfflineMigrationWait.value(),
+                                        true, null, false);
+                                Answer copyToSec = _agentMgr.send(vmInstance.getHostId(), filesCommand);
                                 if (copyToSec == null || !copyToSec.getResult()) {
                                     if (copyToSec != null && !StringUtils.isEmpty(copyToSec.getDetails())) {
                                         throw new CloudRuntimeException(copyToSec.getDetails());
                                     }
-                                    secondaryUrl = copyToSec.getVolumePath();
+                                    secondaryUrl = ((CopyVolumeAnswer) copyToSec).getVolumePath();
                                 }
                             } catch (AgentUnavailableException e) {
 
@@ -427,6 +528,48 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         return null;
 
     }
+
+    private HostVO getHost(Long zoneId, Hypervisor.HypervisorType hypervisorType, boolean computeClusterMustSupportResign) {
+        Preconditions.checkArgument(zoneId != null, "Zone ID cannot be null.");
+        Preconditions.checkArgument(hypervisorType != null, "Hypervisor type cannot be null.");
+
+        List<HostVO> hosts = _hostDao.listByDataCenterIdAndHypervisorType(zoneId, hypervisorType);
+
+        if (hosts == null) {
+            return null;
+        }
+
+        List<Long> clustersToSkip = new ArrayList<>();
+
+        Collections.shuffle(hosts, RANDOM);
+
+        for (HostVO host : hosts) {
+            if (!ResourceState.Enabled.equals(host.getResourceState())) {
+                continue;
+            }
+
+            if (computeClusterMustSupportResign) {
+                long clusterId = host.getClusterId();
+
+                if (clustersToSkip.contains(clusterId)) {
+                    continue;
+                }
+
+                if (clusterDao.getSupportsResigning(clusterId)) {
+                    return host;
+                }
+                else {
+                    clustersToSkip.add(clusterId);
+                }
+            }
+            else {
+                return host;
+            }
+        }
+
+        return null;
+    }
+
 
     protected String getAllDefaultFilesForEachSystemVm(String diagnosticsType) {
         StringBuilder listDefaultFilesForEachVm = new StringBuilder();
@@ -475,34 +618,25 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         for (int i = files.length - 1; i >= 0; i--) {
             if (files[i].contains("[") || files[i].contains("]")) {
                 tempStr = files[i].trim().replaceAll("(^\\[(.*?)\\].*?)", ("$2").trim());
-                boolean entityInDB = false;
                 scriptName = tempStr.toLowerCase().concat(".py");
-                String listDefaultFilesForVm = null;
-                List<DiagnosticsKey> diagnosticsKey = allDefaultDiagnosticsTypeKeys.get(diagnosticsType);
-                for (DiagnosticsKey key : diagnosticsKey) {
-                    if (key.getRole().equalsIgnoreCase("ALL")) {
-                        listDefaultFilesForVm = key.getDetail();
-                        if (listDefaultFilesForVm.equalsIgnoreCase(scriptName)) {
-                            entityInDB = true;
-                        }
-                    }
-                }
-                if (!entityInDB) {
-                    _retrieveDiagnosticsDao.update("ALL", diagnosticsType, scriptName);
-                    throw new CloudRuntimeException("The script name is not in the ISO, please add the script " + scriptName + "to the ISO");
-                }
                 scripts.add(scriptName);
             } else {
                 filesToRetrieve.add(files[i]);
             }
         }
 
-        String details = String.join(",", filesToRetrieve);
+        String details = String.join(" ", filesToRetrieve);
         accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
         RetrieveFilesCommand retrieveFilesCommand = new RetrieveFilesCommand(details, vmManager.getExecuteInSequence(hypervisorType));
+        Answer retrieveAnswer = null;
         retrieveFilesCommand.setAccessDetail(accessDetails);
-        Answer retrieveAnswer = _agentMgr.easySend(this.vmInstance.getHostId(), retrieveFilesCommand);
+        try {
+            retrieveAnswer = _agentMgr.send(this.vmInstance.getHostId(), retrieveFilesCommand);
+        } catch (AgentUnavailableException ex) {
 
+        } catch (OperationTimedoutException e) {
+
+        }
         if (retrieveAnswer != null) {
             executionDetail = ((RetrieveDiagnosticsAnswer) retrieveAnswer).getOutput();
         } else {
@@ -514,11 +648,17 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
             for (String script : scripts) {
                 execCmd = new ExecuteScriptCommand(script, vmManager.getExecuteInSequence(hypervisorType));
                 execCmd.setAccessDetail(accessDetails);
-                final Answer answer = _agentMgr.easySend(hostId, execCmd);
-                if (answer != null && (answer instanceof RetrieveDiagnosticsAnswer)) {
-                    executionDetail = ((RetrieveDiagnosticsAnswer) answer).getOutput();
+                try {
+                    retrieveAnswer = _agentMgr.send(hostId, execCmd);
+                } catch (AgentUnavailableException ex) {
+
+                } catch (OperationTimedoutException e) {
+
+                }
+                if (retrieveAnswer != null && (retrieveAnswer instanceof RetrieveDiagnosticsAnswer)) {
+                    executionDetail = ((RetrieveDiagnosticsAnswer) retrieveAnswer).getOutput();
                 } else {
-                    throw new CloudRuntimeException("Failed to execute ExecuteScriptCommand on remote host: " + answer.getDetails());
+                    throw new CloudRuntimeException("Failed to execute ExecuteScriptCommand on remote host: " + retrieveAnswer.getDetails());
                 }
             }
         }
@@ -668,9 +808,9 @@ public class RetrieveDiagnosticsServiceImpl extends ManagerBase implements Retri
         Script command = new Script("/bin/bash", LOGGER);
         command.add("-c");
         command.add("rm -rf " + secondaryUrl);
-        RetrieveZipFilesCommand diagnosticsCleanup = new RetrieveZipFilesCommand(command.toString(), null);
+        CopyVolumeCommand diagnosticsCleanup = new CopyVolumeCommand(command.toString(), null);
         try {
-            CopyVolumeAnswer answer = (CopyVolumeAnswer) _agentMgr.send(vmInstance.getHostId(), diagnosticsCleanup);
+            Answer answer = _agentMgr.send(vmInstance.getHostId(), diagnosticsCleanup);
             if (answer == null || !answer.getResult()) {
                 if (answer != null && !StringUtils.isEmpty(answer.getDetails())) {
                     throw new CloudRuntimeException(answer.getDetails());

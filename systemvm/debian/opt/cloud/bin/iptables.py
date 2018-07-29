@@ -27,21 +27,21 @@ import shlex
 
 class SaveIptablesToLogFile:
 
-    def __init__(self, arguments):
-        self.arguments = sys.argv
+    def __init__(self):
+        self.arguments = None
 
     def saveIpTableEntries(self,dest):
-        name = "temp/iptables.log"
-        command = 'iptables-save > temp/iptables.log'
+        name = "/tmp/iptables.log"
+        command = 'ifconfig > /tmp/iptables.log'
         os.system(command)
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        zipFileName = "temp/diagnosticsFiles_" + timestr + ".zip"
+        zipFileName = "/tmp/diagnosticsFiles_" + timestr + ".zip"
         print "Zip file name = " + zipFileName
         zip_archive = ZipFile(zipFileName, "a")
-        if os.path.isfile(name):
-            zip_archive.write(name)
-        else:
-            print name + " not found."
+#        if os.path.isfile(name):
+        zip_archive.write(name)
+#        else:
+#            print name + " not found."
         zip_archive.close()
         print("All diagnostics files zipped successfully")
 
@@ -56,10 +56,10 @@ class SaveIptablesToLogFile:
 
 
 if __name__ == "__main__":
-    arguments = sys.argv
-    file_path = "/temp/"
-    save_files = SaveIptablesToLogFile(arguments)
-    save_files.ensure_dir(file_path)
+ #   arguments = sys.argv
+    file_path = "/tmp/"
+    save_files = SaveIptablesToLogFile()
+    #save_files.ensure_dir(file_path)
     save_files.saveIpTableEntries(file_path)
 
 
