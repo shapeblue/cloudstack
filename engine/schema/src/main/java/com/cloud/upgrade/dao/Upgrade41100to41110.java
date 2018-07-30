@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class Upgrade41100to41110 implements DbUpgrade {
-    final static Logger LOG = Logger.getLogger(Upgrade41000to41100.class);
+    final static Logger LOG = Logger.getLogger(Upgrade41100to41110.class);
 
     @Override
     public String[] getUpgradableVersionRange() {
@@ -65,7 +65,7 @@ public class Upgrade41100to41110 implements DbUpgrade {
 
     @Override
     public void performDataMigration(Connection conn) {
-        updateSystemVmTemplates(conn);
+//        updateSystemVmTemplates(conn);
         markUnnecessarySecureConfigsAsUnsecure(conn);
     }
 

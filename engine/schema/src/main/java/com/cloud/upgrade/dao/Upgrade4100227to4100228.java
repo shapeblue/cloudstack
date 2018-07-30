@@ -24,7 +24,7 @@ import org.apache.log4j.Logger;
 import com.cloud.utils.exception.CloudRuntimeException;
 
 public class Upgrade4100227to4100228 implements DbUpgrade {
-    final static Logger LOG = Logger.getLogger(Upgrade4930to41000.class);
+    final static Logger LOG = Logger.getLogger(Upgrade4100227to4100228.class);
 
     @Override
     public String[] getUpgradableVersionRange() {

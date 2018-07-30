@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package com.cloud.upgrade.dao;
 
 import java.io.InputStream;
@@ -23,17 +24,18 @@ import org.apache.log4j.Logger;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 
-public class Upgrade4100229to4100230 implements DbUpgrade {
-    final static Logger LOG = Logger.getLogger(Upgrade4100229to4100230.class);
+public class Upgrade41000to4100226 implements DbUpgrade {
+
+    final static Logger LOG = Logger.getLogger(Upgrade41000to4100226.class);
 
     @Override
     public String[] getUpgradableVersionRange() {
-        return new String[] {"4.10.0.229", "4.10.0.230"};
+        return new String[] {"4.10.0.0", "4.10.0.226"};
     }
 
     @Override
     public String getUpgradedVersion() {
-        return "4.10.0.230";
+        return "4.10.0.226";
     }
 
     @Override
@@ -43,7 +45,7 @@ public class Upgrade4100229to4100230 implements DbUpgrade {
 
     @Override
     public InputStream[] getPrepareScripts() {
-        final String scriptFile = "META-INF/db/schema-4100229to4100230.sql";
+        final String scriptFile = "META-INF/db/schema-41000to4100226.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
@@ -58,7 +60,7 @@ public class Upgrade4100229to4100230 implements DbUpgrade {
 
     @Override
     public InputStream[] getCleanupScripts() {
-        final String scriptFile = "META-INF/db/schema-4100229to4100230-cleanup.sql";
+        final String scriptFile = "META-INF/db/schema-41000to4100226-cleanup.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
