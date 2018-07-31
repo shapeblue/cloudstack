@@ -18,8 +18,8 @@
  */
 package com.cloud.storage;
 
-import com.cloud.exception.ResourceAllocationException;
-import com.cloud.user.Account;
+import java.net.MalformedURLException;
+
 import org.apache.cloudstack.api.command.user.volume.AttachVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.CreateVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.DetachVolumeCmd;
@@ -30,7 +30,8 @@ import org.apache.cloudstack.api.command.user.volume.ResizeVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.UploadVolumeCmd;
 import org.apache.cloudstack.api.response.GetUploadParamsResponse;
 
-import java.net.MalformedURLException;
+import com.cloud.exception.ResourceAllocationException;
+import com.cloud.user.Account;
 
 public interface VolumeApiService {
     /**
@@ -78,7 +79,7 @@ public interface VolumeApiService {
 
     Volume attachVolumeToVM(AttachVolumeCmd command);
 
-    Volume detachVolumesFromVM(long vmId, long volumeId);
+    Volume detachVolumeViaDestroyVM(long vmId, long volumeId);
 
     Volume detachVolumeFromVM(DetachVolumeCmd cmd);
 

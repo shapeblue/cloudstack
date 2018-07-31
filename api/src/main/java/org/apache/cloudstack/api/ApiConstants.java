@@ -726,7 +726,7 @@ public class ApiConstants {
     public static final String EXITCODE = "exitcode";
     public static final String TARGET_ID = "targetid";
 
-    public static final String VOLUMES = "volumes";
+    public static final String VOLUME_IDS = "volumeIds";
 
     public enum HostDetails {
         all, capacity, events, stats, min;

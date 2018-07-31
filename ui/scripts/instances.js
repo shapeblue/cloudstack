@@ -169,7 +169,7 @@
                         }
 
                         $.extend(data, {
-                            volumes: $(selectedVolumes).map(function(index, volume) {
+                            volumeIds: $(selectedVolumes).map(function(index, volume) {
                                 return volume;
                             }).toArray().join(',')
                         });

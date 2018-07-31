@@ -2767,8 +2767,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         List<VolumeVO> volumes = new ArrayList<>();
 
-        if (cmd.getVolumes() != null) {
-            for (Long volId : cmd.getVolumes()) {
+        if (cmd.getVolumeIds() != null) {
+            for (Long volId : cmd.getVolumeIds()) {
                 VolumeVO vol = _volsDao.findById(volId);
 
                 if (vol == null) {
@@ -2780,7 +2780,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         checkForUnattachedVolumes(vmId, volumes);
         validateVolumes(volumes);
-        detachAndDeleteVolumes(volumes);
 
         UserVm destroyedVm = destroyVm(vmId, expunge);
         if (expunge) {
@@ -2788,6 +2787,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 throw new CloudRuntimeException("Failed to expunge vm " + destroyedVm);
             }
         }
+
+        detachAndDeleteVolumes(volumes);
 
         return destroyedVm;
     }
@@ -6494,11 +6495,18 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     private void detachAndDeleteVolumes(List<VolumeVO> volumes) {
 
         for (VolumeVO volume : volumes) {
-            _volumeService.detachVolumesFromVM(volume.getInstanceId(), volume.getId());
-        }
 
-        for (VolumeVO volume : volumes) {
-            _volumeService.deleteVolume(volume.getId(), CallContext.current().getCallingAccount());
+            Volume detachResult = _volumeService.detachVolumeViaDestroyVM(volume.getInstanceId(), volume.getId());
+
+            if (detachResult == null) {
+                s_logger.error("DestroyVM remove volume - failed to detach and delete volume " + volume.getInstanceId() + " from instance " + volume.getId());
+            }
+
+            boolean deleteResult = _volumeService.deleteVolume(volume.getId(), CallContext.current().getCallingAccount());
+
+            if (!deleteResult) {
+                s_logger.error("DestroyVM remove volume - failed to delete volume " + volume.getInstanceId() + " from instance " + volume.getId());
+            }
         }
     }
 }

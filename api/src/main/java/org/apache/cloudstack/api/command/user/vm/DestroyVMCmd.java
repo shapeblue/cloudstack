@@ -16,12 +16,10 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.vm;
 
-import com.cloud.event.EventTypes;
-import com.cloud.exception.ConcurrentOperationException;
-import com.cloud.exception.ResourceUnavailableException;
-import com.cloud.user.Account;
-import com.cloud.uservm.UserVm;
-import com.cloud.vm.VirtualMachine;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
 import org.apache.cloudstack.api.APICommand;
@@ -35,9 +33,13 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.UserVmResponse;
 import org.apache.cloudstack.api.response.VolumeResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
-import java.util.List;
+import com.cloud.event.EventTypes;
+import com.cloud.exception.ConcurrentOperationException;
+import com.cloud.exception.ResourceUnavailableException;
+import com.cloud.user.Account;
+import com.cloud.uservm.UserVm;
+import com.cloud.vm.VirtualMachine;
 
 @APICommand(name = "destroyVirtualMachine", description = "Destroys a virtual machine.", responseObject = UserVmResponse.class, responseView = ResponseView.Restricted, entityType = {VirtualMachine.class},
             requestHasSensitiveInfo = false,
@@ -62,13 +64,13 @@ public class DestroyVMCmd extends BaseAsyncCmd {
                since = "4.2.1")
     private Boolean expunge;
 
-    @Parameter( name = ApiConstants.VOLUMES,
+    @Parameter( name = ApiConstants.VOLUME_IDS,
                 type = CommandType.LIST,
                 collectionType = CommandType.UUID,
                 entityType = VolumeResponse.class,
-                description = "Comma separated list of volume UUIDs",
+                description = "Comma separated list of volume UUIDs that will be deleted",
                 since = "4.12.0")
-    private List<Long> volumes;
+    private List<Long> volumeIds;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -85,8 +87,8 @@ public class DestroyVMCmd extends BaseAsyncCmd {
         return expunge;
     }
 
-    public List<Long> getVolumes() {
-        return volumes;
+    public List<Long> getVolumeIds() {
+        return volumeIds;
     }
 
     /////////////////////////////////////////////////////
