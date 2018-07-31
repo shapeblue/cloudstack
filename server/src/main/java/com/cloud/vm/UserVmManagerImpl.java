@@ -6489,11 +6489,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 throw new InvalidParameterValueException("Please specify volume of type " + Volume.Type.DATADISK.toString() + " or " + Volume.Type.ROOT.toString());
             }
         }
-
-        // Check that the VM is in the correct state
-        // Root volume detach is allowed for following hypervisors: Xen/KVM/VmWare
-        // Don't allow detach if target VM has associated VM snapshots
-
     }
 
     private void detachAndDeleteVolumes(List<VolumeVO> volumes) {
