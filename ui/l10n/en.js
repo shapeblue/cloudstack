@@ -639,7 +639,7 @@ var dictionary = {
 "label.delete.secondary.staging.store":"Delete Secondary Staging Store",
 "label.delete.sslcertificate":"Delete SSL Certificate",
 "label.delete.ucs.manager":"Delete UCS Manager",
-"label.delete.volumes":"Delete Volumes",
+"label.delete.volumes":"Volumes to be deleted",
 "label.delete.vpn.user":"Delete VPN user",
 "label.deleting.failed":"Deleting Failed",
 "label.deleting.processing":"Deleting....",
