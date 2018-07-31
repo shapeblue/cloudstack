@@ -443,6 +443,12 @@
                                     } else {
                                         $(args.data).each(function() {
 
+                                            var id;
+                                            if (field.valueField)
+                                                id = this[field.valueField];
+                                             else
+                                                id = this.id !== undefined ? this.id : this.name;
+
                                             var desc;
                                             if (args.descriptionField)
                                                 desc = this[args.descriptionField];
@@ -450,15 +456,18 @@
                                                 desc = _l(this.description);
 
                                             $input.append(
-                                                $('<div>').addClass('item')
+                                                $('<div>')
+                                                    .addClass('item')
                                                     .append(
                                                         $.merge(
-                                                            $('<div>').addClass('name').html(_l(itemValue.label)),
+                                                            $('<div>').addClass('name').html(_l(desc)),
                                                             $('<div>').addClass('value').append(
                                                                 $('<input>').attr({
-                                                                    name: itemKey,
+                                                                    name: id,
                                                                     type: 'checkbox'
-                                                                }).appendTo($value)
+                                                                })
+                                                                .data('json-obj', this)
+                                                                .appendTo($value)
                                                             )
                                                         )
                                                     )
@@ -471,24 +480,6 @@
 
                         multiFn = field.multiData;
                         multiFn(multiArgs);
-
-//                        $.each(field.multiArray, function(itemKey, itemValue) {
-//                            $input.append(
-//                                $('<div>').addClass('item')
-//                                    .append(
-//                                        $.merge(
-//                                            $('<div>').addClass('name').html(_l(itemValue.label)),
-//                                            $('<div>').addClass('value').append(
-//                                                $('<input>').attr({
-//                                                    name: itemKey,
-//                                                    type: 'checkbox'
-//                                                }).appendTo($value)
-//                                            )
-//                                        )
-//                                    )
-//                            );
-//                        });
-
                     } else {
                         $input = $('<input>').attr({
                             name: key,

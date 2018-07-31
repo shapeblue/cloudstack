@@ -128,22 +128,18 @@
                         multiData: function(args) {
                             $.ajax({
                                 url: createURL("listVolumes&virtualMachineId=" + args.context.instances[0].id) + "&type=DATADISK",
-//                                  url: createURL("listVolumes"),
                                   dataType: "json",
                                   async: true,
                                   success: function(json) {
                                     var volumes = json.listvolumesresponse.volume;
                                     args.response.success({
                                         descriptionField: 'name',
+                                        valueField: 'id',
                                         data: volumes
                                     });
                                   }
                             });
                         }
-//                        multiArray: {
-//                            "id": "1",
-//                            "name": "name"
-//                        }
                     }
                 }
             },
@@ -158,12 +154,24 @@
                             expunge: true
                         });
                     }
-                    if (args.data.volumes == 'on' && args.data.volumeids.length > 0) {
-                        var selectVolumes = args.data.volumeids;
+                    if (args.data.volumes == 'on') {
+
+                        var regex = RegExp('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+
+                        var selectedVolumes = [];
+
+                        for (var key in args.data) {
+                            var matches = key.match(regex);
+
+                            if (matches != null) {
+                                selectedVolumes.push(key);
+                            }
+                        }
+
                         $.extend(data, {
-                           volumes: $(selectVolumes).map(function(index, volume) {
-                            return volume;
-                           }).toArray().join(',')
+                            volumes: $(selectedVolumes).map(function(index, volume) {
+                                return volume;
+                            }).toArray().join(',')
                         });
                     }
                     $.ajax({
