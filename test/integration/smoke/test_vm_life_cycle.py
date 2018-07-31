@@ -32,7 +32,8 @@ from marvin.lib.base import (Account,
                              Host,
                              Iso,
                              Router,
-                             Configurations)
+                             Configurations,
+                             Volume)
 from marvin.lib.common import (get_domain,
                                 get_zone,
                                 get_template,
@@ -785,6 +786,118 @@ class TestVMLifeCycle(cloudstackTestCase):
                          "Check if ISO is detached from virtual machine"
                          )
         return
+
+    @attr(tags = ["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    def test_11_destroy_vm_and_volumes(self):
+        """Test destroy Virtual Machine and it's volumes
+        """
+
+        # Validate the following
+        # 1. Deploys a VM and attaches disks to it
+        # 2. Destroys the VM with DataDisks option
+
+        small_virtual_machine = VirtualMachine.create(
+            self.apiclient,
+            self.services["small"],
+            accountid=self.account.name,
+            domainid=self.account.domainid,
+            serviceofferingid=self.small_offering.id,
+            mode=self.services["mode"]
+        )
+        vol1 = Volume.create(
+            self.apiclient,
+            self.services,
+            account=self.account.name,
+            domainid=self.account.domainid
+        )
+
+        vol2 = Volume.create(
+            self.apiclient,
+            self.services,
+            account=self.account.name,
+            domainid=self.account.domainid
+        )
+
+        small_virtual_machine.attach_volume(self.apiclient, vol1)
+        small_virtual_machine.attach_volume(self.apiclient, vol2)
+
+        cmd = destroyVirtualMachine.destroyVirtualMachineCmd()
+        cmd.id = small_virtual_machine.id
+        cmd.expunge = True
+        cmd.volumes = vol1.id, vol2.id
+
+        response = self.apiclient.destroyVirtualMachine(cmd)
+
+        self.debug("Destroy VM - ID: %s" % self.small_virtual_machine.id)
+        self.small_virtual_machine.delete(self.apiclient, expunge=False)
+
+        list_vm_response = VirtualMachine.list(
+                                            self.apiclient,
+                                            id=self.small_virtual_machine.id
+                                            )
+        self.assertEqual(
+                            isinstance(list_vm_response, list),
+                            True,
+                            "Check list response returns a valid list"
+                        )
+
+        self.assertNotEqual(
+                            len(list_vm_response),
+                            0,
+                            "Check VM avaliable in List Virtual Machines"
+                        )
+
+        self.assertEqual(
+                            list_vm_response[0].state,
+                            "Destroyed",
+                            "Check virtual machine is in destroyed state"
+                        )
+
+        list_vol = Volume.list(
+            self.apiclient,
+            id=vol1.id
+        )
+        self.assertEqual(
+            isinstance(list_vol, list),
+            True,
+            "Check list response returns a valid list"
+        )
+
+        self.assertNotEqual(
+            len(list_vol),
+            0,
+            "Check VM avaliable in List Virtual Machines"
+        )
+
+        self.assertEqual(
+            list_vol[0].state,
+            "Destroyed",
+            "Check virtual machine is in destroyed state"
+        )
+
+        list_vol = Volume.list(
+            self.apiclient,
+            id=vol2.id
+        )
+        self.assertEqual(
+            isinstance(list_vol, list),
+            True,
+            "Check list response returns a valid list"
+        )
+
+        self.assertNotEqual(
+            len(list_vol),
+            0,
+            "Check VM avaliable in List Virtual Machines"
+        )
+
+        self.assertEqual(
+            list_vol[0].state,
+            "Destroyed",
+            "Check virtual machine is in destroyed state"
+        )
+        return
+
 
 class TestSecuredVmMigration(cloudstackTestCase):
 
