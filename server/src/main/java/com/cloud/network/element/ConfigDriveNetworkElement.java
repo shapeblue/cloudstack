@@ -23,6 +23,7 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import com.cloud.storage.StoragePool;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.engine.subsystem.api.storage.EndPoint;
@@ -30,6 +31,8 @@ import org.apache.cloudstack.engine.subsystem.api.storage.EndPointSelector;
 import org.apache.cloudstack.storage.configdrive.ConfigDrive;
 import org.apache.cloudstack.storage.configdrive.ConfigDriveBuilder;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.AgentManager;
@@ -56,13 +59,13 @@ import com.cloud.offering.NetworkOffering;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.Storage;
-import com.cloud.storage.StoragePool;
 import com.cloud.storage.Volume;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.GuestOSCategoryDao;
 import com.cloud.storage.dao.GuestOSDao;
 import com.cloud.storage.dao.VolumeDao;
 import com.cloud.utils.component.AdapterBase;
+import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.fsm.StateListener;
 import com.cloud.utils.fsm.StateMachine2;
@@ -212,7 +215,14 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
         if (vm != null && vm.getVirtualMachine().getState().equals(VirtualMachine.State.Running)) {
             throw new CloudRuntimeException("VM should to stopped to reset password");
         }
-        return canHandle(network.getTrafficType());
+
+        final boolean canHandle = canHandle(network.getTrafficType());
+
+        if (canHandle) {
+            storePasswordInVmDetails(vm);
+        }
+
+        return canHandle;
     }
 
     @Override
@@ -223,7 +233,14 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
         if (vm != null && vm.getVirtualMachine().getState().equals(VirtualMachine.State.Running)) {
             throw new CloudRuntimeException("VM should to stopped to reset password");
         }
-        return canHandle(network.getTrafficType());
+
+        final boolean canHandle = canHandle(network.getTrafficType());
+
+        if (canHandle) {
+            storePasswordInVmDetails(vm);
+        }
+
+        return canHandle;
     }
 
     @Override
@@ -235,6 +252,20 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
             throw new CloudRuntimeException("VM should to stopped to reset password");
         }
         return canHandle(network.getTrafficType());
+    }
+
+    /**
+     * Store password in vm details so it can be picked up during VM start.
+     */
+    private void storePasswordInVmDetails(VirtualMachineProfile vm) {
+        final String password = (String) vm.getParameter(VirtualMachineProfile.Param.VmPassword);
+        final String password_encrypted = DBEncryptionUtil.encrypt(password);
+        final UserVmVO userVmVO = _userVmDao.findById(vm.getId());
+
+        _userVmDetailsDao.addDetail(vm.getId(), "password", password_encrypted, false);
+
+        userVmVO.setUpdateParameters(true);
+        _userVmDao.update(userVmVO.getId(), userVmVO);
     }
 
     @Override
@@ -293,25 +324,76 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
     private DataStore findDataStore(VirtualMachineProfile profile, DeployDestination dest) {
         DataStore dataStore = null;
         if (VirtualMachineManager.VmConfigDriveOnPrimaryPool.value()) {
-            if (dest.getStorageForDisks() != null) {
-                for (final Volume volume : dest.getStorageForDisks().keySet()) {
-                    if (volume.getVolumeType() == Volume.Type.ROOT) {
-                        final StoragePool primaryPool = dest.getStorageForDisks().get(volume);
-                        dataStore = _dataStoreMgr.getDataStore(primaryPool.getId(), DataStoreRole.Primary);
-                        break;
-                    }
-                }
+            if(MapUtils.isNotEmpty(dest.getStorageForDisks())) {
+                dataStore = getPlannedDataStore(dest, dataStore);
             }
             if (dataStore == null) {
-                final List<VolumeVO> volumes = _volumeDao.findByInstanceAndType(profile.getVirtualMachine().getId(), Volume.Type.ROOT);
-                if (volumes != null && volumes.size() > 0) {
-                    dataStore = _dataStoreMgr.getDataStore(volumes.get(0).getPoolId(), DataStoreRole.Primary);
-                }
+                dataStore = pickExistingRootVolumeFromDataStore(profile, dataStore);
             }
         } else {
             dataStore = _dataStoreMgr.getImageStore(dest.getDataCenter().getId());
         }
         return dataStore;
+    }
+
+    private DataStore getPlannedDataStore(DeployDestination dest, DataStore dataStore) {
+        for (final Volume volume : dest.getStorageForDisks().keySet()) {
+            if (volume.getVolumeType() == Volume.Type.ROOT) {
+                final StoragePool primaryPool = dest.getStorageForDisks().get(volume);
+                dataStore = _dataStoreMgr.getDataStore(primaryPool.getId(), DataStoreRole.Primary);
+                break;
+            }
+        }
+        return dataStore;
+    }
+
+    private DataStore pickExistingRootVolumeFromDataStore(VirtualMachineProfile profile, DataStore dataStore) {
+        final List<VolumeVO> volumes = _volumeDao.findByInstanceAndType(profile.getVirtualMachine().getId(), Volume.Type.ROOT);
+        if (CollectionUtils.isNotEmpty(volumes)) {
+            dataStore = pickDataStoreFromVolumes(volumes);
+        }
+        return dataStore;
+    }
+
+    private DataStore pickDataStoreFromVolumes(List<VolumeVO> volumes) {
+        DataStore dataStore = null;
+        for (Volume vol : volumes) {
+            if (doesVolumeStateCheckout(vol)) {
+                dataStore = _dataStoreMgr.getDataStore(vol.getPoolId(), DataStoreRole.Primary);
+                if (dataStore != null) {
+                    return dataStore;
+                }
+            }
+        }
+        return dataStore;
+    }
+
+    private boolean doesVolumeStateCheckout(Volume vol) {
+        switch (vol.getState()) {
+        case Allocated:
+        case Creating:
+        case Ready:
+        case Snapshotting:
+        case RevertSnapshotting:
+        case Resizing:
+        case Copying:
+        case Attaching:
+            return true;
+        case Migrating:
+        case Expunging:
+        case Expunged:
+        case Destroy:
+        case Destroying:
+        case UploadOp:
+        case Uploaded:
+        case NotUploaded:
+        case UploadInProgress:
+        case UploadError:
+        case UploadAbandoned:
+            return false;
+        default:
+            throw new IllegalArgumentException("volume has a state that does not compute: " +vol.getState());
+        }
     }
 
     private Long findAgentIdForImageStore(final DataStore dataStore) throws ResourceUnavailableException {
@@ -346,8 +428,9 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
 
         LOG.debug("Creating config drive ISO for vm: " + profile.getInstanceName());
 
+        final String isoFileName = ConfigDrive.configIsoFileName(profile.getInstanceName());
         final String isoPath = ConfigDrive.createConfigDrivePath(profile.getInstanceName());
-        final String isoData = ConfigDriveBuilder.buildConfigDrive(profile.getVmData(), ConfigDrive.CONFIGDRIVEFILENAME, profile.getConfigDriveLabel());
+        final String isoData = ConfigDriveBuilder.buildConfigDrive(profile.getVmData(), isoFileName, profile.getConfigDriveLabel());
         final HandleConfigDriveIsoCommand configDriveIsoCommand = new HandleConfigDriveIsoCommand(isoPath, isoData, dataStore.getTO(), true);
 
         final Answer answer = agentManager.easySend(agentId, configDriveIsoCommand);

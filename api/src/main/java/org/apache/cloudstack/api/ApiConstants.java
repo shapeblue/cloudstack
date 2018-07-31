@@ -155,6 +155,7 @@ public class ApiConstants {
     public static final String IDS = "ids";
     public static final String PREVIOUS_ACL_RULE_ID = "previousaclruleid";
     public static final String NEXT_ACL_RULE_ID = "nextaclruleid";
+    public static final String MOVE_ACL_CONSISTENCY_HASH = "aclconsistencyhash";
     public static final String INTERNAL_DNS1 = "internaldns1";
     public static final String INTERNAL_DNS2 = "internaldns2";
     public static final String INTERVAL_TYPE = "intervaltype";
@@ -548,6 +549,7 @@ public class ApiConstants {
     public static final String IPSEC_PSK = "ipsecpsk";
     public static final String GUEST_IP = "guestip";
     public static final String REMOVED = "removed";
+    public static final String COMPLETED = "completed";
     public static final String IKE_POLICY = "ikepolicy";
     public static final String ESP_POLICY = "esppolicy";
     public static final String IKE_LIFETIME = "ikelifetime";
@@ -718,6 +720,11 @@ public class ApiConstants {
     public static final String HAS_ANNOTATION = "hasannotation";
     public static final String LAST_ANNOTATED = "lastannotated";
     public static final String LDAP_DOMAIN = "ldapdomain";
+
+    public static final String STDOUT = "stdout";
+    public static final String STDERR = "stderr";
+    public static final String EXITCODE = "exitcode";
+    public static final String TARGET_ID = "targetid";
 
     public static final String VOLUMES = "volumes";
 
