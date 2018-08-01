@@ -2765,8 +2765,26 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
         s_logger.debug("Found no ongoing snapshots on volume of type ROOT, for the vm with id " + vmId);
 
-        List<VolumeVO> volumes = new ArrayList<>();
+        List<VolumeVO> volumes = getVolumesFromIds(cmd);
 
+        checkForUnattachedVolumes(vmId, volumes);
+        validateVolumes(volumes);
+        detachVolumesFromVm(volumes);
+
+        UserVm destroyedVm = destroyVm(vmId, expunge);
+        if (expunge) {
+            if (!expunge(vm, ctx.getCallingUserId(), ctx.getCallingAccount())) {
+                throw new CloudRuntimeException("Failed to expunge vm " + destroyedVm);
+            }
+        }
+
+        deleteVolumesFromVm(volumes);
+
+        return destroyedVm;
+    }
+
+    private List<VolumeVO> getVolumesFromIds(DestroyVMCmd cmd) {
+        List<VolumeVO> volumes = new ArrayList<>();
         if (cmd.getVolumeIds() != null) {
             for (Long volId : cmd.getVolumeIds()) {
                 VolumeVO vol = _volsDao.findById(volId);
@@ -2777,20 +2795,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 volumes.add(vol);
             }
         }
-
-        checkForUnattachedVolumes(vmId, volumes);
-        validateVolumes(volumes);
-
-        UserVm destroyedVm = destroyVm(vmId, expunge);
-        if (expunge) {
-            if (!expunge(vm, ctx.getCallingUserId(), ctx.getCallingAccount())) {
-                throw new CloudRuntimeException("Failed to expunge vm " + destroyedVm);
-            }
-        }
-
-        detachAndDeleteVolumes(volumes);
-
-        return destroyedVm;
+        return volumes;
     }
 
     @Override
@@ -6492,7 +6497,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
     }
 
-    private void detachAndDeleteVolumes(List<VolumeVO> volumes) {
+    private void detachVolumesFromVm(List<VolumeVO> volumes) {
 
         for (VolumeVO volume : volumes) {
 
@@ -6501,6 +6506,12 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             if (detachResult == null) {
                 s_logger.error("DestroyVM remove volume - failed to detach and delete volume " + volume.getInstanceId() + " from instance " + volume.getId());
             }
+        }
+    }
+
+    private void deleteVolumesFromVm(List<VolumeVO> volumes) {
+
+        for (VolumeVO volume : volumes) {
 
             boolean deleteResult = _volumeService.deleteVolume(volume.getId(), CallContext.current().getCallingAccount());
 
