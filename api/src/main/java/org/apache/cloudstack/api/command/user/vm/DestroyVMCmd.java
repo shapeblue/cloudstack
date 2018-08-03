@@ -68,7 +68,7 @@ public class DestroyVMCmd extends BaseAsyncCmd {
                 type = CommandType.LIST,
                 collectionType = CommandType.UUID,
                 entityType = VolumeResponse.class,
-                description = "Comma separated list of volume UUIDs that will be deleted",
+                description = "Comma separated list of UUIDs for volumes that will be deleted",
                 since = "4.12.0")
     private List<Long> volumeIds;
 

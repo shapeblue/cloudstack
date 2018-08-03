@@ -124,6 +124,7 @@
                         dependsOn: 'volumes',
                         isBoolean: true,
                         isHidden: true,
+                        emptyMessage: 'label.volume.empty',
                         multiDataArray: true,
                         multiData: function(args) {
                             $.ajax({

@@ -434,8 +434,8 @@
                         });
 
                     } else if (field.multiDataArray) {
-                        $input = $('<div>')
-                            .addClass('multi-array').addClass(key).appendTo($value);
+
+                        $input = $('<div>');
 
                         multiArgs = {
                             context: args.context,
@@ -443,7 +443,19 @@
                                 success: function(args) {
                                     if (args.data == undefined || args.data.length == 0) {
 
+                                        var label = field.emptyMessage != null ? field.emptyMessage : 'No data available';
+
+                                        $input
+                                            .addClass('value')
+                                            .appendTo($value)
+                                            .append(
+                                                $('<label>').html(_l(label))
+                                            );
+
                                     } else {
+
+                                        $input.addClass('multi-array').addClass(key).appendTo($value);
+
                                         $(args.data).each(function() {
 
                                             var id;
