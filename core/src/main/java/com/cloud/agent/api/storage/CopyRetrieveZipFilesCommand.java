@@ -16,37 +16,26 @@
 // specific language governing permissions and limitations
 // under the License.
 //
-
 package com.cloud.agent.api.storage;
 
 import com.cloud.agent.api.to.DataTO;
-import com.cloud.agent.api.to.StorageFilerTO;
-import com.cloud.storage.StoragePool;
 
 import java.util.Map;
 
-public class CopyVolumeCommand extends StorageNfsVersionCommand {
-    private long volumeId;
-    private String volumePath;
-    private StorageFilerTO pool;
-    private String secondaryStorageURL;
-    private boolean toSecondaryStorage;
-    private String vmName;
+public class CopyRetrieveZipFilesCommand extends StorageNfsVersionCommand {
+    private String copyCommand;
+    private Boolean secCleanup = null;
+    private String content;
+    private String controlIp;
+    private final String tmpZipFilePath = "/tmp/diagnostics_*";
     private DataTO srcData;
     private Map<String, String> srcDetails;
     private boolean executeInSequence;
 
-    public CopyVolumeCommand() {
-    }
-
-    public CopyVolumeCommand(long volumeId, String volumePath, StoragePool pool, String secondaryStorageURL, boolean toSecondaryStorage, int wait,
-            boolean executeInSequence) {
-        this.volumeId = volumeId;
-        this.volumePath = volumePath;
-        this.pool = new StorageFilerTO(pool);
-        this.secondaryStorageURL = secondaryStorageURL;
-        this.toSecondaryStorage = toSecondaryStorage;
-        setWait(wait);
+    public CopyRetrieveZipFilesCommand(String copyCommand, String content, Boolean secCleanup, boolean executeInSequence) {
+        this.copyCommand = copyCommand;
+        this.secCleanup = secCleanup;
+        this.content = content;
         this.executeInSequence = executeInSequence;
     }
 
@@ -55,28 +44,20 @@ public class CopyVolumeCommand extends StorageNfsVersionCommand {
         return executeInSequence;
     }
 
-    public String getVolumePath() {
-        return volumePath;
+    public String getCopyCommand() {
+        return copyCommand;
     }
 
-    public long getVolumeId() {
-        return volumeId;
+    public void setCopyCommand(String copyCommand) {
+        this.copyCommand = copyCommand;
     }
 
-    public StorageFilerTO getPool() {
-        return pool;
+    public Boolean getSecCleanup() {
+        return secCleanup;
     }
 
-    public String getSecondaryStorageURL() {
-        return secondaryStorageURL;
-    }
-
-    public boolean toSecondaryStorage() {
-        return toSecondaryStorage;
-    }
-
-    public String getVmName() {
-        return vmName;
+    public void setSecCleanup(Boolean secCleanup) {
+        this.secCleanup = secCleanup;
     }
 
     public void setSrcData(DataTO srcData) {
@@ -91,9 +72,20 @@ public class CopyVolumeCommand extends StorageNfsVersionCommand {
         this.srcDetails = srcDetails;
     }
 
-    public Map<String, String> getSrcDetails() {
-        return srcDetails;
+    public String getControlIp() {
+        return controlIp;
     }
 
+    public void setControlIp(String controlIp) {
+        this.controlIp = controlIp;
+    }
+
+    public String getTmpZipFilePath() {
+        return tmpZipFilePath;
+    }
+
+    public String getContent() {
+        return content;
+    }
 
 }

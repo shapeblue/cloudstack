@@ -33,7 +33,7 @@ import com.cloud.agent.api.routing.IpAssocCommand;
 import com.cloud.agent.api.routing.IpAssocVpcCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.api.routing.SetSourceNatCommand;
-import com.cloud.agent.api.storage.CopyVolumeCommand;
+import com.cloud.agent.api.storage.CopyRetrieveZipFilesCommand;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
@@ -110,7 +110,6 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.VmDetailConstants;
 import com.google.common.base.Strings;
-import org.apache.cloudstack.diagnostics.RetrieveZipFilesCommand;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.cloudstack.utils.hypervisor.HypervisorUtils;
@@ -155,6 +154,8 @@ import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -223,6 +224,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     public static final String SSHKEYSPATH = "/root/.ssh";
     public static final String SSHPRVKEYPATH = SSHKEYSPATH + File.separator + "id_rsa.cloud";
     public static final String SSHPUBKEYPATH = SSHKEYSPATH + File.separator + "id_rsa.pub.cloud";
+    protected static final int DEFAULT_DOMR_SSHPORT = 3922;
 
     public static final String BASH_SCRIPT_PATH = "/bin/bash";
 
@@ -482,16 +484,70 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         return storageHandler;
     }
 
-    public Answer copyFilesFromHost(RetrieveZipFilesCommand command) {
+   /* public Answer copyFilesFromHost(RetrieveZipFilesCommand command) {
         Script script = new Script(command.getCopyCommand());
         String result = script.execute();
         if (result != null) {
             return new Answer(command, true, result);
         }
         return null;
+    }*/
+
+    public File getSystemVMKeyFile() {
+        final URL url = this.getClass().getClassLoader().getResource("scripts/vm/systemvm/id_rsa.cloud");
+        File keyFile = null;
+        if (url != null) {
+            keyFile = new File(url.getPath());
+        }
+        if (keyFile == null || !keyFile.exists()) {
+            keyFile = new File("/usr/share/cloudstack-common/scripts/vm/systemvm/id_rsa.cloud");
+        }
+        assert keyFile != null;
+        if (!keyFile.exists()) {
+            s_logger.error("Unable to locate id_rsa.cloud in your setup at " + keyFile.toString());
+        }
+        return keyFile;
     }
 
-    public Answer deleteFilesFromHost(CopyVolumeCommand command) {
+    public Answer copyZipFileToHost(CopyRetrieveZipFilesCommand command) {//String controlIp, String filename, final String filePath, String content) {
+        final File keyFile = getSystemVMKeyFile();
+        boolean successful = false;
+        final File dir = new File("/opt/cloud/bin/diagnosticsdata");
+        if (!dir.exists()) {
+            successful = dir.mkdir();
+        }
+        if (!successful) {
+            throw new CloudRuntimeException("Failed to create directory /opt/cloud/bin/diagnosticsdata");
+        }
+        try {
+            SshHelper.scpTo(command.getControlIp(), DEFAULT_DOMR_SSHPORT, "root", keyFile, null, dir.toString(), command.getContent().getBytes(Charset.forName("UTF-8")), command.getTmpZipFilePath(), null);
+        } catch (final Exception e) {
+            s_logger.warn("Fail to create file " + command.getTmpZipFilePath() + " in System VM " + command.getControlIp(), e);
+            return new Answer(command, e);
+        }
+        return new Answer(command, null);
+    }
+
+    public Answer copyZipFileToServer(CopyRetrieveZipFilesCommand cmd) {
+        final File keyFile = getSystemVMKeyFile();
+        boolean successful = false;
+        final File dir = new File("/tmp/");
+        if (!dir.exists()) {
+            successful = dir.mkdir();
+        }
+        if (!successful) {
+            throw new CloudRuntimeException("Failed to create directory /tmp/");
+        }
+        try {
+            SshHelper.scpTo(cmd.getControlIp(), 8250, "root", keyFile, null, dir.toString(), cmd.getContent().getBytes(Charset.forName("UTF-8")), cmd.getTmpZipFilePath(), null);
+        } catch (final Exception e) {
+            s_logger.warn("Fail to create file " + cmd.getTmpZipFilePath() + " in System VM " + cmd.getControlIp(), e);
+            return new Answer(cmd, e);
+        }
+        return new Answer(cmd, null);
+    }
+
+    public Answer deleteFilesFromHost(CopyRetrieveZipFilesCommand command) {
         Script script = new Script(command.getCopyCommand());
         String result = script.execute();
         if (result != null) {

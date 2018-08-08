@@ -17,33 +17,30 @@
 // under the License.
 //
 
-package org.apache.cloudstack.diagnostics;
+package com.cloud.agent.api.storage;
 
-import com.cloud.agent.api.storage.StorageNfsVersionCommand;
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.Command;
 
-public class RetrieveZipFilesCommand extends StorageNfsVersionCommand {
-    private Boolean secCleanup = null;
-    private boolean executeInSequence;
+public class CopyRetrieveZipFilesAnswer extends Answer {
+    private String volumeFolder;
+    private String volumePath;
 
-    public RetrieveZipFilesCommand(Boolean secCleanup, boolean executeInSequence) {
-        this.executeInSequence = executeInSequence;
-        this.secCleanup = secCleanup;
+    protected CopyRetrieveZipFilesAnswer() {
+        super();
     }
 
-    public RetrieveZipFilesCommand() {
+    public CopyRetrieveZipFilesAnswer(Command command, boolean success, String details, String volumeFolder, String volumePath) {
+        super(command, success, details);
+        this.volumeFolder = volumeFolder;
+        this.volumePath = volumePath;
     }
 
-    @Override
-    public boolean executeInSequence() {
-        return executeInSequence;
+    public String getVolumeFolder() {
+        return volumeFolder;
     }
 
-    public Boolean getSecCleanup() {
-        return secCleanup;
+    public String getVolumePath() {
+        return volumePath;
     }
-
-    public void setSecCleanup(Boolean secCleanup) {
-        this.secCleanup = secCleanup;
-    }
-
 }

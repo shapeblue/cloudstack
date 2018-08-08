@@ -159,7 +159,7 @@ public class VirtualRoutingResource {
 
     private RetrieveDiagnosticsAnswer execute(final RetrieveFilesCommand cmd) {
         String args = cmd.getDiagnosticFileToRetrieve();
-        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.RETRIEVE_DIAGNOSTICS, args);
+        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), args, null);
         if (result.isSuccess()) {
             return new RetrieveDiagnosticsAnswer(cmd, true, result.getDetails());
         }

@@ -16,34 +16,21 @@
 // specific language governing permissions and limitations
 // under the License.
 //
+package com.cloud.hypervisor.kvm.resource.wrapper;
 
-package org.apache.cloudstack.diagnostics;
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.storage.CopyRetrieveZipFilesCommand;
+import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
+import com.cloud.resource.CommandWrapper;
+import com.cloud.resource.ResourceWrapper;
+import org.apache.log4j.Logger;
 
-import com.cloud.agent.api.storage.StorageNfsVersionCommand;
-
-public class RetrieveZipFilesCommand extends StorageNfsVersionCommand {
-    private Boolean secCleanup = null;
-    private boolean executeInSequence;
-
-    public RetrieveZipFilesCommand(Boolean secCleanup, boolean executeInSequence) {
-        this.executeInSequence = executeInSequence;
-        this.secCleanup = secCleanup;
-    }
-
-    public RetrieveZipFilesCommand() {
-    }
+@ResourceWrapper(handles = CopyRetrieveZipFilesCommand.class)
+public class LibvirtRetrieveZipFileWrapper extends CommandWrapper<CopyRetrieveZipFilesCommand, Answer, LibvirtComputingResource> {
+    private static final Logger LOGGER = Logger.getLogger(LibvirtRetrieveZipFileWrapper.class);
 
     @Override
-    public boolean executeInSequence() {
-        return executeInSequence;
+    public Answer execute(final CopyRetrieveZipFilesCommand command, final LibvirtComputingResource libvirtComputingResource) {
+        return null;
     }
-
-    public Boolean getSecCleanup() {
-        return secCleanup;
-    }
-
-    public void setSecCleanup(Boolean secCleanup) {
-        this.secCleanup = secCleanup;
-    }
-
 }

@@ -40,14 +40,14 @@ CREATE TABLE `cloud`.`diagnosticsdata` (
   `value` varchar(200) NOT NULL COMMENT 'default comma delimited list of files'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'LOGFILES', 'cloud.log,agent.log,[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'LOGFILES', '/var/log/cloud.log,/var/log/auth.log,/var/log/daemon.log,[IPTABLES],[ROUTE]');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('SecondaryStorageVm', 'PROPERTYFILES', '<SSVM property files>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'DHCPFILES', 'dnsmasq.conf,resolv.conf,cloud.log,[IPTABLES],[IFCONFIG]');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'USERDATA', '<userdatafiles>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'LB', 'haproxy.conf');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'DNS', 'Hosts,resolv.conf,[IFCONFIG],[IPTABLES]');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'DNS', '/var/log/cloud.log,/var/log/auth.log,/var/log/daemon.log,[ROUTE],[IFCONFIG],[IPTABLES]');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'VPN', '<vpn configuration file>');
-INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'LOGFILES', 'cloud.log,agent.log');
+INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('DomainRouter', 'LOGFILES', '/var/log/cloud.log,/var/log/auth.log,/var/log/daemon.log,[IPTABLES],[ROUTE]');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ConsoleProxy', 'PROPERTYFILES', '<CPVM property file>');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IPTABLES.retrieve', 'iptables.sh');
 INSERT INTO `cloud`.`diagnosticsdata` (`role`, `class`, `value`) values ('ALL', 'IFCONFIG.retrieve', 'ifconfig.sh');

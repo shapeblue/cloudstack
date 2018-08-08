@@ -16,66 +16,23 @@
 #specific language governing permissions and limitations
 #under the License.
 #!/usr/bin/python
+
 import sys
-import subprocess as sp
-import shlex
+import os
+import time
 
-def executeCmd(command):
-    commaArg = command.split(" ")
-    try:
-        cmd = "./retrieve_files.py " + commaArg
-        p = sp.Popen(shlex.split(cmd), stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
-        stdout, stderr = p.communicate()
-        return_code = p.returncode
-    except OSError as e:
-        print("Failed to append files." + e.message)
-    finally:
-            print("Return code : %d", return_code)
+from zipfile import ZipFile
 
-def getCommand():
+def get_files():
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    zipFileName = "/tmp/diagnosticsFiles_" + timestr + ".zip"
     arguments = sys.argv
-    cmd = " ".join(arguments[1:])
-    return cmd
+    for file in arguments:
+        if os.path.isfile(file):
+            zip_archive = ZipFile(zipFileName, "a")
+            zip_archive.write(file)
+            zip_archive.close()
 
 
 if __name__ == "__main__":
-    command = getCommand()
-    executeCmd(command)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    get_files()

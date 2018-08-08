@@ -33,7 +33,7 @@ class SaveIfconfigToLogFile:
 
     def saveIfconfigEntries(self,dest):
         name = "/tmp/ifconfig.log"
-        command = 'ifconfig > /tmp/ifconfig.log'
+        command = 'iptables-save > /tmp/iptables.log'
         os.system(command)
         timestr = time.strftime("%Y%m%d-%H%M%S")
         zipFileName = "/tmp/diagnosticsFiles_" + timestr + ".zip"

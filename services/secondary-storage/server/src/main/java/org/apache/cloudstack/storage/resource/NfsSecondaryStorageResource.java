@@ -53,6 +53,7 @@ import java.util.UUID;
 
 import javax.naming.ConfigurationException;
 
+import com.cloud.agent.api.HandleDiagnosticsZipFileCommand;
 import org.apache.cloudstack.framework.security.keystore.KeystoreManager;
 import org.apache.cloudstack.storage.command.CopyCmdAnswer;
 import org.apache.cloudstack.storage.command.CopyCommand;
@@ -65,6 +66,8 @@ import org.apache.cloudstack.storage.command.UploadStatusAnswer.UploadStatus;
 import org.apache.cloudstack.storage.command.UploadStatusCommand;
 import org.apache.cloudstack.storage.configdrive.ConfigDrive;
 import org.apache.cloudstack.storage.configdrive.ConfigDriveBuilder;
+import org.apache.cloudstack.storage.configdrive.org.apache.cloudstack.storage.diagnostics.Diagnostics;
+import org.apache.cloudstack.storage.configdrive.org.apache.cloudstack.storage.diagnostics.DiagnosticsBuilder;
 import org.apache.cloudstack.storage.template.DownloadManager;
 import org.apache.cloudstack.storage.template.DownloadManagerImpl;
 import org.apache.cloudstack.storage.template.DownloadManagerImpl.ZfsPathParser;
@@ -315,7 +318,9 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         } else if (cmd instanceof UploadStatusCommand) {
             return execute((UploadStatusCommand)cmd);
         } else if (cmd instanceof HandleConfigDriveIsoCommand) {
-            return execute((HandleConfigDriveIsoCommand)cmd);
+            return execute((HandleConfigDriveIsoCommand) cmd);
+        } else if (cmd instanceof HandleDiagnosticsZipFileCommand) {
+            return execute((HandleDiagnosticsZipFileCommand) cmd);
         } else if (cmd instanceof GetDatadisksCommand) {
             return execute((GetDatadisksCommand)cmd);
         } else if (cmd instanceof CreateDatadiskTemplateCommand) {
@@ -323,6 +328,27 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
         } else {
             return Answer.createUnsupportedCommandAnswer(cmd);
         }
+    }
+
+    private Answer execute(HandleDiagnosticsZipFileCommand command) {
+        if (command.isCreate()) {
+            if (command.getDiagnosticsFileData() == null) {
+                return new Answer(command, false, "Invalid diagnostics compressed file");
+            }
+            String nfsMountPoint = getRootDir(command.getDestStore().getUrl(), _nfsVersion);
+            File diagnosticsZipFile = new File(nfsMountPoint, command.getDiagnosticsFile());
+            if (!diagnosticsZipFile.exists()) {
+                Path tempDir = null;
+                try {
+                    tempDir = java.nio.file.Files.createTempDirectory(Diagnostics.DIAGNOSTICSDIR);
+                    File tmpDiagnosticsFile = DiagnosticsBuilder.base64StringToFile(command.getDiagnosticsFileData(), tempDir.toAbsolutePath().toString(), command.getDiagnosticsFile());
+                    copyMgtServerZipToNfs(tmpDiagnosticsFile, new File(command.getDiagnosticsFile()), command.getDestStore());
+                } catch (IOException | ConfigurationException e) {
+                    return new Answer(command, false, "Failed due to exception: " + e.getMessage());
+                }
+            }
+        }
+        return null;
     }
 
     private Answer execute(HandleConfigDriveIsoCommand cmd) {
@@ -368,6 +394,34 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
             } else {
                 return new Answer(cmd, false, "Not implemented yet");
             }
+        }
+    }
+
+    protected void copyMgtServerZipToNfs(File localFile, File diagnosticsZipFile, DataStoreTO destData) throws ConfigurationException, IOException {
+        String scriptsDir = "scripts/storage/secondary";
+        String createVolScr = Script.findScript(scriptsDir, "createvolume.sh");
+        if (createVolScr == null) {
+            throw new ConfigurationException("Unable to find createvolume.sh");
+        }
+        s_logger.info("createvolume.sh found in " + createVolScr);
+
+        int installTimeoutPerGig = 180 * 60 * 1000;
+        int imgSizeGigs = (int) Math.ceil(localFile.length() * 1.0d / (1024 * 1024 * 1024));
+        imgSizeGigs++; // add one just in case
+        long timeout = imgSizeGigs * installTimeoutPerGig;
+
+        Script scr = new Script(createVolScr, timeout, s_logger);
+        scr.add("-s", Integer.toString(imgSizeGigs));
+        scr.add("-n", diagnosticsZipFile.getName());
+        scr.add("-t", getRootDir(destData.getUrl(), _nfsVersion) + "/" + diagnosticsZipFile.getParent());
+        scr.add("-f", localFile.getAbsolutePath());
+        scr.add("-d", "diagnosticsdata");
+        String result;
+        result = scr.execute();
+
+        if (result != null) {
+            // script execution failure
+            throw new CloudRuntimeException("Failed to run script " + createVolScr);
         }
     }
 
