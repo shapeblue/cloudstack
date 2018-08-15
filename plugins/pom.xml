@@ -58,6 +58,9 @@
         <module>api/rate-limit</module>
         <module>api/solidfire-intg-test</module>
 
+        <module>backup/dummy</module>
+        <module>backup/veeam</module>
+
         <module>ca/root-ca</module>
 
         <module>database/quota</module>
