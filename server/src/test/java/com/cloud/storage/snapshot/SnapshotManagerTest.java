@@ -23,6 +23,7 @@ import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
+import org.apache.cloudstack.engine.subsystem.api.storage.ObjectInDataStoreStateMachine;
 import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotDataFactory;
 import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotInfo;
 import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotStrategy;
@@ -350,5 +351,4 @@ public class SnapshotManagerTest {
         when(snapshotInfoMock.getStatus()).thenReturn(ObjectInDataStoreStateMachine.State.Destroyed);
         _snapshotMgr.archiveSnapshot(TEST_SNAPSHOT_ID);
     }
-
 }

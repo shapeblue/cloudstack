@@ -391,11 +391,17 @@ public class SnapshotManagerImpl extends MutualExclusiveIdsManagerBase implement
         }
 
         SnapshotInfo snapshotOnSecondary = snapshotSrv.backupSnapshot(snapshotOnPrimary);
-        snapshotSrv.deleteSnapshot(snapshotOnPrimary);
-
         SnapshotVO snapshotVO = _snapshotDao.findById(snapshotOnSecondary.getId());
         snapshotVO.setLocationType(Snapshot.LocationType.SECONDARY);
         _snapshotDao.persist(snapshotVO);
+
+        try {
+            snapshotSrv.deleteSnapshot(snapshotOnPrimary);
+        } catch (Exception e) {
+            throw new CloudRuntimeException("Snapshot archived to Secondary Storage but there was an error deleting " +
+                    " the snapshot on Primary Storage. Please manually delete the primary snapshot " + snapshotId, e);
+        }
+
         return snapshotOnSecondary;
     }
 
