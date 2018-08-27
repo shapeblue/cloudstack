@@ -190,6 +190,11 @@ if [ "%{_sim}" == "SIMULATOR" -o "%{_sim}" == "simulator" ] ; then
    FLAGS="$FLAGS -Dsimulator"
 fi
 
+if [ "%{_tests}" == "SKIP" ] ; then
+    echo "Adding skipTests flag to the maven build"
+    FLAGS="$FLAGS -DskipTests"
+fi
+
 mvn -Psystemvm,developer $FLAGS clean package
 
 %install

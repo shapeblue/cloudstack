@@ -207,24 +207,22 @@ touch build/gitrev.txt
 echo $(git rev-parse HEAD) > build/gitrev.txt
 
 if [ "%{_ossnoss}" == "NOREDIST" -o "%{_ossnoss}" == "noredist" ] ; then
-   echo "Executing mvn packaging with non-redistributable libraries"
-   if [ "%{_sim}" == "SIMULATOR" -o "%{_sim}" == "simulator" ] ; then 
-      echo "Executing mvn noredist packaging with simulator ..."
-      mvn -Psystemvm,developer -Dnoredist -Dsimulator clean package
-   else
-      echo "Executing mvn noredist packaging without simulator..."
-      mvn -Psystemvm,developer -Dnoredist clean package
-   fi
-else
-   if [ "%{_sim}" == "SIMULATOR" -o "%{_sim}" == "simulator" ] ; then 
-      echo "Executing mvn default packaging simulator ..."
-      mvn -Psystemvm,developer -Dsimulator clean package
-   else
-      echo "Executing mvn default packaging without simulator ..."
-      mvn -Psystemvm,developer clean package
-   fi
-fi 
+    echo "Adding noredist flag to the maven build"
+    FLAGS="$FLAGS -Dnoredist"
+fi
 
+if [ "%{_sim}" == "SIMULATOR" -o "%{_sim}" == "simulator" ] ; then
+    echo "Adding simulator flag to the maven build"
+    FLAGS="$FLAGS -Dsimulator"
+fi
+
+if [ "%{_tests}" == "SKIP" ] ; then
+    echo "Adding skipTests flag to the maven build"
+    FLAGS="$FLAGS -DskipTests"
+fi
+ 
+mvn -Psystemvm,developer $FLAGS clean package
+ 
 %install
 [ ${RPM_BUILD_ROOT} != "/" ] && rm -rf ${RPM_BUILD_ROOT}
 # Common directories

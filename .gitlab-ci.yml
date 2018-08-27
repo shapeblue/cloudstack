@@ -152,7 +152,7 @@ RPM:
     - wget http://download.cloud.com.s3.amazonaws.com/tools/vhd-util --directory-prefix=${CI_PROJECT_DIR}/scripts/vm/hypervisor/xenserver
 
     # do the packaging and creating RPMs
-    - /usr/local/bin/docker-entrypoint.sh --workspace-path ${CI_PROJECT_DIR} --distribution centos7 --use-timestamp
+    - /usr/local/bin/docker-entrypoint.sh --workspace-path ${CI_PROJECT_DIR} --distribution centos7 --use-timestamp --skip-tests
 
     # upload RPMs to swift object storage
     - |
