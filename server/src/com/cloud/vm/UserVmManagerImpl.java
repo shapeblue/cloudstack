@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.user.AccountVO;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.affinity.AffinityGroupService;
@@ -515,6 +516,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     private static final ConfigKey<Boolean> AllowDeployVmIfGivenHostFails = new ConfigKey<Boolean>("Advanced", Boolean.class, "allow.deploy.vm.if.deploy.on.given.host.fails", "false",
             "allow vm to deploy on different host if vm fails to deploy on the given host ", true);
 
+    private static final ConfigKey<Boolean> EnableAdditionalVmConfig = new ConfigKey<>("Advanced", Boolean.class, "enable.additional.vm.configuration",
+            "false", "allow additional arbitrary configuration to vm", true, ConfigKey.Scope.Account);
 
     @Override
     public UserVmVO getVirtualMachine(long vmId) {
@@ -2389,8 +2392,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         Map<String,String> details = cmd.getDetails();
         List<Long> securityGroupIdList = getSecurityGroupIdList(cmd);
         boolean cleanupDetails = cmd.isCleanupDetails();
+        String extraConfig = cmd.getExtraConfig();
 
         UserVmVO vmInstance = _vmDao.findById(cmd.getId());
+        long accountId = vmInstance.getAccountId();
 
         if (isDisplayVm != null && isDisplayVm != vmInstance.isDisplay()) {
             updateDisplayVmFlag(isDisplayVm, id, vmInstance);
@@ -2398,10 +2403,17 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (cleanupDetails){
             _vmDetailsDao.removeDetails(id);
         }
-        else if (MapUtils.isNotEmpty(details)) {
-            vmInstance.setDetails(details);
-            _vmDao.saveDetails(vmInstance);
+        else {
+            if (MapUtils.isNotEmpty(details)) {
+                vmInstance.setDetails(details);
+                _vmDao.saveDetails(vmInstance);
+            }
+            if (StringUtils.isNotBlank(extraConfig) && EnableAdditionalVmConfig.valueIn(accountId)) {
+                AccountVO account = _accountDao.findById(accountId);
+                addExtraConfig(vmInstance, account, extraConfig);
+            }
         }
+
         return updateVirtualMachine(id, displayName, group, ha, isDisplayVm, osTypeId, userData, isDynamicallyScalable,
                 cmd.getHttpMethod(), cmd.getCustomId(), hostName, cmd.getInstanceName(), securityGroupIdList, cmd.getDhcpOptionsMap());
     }
@@ -4848,7 +4860,73 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 _tmplService.attachIso(tmpl.getId(), vm.getId());
             }
         }
+
+        // Add extraConfig to user_vm_details table
+        Account caller = CallContext.current().getCallingAccount();
+        Long callerId = caller.getId();
+        String extraConfig = cmd.getExtraConfig();
+        if (StringUtils.isNotBlank(extraConfig) && EnableAdditionalVmConfig.valueIn(callerId) ) {
+            addExtraConfig(vm, caller, extraConfig);
+        }
+
         return vm;
+    }
+
+    /**
+     * Persist extra configurations as details for VMware VMs
+     */
+    protected void persistExtraConfigVmware(String decodedUrl, UserVm vm) {
+        String[] configDataArr = decodedUrl.split("\\r?\\n");
+        for (String config: configDataArr) {
+            String[] keyValue = config.split("=");
+            try {
+                _vmDetailsDao.addDetail(vm.getId(), keyValue[0], keyValue[1], true);
+            } catch (ArrayIndexOutOfBoundsException e) {
+                throw new CloudRuntimeException("Issue occurred during parsing of:" + config);
+            }
+        }
+    }
+
+    /**
+     * Persist extra configurations as details for hypervisors except Vmware
+     */
+    protected void persistExtraConfigNonVmware(String decodedUrl, UserVm vm) {
+        String[] extraConfigs = decodedUrl.split("\n\n");
+        for (String cfg : extraConfigs) {
+            int i = 1;
+            String[] cfgParts = cfg.split("\n");
+            String extraConfigKey = ApiConstants.EXTRA_CONFIG;
+            String extraConfigValue;
+            if (cfgParts[0].matches("\\S+:$")) {
+                extraConfigKey += "-" + cfgParts[0].substring(0,cfgParts[0].length() - 1);
+                extraConfigValue = cfg.replace(cfgParts[0] + "\n", "");
+            } else {
+                extraConfigKey += "-" + String.valueOf(i);
+                extraConfigValue = cfg;
+            }
+            _vmDetailsDao.addDetail(vm.getId(), extraConfigKey, extraConfigValue, true);
+            i++;
+        }
+    }
+
+    protected void addExtraConfig(UserVm vm, Account caller, String extraConfig) {
+        String decodedUrl = decodeExtraConfig(extraConfig);
+        HypervisorType hypervisorType = vm.getHypervisorType();
+        if (hypervisorType == HypervisorType.VMware) {
+            persistExtraConfigVmware(decodedUrl, vm);
+        } else {
+            persistExtraConfigNonVmware(decodedUrl, vm);
+        }
+    }
+
+    protected String decodeExtraConfig(String encodeString) {
+        String decodedUrl;
+        try {
+            decodedUrl = URLDecoder.decode(encodeString, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new CloudRuntimeException("Failed to provided decode URL string: " + e.getMessage());
+        }
+        return decodedUrl;
     }
 
     protected List<Long> getSecurityGroupIdList(SecurityGroupAction cmd) {
@@ -6394,7 +6472,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax, VmIpFetchThreadPoolMax,
-            VmIpFetchTaskWorkers, AllowDeployVmIfGivenHostFails};
+            VmIpFetchTaskWorkers, AllowDeployVmIfGivenHostFails, EnableAdditionalVmConfig};
     }
 
     @Override

@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 
@@ -1131,6 +1132,8 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
                     vmGuru.finalizeDeployment(cmds, vmProfile, dest, ctx);
 
+                    addExtraConfig(vmTO);
+
                     work = _workDao.findById(work.getId());
                     if (work == null || work.getStep() != Step.Prepare) {
                         throw new ConcurrentOperationException("Work steps have been changed: " + work);
@@ -1292,6 +1295,15 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
         if (startedVm == null) {
             throw new CloudRuntimeException("Unable to start instance '" + vm.getHostName() + "' (" + vm.getUuid() + "), see management server log for details");
+        }
+    }
+
+    private void addExtraConfig(VirtualMachineTO vmTO) {
+        Map<String, String> details = vmTO.getDetails();
+        for (String key : details.keySet()) {
+            if (key.startsWith(ApiConstants.EXTRA_CONFIG)) {
+                vmTO.addExtraConfig(key, details.get(key));
+            }
         }
     }
 
