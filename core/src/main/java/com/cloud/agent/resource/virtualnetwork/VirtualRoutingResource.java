@@ -25,6 +25,8 @@ import java.nio.channels.SocketChannel;
 
 import org.apache.cloudstack.diagnostics.DiagnosticsAnswer;
 import org.apache.cloudstack.diagnostics.DiagnosticsCommand;
+import org.apache.cloudstack.diagnostics.PrepareFilesCommand;
+import org.apache.cloudstack.diagnostics.PrepareFilesAnswer;
 import org.joda.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -196,7 +198,9 @@ public class VirtualRoutingResource {
         } else if (cmd instanceof GetRouterAlertsCommand) {
             return execute((GetRouterAlertsCommand)cmd);
         } else if (cmd instanceof DiagnosticsCommand) {
-            return execute((DiagnosticsCommand)cmd);
+            return execute((DiagnosticsCommand) cmd);
+        } else if (cmd instanceof PrepareFilesCommand){
+            return execute((PrepareFilesCommand)cmd);
         } else {
             s_logger.error("Unknown query command in VirtualRoutingResource!");
             return Answer.createUnsupportedCommandAnswer(cmd);
@@ -304,6 +308,15 @@ public class VirtualRoutingResource {
             return new DiagnosticsAnswer(cmd, false, result.getDetails());
         }
         return new DiagnosticsAnswer(cmd, result.isSuccess(), result.getDetails());
+    }
+
+    private Answer execute(PrepareFilesCommand cmd) {
+        String fileList = String.join(" ", cmd.getFilesToRetrieveList());
+        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.RETRIEVE_DIAGNOSTICS, fileList);
+        if (result.isSuccess()){
+            return new PrepareFilesAnswer(cmd, true, result.getDetails());
+        }
+        return new PrepareFilesAnswer(cmd, false, result.getDetails());
     }
 
     private Answer execute(GetDomRVersionCmd cmd) {

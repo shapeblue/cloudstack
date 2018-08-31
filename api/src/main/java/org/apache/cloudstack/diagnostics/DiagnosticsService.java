@@ -18,12 +18,30 @@
 //
 package org.apache.cloudstack.diagnostics;
 
+import org.apache.cloudstack.api.command.admin.diagnostics.GetDiagnosticsDataCmd;
 import org.apache.cloudstack.api.command.admin.diagnostics.RunDiagnosticsCmd;
 
 import java.util.Map;
 
 public interface DiagnosticsService {
 
+    /**
+     * network utility method to execute ICMP commands in system vms
+     * @params to method acquired from API command
+     *
+     * @TODO method is too long, need to refactor a lot of code to smaller methods or helper class
+     */
     Map<String, String> runDiagnosticsCommand(RunDiagnosticsCmd cmd);
+
+
+    /**
+     * method to retrieve diagnostics data files from system vms
+     *
+     * @params to method are passed by the API command
+     *
+     * @TODO split the implementation to distinct method
+     * method needs to do one thing, and one thing only
+     */
+    String getDiagnosticsDataCommand(GetDiagnosticsDataCmd cmd);
 
 }
