@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    configure)
+        if [ -f /usr/share/cloudstack-management/webapp/plugins/plugins.js ]; then
+            if ! grep -q ccs /usr/share/cloudstack-management/webapp/plugins/plugins.js; then
+                echo "Enabling CloudStack Container Service UI Plugin"
+                rm -f /usr/share/cloudstack-management/webapp/plugins/plugins.js.gz
+                sed -i  "/cloudStack.plugins/a 'ccs'," /usr/share/cloudstack-management/webapp/plugins/plugins.js
+                gzip -c /usr/share/cloudstack-management/webapp/plugins/plugins.js > /usr/share/cloudstack-management/webapp/plugins/plugins.js.gz
+            fi
+        fi
+        ;;
+esac
+
+exit 0
