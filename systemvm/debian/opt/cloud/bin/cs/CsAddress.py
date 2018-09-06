@@ -401,8 +401,9 @@ class CsIP:
         self.fw.append(["filter", "", "-A INPUT -i %s -m state --state RELATED,ESTABLISHED -j ACCEPT" %
                         self.dev])
         self.fw.append(["filter", "", "-D INPUT -p icmp -j ACCEPT"])
-        self.fw.append(["filter", "", "-I INPUT -p icmp --icmp-type echo-reply -j ACCEPT"])
-        self.fw.append(["filter", "", "-I INPUT -p icmp --icmp-type echo-request -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-reply -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-request -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -m u32 --u32 \"6&0xFF=1 && 17&0xFF=68\" -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -p icmp -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -i lo -j ACCEPT"])
 
@@ -507,8 +508,9 @@ class CsIP:
         self.fw.append(["filter", "", "-A INPUT -d 225.0.0.50/32 -j ACCEPT"])
 
         self.fw.append(["filter", "", "-D INPUT -p icmp -j ACCEPT"])
-        self.fw.append(["filter", "", "-I INPUT -p icmp --icmp-type echo-reply -j ACCEPT"])
-        self.fw.append(["filter", "", "-I INPUT -p icmp --icmp-type echo-request -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-reply -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-request -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -m u32 --u32 \"6&0xFF=1 && 17&0xFF=68\" -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -p icmp -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -i lo -j ACCEPT"])
 
