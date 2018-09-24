@@ -812,7 +812,7 @@ public class VolumeApiServiceImplTest {
     @Test(expected = InvalidParameterValueException.class)
     public void validateConditionsToReplaceDiskOfferingOfVolumeTestTargetPoolSharedDiskOfferingLocal() {
         Mockito.when(volumeVoMock.getVolumeType()).thenReturn(Type.DATADISK);
-        Mockito.when(newDiskOfferingMock.getUseLocalStorage()).thenReturn(true);
+        Mockito.when(newDiskOfferingMock.isUseLocalStorage()).thenReturn(true);
         Mockito.when(storagePoolMock.isShared()).thenReturn(true);
 
         volumeApiServiceImpl.validateConditionsToReplaceDiskOfferingOfVolume(volumeVoMock, newDiskOfferingMock, storagePoolMock);
@@ -831,7 +831,7 @@ public class VolumeApiServiceImplTest {
     public void validateConditionsToReplaceDiskOfferingOfVolumeTestTagsDoNotMatch() {
         Mockito.when(volumeVoMock.getVolumeType()).thenReturn(Type.DATADISK);
 
-        Mockito.when(newDiskOfferingMock.getUseLocalStorage()).thenReturn(false);
+        Mockito.when(newDiskOfferingMock.isUseLocalStorage()).thenReturn(false);
         Mockito.when(storagePoolMock.isShared()).thenReturn(true);
 
         Mockito.when(newDiskOfferingMock.isShared()).thenReturn(true);
@@ -848,7 +848,7 @@ public class VolumeApiServiceImplTest {
     public void validateConditionsToReplaceDiskOfferingOfVolumeTestEverythingWorking() {
         Mockito.when(volumeVoMock.getVolumeType()).thenReturn(Type.DATADISK);
 
-        Mockito.when(newDiskOfferingMock.getUseLocalStorage()).thenReturn(false);
+        Mockito.when(newDiskOfferingMock.isUseLocalStorage()).thenReturn(false);
         Mockito.when(storagePoolMock.isShared()).thenReturn(true);
 
         Mockito.when(newDiskOfferingMock.isShared()).thenReturn(true);
@@ -862,7 +862,7 @@ public class VolumeApiServiceImplTest {
 
         InOrder inOrder = Mockito.inOrder(volumeVoMock, newDiskOfferingMock, storagePoolMock, volumeApiServiceImpl);
         inOrder.verify(storagePoolMock).isShared();
-        inOrder.verify(newDiskOfferingMock).getUseLocalStorage();
+        inOrder.verify(newDiskOfferingMock).isUseLocalStorage();
         inOrder.verify(storagePoolMock).isLocal();
         inOrder.verify(newDiskOfferingMock, times(0)).isShared();
         inOrder.verify(volumeApiServiceImpl).getStoragePoolTags(storagePoolMock);

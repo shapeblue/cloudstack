@@ -413,7 +413,7 @@ public class CommandSetupHelper {
                 } else if (rule.getTrafficType() == FirewallRule.TrafficType.Egress) {
                     final NetworkVO network = _networkDao.findById(guestNetworkId);
                     final NetworkOfferingVO offering = _networkOfferingDao.findById(network.getNetworkOfferingId());
-                    defaultEgressPolicy = offering.getEgressDefaultPolicy();
+                    defaultEgressPolicy = offering.isEgressDefaultPolicy();
                     assert rule.getSourceIpAddressId() == null : "ipAddressId should be null for egress firewall rule. ";
                     final FirewallRuleTO ruleTO = new FirewallRuleTO(rule, null, "", Purpose.Firewall, traffictype, defaultEgressPolicy);
                     rulesTO.add(ruleTO);
@@ -457,7 +457,7 @@ public class CommandSetupHelper {
                 } else if (rule.getTrafficType() == FirewallRule.TrafficType.Egress) {
                     final NetworkVO network = _networkDao.findById(guestNetworkId);
                     final NetworkOfferingVO offering = _networkOfferingDao.findById(network.getNetworkOfferingId());
-                    defaultEgressPolicy = offering.getEgressDefaultPolicy();
+                    defaultEgressPolicy = offering.isEgressDefaultPolicy();
                     assert rule.getSourceIpAddressId() == null : "ipAddressId should be null for egress firewall rule. ";
                     final FirewallRuleTO ruleTO = new FirewallRuleTO(rule, null, "", Purpose.Firewall, traffictype, defaultEgressPolicy);
                     rulesTO.add(ruleTO);
@@ -1086,7 +1086,7 @@ public class CommandSetupHelper {
         }
 
         final NetworkOffering offering = _networkOfferingDao.findById(_networkDao.findById(defaultNic.getNetworkId()).getNetworkOfferingId());
-        if (offering.getRedundantRouter()) {
+        if (offering.isRedundantRouter()) {
             return findGatewayIp(userVmId);
         }
 

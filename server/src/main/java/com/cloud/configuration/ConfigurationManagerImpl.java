@@ -5179,7 +5179,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
 
     @Override
     public boolean isOfferingForVpc(final NetworkOffering offering) {
-        return offering.getForVpc();
+        return offering.isForVpc();
     }
 
     @DB
