@@ -741,55 +741,184 @@
                             title: 'label.action.start.instance',
                             desc: 'message.action.start.instance',
                             fields: {
-                                hostId: {
-                                    label: 'label.host',
-                                    isHidden: function(args) {
-                                        if (isAdmin())
-                                            return false;
-                                        else
-                                            return true;
-                                    },
-                                    select: function(args) {
-                                        if (isAdmin()) {
-                                            $.ajax({
-                                                url: createURL("listHosts&state=Up&type=Routing&zoneid=" + args.context.instances[0].zoneid),
-                                                dataType: "json",
-                                                async: true,
-                                                success: function(json) {
-                                                    if (json.listhostsresponse.host != undefined) {
-                                                        hostObjs = json.listhostsresponse.host;
-                                                        var items = [{
-                                                            id: -1,
-                                                            description: 'Default'
-                                                        }];
-                                                        $(hostObjs).each(function() {
-                                                            items.push({
-                                                                id: this.id,
-                                                                description: this.name
-                                                            });
+                                podId: {
+                                  label: 'label.pod',
+                                  isHidden: function(args) {
+                                      if (isAdmin())
+                                          return false;
+                                      else
+                                          return true;
+                                  },
+                                  select: function(args) {
+                                    if (isAdmin()) {
+                                        $.ajax({
+                                            url: createURL("listPods&zoneid=" + args.context.instances[0].zoneid),
+                                            dataType: "json",
+                                            async: true,
+                                            success: function(json) {
+                                                if (json.listpodsresponse.pod != undefined) {
+                                                    podObjs = json.listpodsresponse.pod;
+                                                    var items = [{
+                                                        id: -1,
+                                                        description: 'Default'
+                                                    }];
+                                                    $(podObjs).each(function() {
+                                                        items.push({
+                                                            id: this.id,
+                                                            description: this.name
                                                         });
-                                                        args.response.success({
-                                                            data: items
-                                                        });
-                                                    } else {
-                                                        cloudStack.dialog.notice({
-                                                            message: _l('No Hosts are avaialble')
-                                                        });
-                                                    }
+                                                    });
+                                                    args.response.success({
+                                                        data: items
+                                                    });
+                                                } else {
+                                                    cloudStack.dialog.notice({
+                                                        message: _l('No Pods are available')
+                                                    });
                                                 }
-                                            });
-                                        } else {
-                                            args.response.success({
-                                                data: null
-                                            });
-                                        }
+                                            }
+                                        });
+
+                                        args.$select.change(function() {
+                                            var podId = this.value;
+                                            if (podId == '' || podId == -1 || podId == null) {
+                                                $(this).closest('form').find('.form-item[rel=\"clusterId\"]').hide();
+                                            }
+                                            else {
+                                                $(this).closest('form').find('.form-item[rel=\"clusterId\"]').css('display', 'inline-block');
+                                            }
+                                        });
+                                    } else {
+                                        args.response.success({
+                                            data: null
+                                        });
                                     }
+                                  }
+                                },
+                                clusterId: {
+                                  label: 'label.cluster',
+                                  isHidden: true, //function(args) {
+//                                      if (isAdmin())
+//                                          return false;
+//                                      else
+//                                          return true;
+//                                  },
+                                  dependsOn: 'podId',
+                                  select: function(args) {
+                                      if (isAdmin()) {
+                                          var urlString = "listClusters&zoneid=" + args.context.instances[0].zoneid;
+                                          if (args.podId != -1) {
+                                             urlString += '&podid=' + args.podId;
+                                          }
+                                          $.ajax({
+                                              url: createURL(urlString),
+                                              dataType: "json",
+                                              async: true,
+                                              success: function(json) {
+                                                  if (json.listclustersresponse.cluster != undefined) {
+                                                      clusterObjs = json.listclustersresponse.cluster;
+                                                      var items = [{
+                                                          id: -1,
+                                                          description: 'Default'
+                                                      }];
+                                                      $(clusterObjs).each(function() {
+                                                          items.push({
+                                                              id: this.id,
+                                                              description: this.name
+                                                          });
+                                                      });
+                                                      args.response.success({
+                                                          data: items
+                                                      });
+                                                  } else {
+                                                      cloudStack.dialog.notice({
+                                                          message: _l('No Clusters are avaialble')
+                                                      });
+                                                  }
+                                              }
+                                          });
+
+                                        args.$select.change(function() {
+                                            var clusterId = this.value;
+                                            if (clusterId == '' || clusterId == -1 || clusterId == null) {
+                                                $(this).closest('form').find('.form-item[rel=\"hostId\"]').hide();
+                                            }
+                                            else {
+                                                $(this).closest('form').find('.form-item[rel=\"hostId\"]').css('display', 'inline-block');
+                                            }
+                                        });
+
+                                      } else {
+                                          args.response.success({
+                                              data: null
+                                          });
+                                      }
+                                  }
+                                },
+                                hostId: {
+                                  label: 'label.host',
+                                  isHidden: true, //function(args) {
+//                                      if (isAdmin())
+//                                          return false;
+//                                      else
+//                                          return true;
+//                                  },
+                                  dependsOn: 'clusterId',
+                                  select: function(args) {
+                                      var urlString = "listHosts&state=Up&type=Routing&zoneid=" + args.context.instances[0].zoneid;
+                                      if (args.clusterId != -1) {
+                                          urlString += "&clusterid=" + args.clusterId;
+                                      }
+                                      if (isAdmin()) {
+                                          $.ajax({
+                                              url: createURL(urlString),
+                                              dataType: "json",
+                                              async: true,
+                                              success: function(json) {
+                                                  if (json.listhostsresponse.host != undefined) {
+                                                      hostObjs = json.listhostsresponse.host;
+                                                      var items = [{
+                                                          id: -1,
+                                                          description: 'Default'
+                                                      }];
+                                                      $(hostObjs).each(function() {
+                                                          items.push({
+                                                              id: this.id,
+                                                              description: this.name
+                                                          });
+                                                      });
+                                                      args.response.success({
+                                                          data: items
+                                                      });
+                                                  } else {
+                                                      cloudStack.dialog.notice({
+                                                          message: _l('No Hosts are avaialble')
+                                                      });
+                                                  }
+                                              }
+                                          });
+                                      } else {
+                                          args.response.success({
+                                              data: null
+                                          });
+                                      }
+                                  }
                                 }
                             }
                         },
                         action: function(args) {
                             var data = {
                                 id: args.context.instances[0].id
+                            }
+                            if (args.$form.find('.form-item[rel=podId]').css("display") != "none" && args.data.podId != -1) {
+                                $.extend(data, {
+                                    podid: args.data.podId
+                                });
+                            }
+                            if (args.$form.find('.form-item[rel=clusterId]').css("display") != "none" && args.data.clusterId != -1) {
+                                $.extend(data, {
+                                    clusterid: args.data.clusterId
+                                });
                             }
                             if (args.$form.find('.form-item[rel=hostId]').css("display") != "none" && args.data.hostId != -1) {
                                 $.extend(data, {
