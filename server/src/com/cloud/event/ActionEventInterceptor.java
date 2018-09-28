@@ -22,18 +22,19 @@ import java.util.List;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
-
 import org.apache.cloudstack.context.CallContext;
 
 import com.cloud.utils.component.ComponentMethodInterceptor;
 
 public class ActionEventInterceptor implements ComponentMethodInterceptor, MethodInterceptor {
 
+
     public ActionEventInterceptor() {
     }
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
+
         Method m = invocation.getMethod();
         Object target = invocation.getThis();
 
