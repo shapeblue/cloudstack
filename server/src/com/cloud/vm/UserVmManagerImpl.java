@@ -4960,13 +4960,44 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         // Check if the source and destination hosts are of the same type and support storage motion.
-        if (!(srcHost.getHypervisorType().equals(destinationHost.getHypervisorType()) && srcHost.getHypervisorVersion().equals(destinationHost.getHypervisorVersion()))) {
-            throw new CloudRuntimeException("The source and destination hosts are not of the same type and version. " + "Source hypervisor type and version: "
-                    + srcHost.getHypervisorType().toString() + " " + srcHost.getHypervisorVersion() + ", Destination hypervisor type and version: "
-                    + destinationHost.getHypervisorType().toString() + " " + destinationHost.getHypervisorVersion());
+        if (!srcHost.getHypervisorType().equals(destinationHost.getHypervisorType())) {
+            throw new CloudRuntimeException("The source and destination hosts are not of the same type and version. Source hypervisor type and version: " +
+                    srcHost.getHypervisorType().toString() + " " + srcHost.getHypervisorVersion() + ", Destination hypervisor type and version: " +
+                    destinationHost.getHypervisorType().toString() + " " + destinationHost.getHypervisorVersion());
+        }
+
+        String srcHostVersion = srcHost.getHypervisorVersion();
+        String destinationHostVersion = destinationHost.getHypervisorVersion();
+
+        if (HypervisorType.KVM.equals(srcHost.getHypervisorType())) {
+            if (srcHostVersion == null) {
+                srcHostVersion = "";
+            }
+            if (destinationHostVersion == null) {
+                destinationHostVersion = "";
+            }
+        }
+
+        if (!srcHostVersion.equals(destinationHostVersion)) {
+            throw new CloudRuntimeException("The source and destination hosts are not of the same type and version. Source hypervisor type and version: " +
+                    srcHost.getHypervisorType().toString() + " " + srcHost.getHypervisorVersion() + ", Destination hypervisor type and version: " +
+                    destinationHost.getHypervisorType().toString() + " " + destinationHost.getHypervisorVersion());
         }
 
         HypervisorCapabilitiesVO capabilities = _hypervisorCapabilitiesDao.findByHypervisorTypeAndVersion(srcHost.getHypervisorType(), srcHost.getHypervisorVersion());
+
+        if (capabilities == null && HypervisorType.KVM.equals(srcHost.getHypervisorType())) {
+            List<HypervisorCapabilitiesVO> lstHypervisorCapabilities = _hypervisorCapabilitiesDao.listAllByHypervisorType(HypervisorType.KVM);
+            if (lstHypervisorCapabilities != null) {
+                for (HypervisorCapabilitiesVO hypervisorCapabilities : lstHypervisorCapabilities) {
+                    if (hypervisorCapabilities.isStorageMotionSupported()) {
+                        capabilities = hypervisorCapabilities;
+                        break;
+                    }
+                }
+            }
+        }
+
         if (!capabilities.isStorageMotionSupported()) {
             throw new CloudRuntimeException("Migration with storage isn't supported on hypervisor " + srcHost.getHypervisorType() + " of version " + srcHost.getHypervisorVersion());
         }

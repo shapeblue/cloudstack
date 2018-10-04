@@ -50,6 +50,14 @@ public interface StorageManager extends StorageService {
             "Determines how long (in seconds) to wait before actually expunging destroyed volumes. The default value = the default value of storage.cleanup.interval.", false, ConfigKey.Scope.Global, null);
     static final ConfigKey<Boolean> StorageCleanupEnabled = new ConfigKey<Boolean>(Boolean.class, "storage.cleanup.enabled", "Advanced", "true",
             "Enables/disables the storage cleanup thread.", false, ConfigKey.Scope.Global, null);
+    ConfigKey<Integer> KvmStorageOnlineMigrationWait = new ConfigKey<>(Integer.class,
+            "kvm.storage.online.migration.wait",
+            "Storage",
+            "10800",
+            "Timeout in seconds for online (live) storage migration to complete on KVM (migrateVirtualMachineWithVolume)",
+            true,
+            ConfigKey.Scope.Global,
+            null);
 
     /**
      * Returns a comma separated list of tags for the specified storage pool

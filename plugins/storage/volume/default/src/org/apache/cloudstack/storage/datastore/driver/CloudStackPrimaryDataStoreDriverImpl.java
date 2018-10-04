@@ -354,6 +354,10 @@ public class CloudStackPrimaryDataStoreDriverImpl implements PrimaryDataStoreDri
     }
 
     @Override
+    public void handleQualityOfServiceForVolumeMigration(VolumeInfo volumeInfo, QualityOfServiceState qualityOfServiceState) {
+    }
+
+    @Override
     public void resize(DataObject data, AsyncCompletionCallback<CreateCmdResult> callback) {
         VolumeObject vol = (VolumeObject) data;
         StoragePool pool = (StoragePool) data.getDataStore();

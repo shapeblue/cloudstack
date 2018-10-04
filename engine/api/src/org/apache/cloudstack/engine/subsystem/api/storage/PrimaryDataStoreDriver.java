@@ -25,6 +25,8 @@ import com.cloud.host.Host;
 import com.cloud.storage.StoragePool;
 
 public interface PrimaryDataStoreDriver extends DataStoreDriver {
+    enum QualityOfServiceState { MIGRATION, NO_MIGRATION }
+
     ChapInfo getChapInfo(DataObject dataObject);
 
     boolean grantAccess(DataObject dataObject, Host host, DataStore dataStore);
@@ -60,4 +62,6 @@ public interface PrimaryDataStoreDriver extends DataStoreDriver {
     void takeSnapshot(SnapshotInfo snapshot, AsyncCompletionCallback<CreateCmdResult> callback);
 
     void revertSnapshot(SnapshotInfo snapshotOnImageStore, SnapshotInfo snapshotOnPrimaryStore, AsyncCompletionCallback<CommandResult> callback);
+
+    void handleQualityOfServiceForVolumeMigration(VolumeInfo volumeInfo, QualityOfServiceState qualityOfServiceState);
 }
