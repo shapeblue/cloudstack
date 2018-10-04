@@ -473,6 +473,11 @@
       <artifactId>cloud-plugin-integrations-prometheus-exporter</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.cloudstack</groupId>
+      <artifactId>cloud-plugin-shapeblue-ccs</artifactId>
+      <version>1.0.3</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

@@ -46,6 +46,7 @@
     </plugins>
   </build>
   <modules>
+    <module>ccs</module>
     <module>api/rate-limit</module>
     <module>api/solidfire-intg-test</module>
     <module>api/discovery</module>
