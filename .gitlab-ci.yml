@@ -327,56 +327,27 @@ integration test:
   environment:
     name: ${LAB_ENV_NAME}
 
-coe-acs1-mgt01:
+ccd-r1-acs1-acs01:
   <<: *DEPLOY
   variables:
-    LAB_ENV_NAME: "coe-acs1-mgt01"
-    LAB_ENV_IP: "172.16.21.119"
+    LAB_ENV_NAME: "ccd-r1-acs1-acs01"
+    LAB_ENV_IP: "10.218.184.65"
 
-coe-acs2-mgt01:
+ccd-r1-dev1-acs01:
   <<: *DEPLOY
   variables:
-    LAB_ENV_NAME: "coe-acs2-mgt01"
-    LAB_ENV_IP: "172.16.21.152"
+    LAB_ENV_NAME: "ccd-r1-dev1-acs01"
+    LAB_ENV_IP: "10.218.184.249"
 
-coe-acs2-mgt02:
+ccd-r1-dev2-acs01:
   <<: *DEPLOY
   variables:
-    LAB_ENV_NAME: "coe-acs2-mgt02"
-    LAB_ENV_IP: "172.16.21.138"
-
-coe-dev1-acs01:
-  <<: *DEPLOY
-  variables:
-    LAB_ENV_NAME: "coe-dev1-acs01"
-    LAB_ENV_IP: "172.16.21.151"
-
-coe-dev2-cs01:
-  <<: *DEPLOY
-  variables:
-    LAB_ENV_NAME: "coe-dev2-cs01"
-    LAB_ENV_IP: "172.16.21.104"
-
-coe-dev3-acs01:
-  <<: *DEPLOY
-  variables:
-    LAB_ENV_NAME: "coe-dev3-acs01"
-    LAB_ENV_IP: "172.16.21.133"
-
-coe-stg-acs01:
-  <<: *DEPLOY
-  variables:
-    LAB_ENV_NAME: "coe-stg-acs01"
-    LAB_ENV_IP: "172.16.21.113"
-
-coe-stg-acs02:
-  <<: *DEPLOY
-  variables:
-    LAB_ENV_NAME: "coe-stg-acs02"
-    LAB_ENV_IP: "172.16.21.102"
+    LAB_ENV_NAME: "ccd-r1-dev2-acs01"
+    LAB_ENV_IP: "10.218.184.116"
 
 cca-r1-beta02-mtg02:
   <<: *DEPLOY
   variables:
     LAB_ENV_NAME: "cca-r1-beta02-mtg02"
     LAB_ENV_IP: "172.27.2.119"
+
