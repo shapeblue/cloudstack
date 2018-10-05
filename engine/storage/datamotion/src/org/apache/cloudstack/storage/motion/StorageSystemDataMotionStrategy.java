@@ -203,6 +203,8 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
                     return StrategyPriority.HIGHEST;
                 }
             }
+            // Allow KVM live storage migration for non managed storage
+            return StrategyPriority.HYPERVISOR;
         }
 
         return StrategyPriority.CANT_HANDLE;
@@ -1064,7 +1066,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
     }
 
     /*
-     * At a high level: The source storage cannot be managed and the destination storage must be managed.
+     * At a high level: The source storage cannot be managed and the destination storage can be managed or not managed.
      */
     private void verifyLiveMigrationMapForKVM(Map<VolumeInfo, DataStore> volumeDataStoreMap) {
         for (Map.Entry<VolumeInfo, DataStore> entry : volumeDataStoreMap.entrySet()) {
@@ -1086,10 +1088,6 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
 
             if (destStoragePoolVO == null) {
                 throw new CloudRuntimeException("Destination storage pool with ID " + dataStore.getId() + " was not located.");
-            }
-
-            if (!destStoragePoolVO.isManaged()) {
-                throw new CloudRuntimeException("Migrating a volume online with KVM can currently only be done when moving to managed storage.");
             }
         }
     }
