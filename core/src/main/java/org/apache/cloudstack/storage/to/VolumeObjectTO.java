@@ -19,6 +19,7 @@
 
 package org.apache.cloudstack.storage.to;
 
+import com.cloud.storage.MigrationOptions;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
 
 import com.cloud.agent.api.to.DataObjectType;
@@ -51,6 +52,7 @@ public class VolumeObjectTO implements DataTO {
     private Long iopsWriteRate;
     private DiskCacheMode cacheMode;
     private Hypervisor.HypervisorType hypervisorType;
+    private MigrationOptions migrationOptions;
 
     public VolumeObjectTO() {
 
@@ -81,6 +83,7 @@ public class VolumeObjectTO implements DataTO {
         cacheMode = volume.getCacheMode();
         hypervisorType = volume.getHypervisorType();
         setDeviceId(volume.getDeviceId());
+        this.migrationOptions = volume.getMigrationOptions();
     }
 
     public String getUuid() {
@@ -251,5 +254,9 @@ public class VolumeObjectTO implements DataTO {
 
     public DiskCacheMode getCacheMode() {
         return cacheMode;
+    }
+
+    public MigrationOptions getMigrationOptions() {
+        return migrationOptions;
     }
 }

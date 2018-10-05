@@ -34,16 +34,18 @@ public class MigrateKVMAsync implements Callable<Domain> {
     private String vmName = "";
     private String destIp = "";
     private boolean migrateStorage;
+    private boolean migrateStorageManaged;
     private boolean autoConvergence;
 
     public MigrateKVMAsync(final LibvirtComputingResource libvirtComputingResource, final Domain dm, final Connect dconn, final String dxml,
-                           final boolean migrateStorage, final boolean autoConvergence, final String vmName, final String destIp) {
+                           final boolean migrateStorage, final boolean migrateStorageManaged, final boolean autoConvergence, final String vmName, final String destIp) {
         this.libvirtComputingResource = libvirtComputingResource;
 
         this.dm = dm;
         this.dconn = dconn;
         this.dxml = dxml;
         this.migrateStorage = migrateStorage;
+        this.migrateStorageManaged = migrateStorageManaged;
         this.autoConvergence = autoConvergence;
         this.vmName = vmName;
         this.destIp = destIp;
@@ -59,7 +61,12 @@ public class MigrateKVMAsync implements Callable<Domain> {
         }
 
         if (migrateStorage) {
-            flags |= 1 << 6;
+            if (migrateStorageManaged) {
+                flags |= 1 << 6;
+            } else {
+                flags |= 1 << 3;
+                flags |= 1 << 7;
+            }
         }
 
         if (autoConvergence && dconn.getLibVirVersion() >= 1002003) {
