@@ -28,6 +28,7 @@ public class MigrateCommand extends Command {
     private String vmName;
     private String destIp;
     private Map<String, MigrateDiskInfo> migrateStorage;
+    private boolean migrateStorageManaged;
     private boolean autoConvergence;
     private String hostGuid;
     private boolean isWindows;
@@ -51,6 +52,14 @@ public class MigrateCommand extends Command {
 
     public Map<String, MigrateDiskInfo> getMigrateStorage() {
         return migrateStorage != null ? new HashMap<>(migrateStorage) : new HashMap<String, MigrateDiskInfo>();
+    }
+
+    public boolean isMigrateStorageManaged() {
+        return migrateStorageManaged;
+    }
+
+    public void setMigrateStorageManaged(boolean migrateStorageManaged) {
+        this.migrateStorageManaged = migrateStorageManaged;
     }
 
     public void setAutoConvergence(boolean autoConvergence) {

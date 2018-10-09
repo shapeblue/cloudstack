@@ -785,6 +785,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
 
             Map<String, MigrateCommand.MigrateDiskInfo> migrateStorage = new HashMap<>();
             Map<VolumeInfo, VolumeInfo> srcVolumeInfoToDestVolumeInfo = new HashMap<>();
+            boolean managedStorageDestination = false;
 
             for (Map.Entry<VolumeInfo, DataStore> entry : volumeDataStoreMap.entrySet()) {
                 VolumeInfo srcVolumeInfo = entry.getKey();
@@ -806,9 +807,12 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
                 // create a volume on the destination storage
                 destDataStore.getDriver().createAsync(destDataStore, destVolumeInfo, null);
 
+                managedStorageDestination = destStoragePool.isManaged();
+                String volumeIdentifier = managedStorageDestination ? destVolumeInfo.get_iScsiName() : destVolumeInfo.getUuid();
+
                 destVolume = _volumeDao.findById(destVolume.getId());
 
-                destVolume.setPath(destVolume.get_iScsiName());
+                destVolume.setPath(volumeIdentifier);
 
                 _volumeDao.update(destVolume.getId(), destVolume);
 
@@ -818,7 +822,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
 
                 _volumeService.grantAccess(destVolumeInfo, destHost, destDataStore);
 
-                String connectedPath = connectHostToVolume(destHost, destVolumeInfo.getPoolId(), destVolumeInfo.get_iScsiName());
+                String connectedPath = connectHostToVolume(destHost, destVolumeInfo.getPoolId(), volumeIdentifier);
 
                 MigrateCommand.MigrateDiskInfo migrateDiskInfo = new MigrateCommand.MigrateDiskInfo(srcVolumeInfo.getPath(),
                         MigrateCommand.MigrateDiskInfo.DiskType.BLOCK,
@@ -855,6 +859,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
             migrateCommand.setWait(StorageManager.KvmStorageOnlineMigrationWait.value());
 
             migrateCommand.setMigrateStorage(migrateStorage);
+            migrateCommand.setMigrateStorageManaged(managedStorageDestination);
 
             String autoConvergence = _configDao.getValue(Config.KvmAutoConvergence.toString());
             boolean kvmAutoConvergence = Boolean.parseBoolean(autoConvergence);
@@ -1066,9 +1071,11 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
     }
 
     /*
-     * At a high level: The source storage cannot be managed and the destination storage can be managed or not managed.
+     * At a high level: The source storage cannot be managed and
+     *                  the destination storages can be all managed or all not managed, not mixed.
      */
-    private void verifyLiveMigrationMapForKVM(Map<VolumeInfo, DataStore> volumeDataStoreMap) {
+    protected void verifyLiveMigrationMapForKVM(Map<VolumeInfo, DataStore> volumeDataStoreMap) {
+        Boolean storageTypeConsistency = null;
         for (Map.Entry<VolumeInfo, DataStore> entry : volumeDataStoreMap.entrySet()) {
             VolumeInfo volumeInfo = entry.getKey();
 
@@ -1088,6 +1095,12 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
 
             if (destStoragePoolVO == null) {
                 throw new CloudRuntimeException("Destination storage pool with ID " + dataStore.getId() + " was not located.");
+            }
+
+            if (storageTypeConsistency == null) {
+                storageTypeConsistency = destStoragePoolVO.isManaged();
+            } else if (storageTypeConsistency != destStoragePoolVO.isManaged()) {
+                throw new CloudRuntimeException("Destination storage pools must be either all managed or all not managed");
             }
         }
     }

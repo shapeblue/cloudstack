@@ -126,16 +126,22 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
             xmlDesc = replaceIpForVNCInDescFile(xmlDesc, target);
 
             Map<String, MigrateCommand.MigrateDiskInfo> mapMigrateStorage = command.getMigrateStorage();
-            if (MapUtils.isNotEmpty(mapMigrateStorage)) {
+            // migrateStorage is declared as final because the replaceStorage method may mutate mapMigrateStorage, but
+            // migrateStorage's value should always only be associated with the initial state of mapMigrateStorage.
+            final boolean migrateStorage = MapUtils.isNotEmpty(mapMigrateStorage);
+            final boolean migrateStorageManaged = command.isMigrateStorageManaged();
+
+            if (migrateStorage) {
                 xmlDesc = replaceStorage(xmlDesc, mapMigrateStorage);
             }
 
             dconn = libvirtUtilitiesHelper.retrieveQemuConnection("qemu+tcp://" + command.getDestinationIp() + "/system");
 
             //run migration in thread so we can monitor it
-            s_logger.info("Live migration of instance " + vmName + " initiated");
+            s_logger.info("Live migration of instance " + vmName + " initiated to destination host: " + dconn.getURI());
             final ExecutorService executor = Executors.newFixedThreadPool(1);
-            final Callable<Domain> worker = new MigrateKVMAsync(libvirtComputingResource, dm, dconn, xmlDesc, MapUtils.isNotEmpty(mapMigrateStorage),
+            final Callable<Domain> worker = new MigrateKVMAsync(libvirtComputingResource, dm, dconn, xmlDesc,
+                    migrateStorage, migrateStorageManaged,
                     command.isAutoConvergence(), vmName, command.getDestinationIp());
             final Future<Domain> migrateThread = executor.submit(worker);
             executor.shutdown();
