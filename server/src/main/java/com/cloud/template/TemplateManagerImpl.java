@@ -20,10 +20,12 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +36,7 @@ import javax.naming.ConfigurationException;
 
 import com.cloud.deploy.DeployDestination;
 import com.cloud.storage.ImageStoreUploadMonitorImpl;
+import com.cloud.upgrade.dao.VersionDao;
 import com.cloud.utils.StringUtils;
 import com.cloud.utils.EncryptionUtil;
 import com.cloud.utils.DateUtil;
@@ -43,7 +46,10 @@ import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import org.apache.cloudstack.api.command.admin.template.ActivateSystemVMTemplateCmd;
+import org.apache.cloudstack.api.command.admin.template.GetSystemVMTemplateDefaultURLCmd;
 import org.apache.cloudstack.api.command.user.template.GetUploadParamsForTemplateCmd;
+import org.apache.cloudstack.api.response.GetSystemVMTemplateDefaultURLResponse;
 import org.apache.cloudstack.framework.async.AsyncCallFuture;
 import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
@@ -281,6 +287,8 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     MessageBus _messageBus;
     @Inject
     private VMTemplateDetailsDao _tmpltDetailsDao;
+    @Inject
+    private VersionDao _versionDao;
 
     private boolean _disableExtraction = false;
     private List<TemplateAdapter> _adapters;
@@ -291,6 +299,8 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     private StorageCacheManager cacheMgr;
     @Inject
     private EndPointSelector selector;
+
+    public static final String BASE_SYSTEMVM_URL = "https://download.cloudstack.org/systemvm";
 
 
     private TemplateAdapter getAdapter(HypervisorType type) {
@@ -400,6 +410,61 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             return response;
         } else {
             throw new CloudRuntimeException("Unable to register template.");
+        }
+    }
+
+    @Override
+    public VirtualMachineTemplate activateSystemVMTemplate(ActivateSystemVMTemplateCmd cmd) {
+        VMTemplateVO template = _tmpltDao.findById(cmd.getId());
+        if (template == null) {
+            throw new InvalidParameterValueException(String.format("Unable to find template with id %d" + cmd.getId()));
+        }
+        Transaction.execute(new TransactionCallbackNoReturn() {
+
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+                //Update the vm_template type field to ‘SYSTEM’ in database for the given id.
+                template.setTemplateType(TemplateType.SYSTEM);
+                boolean update = _tmpltDao.update(cmd.getId(), template);
+                //o Update the vm_instance records with the template ID for the specified hypervisor type in the database.
+                List<VMInstanceVO> vmInstanceVOS = _vmInstanceDao.listByHypervisorTypeAndNonUserTypes(template.getHypervisorType());
+                //o Update the router.template global configuration parameter in the database.
+                //
+                //o Update minreq.systemtemplate.version configuration parameter in the database.
+            }
+
+        });
+
+        return template;
+    }
+
+    @Override
+    public GetSystemVMTemplateDefaultURLResponse getSystemVMTemplateDefaultURL(GetSystemVMTemplateDefaultURLCmd cmd) {
+        String version = resolveVersion(cmd.getVersion());
+
+        List<VMTemplateVO> vmTemplateVOS = _tmpltDao.listSystemVMTemplatesByUrlLike(BASE_SYSTEMVM_URL + "%" + version, cmd.getHypervisor());
+        if (!vmTemplateVOS.isEmpty()) {
+            Optional<VMTemplateVO> max = vmTemplateVOS.stream().max(Comparator.comparing(VMTemplateVO::getId));
+            return new GetSystemVMTemplateDefaultURLResponse(cmd.getCommandName(), max.orElse(vmTemplateVOS.get(0)).getUrl());
+        } else {
+            throw new CloudRuntimeException(String.format("cannot find System VM Template URL for version %s", version));
+        }
+    }
+
+    private String resolveVersion(String version) {
+        if (version == null || version.isEmpty()) {
+            version = _versionDao.getCurrentVersion();
+        }
+        return formatVersion(version);
+    }
+
+    private String formatVersion(String version) {
+        if (version == null) {
+            return "";
+        } else if (version.split("[.]").length > 3) {
+            return version.substring(0, org.apache.commons.lang3.StringUtils.ordinalIndexOf(version, ".", 3));
+        } else {
+            return version;
         }
     }
 

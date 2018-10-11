@@ -22,6 +22,8 @@ import java.util.List;
 
 import org.apache.cloudstack.api.BaseListTemplateOrIsoPermissionsCmd;
 import org.apache.cloudstack.api.BaseUpdateTemplateOrIsoPermissionsCmd;
+import org.apache.cloudstack.api.command.admin.template.ActivateSystemVMTemplateCmd;
+import org.apache.cloudstack.api.command.admin.template.GetSystemVMTemplateDefaultURLCmd;
 import org.apache.cloudstack.api.command.user.iso.DeleteIsoCmd;
 import org.apache.cloudstack.api.command.user.iso.ExtractIsoCmd;
 import org.apache.cloudstack.api.command.user.iso.RegisterIsoCmd;
@@ -39,6 +41,7 @@ import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.StorageUnavailableException;
 import com.cloud.user.Account;
 import com.cloud.utils.exception.CloudRuntimeException;
+import org.apache.cloudstack.api.response.GetSystemVMTemplateDefaultURLResponse;
 import org.apache.cloudstack.api.response.GetUploadParamsResponse;
 
 public interface TemplateApiService {
@@ -46,6 +49,10 @@ public interface TemplateApiService {
     VirtualMachineTemplate registerTemplate(RegisterTemplateCmd cmd) throws URISyntaxException, ResourceAllocationException;
 
     public GetUploadParamsResponse registerTemplateForPostUpload(GetUploadParamsForTemplateCmd cmd) throws ResourceAllocationException, MalformedURLException;
+
+    GetSystemVMTemplateDefaultURLResponse getSystemVMTemplateDefaultURL(GetSystemVMTemplateDefaultURLCmd cmd);
+
+    VirtualMachineTemplate activateSystemVMTemplate(ActivateSystemVMTemplateCmd cmd);
 
     VirtualMachineTemplate registerIso(RegisterIsoCmd cmd) throws IllegalArgumentException, ResourceAllocationException;
 
