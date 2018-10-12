@@ -50,7 +50,9 @@ import org.apache.cloudstack.api.command.admin.template.ActivateSystemVMTemplate
 import org.apache.cloudstack.api.command.admin.template.GetSystemVMTemplateDefaultURLCmd;
 import org.apache.cloudstack.api.command.user.template.GetUploadParamsForTemplateCmd;
 import org.apache.cloudstack.api.response.GetSystemVMTemplateDefaultURLResponse;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.async.AsyncCallFuture;
+import org.apache.cloudstack.framework.config.impl.ConfigurationVO;
 import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreVO;
@@ -209,6 +211,13 @@ import com.cloud.vm.dao.VMInstanceDao;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+
+import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateHyperV;
+import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateKvm;
+import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateLxc;
+import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateOvm3;
+import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateVmware;
+import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateXen;
 
 public class TemplateManagerImpl extends ManagerBase implements TemplateManager, TemplateApiService, Configurable {
     private final static Logger s_logger = Logger.getLogger(TemplateManagerImpl.class);
@@ -417,7 +426,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     public VirtualMachineTemplate activateSystemVMTemplate(ActivateSystemVMTemplateCmd cmd) {
         VMTemplateVO template = _tmpltDao.findById(cmd.getId());
         if (template == null) {
-            throw new InvalidParameterValueException(String.format("Unable to find template with id %d" + cmd.getId()));
+            throw new InvalidParameterValueException(String.format("Unable to find template with id %d.", cmd.getId()));
         }
         Transaction.execute(new TransactionCallbackNoReturn() {
 
@@ -425,17 +434,59 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             public void doInTransactionWithoutResult(TransactionStatus status) {
                 //Update the vm_template type field to ‘SYSTEM’ in database for the given id.
                 template.setTemplateType(TemplateType.SYSTEM);
-                boolean update = _tmpltDao.update(cmd.getId(), template);
-                //o Update the vm_instance records with the template ID for the specified hypervisor type in the database.
-                List<VMInstanceVO> vmInstanceVOS = _vmInstanceDao.listByHypervisorTypeAndNonUserTypes(template.getHypervisorType());
-                //o Update the router.template global configuration parameter in the database.
-                //
-                //o Update minreq.systemtemplate.version configuration parameter in the database.
-            }
+                _tmpltDao.update(template.getId(), template);
 
+                //Update the vm_instance records with the template ID for the specified hypervisor type in the database.
+                List<VMInstanceVO> vmInstances = _vmInstanceDao.listByHypervisorTypeAndNonUserTypes(template.getHypervisorType());
+                vmInstances.stream().forEach(instance -> {
+                    instance.setTemplateId(template.getId());
+                    _vmInstanceDao.update(instance.getId(), instance);
+                });
+
+                //Update the router.template.x global configuration parameter in the database.
+                ConfigurationVO routerTemplate = _configDao.findByName(getRouterTemplateConfigKey(template.getHypervisorType()));
+                if (routerTemplate != null) {
+                    routerTemplate.setValue(template.getName());
+                    _configDao.update(routerTemplate.getName(), routerTemplate);
+                } else {
+                    throw new CloudRuntimeException(String.format("Cannot update router template configuration for hypervisor %s: unable to find it.", template.getHypervisorType()));
+                }
+
+                //Update minreq.systemtemplate.version configuration parameter in the database.
+                String version = formatVersion(_versionDao.getCurrentVersion());
+                if (version.isEmpty()) {
+                    throw new CloudRuntimeException(String.format("Cannot update %s configuration: unable to find the current version.", NetworkOrchestrationService.MinVRVersion.key()));
+                }
+                ConfigurationVO minRequiredVersion = _configDao.findByName(NetworkOrchestrationService.MinVRVersion.key());
+                if (minRequiredVersion != null) {
+                    minRequiredVersion.setValue(version);
+                    _configDao.update(minRequiredVersion.getName(), minRequiredVersion);
+                } else {
+                    throw new CloudRuntimeException(String.format("Cannot update %s configuration: unable to find it.", NetworkOrchestrationService.MinVRVersion.key()));
+                }
+            }
         });
 
         return template;
+    }
+
+    private String getRouterTemplateConfigKey(HypervisorType hypervisorType) {
+        switch (hypervisorType) {
+            case XenServer:
+                return RouterTemplateXen.key();
+            case KVM:
+                return RouterTemplateKvm.key();
+            case VMware:
+                return RouterTemplateVmware.key();
+            case Hyperv:
+                return RouterTemplateHyperV.key();
+            case LXC:
+                return RouterTemplateLxc.key();
+            case Ovm3:
+                return RouterTemplateOvm3.key();
+            default:
+                return "";
+        }
     }
 
     @Override
@@ -447,7 +498,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             Optional<VMTemplateVO> max = vmTemplateVOS.stream().max(Comparator.comparing(VMTemplateVO::getId));
             return new GetSystemVMTemplateDefaultURLResponse(cmd.getCommandName(), max.orElse(vmTemplateVOS.get(0)).getUrl());
         } else {
-            throw new CloudRuntimeException(String.format("cannot find System VM Template URL for version %s", version));
+            throw new CloudRuntimeException(String.format("Unable find System VM Template URL for version %s", version));
         }
     }
 
