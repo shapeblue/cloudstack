@@ -59,7 +59,6 @@ public class ActivateSystemVMTemplateCmd extends BaseCmd {
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-//        try {
             VirtualMachineTemplate template = _templateService.activateSystemVMTemplate(this);
             if (template != null) {
                 ListResponse<TemplateResponse> response = new ListResponse<TemplateResponse>();
@@ -71,10 +70,6 @@ public class ActivateSystemVMTemplateCmd extends BaseCmd {
             } else {
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to activate template.");
             }
-//        } catch ( ex) {
-//            LOGGER.warn("Exception: ", ex);
-//            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, ex.getMessage());
-//        }
     }
 
     @Override

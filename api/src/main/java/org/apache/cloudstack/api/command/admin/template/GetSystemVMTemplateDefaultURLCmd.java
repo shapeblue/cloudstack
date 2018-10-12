@@ -62,13 +62,6 @@ public class GetSystemVMTemplateDefaultURLCmd extends BaseCmd {
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-//        VirtualMachineTemplate template = _entityMgr.findById(VirtualMachineTemplate.class, 1);
-//        String url = template.getUrl();
-//        if (url != null && !url.isEmpty()) {
-//            setResponseObject(new GetSystemVMTemplateDefaultURLResponse(getCommandName(), url));
-//        } else {
-//            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Failed to find URL for version '%s' and hypervisor '%s'", version, hypervisor));
-//        }
         GetSystemVMTemplateDefaultURLResponse response = _templateService.getSystemVMTemplateDefaultURL(this);
         if (response != null) {
             setResponseObject(response);
