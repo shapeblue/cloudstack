@@ -178,9 +178,8 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     }
 
 
-    //TODO Implement Retrieve diagnostics data files
     @Override
-    @ActionEvent(eventType = "Retrieving diagnostics", eventDescription = "running diagnostics on system vm", async = true)
+    @ActionEvent(eventType = EventTypes.EVENT_SYSTEM_VM_DIAGNOSTICS, eventDescription = "running diagnostics on system vm", async = true)
     public String getDiagnosticsDataCommand(GetDiagnosticsDataCmd cmd) {
         final Long vmId = cmd.getId();
         List<String> dataType = cmd.getDataTypeList();

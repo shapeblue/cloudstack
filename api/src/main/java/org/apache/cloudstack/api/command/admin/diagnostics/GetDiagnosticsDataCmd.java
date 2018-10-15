@@ -121,7 +121,6 @@ public class GetDiagnosticsDataCmd extends BaseAsyncCmd {
         this.setResponseObject(response);
     }
 
-    //TODO rebase after Run Diagnostics get merged to get the return types
     @Override
     public String getEventType() {
         VirtualMachine.Type vmType = _entityMgr.findById(VirtualMachine.class, getId()).getType();
