@@ -36,6 +36,7 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.GetDiagnosticsDataResponse;
 import org.apache.cloudstack.api.response.SystemVmResponse;
+import org.apache.cloudstack.api.response.VolumeResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.diagnostics.DiagnosticsService;
 import org.apache.log4j.Logger;
@@ -78,6 +79,15 @@ public class GetDiagnosticsDataCmd extends BaseAsyncCmd {
             description = "The diagnostics data dataTypeList required, examples are dhcp, iptables, dns or log files. Defaults are taken from the database if none has been provided.")
     private List<String> dataTypeList;
 
+    @Parameter(
+            name = ApiConstants.VOLUME_ID,
+            type = CommandType.UUID,
+            entityType = VolumeResponse.class,
+            validations = {ApiArgValidator.PositiveNumber},
+            description = "The ID of the volume to be temporarily mounted on system VM to seed diagnostics data files",
+            required = true)
+    private Long volumeId;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -92,6 +102,10 @@ public class GetDiagnosticsDataCmd extends BaseAsyncCmd {
 
     public List<String> getDataTypeList() {
         return dataTypeList;
+    }
+
+    public Long getVolumeId() {
+        return volumeId;
     }
 
     /////////////////////////////////////////////////////

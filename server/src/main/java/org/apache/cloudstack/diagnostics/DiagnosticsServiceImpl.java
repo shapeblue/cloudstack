@@ -36,6 +36,7 @@ import com.cloud.hypervisor.Hypervisor;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.fsm.NoTransitionException;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
@@ -44,8 +45,13 @@ import com.google.common.base.Strings;
 import org.apache.cloudstack.api.command.admin.diagnostics.GetDiagnosticsDataCmd;
 import org.apache.cloudstack.api.command.admin.diagnostics.RunDiagnosticsCmd;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
+import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.log4j.Logger;
 
 
@@ -64,6 +70,12 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private VirtualMachineManager vmManager;
     @Inject
     private NetworkOrchestrationService networkManager;
+    @Inject
+    VolumeOrchestrationService volumeOcherstartor;
+    @Inject
+    private VolumeDataFactory volFactory;
+    @Inject
+    private PrimaryDataStoreDao storagePoolDao;
 
     private static final ConfigKey<Boolean> EnableGarbageCollector = new ConfigKey<>("Advanced", Boolean.class,
             "diagnostics.data.gc.enable", "true", "enable the diagnostics data files garbage collector", true);
@@ -178,6 +190,8 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     }
 
 
+
+
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_SYSTEM_VM_DIAGNOSTICS, eventDescription = "running diagnostics on system vm", async = true)
     public String getDiagnosticsDataCommand(GetDiagnosticsDataCmd cmd) {
@@ -203,6 +217,17 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
             CopyZipFilesCommand copyZipCommand = new CopyZipFilesCommand(accessDetails.get("Control"), zipFileDir);
             copyZipAnswer = agentManager.easySend(vmInstance.getHostId(), copyZipCommand);
 
+        }
+
+        // Create temporary volume on Primary Storage to store files
+
+        VolumeInfo volumeToAttach = volFactory.getVolume(cmd.getVolumeId());
+        Hypervisor.HypervisorType rootDiskHyperType = vmInstance.getHypervisorType();
+        StoragePoolVO destPrimaryStorage = storagePoolDao.findById(volumeToAttach.getPoolId());
+        try {
+            VolumeInfo newVolumeOnPrimaryStore = volumeOcherstartor.createVolumeOnPrimaryStorage(vmInstance, volumeToAttach,rootDiskHyperType, destPrimaryStorage);
+        } catch (NoTransitionException e) {
+            e.printStackTrace();
         }
 
 //        DataStoreTO dataStoreTO
