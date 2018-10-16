@@ -33,7 +33,6 @@ public class LibvirtCopyZipFilesCommandWrapper extends CommandWrapper<CopyZipFil
 
     public final Logger logger = null;
 
-
     @Override
     public Answer execute(CopyZipFilesCommand command, LibvirtComputingResource libvirtComputingResource) {
         final String permKey = "/root/.ssh/id_rsa.cloud";
@@ -42,7 +41,7 @@ public class LibvirtCopyZipFilesCommandWrapper extends CommandWrapper<CopyZipFil
         boolean success = true;
         String details = "Copying zip files: " + vmIp + ", file: " + filename;
         LOGGER.info(details);
-        String cmdLine = String.format("/usr/bin/scp -P 3922 -o StrictHostKeyChecking=no -i %s root@%s:/root/%s .", permKey, vmIp, filename);
+        String cmdLine = String.format("/usr/bin/scp -P 3922 -o StrictHostKeyChecking=no -i %s root@%s:/root/%s /root/%s", permKey, vmIp, filename, filename);
         Script2 cmd = new Script2("/bin/bash", LOGGER);
         cmd.add("-c");
         cmd.add(cmdLine);
