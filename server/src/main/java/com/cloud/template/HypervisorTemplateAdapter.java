@@ -169,6 +169,7 @@ public class HypervisorTemplateAdapter extends TemplateAdapterBase {
         TemplateProfile profile = super.prepare(cmd);
         String url = profile.getUrl();
         UriUtils.validateUrl(cmd.getFormat(), url);
+        UriUtils.checkUrlExistence(url);
         if (cmd.isDirectDownload()) {
             Long templateSize = performDirectDownloadUrlValidation(url);
             profile.setSize(templateSize);
