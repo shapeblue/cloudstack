@@ -46,7 +46,6 @@ import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import org.apache.cloudstack.api.command.admin.template.ActivateSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.template.GetSystemVMTemplateDefaultURLCmd;
 import org.apache.cloudstack.api.command.user.template.GetUploadParamsForTemplateCmd;
 import org.apache.cloudstack.api.response.GetSystemVMTemplateDefaultURLResponse;
@@ -218,6 +217,7 @@ import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemp
 import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateOvm3;
 import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateVmware;
 import static com.cloud.network.router.VirtualNetworkApplianceManager.RouterTemplateXen;
+import static com.cloud.storage.template.TemplateConstants.DEFAULT_BASE_SYSTEMVM_URL;
 
 public class TemplateManagerImpl extends ManagerBase implements TemplateManager, TemplateApiService, Configurable {
     private final static Logger s_logger = Logger.getLogger(TemplateManagerImpl.class);
@@ -309,8 +309,6 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     @Inject
     private EndPointSelector selector;
 
-    public static final String BASE_SYSTEMVM_URL = "https://download.cloudstack.org/systemvm";
-
 
     private TemplateAdapter getAdapter(HypervisorType type) {
         TemplateAdapter adapter = null;
@@ -356,16 +354,22 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                 throw new PermissionDeniedException("Parameter isrouting can only be specified by a Root Admin, permission denied");
             }
         }
+        if (cmd.getTemplateType().equalsIgnoreCase(Storage.TemplateType.SYSTEM.name())) {
+            if (!_accountService.isRootAdmin(account.getId())) {
+                throw new PermissionDeniedException(String.format("Value of '%s' for parameter templatetype can only be specified by a Root Admin, permission denied",
+                        Storage.TemplateType.SYSTEM.name()));
+            }
+        }
 
         TemplateAdapter adapter = getAdapter(HypervisorType.getType(cmd.getHypervisor()));
         TemplateProfile profile = adapter.prepare(cmd);
-        VMTemplateVO template = adapter.create(profile);
+        VMTemplateVO template = Optional.ofNullable(adapter.create(profile)).orElseThrow(() -> new CloudRuntimeException("Failed to create a template"));
 
-        if (template != null) {
-            return template;
-        } else {
-            throw new CloudRuntimeException("Failed to create a template");
+        if (cmd.getTemplateType().equalsIgnoreCase(Storage.TemplateType.SYSTEM.name())
+                && cmd.isActivate()) {
+            return activateSystemVMTemplate(template.getId());
         }
+        return template;
     }
 
     @Override
@@ -423,51 +427,53 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     }
 
     @Override
-    public VirtualMachineTemplate activateSystemVMTemplate(ActivateSystemVMTemplateCmd cmd) {
-        VMTemplateVO template = _tmpltDao.findById(cmd.getId());
-        if (template == null) {
-            throw new InvalidParameterValueException(String.format("Unable to find template with id %d.", cmd.getId()));
-        }
+    public VirtualMachineTemplate activateSystemVMTemplate(long templateId) {
+        VMTemplateVO template = Optional.ofNullable(_tmpltDao.findById(templateId))
+                .orElseThrow(() -> new InvalidParameterValueException(String.format("Unable to find template with id %d.", templateId)));
         Transaction.execute(new TransactionCallbackNoReturn() {
 
             @Override
             public void doInTransactionWithoutResult(TransactionStatus status) {
-                //Update the vm_template type field to ‘SYSTEM’ in database for the given id.
-                template.setTemplateType(TemplateType.SYSTEM);
-                _tmpltDao.update(template.getId(), template);
-
-                //Update the vm_instance records with the template ID for the specified hypervisor type in the database.
-                List<VMInstanceVO> vmInstances = _vmInstanceDao.listByHypervisorTypeAndNonUserTypes(template.getHypervisorType());
-                vmInstances.stream().forEach(instance -> {
-                    instance.setTemplateId(template.getId());
-                    _vmInstanceDao.update(instance.getId(), instance);
-                });
-
-                //Update the router.template.x global configuration parameter in the database.
-                ConfigurationVO routerTemplate = _configDao.findByName(getRouterTemplateConfigKey(template.getHypervisorType()));
-                if (routerTemplate != null) {
-                    routerTemplate.setValue(template.getName());
-                    _configDao.update(routerTemplate.getName(), routerTemplate);
-                } else {
-                    throw new CloudRuntimeException(String.format("Cannot update router template configuration for hypervisor %s: unable to find it.", template.getHypervisorType()));
-                }
-
-                //Update minreq.systemtemplate.version configuration parameter in the database.
-                String version = formatVersion(_versionDao.getCurrentVersion());
-                if (version.isEmpty()) {
-                    throw new CloudRuntimeException(String.format("Cannot update %s configuration: unable to find the current version.", NetworkOrchestrationService.MinVRVersion.key()));
-                }
-                ConfigurationVO minRequiredVersion = _configDao.findByName(NetworkOrchestrationService.MinVRVersion.key());
-                if (minRequiredVersion != null) {
-                    minRequiredVersion.setValue(version);
-                    _configDao.update(minRequiredVersion.getName(), minRequiredVersion);
-                } else {
-                    throw new CloudRuntimeException(String.format("Cannot update %s configuration: unable to find it.", NetworkOrchestrationService.MinVRVersion.key()));
-                }
+                updateTemplate(template);
+                updateVMInstances(template);
+                updateRouterTemplateConfig(template);
+                updateMinRequiredSystemVMVersionConfig();
             }
         });
 
         return template;
+    }
+
+    private void updateTemplate(VMTemplateVO template) {
+        template.setTemplateType(TemplateType.SYSTEM);
+        _tmpltDao.update(template.getId(), template);
+    }
+
+    private void updateVMInstances(VMTemplateVO template) {
+        List<VMInstanceVO> vmInstances = _vmInstanceDao.listByHypervisorTypeAndNonUserTypes(template.getHypervisorType());
+        vmInstances.stream().forEach(instance -> updateVmInstance(instance, template));
+    }
+
+    private void updateVmInstance(VMInstanceVO instance, VMTemplateVO template) {
+        instance.setTemplateId(template.getId());
+        _vmInstanceDao.update(instance.getId(), instance);
+    }
+
+    private void updateRouterTemplateConfig(VMTemplateVO template) {
+        String routerTemplateConfigKey = getRouterTemplateConfigKey(template.getHypervisorType());
+        ConfigurationVO routerTemplate = Optional.ofNullable(_configDao.findByName(routerTemplateConfigKey))
+                .orElseThrow(() -> new CloudRuntimeException(String.format("Cannot update %s configuration for hypervisor %s: unable to find it.", routerTemplateConfigKey, template.getHypervisorType())));
+        routerTemplate.setValue(template.getName());
+        _configDao.update(routerTemplate.getName(), routerTemplate);
+    }
+
+    private void updateMinRequiredSystemVMVersionConfig() {
+        String version = formatVersion(Optional.ofNullable(_versionDao.getCurrentVersion())
+                .orElseThrow(() -> new CloudRuntimeException(String.format("Cannot update %s configuration: unable to find the current version.", NetworkOrchestrationService.MinVRVersion.key()))));
+        ConfigurationVO minRequiredVersion = Optional.ofNullable(_configDao.findByName(NetworkOrchestrationService.MinVRVersion.key()))
+                .orElseThrow(() -> new CloudRuntimeException(String.format("Cannot update %s configuration: unable to find it.", NetworkOrchestrationService.MinVRVersion.key())));
+        minRequiredVersion.setValue(version);
+        _configDao.update(minRequiredVersion.getName(), minRequiredVersion);
     }
 
     private String getRouterTemplateConfigKey(HypervisorType hypervisorType) {
@@ -491,28 +497,30 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
 
     @Override
     public GetSystemVMTemplateDefaultURLResponse getSystemVMTemplateDefaultURL(GetSystemVMTemplateDefaultURLCmd cmd) {
-        String version = resolveVersion(cmd.getVersion());
+        List<VMTemplateVO> vmTemplateVOS = getSystemVMTemplatesByUrlVersionMatch(cmd);
+        Optional<VMTemplateVO> maxIdTemplate = vmTemplateVOS.stream().max(Comparator.comparing(VMTemplateVO::getId));
+        return new GetSystemVMTemplateDefaultURLResponse(cmd.getCommandName(), maxIdTemplate.orElse(vmTemplateVOS.get(0)).getUrl());
+    }
 
-        List<VMTemplateVO> vmTemplateVOS = _tmpltDao.listSystemVMTemplatesByUrlLike(BASE_SYSTEMVM_URL + "%" + version, cmd.getHypervisor());
+    private List<VMTemplateVO> getSystemVMTemplatesByUrlVersionMatch(GetSystemVMTemplateDefaultURLCmd cmd) {
+        String version = resolveVersion(Optional.ofNullable(cmd.getVersion()).orElse(""));
+        List<VMTemplateVO> vmTemplateVOS = _tmpltDao.listSystemVMTemplatesByUrlLike(DEFAULT_BASE_SYSTEMVM_URL + "%" + version, cmd.getHypervisor());
         if (!vmTemplateVOS.isEmpty()) {
-            Optional<VMTemplateVO> max = vmTemplateVOS.stream().max(Comparator.comparing(VMTemplateVO::getId));
-            return new GetSystemVMTemplateDefaultURLResponse(cmd.getCommandName(), max.orElse(vmTemplateVOS.get(0)).getUrl());
+            return vmTemplateVOS;
         } else {
-            throw new CloudRuntimeException(String.format("Unable find System VM Template URL for version %s", version));
+            throw new CloudRuntimeException(String.format("Unable find System VM Template URL for version %s and hypervisor %s.", version, cmd.getHypervisor()));
         }
     }
 
     private String resolveVersion(String version) {
-        if (version == null || version.isEmpty()) {
-            version = _versionDao.getCurrentVersion();
+        if (version.isEmpty()) {
+            version = Optional.ofNullable(_versionDao.getCurrentVersion()).orElse("");
         }
         return formatVersion(version);
     }
 
     private String formatVersion(String version) {
-        if (version == null) {
-            return "";
-        } else if (version.split("[.]").length > 3) {
+        if (version.split("[.]").length > 3) {
             return version.substring(0, org.apache.commons.lang3.StringUtils.ordinalIndexOf(version, ".", 3));
         } else {
             return version;

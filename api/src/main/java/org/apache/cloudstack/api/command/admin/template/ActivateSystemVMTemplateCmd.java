@@ -59,7 +59,7 @@ public class ActivateSystemVMTemplateCmd extends BaseCmd {
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-            VirtualMachineTemplate template = _templateService.activateSystemVMTemplate(this);
+            VirtualMachineTemplate template = _templateService.activateSystemVMTemplate(id);
             if (template != null) {
                 ListResponse<TemplateResponse> response = new ListResponse<TemplateResponse>();
                 List<TemplateResponse> templateResponses = _responseGenerator.createTemplateResponses(ResponseObject.ResponseView.Restricted,

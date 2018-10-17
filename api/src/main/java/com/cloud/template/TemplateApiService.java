@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.cloudstack.api.BaseListTemplateOrIsoPermissionsCmd;
 import org.apache.cloudstack.api.BaseUpdateTemplateOrIsoPermissionsCmd;
-import org.apache.cloudstack.api.command.admin.template.ActivateSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.template.GetSystemVMTemplateDefaultURLCmd;
 import org.apache.cloudstack.api.command.user.iso.DeleteIsoCmd;
 import org.apache.cloudstack.api.command.user.iso.ExtractIsoCmd;
@@ -52,7 +51,7 @@ public interface TemplateApiService {
 
     GetSystemVMTemplateDefaultURLResponse getSystemVMTemplateDefaultURL(GetSystemVMTemplateDefaultURLCmd cmd);
 
-    VirtualMachineTemplate activateSystemVMTemplate(ActivateSystemVMTemplateCmd cmd);
+    VirtualMachineTemplate activateSystemVMTemplate(long templateId);
 
     VirtualMachineTemplate registerIso(RegisterIsoCmd cmd) throws IllegalArgumentException, ResourceAllocationException;
 
