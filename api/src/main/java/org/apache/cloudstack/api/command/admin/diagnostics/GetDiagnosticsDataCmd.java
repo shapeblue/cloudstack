@@ -66,17 +66,17 @@ public class GetDiagnosticsDataCmd extends BaseAsyncCmd {
             description = "The ID of the system VM instance to retrieve diagnostics data files from")
     private Long id;
 
-    @Parameter(name = ApiConstants.DETAILS,
-            type = BaseCmd.CommandType.LIST,
-            collectionType = BaseCmd.CommandType.STRING,
-            description = "Optional list of additional files to retrieve and must correspond with the diagnostics file dataTypeList. Can be specified as file name or path.")
-    private List<String> additionalFilesList;
-
     @Parameter(name = ApiConstants.TYPE,
             type = BaseCmd.CommandType.LIST,
             collectionType = BaseCmd.CommandType.STRING,
-            description = "The diagnostics data dataTypeList required, examples are dhcp, iptables, dns or log files. Defaults are taken from the database if none has been provided.")
+            description = "A comma separated list of diagnostics data files to be retrieved. Defaults are taken from global settings if none has been provided.")
     private List<String> dataTypeList;
+
+    @Parameter(name = ApiConstants.ADDITIONAL_FILES,
+            type = BaseCmd.CommandType.LIST,
+            collectionType = BaseCmd.CommandType.STRING,
+            description = "Optional list of additional files to can be retrieved. Can be specified as file name or path.")
+    private List<String> additionalFileList;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -86,8 +86,8 @@ public class GetDiagnosticsDataCmd extends BaseAsyncCmd {
         return id;
     }
 
-    public List<String> getAdditionalFilesList() {
-        return additionalFilesList;
+    public List<String> getAdditionalFileList() {
+        return additionalFileList;
     }
 
     public List<String> getDataTypeList() {

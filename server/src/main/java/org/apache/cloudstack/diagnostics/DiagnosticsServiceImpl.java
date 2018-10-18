@@ -92,9 +92,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private static final ConfigKey<Integer> DiskQuotaPercentageThreshold = new ConfigKey<>("Advanced", Integer.class,
             "diagnostics.data.disable.threshold", "0.95", "Minimum disk space percentage to initiate diagnostics file retrieval", false);
 
-    private static final ConfigKey<String> DefaultSupportedDataTypes = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.supported.types", "config,log,userdata,script", "List of supported diagnostics data type options", false);
-
     /**
      * Global configs below are used to set the diagnostics
      * data types applicable for each system vm.
@@ -103,26 +100,21 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
      * in the system vm and grab output for retrieval, e.g. the output from iptables-save is written to a file
      * which will then be retrieved.
      */
-    private static final ConfigKey<String> SsvmDefaultSupportedLogFiles = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.ssvm.supported.log.files", "agent.log, cloud.log", "List of supported diagnostics data log file options for the ssvm and cpvm", false);
+    private static final ConfigKey<String> SsvmDefaultSupportedFiles = new ConfigKey<>("Advanced", String.class,
+            "diagnostics.data.ssvm.defaults", "[IPTABLES], [IFCONFIG], [ROUTE], /usr/local/cloud/systemvm/conf/agent.properties," +
+            " /usr/local/cloud/systemvm/conf/consoleproxy.properties, /var/log/cloud.log",
+            "List of supported diagnostics data file options for the ssvm", false);
 
-    private static final ConfigKey<String> SsvmDefaultSupportedNetworkFiles = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.ssvm.supported.network.files", "iptables, ifconfig, route", "List of supported diagnostics data network file options for the ssvm and cpvm", false);
+    private static final ConfigKey<String> CpvmDefaultSupportedFiles = new ConfigKey<>("Advanced", String.class,
+            "diagnostics.data.cpvm.defaults", "[IPTABLES], [IFCONFIG], [ROUTE], /usr/local/cloud/systemvm/conf/agent.properties, " +
+            "/usr/local/cloud/systemvm/conf/consoleproxy.properties, /var/log/cloud.log",
+            "List of supported diagnostics data file options for the cpvm", false);
 
-    private static final ConfigKey<String> SsvmDefaultSupportedConfigFiles = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.ssvm.supported.network.files", "agent.properties,consoleproxy.properties", "List of supported diagnostics data network file options for the ssvm and cpvm", false);
-
-    private static final ConfigKey<String> VrDefaultSupportedLogFiles = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.vr.supported.log.files", "agent.log, cloud.log, userdata", "List of supported diagnostics data log file options for the VR", false);
-
-    private static final ConfigKey<String> VrDefaultSupportedNetworkFiles = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.vr.supported.log.files", "iptables,ifconfig,route", "List of supported diagnostics data network file options for the VR", false);
-
-    private static final ConfigKey<String> VrDefaultSupportedConfigFiles = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.vr.supported.log.files", "dnsmasq.conf,resolv.conf,haproxy.conf,hosts.conf,dnsmaq-resolv.conf", "List of supported diagnostics data network file options for the VR", false);
-
-    private static final ConfigKey<String> CustomSupportedScripts = new ConfigKey<>("Advanced", String.class,
-            "diagnostics.data.vr.supported.log.files", "iptables.py, route.py, ifconfig.py", "List of supported diagnostics data network file options for the VR", false);
+    private static final ConfigKey<String> VrDefaultSupportedFiles = new ConfigKey<>("Advanced", String.class,
+            "diagnostics.data.vr.defaults", "defaults: \"[IPTABLES], [IFCONFIG], [ROUTE], " +
+            "/etc/dnsmasq.conf, /etc/resolv.conf, /etc/haproxy.conf, /etc/hosts.conf, /etcdnsmaq-resolv.conf, /var/log/cloud.log, " +
+            "/var/log/routerServiceMonitor.log, /var/log/dnsmasq.log",
+            "List of supported diagnostics data file options for the VR", false);
 
 
     @Override
@@ -200,7 +192,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     public String getDiagnosticsDataCommand(GetDiagnosticsDataCmd cmd) {
         final Long vmId = cmd.getId();
         List<String> dataType = cmd.getDataTypeList();
-        List<String> detail = cmd.getAdditionalFilesList();
+        List<String> filesList = cmd.getAdditionalFileList();
         final VMInstanceVO vmInstance = instanceDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
 
 
@@ -210,9 +202,9 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
 
         final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
 
-        PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(dataType);
+        PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(filesList);
         prepareZipFilesCommand.setAccessDetail(accessDetails);
-        //final Answer zipFilesAnswer = agentManager.easySend(vmInstance.getHostId(), prepareZipFilesCommand);
+        Answer zipFilesAnswer = agentManager.easySend(vmInstance.getHostId(), prepareZipFilesCommand);
 
         CopyZipFilesCommand copyZipCommand = new CopyZipFilesCommand(accessDetails.get("Control"), "copy.txt");
         Answer copyZipAnswer = agentManager.easySend(vmInstance.getHostId(), copyZipCommand);
@@ -231,42 +223,28 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         return copyZipAnswer.getDetails();
     }
 
+    private List<String> prepareFiles(List<String> dataTypeList, List<String> detailFileList, VirtualMachine vm){
+        List<String> files = new ArrayList<>();
+        VirtualMachine.Type vmType = vm.getType();
+        switch (vmType){
+            case DomainRouter:
+                break;
 
+            case SecondaryStorageVm:
+            case ConsoleProxy:
+                break;
+        }
+        return files;
 
-//    private String[] getDefaults(VirtualMachine vm) {
-//        VirtualMachine.Type vmType = vm.getType();
-//        String[] supportedTypes = DefaultSupportedDataTypes.value().split(",");
-//        String[] defaults;
-//        List<String> filesToRetrieve = new ArrayList<>();
-//        switch (vmType){
-//            case DomainRouter:
-//
-//                break;
-//            case ConsoleProxy:
-//                break;
-//            case SecondaryStorageVm:
-//                break;
-//
-//            default:
-//                throw new CloudRuntimeException("Unsupported VM type");
-//
-//        }
-//
-//        return supportedTypes;
-//    }
+    }
 
-//    private boolean isTypeSupported(String type) {
-//        String[] supportedTypes = DefaultSupportedDataTypes.value().split(",");
-//        return Arrays.stream(supportedTypes).anyMatch(type::equals);
-//    }
 
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey<?>[]{EnableGarbageCollector, TmpMgmtDataStoragePath, DataRetrievalTimeout,
-                MaximumFileAgeforGarbageCollection, GarbageCollectionInterval, DiskQuotaPercentageThreshold, DefaultSupportedDataTypes,
-        SsvmDefaultSupportedLogFiles, SsvmDefaultSupportedNetworkFiles, SsvmDefaultSupportedConfigFiles, VrDefaultSupportedConfigFiles, VrDefaultSupportedLogFiles,
-                VrDefaultSupportedNetworkFiles, CustomSupportedScripts};
+                MaximumFileAgeforGarbageCollection, GarbageCollectionInterval, DiskQuotaPercentageThreshold,
+                SsvmDefaultSupportedFiles, CpvmDefaultSupportedFiles, VrDefaultSupportedFiles};
     }
 
     @Override

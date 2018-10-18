@@ -713,6 +713,7 @@ public class ApiConstants {
     public static final String STDERR = "stderr";
     public static final String EXITCODE = "exitcode";
     public static final String TARGET_ID = "targetid";
+    public static final String ADDITIONAL_FILES = "additionalfiles";
 
     public enum HostDetails {
         all, capacity, events, stats, min;
