@@ -1130,8 +1130,8 @@ public class KVMStorageProcessor implements StorageProcessor {
                     } else {
                         destTemplate = primaryPool.getPhysicalDisk(srcBackingFilePath);
                     }
-                    vol = storagePoolMgr.createDiskFromTemplate(destTemplate, volume.getUuid(), volume.getProvisioningType(),
-                            primaryPool, volume.getSize(), 10000 * 1000);
+                    vol = storagePoolMgr.createDiskWithTemplateBacking(destTemplate, volume.getUuid(), format, volume.getSize(),
+                            primaryPool, 10000*1000);
                 } else if (migrationOptions.getType() == MigrationOptions.Type.FullClone) {
                     String snapshotName = migrationOptions.getSnapshotName();
                     String srcVolumeUuid = migrationOptions.getSrcVolumeUuid();

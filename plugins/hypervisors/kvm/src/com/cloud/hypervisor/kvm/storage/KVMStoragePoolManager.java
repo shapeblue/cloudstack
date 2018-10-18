@@ -380,4 +380,9 @@ public class KVMStoragePoolManager {
         return adaptor.createDiskFromSnapshot(snapshot, snapshotName, name, destPool);
     }
 
+    public KVMPhysicalDisk createDiskWithTemplateBacking(KVMPhysicalDisk template, String name, PhysicalDiskFormat format, long size,
+                                                         KVMStoragePool destPool, int timeout) {
+        StorageAdaptor adaptor = getStorageAdaptor(destPool.getType());
+        return adaptor.createDiskFromTemplateBacking(template, name, format, size, destPool, timeout);
+    }
 }

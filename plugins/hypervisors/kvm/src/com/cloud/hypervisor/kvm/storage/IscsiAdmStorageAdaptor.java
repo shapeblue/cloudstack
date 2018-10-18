@@ -374,4 +374,9 @@ public class IscsiAdmStorageAdaptor implements StorageAdaptor {
     public boolean createFolder(String uuid, String path) {
         throw new UnsupportedOperationException("A folder cannot be created in this configuration.");
     }
+
+    @Override
+    public KVMPhysicalDisk createDiskFromTemplateBacking(KVMPhysicalDisk template, String name, PhysicalDiskFormat format, long size, KVMStoragePool destPool, int timeout) {
+        return null;
+    }
 }

@@ -309,6 +309,11 @@ public class ManagedNfsStorageAdaptor implements StorageAdaptor {
     }
 
     @Override
+    public KVMPhysicalDisk createDiskFromTemplateBacking(KVMPhysicalDisk template, String name, PhysicalDiskFormat format, long size, KVMStoragePool destPool, int timeout) {
+        return null;
+    }
+
+    @Override
     public KVMPhysicalDisk createPhysicalDisk(String name, KVMStoragePool pool, PhysicalDiskFormat format, ProvisioningType provisioningType, long size) {
         return null;
     }

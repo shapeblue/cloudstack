@@ -20,9 +20,18 @@ package com.cloud.hypervisor.kvm.resource.wrapper;
 
 import static org.junit.Assert.assertTrue;
 
+import com.cloud.agent.api.MigrateCommand;
 import org.junit.Test;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class LibvirtMigrateCommandWrapperTest {
+    String volumeSource = "/mnt/812ea6a3-7ad0-30f4-9cab-01e3f2985b98/4650a2f7-fce5-48e2-beaa-bcdf063194e6";
     String fullfile =
 "<domain type='kvm' id='4'>\n" +
 "  <name>i-6-6-VM</name>\n" +
@@ -65,7 +74,7 @@ public class LibvirtMigrateCommandWrapperTest {
 "    <emulator>/usr/libexec/qemu-kvm</emulator>\n" +
 "    <disk type='file' device='disk'>\n" +
 "      <driver name='qemu' type='qcow2' cache='none'/>\n" +
-"      <source file='/mnt/812ea6a3-7ad0-30f4-9cab-01e3f2985b98/4650a2f7-fce5-48e2-beaa-bcdf063194e6'/>\n" +
+"      <source file='"+volumeSource+"'/>\n" +
 "      <backingStore type='file' index='1'>\n" +
 "        <format type='raw'/>\n" +
 "        <source file='/mnt/812ea6a3-7ad0-30f4-9cab-01e3f2985b98/bb4d4df4-c004-11e5-94ed-5254001daa61'/>\n" +
@@ -135,6 +144,8 @@ public class LibvirtMigrateCommandWrapperTest {
 "    </memballoon>\n" +
 "  </devices>\n" +
 "</domain>";
+
+    String targetVolume = "/mnt/812ea6a3-7ad0-30f4-9cab-01e3f2985b98/4650a2f7-fce5-48e2-beaa-bcdf063194e6";
     String targetfile =
 "<domain type='kvm' id='4'>\n" +
 "  <name>i-6-6-VM</name>\n" +
@@ -177,7 +188,7 @@ public class LibvirtMigrateCommandWrapperTest {
 "    <emulator>/usr/libexec/qemu-kvm</emulator>\n" +
 "    <disk type='file' device='disk'>\n" +
 "      <driver name='qemu' type='qcow2' cache='none'/>\n" +
-"      <source file='/mnt/812ea6a3-7ad0-30f4-9cab-01e3f2985b98/4650a2f7-fce5-48e2-beaa-bcdf063194e6'/>\n" +
+"      <source file='"+targetVolume+"'/>\n" +
 "      <backingStore type='file' index='1'>\n" +
 "        <format type='raw'/>\n" +
 "        <source file='/mnt/812ea6a3-7ad0-30f4-9cab-01e3f2985b98/bb4d4df4-c004-11e5-94ed-5254001daa61'/>\n" +
@@ -302,5 +313,18 @@ public class LibvirtMigrateCommandWrapperTest {
         final LibvirtMigrateCommandWrapper lw = new LibvirtMigrateCommandWrapper();
         final String result = lw.replaceIpForVNCInDescFile(xmlDesc, targetIp);
         assertTrue("transformation does not live up to expectation:\n" + result, expectedXmlDesc.equals(result));
+    }
+
+    @Test
+    public void testReplaceStorageXmlDiskNotManagedStorage() throws ParserConfigurationException, TransformerException, SAXException, IOException {
+        final LibvirtMigrateCommandWrapper lw = new LibvirtMigrateCommandWrapper();
+        String newPath = targetVolume;
+        MigrateCommand.MigrateDiskInfo migrateDiskInfo = new MigrateCommand.MigrateDiskInfo(volumeSource,
+                MigrateCommand.MigrateDiskInfo.DiskType.FILE, MigrateCommand.MigrateDiskInfo.DriverType.QCOW2,
+                MigrateCommand.MigrateDiskInfo.Source.FILE, newPath);
+        Map<String, MigrateCommand.MigrateDiskInfo> migrateStorage = new HashMap<>();
+        migrateStorage.put(volumeSource, migrateDiskInfo);
+        String newXml = lw.replaceStorage(fullfile, migrateStorage, false);
+        assertTrue(newXml.contains(newPath));
     }
 }

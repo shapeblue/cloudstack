@@ -830,7 +830,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
                 boolean updateBackingFileReference = false;
                 boolean linkedClone = false;
                 boolean fullClone = false;
-                String snapshotName = "livemigration-snap-" + srcVolume.getUuid();
+                String snapshotName = "livemigration-snap-" + srcVolume.getPath();
                 VMSnapshotTO snapshotTO = new VMSnapshotTO();
                 snapshotTO.setSnapshotName(snapshotName);
                 managedStorageDestination = destStoragePool.isManaged();
@@ -852,7 +852,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
                         if (snapshotAnswer == null || !snapshotAnswer.getResult()) {
                             throw new CloudRuntimeException("Could not take snapshot of VM");
                         }
-                        migrationOptions = new MigrationOptions(srcPoolUuid, srcPoolType, snapshotName, srcVolumeInfo.getUuid());
+                        migrationOptions = new MigrationOptions(srcPoolUuid, srcPoolType, snapshotName, srcVolumeInfo.getPath());
                     }
                     destVolumeInfo.setMigrationOptions(migrationOptions);
                 }
@@ -894,11 +894,20 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
 
                 String connectedPath = connectHostToVolume(destHost, destVolumeInfo.getPoolId(), volumeIdentifier);
 
-                MigrateCommand.MigrateDiskInfo migrateDiskInfo = new MigrateCommand.MigrateDiskInfo(srcVolumeInfo.getPath(),
-                        MigrateCommand.MigrateDiskInfo.DiskType.BLOCK,
-                        MigrateCommand.MigrateDiskInfo.DriverType.RAW,
-                        MigrateCommand.MigrateDiskInfo.Source.DEV,
-                        connectedPath);
+                MigrateCommand.MigrateDiskInfo migrateDiskInfo = null;
+                if (managedStorageDestination) {
+                    migrateDiskInfo = new MigrateCommand.MigrateDiskInfo(srcVolumeInfo.getPath(),
+                            MigrateCommand.MigrateDiskInfo.DiskType.BLOCK,
+                            MigrateCommand.MigrateDiskInfo.DriverType.RAW,
+                            MigrateCommand.MigrateDiskInfo.Source.DEV,
+                            connectedPath);
+                } else {
+                    migrateDiskInfo = new MigrateCommand.MigrateDiskInfo(srcVolumeInfo.getPath(),
+                            MigrateCommand.MigrateDiskInfo.DiskType.FILE,
+                            MigrateCommand.MigrateDiskInfo.DriverType.QCOW2,
+                            MigrateCommand.MigrateDiskInfo.Source.FILE,
+                            connectedPath);
+                }
 
                 migrateStorage.put(srcVolumeInfo.getPath(), migrateDiskInfo);
 

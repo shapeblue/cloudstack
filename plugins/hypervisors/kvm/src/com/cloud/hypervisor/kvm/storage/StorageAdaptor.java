@@ -72,4 +72,12 @@ public interface StorageAdaptor {
 
     public boolean createFolder(String uuid, String path);
 
+    /**
+     * Creates disk using template backing.
+     * Precondition: Template is on destPool
+     */
+    KVMPhysicalDisk createDiskFromTemplateBacking(KVMPhysicalDisk template,
+                                           String name, PhysicalDiskFormat format, long size,
+                                           KVMStoragePool destPool, int timeout);
+
 }
