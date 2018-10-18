@@ -97,15 +97,48 @@
                         <div class="step setup" wizard-step-id="setup">
                             <div class="content">
                                 <!-- Select a zone -->
-                                <div class="section select-zone">
+                                <div class="section select-deployment">
                                     <h3><translate key="label.select.a.zone"/></h3>
                                     <p><translate key="message.select.a.zone"/></p>
                                     <div class="select-area">
                                         <div class="desc"></div>
-                                        <select name="zoneid" class="required">
+                                        <select name="zoneid" class="zoneid required">
+                                        </select>
+                                        <select name="podid" class="podid">
+                                        </select>
+                                        <select name="clusterid" class="clusterid">
+                                        </select>
+                                        <select name="hostid" class="hostid">
                                         </select>
                                     </div>
                                 </div>
+                                <!--<div class="section select-pod">-->
+                                    <!--<h3><translate key="label.select.a.pod"/></h3>-->
+                                    <!--&lt;!&ndash;<p><translate/></p>&ndash;&gt;-->
+                                    <!--<div class="select-area">-->
+                                        <!--<div class="desc"></div>-->
+                                        <!--<select name="podid">-->
+                                        <!--</select>-->
+                                    <!--</div>-->
+                                <!--</div>-->
+                                <!--<div class="section select-cluster">-->
+                                    <!--<h3><translate key="label.select.a.cluster"/></h3>-->
+                                    <!--&lt;!&ndash;<p><translate/></p>&ndash;&gt;-->
+                                    <!--<div class="select-area">-->
+                                        <!--<div class="desc"></div>-->
+                                        <!--<select name="clusterid">-->
+                                        <!--</select>-->
+                                    <!--</div>-->
+                                <!--</div>-->
+                                <!--<div class="section select-host">-->
+                                    <!--<h3><translate key="label.select.a.host"/></h3>-->
+                                    <!--&lt;!&ndash;<p><translate/></p>&ndash;&gt;-->
+                                    <!--<div class="select-area">-->
+                                        <!--<div class="desc"></div>-->
+                                        <!--<select name="hostid">-->
+                                        <!--</select>-->
+                                    <!--</div>-->
+                                <!--</div>-->
                                 <!-- Select template -->
                                 <div class="section select-template">
                                     <h3><translate key="label.select.iso.or.template" /></h3>

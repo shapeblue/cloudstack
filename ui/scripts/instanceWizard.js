@@ -22,6 +22,45 @@
     var step6ContainerType = 'nothing-to-select'; //'nothing-to-select', 'select-network', 'select-security-group', 'select-advanced-sg'(advanced sg-enabled zone)
 
     cloudStack.instanceWizard = {
+
+       fetchHostList: function(args, parentId) {
+
+           $.ajax({
+               url: createURL("listHosts&state=Up&type=Routing&clusterid="+parentId),
+               dataType: "json",
+               async: false,
+               success: function(json) {
+                   if (json.listhostsresponse.host != undefined) {
+                       hostObjs = json.listhostsresponse.host;
+                       hosts = [{
+                           id: -1,
+                           description: 'Default',
+                           parentId: -1
+                       }];
+                       $(hostObjs).each(function() {
+                           hosts.push({
+                               id: this.id,
+                               description: this.name,
+                               parentId: this.clusterid
+                           });
+                       });
+                   }
+               }
+           });
+
+           args.response.success({
+               data: {
+                   hosts: hosts
+               }
+           });
+
+       },
+
+       //explain it
+       parentFilter: function(data, parentId) {
+           return parentId != -1 && data != undefined ? data.parentId == parentId || data.parentId == -1 : true;
+       },
+
         //min disk offering  size when custom disk size is used
         minDiskOfferingSize: function() {
             return g_capabilities.customdiskofferingminsize;
@@ -94,17 +133,102 @@
                 }
                 //in all other cases (as well as from instance page) all zones are populated to dropdown
                 else {
+                    console.log('zone etc calls to follow');
+                    console.log('args')
+                    console.log(args);
                     $.ajax({
                         url: createURL("listZones&available=true"),
                         dataType: "json",
                         async: false,
                         success: function(json) {
                             zoneObjs = json.listzonesresponse.zone;
-                            args.response.success({
-                                data: {
-                                    zones: zoneObjs
-                                }
+                            zones = [{
+                                id: -1,
+                                description: 'Default'
+                            }];
+                            $(zoneObjs).each(function() {
+                                zones.push({
+                                    id: this.id,
+                                    name: this.name
+                                });
                             });
+                        }
+                    });
+                    $.ajax({
+                        url: createURL("listPods"),
+                        dataType: "json",
+                        async: false,
+                        success: function(json) {
+                            if (json.listpodsresponse.pod != undefined) {
+                                podObjs = json.listpodsresponse.pod;
+                                pods = [{
+                                    id: -1,
+                                    description: 'Default'
+                                }];
+                                $(podObjs).each(function() {
+                                    pods.push({
+                                        id: this.id,
+                                        description: this.name,
+                                        parentId: this.zoneid
+                                    });
+                                });
+                            }
+                        }
+                    });
+                    $.ajax({
+                        url: createURL("listClusters"),
+                        dataType: "json",
+                        async: false,
+                        success: function(json) {
+                              if (json.listclustersresponse.cluster != undefined) {
+                                  clusterObjs = json.listclustersresponse.cluster;
+                                  clusters = [{
+                                      id: -1,
+                                      description: 'Default'
+                                  }];
+                                  $(clusterObjs).each(function() {
+                                      clusters.push({
+                                          id: this.id,
+                                          description: this.name,
+                                          parentId: this.podid
+                                      });
+                                  });
+                              }
+                        }
+                    });
+                    $.ajax({
+                        url: createURL("listHosts&state=Up&type=Routing"),
+                        dataType: "json",
+                        async: false,
+                        success: function(json) {
+                              if (json.listhostsresponse.host != undefined) {
+                                  hostObjs = json.listhostsresponse.host;
+                                  hosts = [{
+                                      id: -1,
+                                      description: 'Default',
+                                      parentId: -1
+                                  }];
+                                  $(hostObjs).each(function() {
+                                      hosts.push({
+                                          id: this.id,
+                                          description: this.name,
+                                          parentId: this.clusterid
+                                      });
+                                  });
+                              }
+                        }
+                    });
+                    console.log('creating response');
+                    console.log(zoneObjs);
+                    console.log(pods);
+                    console.log(clusters);
+                    console.log(hosts);
+                    args.response.success({
+                        data: {
+                            zones: zones,
+                            pods: pods,
+                            clusters: clusters,
+                            hosts: hosts
                         }
                     });
                 }
