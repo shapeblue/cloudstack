@@ -36,6 +36,7 @@ import java.util.UUID;
 
 import javax.naming.ConfigurationException;
 
+import com.cloud.storage.MigrationOptions;
 import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.CopyCmdAnswer;
@@ -1112,8 +1113,36 @@ public class KVMStorageProcessor implements StorageProcessor {
             } else {
                 format = PhysicalDiskFormat.valueOf(volume.getFormat().toString().toUpperCase());
             }
-            vol = primaryPool.createPhysicalDisk(volume.getUuid(), format,
-                    volume.getProvisioningType(), disksize);
+
+            MigrationOptions migrationOptions = volume.getMigrationOptions();
+            if (migrationOptions != null) {
+                String srcStoreUuid = migrationOptions.getSrcPoolUuid();
+                StoragePoolType srcPoolType = migrationOptions.getSrcPoolType();
+                KVMStoragePool srcPool = storagePoolMgr.getStoragePool(srcPoolType, srcStoreUuid);
+                if (migrationOptions.getType() == MigrationOptions.Type.LinkedClone) {
+                    String srcBackingFilePath = migrationOptions.getSrcBackingFilePath();
+                    boolean copySrcTemplate = migrationOptions.isCopySrcTemplate();
+                    KVMPhysicalDisk srcTemplate = srcPool.getPhysicalDisk(srcBackingFilePath);
+                    KVMPhysicalDisk destTemplate;
+                    if (copySrcTemplate) {
+                        KVMPhysicalDisk copiedTemplate = storagePoolMgr.copyPhysicalDisk(srcTemplate, srcTemplate.getName(), primaryPool, 10000 * 1000);
+                        destTemplate = primaryPool.getPhysicalDisk(copiedTemplate.getPath());
+                    } else {
+                        destTemplate = primaryPool.getPhysicalDisk(srcBackingFilePath);
+                    }
+                    vol = storagePoolMgr.createDiskFromTemplate(destTemplate, volume.getUuid(), volume.getProvisioningType(),
+                            primaryPool, volume.getSize(), 10000 * 1000);
+                } else if (migrationOptions.getType() == MigrationOptions.Type.FullClone) {
+                    String snapshotName = migrationOptions.getSnapshotName();
+                    String srcVolumeUuid = migrationOptions.getSrcVolumeUuid();
+                    KVMPhysicalDisk srcVolume = srcPool.getPhysicalDisk(srcVolumeUuid);
+                    s_logger.debug("Create disk from source disk " + srcVolumeUuid + " and snapshot: " + snapshotName);
+                    vol = storagePoolMgr.createDiskFromSnapshot(srcVolume, snapshotName, volume.getUuid(), primaryPool);
+                }
+            } else {
+                vol = primaryPool.createPhysicalDisk(volume.getUuid(), format,
+                        volume.getProvisioningType(), disksize);
+            }
 
             final VolumeObjectTO newVol = new VolumeObjectTO();
             if(vol != null) {

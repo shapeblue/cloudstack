@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.deploy.DeployDestination;
 import com.cloud.storage.ImageStoreUploadMonitorImpl;
 import com.cloud.utils.EncryptionUtil;
 import com.google.gson.Gson;
@@ -541,10 +542,25 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     }
 
     @Override
-    public void prepareIsoForVmProfile(VirtualMachineProfile profile) {
+    public void prepareIsoForVmProfile(VirtualMachineProfile profile, DeployDestination dest) {
         UserVmVO vm = _userVmDao.findById(profile.getId());
         if (vm.getIsoId() != null) {
-            TemplateInfo template = prepareIso(vm.getIsoId(), vm.getDataCenterId());
+            Map<Volume, StoragePool> storageForDisks = dest.getStorageForDisks();
+            Long poolId = null;
+
+            TemplateInfo template;
+            if (storageForDisks != null) {
+                for (StoragePool storagePool : storageForDisks.values()) {
+                    if (poolId != null && storagePool.getId() != poolId) {
+                        throw new CloudRuntimeException("Cannot determine where to download iso");
+                    }
+                    poolId = storagePool.getId();
+                }
+                template = prepareIso(vm.getIsoId(), vm.getDataCenterId());
+            } else {
+                template = _tmplFactory.getTemplate(vm.getIsoId(), DataStoreRole.Primary, dest.getDataCenter().getId());
+            }
+
             if (template == null){
                 s_logger.error("Failed to prepare ISO on secondary or cache storage");
                 throw new CloudRuntimeException("Failed to prepare ISO on secondary or cache storage");

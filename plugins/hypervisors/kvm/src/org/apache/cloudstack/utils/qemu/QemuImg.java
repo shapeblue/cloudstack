@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import com.cloud.storage.Storage;
@@ -221,9 +222,12 @@ public class QemuImg {
      * @param options
      *            Options for the convert. Takes a Map<String, String> with key value
      *            pairs which are passed on to qemu-img without validation.
+     * @param snapshotName
+     *            If it is provided, convertion uses it as parameter
      * @return void
      */
-    public void convert(final QemuImgFile srcFile, final QemuImgFile destFile, final Map<String, String> options) throws QemuImgException {
+    public void convert(final QemuImgFile srcFile, final QemuImgFile destFile,
+                        final Map<String, String> options, final String snapshotName) throws QemuImgException {
         final Script script = new Script(_qemuImgPath, timeout);
         script.add("convert");
         // autodetect source format. Sometime int he future we may teach KVMPhysicalDisk about more formats, then we can explicitly pass them if necessary
@@ -241,6 +245,13 @@ public class QemuImg {
             String optionsStr = optionsBuffer.toString();
             optionsStr = optionsStr.replaceAll(",$", "");
             script.add(optionsStr);
+        }
+
+        if (StringUtils.isNotBlank(snapshotName)) {
+            script.add("-f");
+            script.add(srcFile.getFormat().toString());
+            script.add("-s");
+            script.add(snapshotName);
         }
 
         script.add(srcFile.getFileName());
@@ -270,7 +281,26 @@ public class QemuImg {
      * @return void
      */
     public void convert(final QemuImgFile srcFile, final QemuImgFile destFile) throws QemuImgException {
-        this.convert(srcFile, destFile, null);
+        this.convert(srcFile, destFile, null, null);
+    }
+
+    /**
+     * Convert a image from source to destination
+     *
+     * This method calls 'qemu-img convert' and takes three objects
+     * as an argument.
+     *
+     *
+     * @param srcFile
+     *            The source file
+     * @param destFile
+     *            The destination file
+     * @param snapshotName
+     *            The snapshot name
+     * @return void
+     */
+    public void convert(final QemuImgFile srcFile, final QemuImgFile destFile, String snapshotName) throws QemuImgException {
+        this.convert(srcFile, destFile, null, snapshotName);
     }
 
     /**

@@ -63,6 +63,7 @@ public class MigrateKVMAsync implements Callable<Domain> {
             if (migrateStorageManaged) {
                 flags |= 1 << 6;
             } else {
+                flags |= 1 << 3;
                 flags |= 1 << 7;
             }
         }
