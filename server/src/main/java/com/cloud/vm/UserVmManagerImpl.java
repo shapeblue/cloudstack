@@ -39,11 +39,6 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
-
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.affinity.AffinityGroupService;
@@ -96,6 +91,10 @@ import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreVO;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
@@ -4419,11 +4418,11 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         Account account = CallContext.current().getCallingAccount();
         boolean isRootAdmin = _accountService.isRootAdmin(account.getId());
 
-        //TODO : parameter validation - 1 only???
-
         Pod destinationPod = getDestinationPod(podId, isRootAdmin);
         Cluster destinationCluster = getDestinationCluster(clusterId, isRootAdmin);
         Host destinationHost = getDestinationHost(hostId, isRootAdmin);
+
+        validateDeploymentDestination(destinationPod, destinationCluster, destinationHost);
 
         // check if vm is security group enabled
         if (_securityGroupMgr.isVmSecurityGroupEnabled(vmId) && _securityGroupMgr.getSecurityGroupsForVm(vmId).isEmpty()
@@ -4525,6 +4524,22 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         return vmParamPair;
+    }
+
+    private void validateDeploymentDestination(Pod destinationPod, Cluster destinationCluster, Host destinationHost) {
+
+        if (destinationHost != null) {
+            if (destinationCluster != null) {
+                if (destinationHost.getClusterId() != destinationCluster.getId()) {
+                    throw new InvalidParameterValueException("Host " + destinationHost.getId() + " is not a child of provided cluster " + destinationCluster.getId());
+                }
+                if (destinationPod != null) {
+                    if (destinationCluster.getPodId() != destinationPod.getId()) {
+                        throw new InvalidParameterValueException("Cluster " + destinationCluster.getId() + " is not a child of provided pod " + destinationPod.getId());
+                    }
+                }
+            }
+        }
     }
 
     private Pod getDestinationPod(Long podId, boolean isRootAdmin) {
