@@ -19,20 +19,16 @@
 import sys
 import zipfile
 import time
-import tarfile
 
-
+# Create zip archive and append files for retrieval
 def zip_files(file_name):
     compression = zipfile.ZIP_DEFLATED
     time_str = time.strftime("%Y%m%d-%H%M%S")
-    zf_name = 'zipfile_' + time_str + '.tar.gz'
-    # zf = zipfile.ZipFile(zf_name, mode='w')
-    zf = tarfile.open(zf_name, mode='w')
+    zf_name = '/root/diagnostics_files_' + time_str + '.tar.gz'
+    zf = zipfile.ZipFile(zf_name, 'w', compression)
     try:
         for f in file_name:
-            # zf.write(f, compress_type=compression)
-            zf.add(f)
-
+            zf.write(f, f[f.rfind('/')+1:])
     except RuntimeError as e:
         print "File not found"
     finally:

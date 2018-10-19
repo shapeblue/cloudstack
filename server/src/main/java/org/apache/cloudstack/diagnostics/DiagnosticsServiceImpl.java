@@ -18,7 +18,6 @@
 package org.apache.cloudstack.diagnostics;
 
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,15 +48,13 @@ import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cxf.common.util.CollectionUtils;
 import org.apache.log4j.Logger;
 
 
 public class DiagnosticsServiceImpl extends ManagerBase implements PluggableService, DiagnosticsService, Configurable {
 
     private static final Logger LOGGER = Logger.getLogger(DiagnosticsServiceImpl.class);
-
-    protected static final int DefaultDomRSshPort = 3922;
-    final File permKey = new File("/root/.ssh/id_rsa.cloud");
 
     @Inject
     private AgentManager agentManager;
@@ -191,10 +188,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     @ActionEvent(eventType = EventTypes.EVENT_SYSTEM_VM_DIAGNOSTICS, eventDescription = "running diagnostics on system vm", async = true)
     public String getDiagnosticsDataCommand(GetDiagnosticsDataCmd cmd) {
         final Long vmId = cmd.getId();
-        List<String> dataType = cmd.getDataTypeList();
-        List<String> filesList = cmd.getAdditionalFileList();
         final VMInstanceVO vmInstance = instanceDao.findByIdTypes(vmId, VirtualMachine.Type.ConsoleProxy, VirtualMachine.Type.DomainRouter, VirtualMachine.Type.SecondaryStorageVm);
-
 
         if (vmInstance == null) {
             throw new InvalidParameterValueException("Unable to find a system vm with id " + vmId);
@@ -202,40 +196,70 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
 
         final Map<String, String> accessDetails = networkManager.getSystemVMAccessDetails(vmInstance);
 
-        PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(filesList);
+        List<String> fileList = prepareFiles(cmd.getDataTypeList(), cmd.getAdditionalFileList(), vmInstance);
+
+        PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(fileList);
         prepareZipFilesCommand.setAccessDetail(accessDetails);
         Answer zipFilesAnswer = agentManager.easySend(vmInstance.getHostId(), prepareZipFilesCommand);
 
-        CopyZipFilesCommand copyZipCommand = new CopyZipFilesCommand(accessDetails.get("Control"), "copy.txt");
+        // Copy files to ssvm
+        String zipFileDir = "";
+        if (zipFilesAnswer.getResult()){
+            zipFileDir = zipFilesAnswer.getDetails().replace("\n", "");
+        }
+
+        CopyZipFilesCommand copyZipCommand = new CopyZipFilesCommand(accessDetails.get("Control"), zipFileDir);
         Answer copyZipAnswer = agentManager.easySend(vmInstance.getHostId(), copyZipCommand);
 
-//        if (zipFilesAnswer.getResult()){
-//            String zipFileDir = zipFilesAnswer.getDetails().replace("\n", "");
-//            CopyZipFilesCommand copyZipCommand = new CopyZipFilesCommand(accessDetails.get("Control"), zipFileDir);
-//            copyZipAnswer = agentManager.easySend(vmInstance.getHostId(), copyZipCommand);
-//
-//        }
-
-
-//        DataStoreTO dataStoreTO
-//        CopyToSecondaryStorageCommand toSecondaryStorageCommand = new CopyToSecondaryStorageCommand();
-//        return copyZipAnswer.getDetails();
         return copyZipAnswer.getDetails();
     }
 
-    private List<String> prepareFiles(List<String> dataTypeList, List<String> detailFileList, VirtualMachine vm){
-        List<String> files = new ArrayList<>();
+    // Prepare List of files to be retrieved from system vm or VR
+    protected List<String> prepareFiles(List<String> dataTypeList, List<String> additionalFileList, VirtualMachine vm){
+        List<String> filesList = new ArrayList<>();
         VirtualMachine.Type vmType = vm.getType();
-        switch (vmType){
-            case DomainRouter:
-                break;
-
-            case SecondaryStorageVm:
-            case ConsoleProxy:
-                break;
+        String[] defaultFiles;
+        if (CollectionUtils.isEmpty(dataTypeList)){
+            switch (vmType){
+                case DomainRouter:
+                    defaultFiles = VrDefaultSupportedFiles.value().split(",");
+                    for (String file: defaultFiles) {
+                        filesList.add(file);
+                    }
+                        break;
+                case SecondaryStorageVm:
+                    defaultFiles = SsvmDefaultSupportedFiles.value().split(",");
+                    for (String file: defaultFiles) {
+                        filesList.add(file);
+                    }
+                    break;
+                case ConsoleProxy:
+                    defaultFiles = CpvmDefaultSupportedFiles.value().split(",");
+                    for (String file: defaultFiles) {
+                        filesList.add(file);
+                    }
+                    break;
+                default:
+                    throw new CloudRuntimeException("Unsupported vm type for retrieve diagnostics data: ");
+            }
+        } else {
+            for (String file: dataTypeList) {
+                filesList.add(file);
+            }
         }
-        return files;
+        if (!CollectionUtils.isEmpty(additionalFileList)){
+            for (String extraFile: additionalFileList) {
+                filesList.add(extraFile);
 
+            }
+        }
+        return filesList;
+    }
+
+    //TODO
+    protected String copyToSecondaryStorage(){
+        String url = "";
+        return url;
     }
 
 

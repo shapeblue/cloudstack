@@ -19,7 +19,7 @@
 # Import Local Modules
 from marvin.codes import FAILED
 from marvin.cloudstackTestCase import cloudstackTestCase
-from marvin.cloudstackAPI import runDiagnostics
+from marvin.cloudstackAPI import runDiagnostics, getDiagnosticsData
 from marvin.lib.utils import (cleanup_resources)
 from marvin.lib.base import (Account,
                              ServiceOffering,
@@ -537,3 +537,40 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             cmd_response.exitcode,
             'Failed to run remote Traceroute in CPVM'
         )
+
+
+    '''
+    Add Get Diagnostics data BVT
+    '''
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke","retrieve"], required_hardware="true")
+    def test_13_retrieve_vr_default_files(self):
+        list_router_response = list_routers(
+            self.apiclient,
+            account=self.account.name,
+            domainid=self.account.domainid
+        )
+        self.assertEqual(
+            isinstance(list_router_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
+        router = list_router_response[0]
+        self.debug('Setting up SSVM with ID %s' % router.id)
+
+        cmd = getDiagnosticsData.getDiagnosticsDataCmd()
+        cmd.targetid = router.id
+        response = self.apiclient.getDiagnosticsData(cmd)
+        pass
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "retrieve"], required_hardware="true")
+    def test_14_retrieve_ssvm_default_files(self):
+        pass
+
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "retrieve"], required_hardware="true")
+    def test_15_retrieve_cpvm_default_files(self):
+        pass
+
+
+
+
+

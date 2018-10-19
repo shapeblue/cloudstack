@@ -18,6 +18,13 @@
 //
 package org.apache.cloudstack.diagnostics;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.exception.InvalidParameterValueException;
@@ -39,9 +46,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RunWith(MockitoJUnitRunner.class)
 public class DiagnosticsServiceImplTest extends TestCase {
 
@@ -54,21 +58,21 @@ public class DiagnosticsServiceImplTest extends TestCase {
     @Mock
     private DiagnosticsCommand command;
     @Mock
-    private VMInstanceVO instanceVO;
+    private VMInstanceVO vmInstance;
     @Mock
     private VirtualMachineManager vmManager;
     @Mock
     private NetworkOrchestrationService networkManager;
 
     @InjectMocks
-    private DiagnosticsServiceImpl diagnosticsService = new DiagnosticsServiceImpl();
+    private DiagnosticsServiceImpl serviceImpl = new DiagnosticsServiceImpl();
 
     @Before
     public void setUp() throws Exception {
         Mockito.when(diagnosticsCmd.getId()).thenReturn(1L);
         Mockito.when(diagnosticsCmd.getType()).thenReturn(DiagnosticsType.PING);
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
-                Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(instanceVO);
+                Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(vmInstance);
 
     }
 
@@ -77,7 +81,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
         Mockito.reset(diagnosticsCmd);
         Mockito.reset(agentManager);
         Mockito.reset(instanceDao);
-        Mockito.reset(instanceVO);
+        Mockito.reset(vmInstance);
         Mockito.reset(command);
     }
 
@@ -102,7 +106,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
 
         Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, details));
 
-        Map<String, String> detailsMap = diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+        Map<String, String> detailsMap = serviceImpl.runDiagnosticsCommand(diagnosticsCmd);
 
         String stdout = "PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.\n" +
                 "64 bytes from 8.8.8.8: icmp_seq=1 ttl=125 time=7.88 ms\n" +
@@ -141,7 +145,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
                 "4 packets transmitted, 0 packets received, 100% packet loss";
         Mockito.when(agentManager.easySend(Mockito.anyLong(), Mockito.any(DiagnosticsCommand.class))).thenReturn(new DiagnosticsAnswer(command, true, details));
 
-        Map<String, String> detailsMap = diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+        Map<String, String> detailsMap = serviceImpl.runDiagnosticsCommand(diagnosticsCmd);
 
         assertEquals(3, detailsMap.size());
         assertEquals("Mismatch between actual and expected STDERR", "", detailsMap.get(ApiConstants.STDERR));
@@ -155,7 +159,7 @@ public class DiagnosticsServiceImplTest extends TestCase {
         Mockito.when(instanceDao.findByIdTypes(Mockito.anyLong(), Mockito.any(VirtualMachine.Type.class),
                 Mockito.any(VirtualMachine.Type.class), Mockito.any(VirtualMachine.Type.class))).thenReturn(null);
 
-        diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+        serviceImpl.runDiagnosticsCommand(diagnosticsCmd);
     }
 
     @Test(expected = CloudRuntimeException.class)
@@ -166,31 +170,80 @@ public class DiagnosticsServiceImplTest extends TestCase {
         accessDetailsMap.put(NetworkElementCommand.ROUTER_IP, null);
         Mockito.when(networkManager.getSystemVMAccessDetails(Mockito.any(VMInstanceVO.class))).thenReturn(accessDetailsMap);
 
-        diagnosticsService.runDiagnosticsCommand(diagnosticsCmd);
+        serviceImpl.runDiagnosticsCommand(diagnosticsCmd);
     }
 
     @Test
     public void testInvalidCharsInParams() throws Exception {
-        assertFalse(diagnosticsService.hasValidChars("'\\''"));
-        assertFalse(diagnosticsService.hasValidChars("-I eth0 &"));
-        assertFalse(diagnosticsService.hasValidChars("-I eth0 ;"));
-        assertFalse(diagnosticsService.hasValidChars(" &2 > "));
-        assertFalse(diagnosticsService.hasValidChars(" &2 >> "));
-        assertFalse(diagnosticsService.hasValidChars(" | "));
-        assertFalse(diagnosticsService.hasValidChars("|"));
-        assertFalse(diagnosticsService.hasValidChars(","));
+        assertFalse(serviceImpl.hasValidChars("'\\''"));
+        assertFalse(serviceImpl.hasValidChars("-I eth0 &"));
+        assertFalse(serviceImpl.hasValidChars("-I eth0 ;"));
+        assertFalse(serviceImpl.hasValidChars(" &2 > "));
+        assertFalse(serviceImpl.hasValidChars(" &2 >> "));
+        assertFalse(serviceImpl.hasValidChars(" | "));
+        assertFalse(serviceImpl.hasValidChars("|"));
+        assertFalse(serviceImpl.hasValidChars(","));
     }
 
     @Test
     public void testValidCharsInParams() throws Exception {
-        assertTrue(diagnosticsService.hasValidChars(""));
-        assertTrue(diagnosticsService.hasValidChars("."));
-        assertTrue(diagnosticsService.hasValidChars(" "));
-        assertTrue(diagnosticsService.hasValidChars("-I eth0 www.google.com"));
-        assertTrue(diagnosticsService.hasValidChars(" "));
-        assertTrue(diagnosticsService.hasValidChars(" -I cloudbr0 --sport "));
-        assertTrue(diagnosticsService.hasValidChars(" --back -m20 "));
-        assertTrue(diagnosticsService.hasValidChars("-c 5 -4"));
-        assertTrue(diagnosticsService.hasValidChars("-c 5 -4 -AbDfhqUV"));
+        assertTrue(serviceImpl.hasValidChars(""));
+        assertTrue(serviceImpl.hasValidChars("."));
+        assertTrue(serviceImpl.hasValidChars(" "));
+        assertTrue(serviceImpl.hasValidChars("-I eth0 www.google.com"));
+        assertTrue(serviceImpl.hasValidChars(" "));
+        assertTrue(serviceImpl.hasValidChars(" -I cloudbr0 --sport "));
+        assertTrue(serviceImpl.hasValidChars(" --back -m20 "));
+        assertTrue(serviceImpl.hasValidChars("-c 5 -4"));
+        assertTrue(serviceImpl.hasValidChars("-c 5 -4 -AbDfhqUV"));
     }
+
+    @Test
+    public void testPrepareFileListFromInput() throws Exception {
+        List<String> dataTypeList = new ArrayList<>();
+        dataTypeList.add("/var/log/auth.log");
+        dataTypeList.add("/etc/dnsmasq.conf");
+        dataTypeList.add("[IPTABLES]");
+        dataTypeList.add("[IFCONFIG]");
+
+        Mockito.when(vmInstance.getType()).thenReturn(VirtualMachine.Type.ConsoleProxy);
+
+        List<String> additionalList = new ArrayList<>();
+
+        List<String> files = serviceImpl.prepareFiles(dataTypeList, additionalList, vmInstance);
+
+        assertEquals(dataTypeList, files);
+    }
+
+    @Test
+    public void testPrepareFilesWithAdditionalFiles() throws Exception {
+        List<String> dataTypeList = new ArrayList<>();
+        dataTypeList.add("/var/log/auth.log");
+        dataTypeList.add("/etc/dnsmasq.conf");
+        dataTypeList.add("[IPTABLES]");
+        dataTypeList.add("[IFCONFIG]");
+
+        List<String> additionalFiles = new ArrayList<>();
+        additionalFiles.add("/etc/hosts");
+        additionalFiles.add("/etc/resolv.conf");
+
+        List<String> allFiles = Stream.concat(dataTypeList.stream(), additionalFiles.stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        List<String> files = serviceImpl.prepareFiles(dataTypeList, additionalFiles, vmInstance);
+        assertEquals(files, allFiles);
+    }
+
+//    @Test
+//    public void testPrepareFilesFromDefaults() throws Exception {
+//        List<String> dataTypeList = new ArrayList<>();
+//        List<String> addList = new ArrayList<>();
+//        List<String> files = serviceImpl.prepareFiles(dataTypeList, addList, vmInstance);
+//
+//        Field cpvmDefaults = serviceImpl.getClass().getDeclaredField("CpvmDefaultSupportedFiles");
+//        cpvmDefaults.setAccessible(true);
+//        String defaults = cpvmDefaults.getName();
+//        cpvmDefaults.
+//    }
 }
