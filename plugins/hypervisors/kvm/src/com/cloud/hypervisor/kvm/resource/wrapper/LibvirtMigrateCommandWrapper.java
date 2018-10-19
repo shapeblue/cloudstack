@@ -215,6 +215,8 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
         } catch (final TransformerException e) {
             s_logger.debug("TransformerException: " + e.getMessage());
             result = e.getMessage();
+        } catch (final Exception e) {
+            s_logger.debug(e.getMessage());
         } finally {
             try {
                 if (dm != null) {
@@ -297,73 +299,42 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
                     Node deviceChildNode = devicesChildNodes.item(x);
                     if ("disk".equals(deviceChildNode.getNodeName())) {
                         Node diskNode = deviceChildNode;
-                        if (migrateStorageManaged) {
-                            replaceXmlDiskManagedStorage(diskNode, migrateStorage, doc);
-                        } else {
-                            replaceXmlDisk(diskNode, migrateStorage, doc);
+                        String sourceFileDevText = getSourceFileDevText(diskNode);
+                        String path = getPathFromSourceFileDevText(migrateStorage.keySet(), sourceFileDevText);
+                        if (path != null) {
+                            MigrateCommand.MigrateDiskInfo migrateDiskInfo = migrateStorage.remove(path);
+                            NamedNodeMap diskNodeAttributes = diskNode.getAttributes();
+                            Node diskNodeAttribute = diskNodeAttributes.getNamedItem("type");
+                            diskNodeAttribute.setTextContent(migrateDiskInfo.getDiskType().toString());
+                            NodeList diskChildNodes = diskNode.getChildNodes();
+                            for (int z = 0; z < diskChildNodes.getLength(); z++) {
+                                Node diskChildNode = diskChildNodes.item(z);
+                                if (migrateStorageManaged && "driver".equals(diskChildNode.getNodeName())) {
+                                    Node driverNode = diskChildNode;
+                                    NamedNodeMap driverNodeAttributes = driverNode.getAttributes();
+                                    Node driverNodeAttribute = driverNodeAttributes.getNamedItem("type");
+                                    driverNodeAttribute.setTextContent(migrateDiskInfo.getDriverType().toString());
+                                } else if ("source".equals(diskChildNode.getNodeName())) {
+                                    diskNode.removeChild(diskChildNode);
+                                    Element newChildSourceNode = doc.createElement("source");
+                                    newChildSourceNode.setAttribute(migrateDiskInfo.getSource().toString(), migrateDiskInfo.getSourceText());
+                                    diskNode.appendChild(newChildSourceNode);
+                                } else if (migrateStorageManaged && "auth".equals(diskChildNode.getNodeName())) {
+                                    diskNode.removeChild(diskChildNode);
+                                } else if (migrateStorageManaged && "iotune".equals(diskChildNode.getNodeName())) {
+                                    diskNode.removeChild(diskChildNode);
+                                }
+                            }
                         }
                     }
                 }
             }
         }
         if (!migrateStorage.isEmpty()) {
+            s_logger.debug("Migrate storage left without being replaced: " + migrateStorage.keySet().toString());
             throw new CloudRuntimeException("Disk info was passed into LibvirtMigrateCommandWrapper.replaceStorage that was not used.");
         }
         return getXml(doc);
-    }
-
-    protected void replaceXmlDisk(Node diskNode, Map<String, MigrateCommand.MigrateDiskInfo> migrateStorage, Document doc) {
-        NodeList diskChildNodes = diskNode.getChildNodes();
-        Set<String> srcVolumes = migrateStorage.keySet();
-        for (int i = 0; i < diskChildNodes.getLength(); i++) {
-            Node diskChildNode = diskChildNodes.item(i);
-            if ("source".equals(diskChildNode.getNodeName())) {
-                NamedNodeMap attributes = diskChildNode.getAttributes();
-                for (int j = 0; j < attributes.getLength(); j++) {
-                    Node item = attributes.item(j);
-                    for (String srcVolume : srcVolumes) {
-                        if (item.getNodeName().equals("file") && item.getTextContent().contains(srcVolume)) {
-                            MigrateCommand.MigrateDiskInfo migrateDiskInfo = migrateStorage.get(srcVolume);
-                            diskNode.removeChild(diskChildNode);
-                            Element newChildSourceNode = doc.createElement("source");
-                            newChildSourceNode.setAttribute(migrateDiskInfo.getSource().toString(), migrateDiskInfo.getSourceText());
-                            diskNode.appendChild(newChildSourceNode);
-                            migrateStorage.remove(srcVolume);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private void replaceXmlDiskManagedStorage(Node diskNode, Map<String, MigrateCommand.MigrateDiskInfo> migrateStorage, Document doc) {
-        String sourceFileDevText = getSourceFileDevText(diskNode);
-        String path = getPathFromSourceFileDevText(migrateStorage.keySet(), sourceFileDevText);
-        if (path != null) {
-            MigrateCommand.MigrateDiskInfo migrateDiskInfo = migrateStorage.remove(path);
-            NamedNodeMap diskNodeAttributes = diskNode.getAttributes();
-            Node diskNodeAttribute = diskNodeAttributes.getNamedItem("type");
-            diskNodeAttribute.setTextContent(migrateDiskInfo.getDiskType().toString());
-            NodeList diskChildNodes = diskNode.getChildNodes();
-            for (int z = 0; z < diskChildNodes.getLength(); z++) {
-                Node diskChildNode = diskChildNodes.item(z);
-                if ("driver".equals(diskChildNode.getNodeName())) {
-                    Node driverNode = diskChildNode;
-                    NamedNodeMap driverNodeAttributes = driverNode.getAttributes();
-                    Node driverNodeAttribute = driverNodeAttributes.getNamedItem("type");
-                    driverNodeAttribute.setTextContent(migrateDiskInfo.getDriverType().toString());
-                } else if ("source".equals(diskChildNode.getNodeName())) {
-                    diskNode.removeChild(diskChildNode);
-                    Element newChildSourceNode = doc.createElement("source");
-                    newChildSourceNode.setAttribute(migrateDiskInfo.getSource().toString(), migrateDiskInfo.getSourceText());
-                    diskNode.appendChild(newChildSourceNode);
-                } else if ("auth".equals(diskChildNode.getNodeName())) {
-                    diskNode.removeChild(diskChildNode);
-                } else if ("iotune".equals(diskChildNode.getNodeName())) {
-                    diskNode.removeChild(diskChildNode);
-                }
-            }
-        }
     }
 
     private String getPathFromSourceFileDevText(Set<String> paths, String sourceFileDevText) {

@@ -31,7 +31,12 @@ public class QemuImg {
 
     /* The qemu-img binary. We expect this to be in $PATH */
     public String _qemuImgPath = "qemu-img";
+    private String cloudQemuImgPath = "cloud-qemu-img";
     private int timeout;
+
+    private String getQemuImgPathScript = String.format("which %s >& /dev/null; " +
+            "if [ $? -gt 0 ]; then echo \"%s\"; else echo \"%s\"; fi",
+            cloudQemuImgPath, _qemuImgPath, cloudQemuImgPath);
 
     /* Shouldn't we have KVMPhysicalDisk and LibvirtVMDef read this? */
     public static enum PhysicalDiskFormat {
@@ -228,7 +233,12 @@ public class QemuImg {
      */
     public void convert(final QemuImgFile srcFile, final QemuImgFile destFile,
                         final Map<String, String> options, final String snapshotName) throws QemuImgException {
-        final Script script = new Script(_qemuImgPath, timeout);
+        Script script = new Script(_qemuImgPath, timeout);
+        if (StringUtils.isNotBlank(snapshotName)) {
+            String qemuPath = Script.runSimpleBashScript(getQemuImgPathScript);
+            script = new Script(qemuPath, timeout);
+        }
+
         script.add("convert");
         // autodetect source format. Sometime int he future we may teach KVMPhysicalDisk about more formats, then we can explicitly pass them if necessary
         //s.add("-f");
