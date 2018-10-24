@@ -288,7 +288,7 @@ public abstract class TemplateAdapterBase extends AdapterBase implements Templat
     private TemplateType getTemplateType(RegisterTemplateCmd cmd) {
         boolean isRouting = (cmd.isRoutingType() == null) ? false : cmd.isRoutingType();
 
-        if (cmd.getTemplateType() != null && cmd.getTemplateType().equalsIgnoreCase(TemplateType.SYSTEM.name())) {
+        if (cmd.isSystem()) {
             return TemplateType.SYSTEM;
         } else if (isRouting) {
             return TemplateType.ROUTING;

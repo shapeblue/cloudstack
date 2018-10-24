@@ -19,12 +19,15 @@ package com.cloud.storage.download;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 
 import javax.inject.Inject;
 
+import com.cloud.storage.ImageStoreDetailsUtil;
+import com.cloud.storage.Storage;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -81,11 +84,16 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
     private ConfigurationDao _configDao;
     @Inject
     private EndPointSelector _epSelector;
+    @Inject
+    private ImageStoreDetailsUtil imageStoreDetailsUtil;
+    @Inject
+    private ManagementServerDownloader managementServerDownloader;
 
     private String _copyAuthPasswd;
     private String _proxy = null;
 
     private Timer _timer;
+    private final Map<String, String> _storageMounts = new HashMap<>();
 
     @Override
     public boolean configure(String name, Map<String, Object> params) {
@@ -151,10 +159,15 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
                 dcmd.setCreds(TemplateConstants.DEFAULT_HTTP_AUTH_USER, _copyAuthPasswd);
             }
             EndPoint ep = _epSelector.select(template);
+            downloadUsingManagementServer(template, callback);
             if (ep == null) {
-                String errMsg = "There is no secondary storage VM for downloading template to image store " + store.getName();
-                s_logger.warn(errMsg);
-                throw new CloudRuntimeException(errMsg);
+                if (tmpl.getTemplateType() == Storage.TemplateType.SYSTEM) {
+                    downloadUsingManagementServer(template, callback);
+                } else {
+                    String errMsg = "There is no secondary storage VM for downloading template to image store " + store.getName();
+                    s_logger.warn(errMsg);
+                    throw new CloudRuntimeException(errMsg);
+                }
             }
             DownloadListener dl = new DownloadListener(ep, store, template, _timer, this, dcmd, callback);
             ComponentContext.inject(dl);  // initialize those auto-wired field in download listener.
@@ -177,6 +190,49 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
             }
         }
     }
+
+    private void downloadUsingManagementServer(DataObject template, AsyncCompletionCallback<DownloadAnswer> callback) {
+        Integer nfsVersion = imageStoreDetailsUtil.getNfsVersion(template.getDataStore().getId());
+        String mountPoint = managementServerDownloader.getMountPoint(template.getDataStore().getUri(), nfsVersion);
+
+//        Answer answer = new DownloadAnswer(null, true, "download complete")
+//        callback.complete(answer);
+    }
+
+//    private File downloadFromUrlToNfs(String url, NfsTO nfs, String path, String name, DataObject template) {
+//        HttpClient client = new DefaultHttpClient();
+//        HttpGet get = new HttpGet(url);
+//        try {
+//            HttpResponse response = client.execute(get);
+//            HttpEntity entity = response.getEntity();
+//            if (entity == null) {
+//                s_logger.debug("Faled to get entity");
+//                throw new CloudRuntimeException("Failed to get url: " + url);
+//            }
+//
+//            String nfsMountPath = getRootDir(nfs.getUrl(), _nfsVersion);
+//
+//            String filePath = nfsMountPath + File.separator + path;
+//            File directory = new File(filePath);
+//            if (!directory.exists()) {
+//                template.getDataStore().mkdirs(filePath);
+//            }
+//            File destFile = new File(filePath + File.separator + name);
+//            if (!destFile.createNewFile()) {
+//                s_logger.warn("Reusing existing file " + destFile.getPath());
+//            }
+//            try (FileOutputStream outputStream = new FileOutputStream(destFile);) {
+//                entity.writeTo(outputStream);
+//            } catch (IOException e) {
+//                s_logger.debug("downloadFromUrlToNfs:Exception:" + e.getMessage(), e);
+//            }
+//            return new File(destFile.getAbsolutePath());
+//        } catch (IOException e) {
+//            s_logger.debug("Faild to get url:" + url + ", due to " + e.toString());
+//            throw new CloudRuntimeException(e);
+//        }
+//    }
+
 
     @Override
     public void downloadTemplateToStorage(DataObject template, AsyncCompletionCallback<DownloadAnswer> callback) {

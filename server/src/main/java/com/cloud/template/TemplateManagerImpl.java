@@ -354,10 +354,10 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                 throw new PermissionDeniedException("Parameter isrouting can only be specified by a Root Admin, permission denied");
             }
         }
-        if (cmd.getTemplateType().equalsIgnoreCase(Storage.TemplateType.SYSTEM.name())) {
+        if (cmd.isSystem()) {
             if (!_accountService.isRootAdmin(account.getId())) {
-                throw new PermissionDeniedException(String.format("Value of '%s' for parameter templatetype can only be specified by a Root Admin, permission denied",
-                        Storage.TemplateType.SYSTEM.name()));
+                throw new PermissionDeniedException(String.format("Value of '%s' for parameter %s can only be specified by a Root Admin, permission denied",
+                        cmd.isSystem(), ApiConstants.SYSTEM));
             }
         }
 
@@ -365,8 +365,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         TemplateProfile profile = adapter.prepare(cmd);
         VMTemplateVO template = Optional.ofNullable(adapter.create(profile)).orElseThrow(() -> new CloudRuntimeException("Failed to create a template"));
 
-        if (cmd.getTemplateType().equalsIgnoreCase(Storage.TemplateType.SYSTEM.name())
-                && cmd.isActivate()) {
+        if (cmd.isSystem() && cmd.isActivate()) {
             return activateSystemVMTemplate(template.getId());
         }
         return template;

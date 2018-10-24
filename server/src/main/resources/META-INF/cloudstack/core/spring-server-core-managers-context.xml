@@ -248,7 +248,9 @@
     <bean id="domainManagerImpl" class="com.cloud.user.DomainManagerImpl" />
 
     <bean id="downloadMonitorImpl" class="com.cloud.storage.download.DownloadMonitorImpl" />
-  
+
+    <bean id="managementServerDownloader" class="com.cloud.storage.download.ManagementServerDownloader" />
+
     <bean id="lBHealthCheckManagerImpl" class="com.cloud.network.lb.LBHealthCheckManagerImpl" />
 
     <bean id="volumeApiServiceImpl" class="com.cloud.storage.VolumeApiServiceImpl">

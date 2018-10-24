@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.cloud.storage.Storage.TemplateType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandJobType;
 import org.apache.cloudstack.api.ApiConstants;
@@ -163,8 +162,8 @@ public class RegisterTemplateCmd extends BaseCmd {
                 description = "true if template should bypass Secondary Storage and be downloaded to Primary Storage on deployment")
     private Boolean directDownload;
 
-    @Parameter(name = ApiConstants.TEMPLATE_TYPE, type = CommandType.STRING, description = "the template type. Possible values include user and system.")
-    private String templateType;
+    @Parameter(name = ApiConstants.SYSTEM, type = CommandType.BOOLEAN, description = "true if it is a system vm template.")
+    private Boolean system;
 
     @Parameter(name=ApiConstants.ACTIVATE, type = CommandType.BOOLEAN,
             description = "true if this template should be used by CloudStack to create System VMs. Must be used with templatetype of 'system'.")
@@ -282,8 +281,8 @@ public class RegisterTemplateCmd extends BaseCmd {
         return directDownload == null ? false : directDownload;
     }
 
-    public String getTemplateType() {
-        return Optional.ofNullable(templateType).orElse("");
+    public Boolean isSystem() {
+        return Optional.ofNullable(system).orElse(false);
     }
 
     public Boolean isActivate() {
@@ -336,17 +335,11 @@ public class RegisterTemplateCmd extends BaseCmd {
     }
 
     protected void validateParameters() {
-        if ((!getTemplateType().isEmpty() && !getTemplateType().equalsIgnoreCase(TemplateType.USER.name())
-                && !getTemplateType().equalsIgnoreCase(TemplateType.SYSTEM.name()))) {
-            throw new ServerApiException(ApiErrorCode.PARAM_ERROR,
-                    "Invalid parameter value specified for templateType. Valid values: user or system");
-        }
         if ((zoneId != null) && (zoneIds != null && !zoneIds.isEmpty()))
             throw new ServerApiException(ApiErrorCode.PARAM_ERROR,
                     "Both zoneid and zoneids cannot be specified at the same time");
 
-        if ((zoneId == null && (zoneIds == null || zoneIds.isEmpty())) &&
-                (!getTemplateType().equalsIgnoreCase(TemplateType.SYSTEM.name())))
+        if ((zoneId == null && (zoneIds == null || zoneIds.isEmpty())) && !isSystem())
             throw new ServerApiException(ApiErrorCode.PARAM_ERROR,
                     "Either zoneid or zoneids is required. Both cannot be null.");
 
