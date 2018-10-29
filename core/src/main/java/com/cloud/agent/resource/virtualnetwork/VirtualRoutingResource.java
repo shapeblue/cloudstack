@@ -312,7 +312,9 @@ public class VirtualRoutingResource {
 
     private Answer execute(PrepareFilesCommand cmd) {
         String fileList = String.join(" ", cmd.getFilesToRetrieveList());
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.RETRIEVE_DIAGNOSTICS, fileList);
+        String url = cmd.getUrl();
+        String cmdLine = String.format("-f %s -u %s", fileList, url);
+        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.RETRIEVE_DIAGNOSTICS, cmdLine);
         if (result.isSuccess()){
             return new PrepareFilesAnswer(cmd, true, result.getDetails());
         }

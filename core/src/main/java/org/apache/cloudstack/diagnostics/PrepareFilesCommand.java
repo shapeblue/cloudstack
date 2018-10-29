@@ -25,9 +25,15 @@ import com.cloud.agent.api.routing.NetworkElementCommand;
 
 public class PrepareFilesCommand extends NetworkElementCommand {
     List<String> filesToRetrieveList;
+    String url;
 
-    public PrepareFilesCommand(List<String> filesToRetrieve) {
+    public PrepareFilesCommand(List<String> filesToRetrieve, String url) {
         this.filesToRetrieveList = filesToRetrieve;
+        this.url = url;
+    }
+
+    public String getUrl() {
+        return url;
     }
 
     public List<String> getFilesToRetrieveList() {

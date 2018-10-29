@@ -16,26 +16,43 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
+import argparse
+import base64
 import zipfile
 import time
 
+parser = argparse.ArgumentParser(description="List of files to retrive and secondary storage url for zip file upload")
+parser.add_argument("-f", "--files", help="List of diagnostic files to be retrieved")
+parser.add_argument("-u", "--url", help="Secondary storage url")
+
+args = parser.parse_args()
+file_list = args.files
+url = args.url
+
+
 # Create zip archive and append files for retrieval
-def zip_files(file_name):
+def zip_files(files):
     compression = zipfile.ZIP_DEFLATED
     time_str = time.strftime("%Y%m%d-%H%M%S")
     zf_name = '/root/diagnostics_files_' + time_str + '.tar.gz'
     zf = zipfile.ZipFile(zf_name, 'w', compression)
     try:
-        for f in file_name:
-            zf.write(f, f[f.rfind('/')+1:])
+        for f in files:
+            zf.write(f, f[f.rfind('/') + 1:])
     except RuntimeError as e:
         print "File not found"
     finally:
         zf.close()
-        print zf_name.strip()
+        print b64encode_file(zf_name)
+
+
+# B64 encode zip file to string
+def b64encode_file(file):
+    with open(file, 'rb') as fin, open("output.zip.b64", 'w') as fout:
+        base64.b64decode(bytes)
+    return repr(open("output.zip.b64").read())
 
 
 if __name__ == '__main__':
-    file_names = sys.argv[1:]
-    zip_files(file_names)
+    zip_files(file_list)
+

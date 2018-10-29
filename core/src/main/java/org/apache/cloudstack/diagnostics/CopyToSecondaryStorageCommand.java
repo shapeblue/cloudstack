@@ -19,10 +19,10 @@
 
 package org.apache.cloudstack.diagnostics;
 
-import com.cloud.agent.api.storage.StorageNfsVersionCommand;
+import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.api.to.DataStoreTO;
 
-public class CopyToSecondaryStorageCommand extends StorageNfsVersionCommand {
+public class CopyToSecondaryStorageCommand extends NetworkElementCommand {
     private DataStoreTO destStore;
 
 
