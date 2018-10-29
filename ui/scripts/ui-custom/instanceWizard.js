@@ -313,7 +313,11 @@
 
                         var filterHostList = function(clusterId) {
 
-                            hosts = args.fetchHostList(args, clusterId);
+                            hosts = args.fetchHostList(this, clusterId); 
+
+                            var hostcallback = function(data) {
+                                console.log('host callback');
+                            };
 
                             return {
                                 response: {

@@ -44,6 +44,7 @@
                                parentId: this.clusterid
                            });
                        });
+                       args.hostcallback(hosts);
                    }
                }
            });
