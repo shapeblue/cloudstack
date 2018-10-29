@@ -19,8 +19,10 @@ package org.apache.cloudstack.diagnostics;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 import javax.inject.Inject;
@@ -28,10 +30,12 @@ import javax.inject.Inject;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.configuration.Config;
 import com.cloud.event.ActionEvent;
 import com.cloud.event.EventTypes;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.utils.EncryptionUtil;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
 import com.cloud.utils.exception.CloudRuntimeException;
@@ -40,16 +44,19 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.cloudstack.api.command.admin.diagnostics.GetDiagnosticsDataCmd;
 import org.apache.cloudstack.api.command.admin.diagnostics.RunDiagnosticsCmd;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
-import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
-import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
-import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.cloudstack.utils.imagestore.ImageStoreUtil;
 import org.apache.cxf.common.util.CollectionUtils;
 import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 
 public class DiagnosticsServiceImpl extends ManagerBase implements PluggableService, DiagnosticsService, Configurable {
@@ -65,11 +72,8 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     @Inject
     private NetworkOrchestrationService networkManager;
     @Inject
-    VolumeOrchestrationService volumeOcherstartor;
-    @Inject
-    private VolumeDataFactory volFactory;
-    @Inject
-    private PrimaryDataStoreDao storagePoolDao;
+    private ConfigurationDao configDao;
+
 
     private static final ConfigKey<Boolean> EnableGarbageCollector = new ConfigKey<>("Advanced", Boolean.class,
             "diagnostics.data.gc.enable", "true", "enable the diagnostics data files garbage collector", true);
@@ -113,6 +117,30 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
             "/var/log/routerServiceMonitor.log, /var/log/dnsmasq.log",
             "List of supported diagnostics data file options for the VR", false);
 
+
+
+    protected boolean hasValidChars(String optionalArgs) {
+        if (Strings.isNullOrEmpty(optionalArgs)) {
+            return true;
+        } else {
+            final String regex = "^[\\w\\-\\s.]+$";
+            final Pattern pattern = Pattern.compile(regex);
+            return pattern.matcher(optionalArgs).find();
+        }
+    }
+
+    protected String prepareShellCmd(String cmdType, String ipAddress, String optionalParams) {
+        final String CMD_TEMPLATE = String.format("%s %s", cmdType, ipAddress);
+        if (Strings.isNullOrEmpty(optionalParams)) {
+            return CMD_TEMPLATE;
+        } else {
+            if (hasValidChars(optionalParams)) {
+                return String.format("%s %s", CMD_TEMPLATE, optionalParams);
+            } else {
+                return null;
+            }
+        }
+    }
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_SYSTEM_VM_DIAGNOSTICS, eventDescription = "running diagnostics on system vm", async = true)
@@ -161,27 +189,26 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
     }
 
-    protected boolean hasValidChars(String optionalArgs) {
-        if (Strings.isNullOrEmpty(optionalArgs)) {
-            return true;
-        } else {
-            final String regex = "^[\\w\\-\\s.]+$";
-            final Pattern pattern = Pattern.compile(regex);
-            return pattern.matcher(optionalArgs).find();
-        }
-    }
+    private String getSecondaryStoragePostUploadParams(String b64encodedData){
+        Map<String, String> uploadParams = new HashMap<>();
+        String ssvmUrlDomain = configDao.getValue(Config.SecStorageSecureCopyCert.key());
+        String uuid = UUID.randomUUID().toString();
+        List<VMInstanceVO> vm = instanceDao.listByTypes(VirtualMachine.Type.SecondaryStorageVm);
+        String url = ImageStoreUtil.generatePostUploadUrl(ssvmUrlDomain,"172.20.20.11", uuid );
 
-    protected String prepareShellCmd(String cmdType, String ipAddress, String optionalParams) {
-        final String CMD_TEMPLATE = String.format("%s %s", cmdType, ipAddress);
-        if (Strings.isNullOrEmpty(optionalParams)) {
-            return CMD_TEMPLATE;
-        } else {
-            if (hasValidChars(optionalParams)) {
-                return String.format("%s %s", CMD_TEMPLATE, optionalParams);
-            } else {
-                return null;
-            }
-        }
+        DateTime currentTime = new DateTime(DateTimeZone.UTC);
+        String expires = currentTime.plusMinutes(3).toString();
+
+        // Get Key
+        String key = configDao.getValue(Config.SSVMPSK.key());
+
+        // encode metadata using the post upload config ssh key
+        Gson gson = new GsonBuilder().create();
+        String metadata = EncryptionUtil.encodeData(gson.toJson(b64encodedData), key);
+
+        // Compute signature on url, expiry and metadata
+        String signature = EncryptionUtil.generateSignature(metadata + url + expires, key);
+        return url;
     }
 
     @Override
@@ -198,20 +225,22 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
 
         List<String> fileList = prepareFiles(cmd.getDataTypeList(), cmd.getAdditionalFileList(), vmInstance);
 
-        PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(fileList);
+        //PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(fileList, secondaryStorageUrl);
+        String dummyUrl = "http://172.20.20.11";
+        PrepareFilesCommand prepareZipFilesCommand = new PrepareFilesCommand(fileList, dummyUrl);
         prepareZipFilesCommand.setAccessDetail(accessDetails);
         Answer zipFilesAnswer = agentManager.easySend(vmInstance.getHostId(), prepareZipFilesCommand);
 
-        // Copy files to ssvm
-        String zipFileDir = "";
+        // Retrieve zip file is b64 encoded payload
+        String b64EncodedPayload = "";
         if (zipFilesAnswer.getResult()){
-            zipFileDir = zipFilesAnswer.getDetails().replace("\n", "");
+            b64EncodedPayload = zipFilesAnswer.getDetails();
         }
 
-        CopyZipFilesCommand copyZipCommand = new CopyZipFilesCommand(accessDetails.get("Control"), zipFileDir);
-        Answer copyZipAnswer = agentManager.easySend(vmInstance.getHostId(), copyZipCommand);
+        String secondaryStorageUrl = getSecondaryStoragePostUploadParams(b64EncodedPayload);
 
-        return copyZipAnswer.getDetails();
+
+        return secondaryStorageUrl;
     }
 
     // Prepare List of files to be retrieved from system vm or VR
@@ -254,12 +283,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
             }
         }
         return filesList;
-    }
-
-    //TODO
-    protected String copyToSecondaryStorage(){
-        String url = "";
-        return url;
     }
 
 
