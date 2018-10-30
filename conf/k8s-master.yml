@@ -72,10 +72,9 @@ write-files:
       echo export PATH=\$PATH:/opt/bin >> /root/.bashrc
 
       kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.10.0/Documentation/kube-flannel.yml
-      wget https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.0/src/deploy/recommended/kubernetes-dashboard.yaml
-      sed -i '/auto-generate-certificates/a \ \ \ \ \ \ \ \ \ \ - --authentication-mode=basic' kubernetes-dashboard.yaml
-      kubectl apply -f kubernetes-dashboard.yaml
-      rm -f kubernetes-dashboard.yaml
+      wget -O /opt/bin/dashboard.yaml https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.0/src/deploy/recommended/kubernetes-dashboard.yaml
+      sed -i '/auto-generate-certificates/a \ \ \ \ \ \ \ \ \ \ - --authentication-mode=basic' /opt/bin/dashboard.yaml
+      kubectl apply -f /opt/bin/dashboard.yaml
 
       kubectl create rolebinding admin-binding --role=admin --user=admin || true
       kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=admin || true
