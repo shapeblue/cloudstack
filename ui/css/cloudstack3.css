@@ -5791,6 +5791,10 @@ label.error {
   background: #D6D6D6;
 }
 
+.multi-wizard .content .section .larger-area {
+  height: 130px !important;
+}
+
 .multi-wizard .content .section .select-area .desc {
   text-align: left;
   width: 155px;
@@ -5868,6 +5872,14 @@ label.error {
 
 .multi-wizard .content .section.select-template {
   height: 206px;
+}
+
+.multi-wizard .content .section.select-template {
+  height: 206px;
+}
+
+.multi-wizard .content .section.smaller-height {
+  height: 145px !important;
 }
 
 .multi-wizard .content.tab-view {

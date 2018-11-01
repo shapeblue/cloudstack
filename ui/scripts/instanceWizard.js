@@ -23,7 +23,7 @@
 
     cloudStack.instanceWizard = {
 
-       fetchHostList: function(args, parentId) {
+       fetchHostList: function(hostcallback, parentId) {
 
            $.ajax({
                url: createURL("listHosts&state=Up&type=Routing&clusterid="+parentId),
@@ -44,22 +44,91 @@
                                parentId: this.clusterid
                            });
                        });
-                       args.hostcallback(hosts);
+                       hostcallback(hosts);
                    }
                }
            });
-
-           args.response.success({
-               data: {
-                   hosts: hosts
-               }
-           });
-
        },
 
-       //explain it
-       parentFilter: function(data, parentId) {
-           return parentId != -1 && data != undefined ? data.parentId == parentId || data.parentId == -1 : true;
+       fetchPodList: function(podcallback, parentId) {
+
+           $.ajax({
+               url: createURL("listPods&zoneid="+parentId),
+               dataType: "json",
+               async: false,
+               success: function(json) {
+                   if (json.listpodsresponse.pod != undefined) {
+                       podsObjs = json.listpodsresponse.pod;
+                       pods = [{
+                           id: -1,
+                           description: 'Default',
+                           parentId: -1
+                       }];
+                       $(podsObjs).each(function() {
+                           pods.push({
+                               id: this.id,
+                               description: this.name,
+                               parentId: this.zoneid
+                           });
+                       });
+                       podcallback(pods);
+                   }
+               }
+           });
+       },
+
+       fetchClusterList: function(clustercallback, parentId) {
+
+           $.ajax({
+               url: createURL("listClusters&podid="+parentId),
+               dataType: "json",
+               async: false,
+               success: function(json) {
+                   if (json.listclustersresponse.cluster != undefined) {
+                       clusterObjs = json.listclustersresponse.cluster;
+                       clusters = [{
+                           id: -1,
+                           description: 'Default',
+                           parentId: -1
+                       }];
+                       $(clusterObjs).each(function() {
+                           clusters.push({
+                               id: this.id,
+                               description: this.name,
+                               parentId: this.podid
+                           });
+                       });
+                       clustercallback(clusters);
+                   }
+               }
+           });
+       },
+
+       fetchHostList: function(hostcallback, parentId) {
+
+           $.ajax({
+               url: createURL("listHosts&state=Up&type=Routing&clusterid="+parentId),
+               dataType: "json",
+               async: false,
+               success: function(json) {
+                   if (json.listhostsresponse.host != undefined) {
+                       hostObjs = json.listhostsresponse.host;
+                       hosts = [{
+                           id: -1,
+                           description: 'Default',
+                           parentId: -1
+                       }];
+                       $(hostObjs).each(function() {
+                           hosts.push({
+                               id: this.id,
+                               description: this.name,
+                               parentId: this.clusterid
+                           });
+                       });
+                       hostcallback(hosts);
+                   }
+               }
+           });
        },
 
         //min disk offering  size when custom disk size is used
@@ -134,9 +203,6 @@
                 }
                 //in all other cases (as well as from instance page) all zones are populated to dropdown
                 else {
-                    console.log('zone etc calls to follow');
-                    console.log('args')
-                    console.log(args);
                     $.ajax({
                         url: createURL("listZones&available=true"),
                         dataType: "json",
@@ -219,11 +285,6 @@
                               }
                         }
                     });
-                    console.log('creating response');
-                    console.log(zoneObjs);
-                    console.log(pods);
-                    console.log(clusters);
-                    console.log(hosts);
                     args.response.success({
                         data: {
                             zones: zones,

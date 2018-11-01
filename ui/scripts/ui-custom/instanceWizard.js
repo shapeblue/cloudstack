@@ -279,110 +279,73 @@
                         };
 
                         var filterPodList = function(zoneId) {
-                            var $selects = $step.find('.select-deployment .podid');
 
-                            var $visibleSelects = $($.grep($selects, function(select) {
-                                var $select = $(select);
-                                console.log('---grep pod list---')
-                                console.log('zoneId')
-                                console.log(zoneId);
-                                console.log('$select.data("json-obj")')
-                                console.log($select.data('json-obj'));
-                                console.log('$select')
-                                console.log($select);
-                                console.log('$select.data()')
-                                console.log($select.data());
-                                console.log('$select.val()')
-                                console.log($select.val());
-                                console.log('attr json-attr');
-                                console.log($select.attr('json-attr'));
-                                return args.parentFilter($select.data('json-obj'), zoneId);
-                            }));
+                            var podcallback = function(data) {
+                                var podSelect = $step.find('.select-deployment .podid');
+                                podSelect.find('option').remove().end();
+                                $(data).each(function() {
+                                    podSelect.append(
+                                        $('<option>')
+                                        .attr({
+                                            value: this.id,
+                                            'wizard-field': 'host',
+                                            'parentId': this.parentId
+                                        })
+                                        .html(this.description)
+                                        .data('json-obj', this)
+                                    );
+                                });
+                            };
+                            args.fetchPodList(podcallback, zoneId);
                         };
 
                         var filterClusterList = function(podId) {
-                            var $selects = $step.find('.select-deployment .clusterid');
-                            var $visibleSelects = $($.grep($selects, function(select) {
-                                console.log('---grep cluster list---')
-                                var $select = $(select);
-                                console.log('$select.data("json-obj")')
-                                console.log($select.data('json-obj'));
-                                return args.parentFilter($select.data('json-obj'), podId);
-                            }));
+
+                            var clustercallback = function(data) {
+                                var clusterSelect = $step.find('.select-deployment .clusterid');
+                                clusterSelect.find('option').remove().end();
+                                $(data).each(function() {
+                                    clusterSelect.append(
+                                        $('<option>')
+                                        .attr({
+                                            value: this.id,
+                                            'wizard-field': 'host',
+                                            'parentId': this.parentId
+                                        })
+                                        .html(this.description)
+                                        .data('json-obj', this)
+                                    );
+                                });
+                            };
+                            args.fetchClusterList(clustercallback, podId);
                         };
 
                         var filterHostList = function(clusterId) {
 
-                            hosts = args.fetchHostList(this, clusterId); 
-
                             var hostcallback = function(data) {
-                                console.log('host callback');
+                                var hostSelect = $step.find('.select-deployment .hostid');
+                                hostSelect.find('option').remove().end();
+                                $(data).each(function() {
+                                    hostSelect.append(
+                                        $('<option>')
+                                        .attr({
+                                            value: this.id,
+                                            'wizard-field': 'host',
+                                            'parentId': this.parentId
+                                        })
+                                        .html(this.description)
+                                        .data('json-obj', this)
+                                    );
+                                });
                             };
 
-                            return {
-                                response: {
-                                    success: function(args) {
-                                        $(args.data.hosts).each(function() {
-                                            $step.find('.select-deployment .hostid').append(
-                                                $('<option>')
-                                                .attr({
-                                                    value: this.id,
-                                                    'wizard-field': 'host',
-                                                    'parentId': this.parentId
-                                                })
-                                                .html(this.description)
-                                                .data('json-obj', this)
-                                            );
-                //                                        .data('json-obj', this);
-                                        });
-                                    }
-                                }
-                            };
+                            args.fetchHostList(hostcallback, clusterId);
 
-                            $(hosts).each(function() {
-                                $step.find('.select-deployment .hostid').append(
-                                    $('<option>')
-                                    .attr({
-                                        value: this.id,
-                                        'wizard-field': 'host',
-                                        'parentId': this.parentId
-                                    })
-                                    .html(this.description)
-                                    .data('json-obj', this)
-                                );
-    //                                        .data('json-obj', this);
-                            });
-
-                            var $selects = $step.find('.select-deployment .hostid');
-                            console.log('---grep host list---')
-                            console.log('$selects.data(json-obj)')
-                            console.log($selects.data('json-obj'));
-                            var $visibleSelects = $($.grep($selects, function(select) {
-                                console.log('---grep host list---')
-                                var $select = $(select);
-                                console.log('$select.data("json-obj")')
-                                console.log($select.data('json-obj'));
-                                console.log('$select.parentId');
-                                console.log($select.parentId);
-                                console.log('select.parentId');
-                                console.log(select.parentId);
-                                console.log('$select.attr');
-                                console.log($select.attr('parentId'));
-                                return args.parentFilter($select.data('json-obj'), clusterId);
-                            }));
-
-//                            $selects.hide();
-//                            $visibleSelects.show();
                         };
-
-                        console.log('setting up change listeners')
 
                         var $zoneSelect = $step.find('.select-deployment .zoneid');
 
                         $zoneSelect.load(function() {
-                            console.log('zone load');
-                            console.log($zoneSelect.val());
-
                             if ($zoneSelect.val() != null) {
                                 filterPodList($zoneSelect.val());
                             }
@@ -391,8 +354,6 @@
 
                         $zoneSelect.unbind('change');
                         $zoneSelect.change(function() {
-                            console.log('zone change');
-                            console.log($zoneSelect.val());
                             if ($zoneSelect.val() != null) {
                                 filterPodList($zoneSelect.val());
                             }
@@ -401,8 +362,6 @@
                         var $podSelect = $step.find('.select-deployment .podid');
                         $podSelect.unbind('change');
                         $podSelect.change(function() {
-                            console.log('pod change');
-                            console.log($podSelect.val());
                             if ($podSelect.val() != null) {
                                 $step.find('.select-deployment .zoneid').trigger('change');
                                 filterClusterList($podSelect.val());
@@ -412,8 +371,6 @@
                         var $clusterSelect = $step.find('.select-deployment .clusterid');
                         $clusterSelect.unbind('change');
                         $clusterSelect.change(function() {
-                            console.log('cluster change');
-                            console.log($clusterSelect.val());
                             if ($clusterSelect.val() != null) {
                                 filterHostList($clusterSelect.val());
                             }
@@ -424,8 +381,6 @@
                         return {
                             response: {
                                 success: function(args) {
-
-                                    console.log('bind / load data');
                                     // Zones
                                     $(args.data.zones).each(function() {
                                         $step.find('.select-deployment .zoneid').append(

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 (function($, cloudStack) {
-    var vmMigrationHostObjs, ostypeObjs;
+    var vmMigrationHostObjs, ostypeObjs, zoneWideStorage;
 
     var vmStopAction = function(args) {
         var action = {
@@ -744,6 +744,7 @@
                                 podId: {
                                   label: 'label.pod',
                                   isHidden: function(args) {
+                                      var zoneStorage = isZoneWideStorage(args.context.instances[0].id);
                                       if (isAdmin())
                                           return false;
                                       else
@@ -797,12 +798,7 @@
                                 },
                                 clusterId: {
                                   label: 'label.cluster',
-                                  isHidden: true, //function(args) {
-//                                      if (isAdmin())
-//                                          return false;
-//                                      else
-//                                          return true;
-//                                  },
+                                  isHidden: true,
                                   dependsOn: 'podId',
                                   select: function(args) {
                                       if (isAdmin()) {
@@ -857,12 +853,7 @@
                                 },
                                 hostId: {
                                   label: 'label.host',
-                                  isHidden: true, //function(args) {
-//                                      if (isAdmin())
-//                                          return false;
-//                                      else
-//                                          return true;
-//                                  },
+                                  isHidden: true,
                                   dependsOn: 'clusterId',
                                   select: function(args) {
                                       var urlString = "listHosts&state=Up&type=Routing&zoneid=" + args.context.instances[0].zoneid;
@@ -3426,5 +3417,4 @@
         }
         return allowedActions;
     }
-
 })(jQuery, cloudStack);
