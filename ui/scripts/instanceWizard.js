@@ -959,6 +959,24 @@
                 zoneid : args.data.zoneid
             });
 
+            if (args.data.podid != -1) {
+                $.extend(deployVmData, {
+                    podid : args.data.podid
+                });
+            }
+
+            if (args.data.clusterid != -1) {
+                $.extend(deployVmData, {
+                    clusterid : args.data.clusterid
+                });
+            }
+
+            if (args.data.hostid != -1) {
+                $.extend(deployVmData, {
+                    hostid : args.data.hostid
+                });
+            }
+
             //step 2: select template
             $.extend(deployVmData, {
                 templateid : args.data.templateid
