@@ -70,7 +70,8 @@ function install_packages() {
     radvd \
     sharutils genisoimage aria2 \
     strongswan libcharon-extra-plugins libstrongswan-extra-plugins \
-    virt-what open-vm-tools qemu-guest-agent hyperv-daemons
+    virt-what open-vm-tools qemu-guest-agent hyperv-daemons \
+    python-pip
 
   apt-get -q -y -t stretch-backports install nftables
 
