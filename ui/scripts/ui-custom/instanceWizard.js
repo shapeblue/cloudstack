@@ -363,7 +363,7 @@
                         $podSelect.unbind('change');
                         $podSelect.change(function() {
                             if ($podSelect.val() != null) {
-                                $step.find('.select-deployment .zoneid').trigger('change');
+                                //$step.find('.select-deployment .zoneid');trigger('change');
                                 filterClusterList($podSelect.val());
                             }
                         });
