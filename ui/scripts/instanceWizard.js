@@ -203,16 +203,16 @@
                 }
                 //in all other cases (as well as from instance page) all zones are populated to dropdown
                 else {
+                    zones = [{
+                        id: -1,
+                        description: 'Default'
+                    }];
                     $.ajax({
                         url: createURL("listZones&available=true"),
                         dataType: "json",
                         async: false,
                         success: function(json) {
                             zoneObjs = json.listzonesresponse.zone;
-                            zones = [{
-                                id: -1,
-                                description: 'Default'
-                            }];
                             $(zoneObjs).each(function() {
                                 zones.push({
                                     id: this.id,
@@ -221,6 +221,10 @@
                             });
                         }
                     });
+                    pods = [{
+                        id: -1,
+                        description: 'Default'
+                    }];
                     $.ajax({
                         url: createURL("listPods"),
                         dataType: "json",
@@ -228,10 +232,6 @@
                         success: function(json) {
                             if (json.listpodsresponse.pod != undefined) {
                                 podObjs = json.listpodsresponse.pod;
-                                pods = [{
-                                    id: -1,
-                                    description: 'Default'
-                                }];
                                 $(podObjs).each(function() {
                                     pods.push({
                                         id: this.id,
@@ -242,6 +242,10 @@
                             }
                         }
                     });
+                    clusters = [{
+                        id: -1,
+                        description: 'Default'
+                    }];
                     $.ajax({
                         url: createURL("listClusters"),
                         dataType: "json",
@@ -249,10 +253,6 @@
                         success: function(json) {
                               if (json.listclustersresponse.cluster != undefined) {
                                   clusterObjs = json.listclustersresponse.cluster;
-                                  clusters = [{
-                                      id: -1,
-                                      description: 'Default'
-                                  }];
                                   $(clusterObjs).each(function() {
                                       clusters.push({
                                           id: this.id,
@@ -263,6 +263,11 @@
                               }
                         }
                     });
+                    hosts = [{
+                        id: -1,
+                        description: 'Default',
+                        parentId: -1
+                    }];
                     $.ajax({
                         url: createURL("listHosts&state=Up&type=Routing"),
                         dataType: "json",
@@ -270,11 +275,6 @@
                         success: function(json) {
                               if (json.listhostsresponse.host != undefined) {
                                   hostObjs = json.listhostsresponse.host;
-                                  hosts = [{
-                                      id: -1,
-                                      description: 'Default',
-                                      parentId: -1
-                                  }];
                                   $(hostObjs).each(function() {
                                       hosts.push({
                                           id: this.id,
