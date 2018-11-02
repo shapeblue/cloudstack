@@ -16,21 +16,24 @@
 // under the License.
 package com.cloud.storage.download;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-
-import javax.inject.Inject;
-
+import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.storage.DownloadAnswer;
+import com.cloud.configuration.Config;
 import com.cloud.storage.ImageStoreDetailsUtil;
+import com.cloud.storage.RegisterVolumePayload;
 import com.cloud.storage.Storage;
-import org.apache.log4j.Logger;
-import org.springframework.stereotype.Component;
-
+import com.cloud.storage.Storage.ImageFormat;
+import com.cloud.storage.VMTemplateStorageResourceAssoc.Status;
+import com.cloud.storage.Volume;
+import com.cloud.storage.dao.VMTemplateDao;
+import com.cloud.storage.dao.VolumeDao;
+import com.cloud.storage.template.TemplateConstants;
+import com.cloud.storage.upload.UploadListener;
+import com.cloud.template.VirtualMachineTemplate;
+import com.cloud.utils.component.ComponentContext;
+import com.cloud.utils.component.ManagerBase;
+import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.net.Proxy;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataObject;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.EndPoint;
@@ -48,23 +51,17 @@ import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreVO;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
 
-import com.cloud.agent.AgentManager;
-import com.cloud.agent.api.storage.DownloadAnswer;
-import com.cloud.utils.net.Proxy;
-import com.cloud.configuration.Config;
-import com.cloud.storage.RegisterVolumePayload;
-import com.cloud.storage.Storage.ImageFormat;
-import com.cloud.storage.VMTemplateStorageResourceAssoc.Status;
-import com.cloud.storage.Volume;
-import com.cloud.storage.dao.VMTemplateDao;
-import com.cloud.storage.dao.VolumeDao;
-import com.cloud.storage.template.TemplateConstants;
-import com.cloud.storage.upload.UploadListener;
-import com.cloud.template.VirtualMachineTemplate;
-import com.cloud.utils.component.ComponentContext;
-import com.cloud.utils.component.ManagerBase;
-import com.cloud.utils.exception.CloudRuntimeException;
+import javax.inject.Inject;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
 
 @Component
 public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor {
@@ -159,80 +156,39 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
                 dcmd.setCreds(TemplateConstants.DEFAULT_HTTP_AUTH_USER, _copyAuthPasswd);
             }
             EndPoint ep = _epSelector.select(template);
-            downloadUsingManagementServer(template, callback);
+            ep = null;//just for test -> remove
             if (ep == null) {
                 if (tmpl.getTemplateType() == Storage.TemplateType.SYSTEM) {
-                    downloadUsingManagementServer(template, callback);
+                    managementServerDownloader.download(tmpl, template);
+                    //set to ready state
                 } else {
                     String errMsg = "There is no secondary storage VM for downloading template to image store " + store.getName();
                     s_logger.warn(errMsg);
                     throw new CloudRuntimeException(errMsg);
                 }
-            }
-            DownloadListener dl = new DownloadListener(ep, store, template, _timer, this, dcmd, callback);
-            ComponentContext.inject(dl);  // initialize those auto-wired field in download listener.
-            if (downloadJobExists) {
-                // due to handling existing download job issues, we still keep
-                // downloadState in template_store_ref to avoid big change in
-                // DownloadListener to use
-                // new ObjectInDataStore.State transition. TODO: fix this later
-                // to be able to remove downloadState from template_store_ref.
-                s_logger.info("found existing download job");
-                dl.setCurrState(vmTemplateStore.getDownloadState());
-            }
+            } else {
+                DownloadListener dl = new DownloadListener(ep, store, template, _timer, this, dcmd, callback);
+                ComponentContext.inject(dl);  // initialize those auto-wired field in download listener.
+                if (downloadJobExists) {
+                    // due to handling existing download job issues, we still keep
+                    // downloadState in template_store_ref to avoid big change in
+                    // DownloadListener to use
+                    // new ObjectInDataStore.State transition. TODO: fix this later
+                    // to be able to remove downloadState from template_store_ref.
+                    s_logger.info("found existing download job");
+                    dl.setCurrState(vmTemplateStore.getDownloadState());
+                }
 
-            try {
-                ep.sendMessageAsync(dcmd, new UploadListener.Callback(ep.getId(), dl));
-            } catch (Exception e) {
-                s_logger.warn("Unable to start /resume download of template " + template.getId() + " to " + store.getName(), e);
-                dl.setDisconnected();
-                dl.scheduleStatusCheck(RequestType.GET_OR_RESTART);
+                try {
+                    ep.sendMessageAsync(dcmd, new UploadListener.Callback(ep.getId(), dl));
+                } catch (Exception e) {
+                    s_logger.warn("Unable to start /resume download of template " + template.getId() + " to " + store.getName(), e);
+                    dl.setDisconnected();
+                    dl.scheduleStatusCheck(RequestType.GET_OR_RESTART);
+                }
             }
         }
     }
-
-    private void downloadUsingManagementServer(DataObject template, AsyncCompletionCallback<DownloadAnswer> callback) {
-        Integer nfsVersion = imageStoreDetailsUtil.getNfsVersion(template.getDataStore().getId());
-        String mountPoint = managementServerDownloader.getMountPoint(template.getDataStore().getUri(), nfsVersion);
-
-//        Answer answer = new DownloadAnswer(null, true, "download complete")
-//        callback.complete(answer);
-    }
-
-//    private File downloadFromUrlToNfs(String url, NfsTO nfs, String path, String name, DataObject template) {
-//        HttpClient client = new DefaultHttpClient();
-//        HttpGet get = new HttpGet(url);
-//        try {
-//            HttpResponse response = client.execute(get);
-//            HttpEntity entity = response.getEntity();
-//            if (entity == null) {
-//                s_logger.debug("Faled to get entity");
-//                throw new CloudRuntimeException("Failed to get url: " + url);
-//            }
-//
-//            String nfsMountPath = getRootDir(nfs.getUrl(), _nfsVersion);
-//
-//            String filePath = nfsMountPath + File.separator + path;
-//            File directory = new File(filePath);
-//            if (!directory.exists()) {
-//                template.getDataStore().mkdirs(filePath);
-//            }
-//            File destFile = new File(filePath + File.separator + name);
-//            if (!destFile.createNewFile()) {
-//                s_logger.warn("Reusing existing file " + destFile.getPath());
-//            }
-//            try (FileOutputStream outputStream = new FileOutputStream(destFile);) {
-//                entity.writeTo(outputStream);
-//            } catch (IOException e) {
-//                s_logger.debug("downloadFromUrlToNfs:Exception:" + e.getMessage(), e);
-//            }
-//            return new File(destFile.getAbsolutePath());
-//        } catch (IOException e) {
-//            s_logger.debug("Faild to get url:" + url + ", due to " + e.toString());
-//            throw new CloudRuntimeException(e);
-//        }
-//    }
-
 
     @Override
     public void downloadTemplateToStorage(DataObject template, AsyncCompletionCallback<DownloadAnswer> callback) {

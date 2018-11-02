@@ -65,6 +65,12 @@
 
     <bean id="storageManagerImpl" class="com.cloud.storage.StorageManagerImpl" />
 
+    <bean id="storageLayer" class="com.cloud.storage.JavaStorageLayer" />
+    <bean id="mountManager" class="com.cloud.storage.mount.NfsMountManager" >
+        <constructor-arg name="storage" ref="storageLayer" />
+        <constructor-arg name="timeout" value="10000" />
+    </bean>
+
     <bean id="resourceManagerImpl" class="com.cloud.resource.ResourceManagerImpl">
         <property name="discoverers"
             value="#{resourceDiscoverersRegistry.registered}" />
