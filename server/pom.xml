@@ -28,11 +28,6 @@
     </parent>
     <dependencies>
         <dependency>
-            <groupId>com.github.atomashpolskiy</groupId>
-            <artifactId>bt-core</artifactId>
-            <version>1.7</version>
-        </dependency>
-        <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
         </dependency>

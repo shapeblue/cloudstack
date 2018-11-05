@@ -202,7 +202,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         Map<String, String> uploadParams = new HashMap<>();
         String ssvmUrlDomain = configDao.getValue(Config.SecStorageSecureCopyCert.key());
         String uuid = UUID.randomUUID().toString();
-
+        List<VMInstanceVO> vm = instanceDao.listByTypes(VirtualMachine.Type.SecondaryStorageVm);
         String url = ImageStoreUtil.generatePostUploadUrl(ssvmUrlDomain,"172.20.20.11", uuid );
 
         DateTime currentTime = new DateTime(DateTimeZone.UTC);
@@ -261,8 +261,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         String secondaryStorageUrl = getSecondaryStoragePostUploadParams(b64EncodedPayload);
         return secondaryStorageUrl;
     }
-
-
 
     // Prepare List of files to be retrieved from system vm or VR
     protected List<String> prepareFiles(List<String> dataTypeList, List<String> additionalFileList, VirtualMachine vm){
