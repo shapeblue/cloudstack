@@ -261,7 +261,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     @Inject
     private SnapshotDataFactory _snapshotFactory;
     @Inject
-    StorageStrategyFactory _storageStrategyFactory;
+    private StorageStrategyFactory _storageStrategyFactory;
     @Inject
     private TemplateService _tmpltSvr;
     @Inject
@@ -269,7 +269,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     @Inject
     private VolumeOrchestrationService _volumeMgr;
     @Inject
-    private EndPointSelector _epSelector;
+    private EndPointSelector epSelector;
     @Inject
     private UserVmJoinDao _userVmJoinDao;
     @Inject
@@ -288,8 +288,6 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
 
     @Inject
     private StorageCacheManager cacheMgr;
-    @Inject
-    private EndPointSelector selector;
 
 
     private TemplateAdapter getAdapter(HypervisorType type) {
@@ -684,7 +682,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
 
     @Override
     public String getChecksum(DataStore store, String templatePath, String algorithm) {
-        EndPoint ep = _epSelector.select(store);
+        EndPoint ep = epSelector.select(store);
         ComputeChecksumCommand cmd = new ComputeChecksumCommand(store.getTO(), templatePath, algorithm);
         Answer answer = null;
         if (ep == null) {

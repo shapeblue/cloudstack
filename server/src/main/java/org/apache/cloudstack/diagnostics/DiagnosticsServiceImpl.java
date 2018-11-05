@@ -31,10 +31,13 @@ import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.configuration.Config;
+import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.event.ActionEvent;
 import com.cloud.event.EventTypes;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.server.ManagementServer;
+import com.cloud.user.AccountManager;
 import com.cloud.utils.EncryptionUtil;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
@@ -73,6 +76,12 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
     private NetworkOrchestrationService networkManager;
     @Inject
     private ConfigurationDao configDao;
+    @Inject
+    private DataCenterDao centerDao;
+    @Inject
+    private AccountManager accountMgr;
+    @Inject
+    private ManagementServer msServer;
 
 
     private static final ConfigKey<Boolean> EnableGarbageCollector = new ConfigKey<>("Advanced", Boolean.class,
@@ -193,7 +202,7 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         Map<String, String> uploadParams = new HashMap<>();
         String ssvmUrlDomain = configDao.getValue(Config.SecStorageSecureCopyCert.key());
         String uuid = UUID.randomUUID().toString();
-        List<VMInstanceVO> vm = instanceDao.listByTypes(VirtualMachine.Type.SecondaryStorageVm);
+
         String url = ImageStoreUtil.generatePostUploadUrl(ssvmUrlDomain,"172.20.20.11", uuid );
 
         DateTime currentTime = new DateTime(DateTimeZone.UTC);
@@ -209,6 +218,18 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         // Compute signature on url, expiry and metadata
         String signature = EncryptionUtil.generateSignature(metadata + url + expires, key);
         return url;
+    }
+
+    /**
+     * Assumption is that there should be at least 1 ssvm running within a zone
+     * @return
+     */
+    private VMInstanceVO getSsvmInZone(){
+        List<VMInstanceVO> vmList = instanceDao.listByTypes(VirtualMachine.Type.SecondaryStorageVm);
+        if(org.apache.commons.collections.CollectionUtils.isEmpty(vmList)){
+            throw new CloudRuntimeException("No ssvm found in Zone");
+        }
+        return vmList.get(0);
     }
 
     @Override
@@ -238,10 +259,10 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
 
         String secondaryStorageUrl = getSecondaryStoragePostUploadParams(b64EncodedPayload);
-
-
         return secondaryStorageUrl;
     }
+
+
 
     // Prepare List of files to be retrieved from system vm or VR
     protected List<String> prepareFiles(List<String> dataTypeList, List<String> additionalFileList, VirtualMachine vm){
@@ -284,8 +305,6 @@ public class DiagnosticsServiceImpl extends ManagerBase implements PluggableServ
         }
         return filesList;
     }
-
-
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
