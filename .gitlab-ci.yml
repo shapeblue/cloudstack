@@ -109,6 +109,8 @@ Audit:
       - "target/rat.txt"
     when: on_failure
     expire_in: 1 day
+  tags:
+    - java
 
 # Compile and test and verify build
 Verify:
@@ -134,6 +136,8 @@ Verify:
       - "*/*/*/*/target/checkstyle-result.xml"
     when: on_failure
     expire_in: 1 day
+  tags:
+    - java
 
 # Archive RPMs to object storage
 RPM:
@@ -174,6 +178,8 @@ RPM:
         swift delete ${namespace} --prefix ${swift_path}/repodata
         swift upload ${namespace} --object-name ${swift_path}/repodata/ ${CI_PROJECT_DIR}/target/rpms/${swift_path}/repodata/
       fi
+  tags:
+    - java
 
 # Archive SystemVM Template to object storage
 SysVM Template:
