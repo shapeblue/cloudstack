@@ -27,6 +27,7 @@ import com.cloud.storage.VMTemplateStorageResourceAssoc.Status;
 import com.cloud.storage.Volume;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VolumeDao;
+import com.cloud.storage.download.managementserver.ManagementServerDownloader;
 import com.cloud.storage.template.TemplateConstants;
 import com.cloud.storage.upload.UploadListener;
 import com.cloud.template.VirtualMachineTemplate;
@@ -156,7 +157,6 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
                 dcmd.setCreds(TemplateConstants.DEFAULT_HTTP_AUTH_USER, _copyAuthPasswd);
             }
             EndPoint ep = _epSelector.select(template);
-            ep = null;//just for test -> remove
             if (ep == null) {
                 if (tmpl.getTemplateType() == Storage.TemplateType.SYSTEM) {
                     managementServerDownloader.download(tmpl, template);

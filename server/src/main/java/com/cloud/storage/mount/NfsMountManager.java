@@ -103,9 +103,8 @@ public class NfsMountManager implements MountManager {
 
     private String setupMountPoint(String parent) {
         String mountPoint = null;
-        long mshostId = ManagementServerNode.getManagementServerId();
         for (int i = 0; i < 10; i++) {
-            String mntPt = parent + File.separator + String.valueOf(mshostId) + "." + Integer.toHexString(rand.nextInt(Integer.MAX_VALUE));
+            String mntPt = parent + File.separator + String.valueOf(ManagementServerNode.getManagementServerId()) + "." + Integer.toHexString(rand.nextInt(Integer.MAX_VALUE));
             File file = new File(mntPt);
             if (!file.exists()) {
                 if (storage.mkdir(mntPt)) {
@@ -146,18 +145,9 @@ public class NfsMountManager implements MountManager {
 
     private boolean mountExists(String localRootPath) {
         Script script = new Script(true, "mount", timeout, s_logger);
-//        List<String> res = new ArrayList<>();
         ZfsPathParser parser = new ZfsPathParser(localRootPath);
         script.execute(parser);
-//        res.addAll(parser.getPaths());
         return parser.getPaths().stream().filter(s -> s.contains(localRootPath)).findAny().map(s -> true).orElse(false);
-//        for (String s : res) {
-//            if (s.contains(localRootPath)) {
-//                s_logger.debug("Some device already mounted at " + localRootPath);
-//                return true;
-//            }
-//        }
-//        return false;
     }
 
     public static class ZfsPathParser extends OutputInterpreter {
@@ -189,6 +179,7 @@ public class NfsMountManager implements MountManager {
 
     @PreDestroy
     public void destroy() {
+        s_logger.info("Clean up mounted NFS mount points used in current session.");
         storageMounts.values().stream().forEach(this::umount);
     }
 }

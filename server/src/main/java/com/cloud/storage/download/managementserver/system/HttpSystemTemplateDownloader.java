@@ -17,8 +17,10 @@
 // under the License.
 //
 
-package com.cloud.storage.download.managementserver;
+package com.cloud.storage.download.managementserver.system;
 
+import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.http.HttpResponse;
@@ -27,17 +29,21 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.log4j.Logger;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class HttpTemplateDownloader extends TemplateDownloaderImpl {
+public class HttpSystemTemplateDownloader extends SystemTemplateDownloader {
+
+    @Inject
+    private VMTemplateDao _templateDao;
 
     protected HttpClient client;
-    public static final Logger logger = Logger.getLogger(HttpTemplateDownloader.class.getName());
+    public static final Logger logger = Logger.getLogger(HttpSystemTemplateDownloader.class.getName());
 
-    public HttpTemplateDownloader(VirtualMachineTemplate template, String destPoolPath) {
-        super(template, destPoolPath);
+    public HttpSystemTemplateDownloader(VirtualMachineTemplate template,VMTemplateVO templateVO, String destPoolPath) {
+        super(template, templateVO, destPoolPath);
         String downloadDir = getDownloadPath(template.getId());
         createDownloadDirectory(downloadDir);
         setDownloadedFilePath(getDestPoolPath() + File.separator + downloadDir + File.separator + getFileNameFromUrl());

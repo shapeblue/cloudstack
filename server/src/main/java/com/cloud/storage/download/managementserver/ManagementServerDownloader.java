@@ -1,11 +1,12 @@
-package com.cloud.storage.download;
+package com.cloud.storage.download.managementserver;
 
 import com.cloud.storage.ImageStoreDetailsUtil;
 import com.cloud.storage.VMTemplateStoragePoolVO;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
+import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VMTemplatePoolDao;
-import com.cloud.storage.download.managementserver.HttpTemplateDownloader;
-import com.cloud.storage.download.managementserver.TemplateDownloader;
+import com.cloud.storage.download.managementserver.system.HttpSystemTemplateDownloader;
 import com.cloud.storage.mount.MountManager;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.utils.concurrency.NamedThreadFactory;
@@ -20,6 +21,7 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.Date;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,7 +35,10 @@ public class ManagementServerDownloader {
     VMTemplatePoolDao vmTemplatePoolDao;
 
     @Inject
-    private TemplateDataStoreDao _vmTemplateStoreDao;
+    private VMTemplateDao templateDao;
+
+    @Inject
+    private TemplateDataStoreDao vmTemplateStoreDao;
 
     @Inject
     private MountManager mountManager;
@@ -49,7 +54,9 @@ public class ManagementServerDownloader {
         Runnable downloadFile = () -> {
             Integer nfsVersion = imageStoreDetailsUtil.getNfsVersion(template.getDataStore().getId());
             String mountPoint = mountManager.getMountPoint(template.getDataStore().getUri(), nfsVersion);
-            HttpTemplateDownloader downloader = new HttpTemplateDownloader(tmpl, mountPoint);
+            VMTemplateVO templateVO = Optional.ofNullable(templateDao.findById(template.getId()))
+                .orElseThrow(() -> new CloudRuntimeException(String.format("Unable to find template by id %d.%n", template.getId())));
+            HttpSystemTemplateDownloader downloader = new HttpSystemTemplateDownloader(tmpl, templateVO, mountPoint);
             if (downloader.downloadTemplate()) {
                 if (downloader.extractAndInstallDownloadedTemplate()) {
                     TemplateDownloader.TemplateInformation info = downloader.getTemplateInformation();
@@ -69,12 +76,12 @@ public class ManagementServerDownloader {
 
     private void persistTemplateStoreRef(DataObject template, TemplateDownloader.TemplateInformation info) {
         DataStore store = template.getDataStore();
-        TemplateDataStoreVO vmTemplateStore = _vmTemplateStoreDao.findByStoreTemplate(store.getId(), template.getId());
+        TemplateDataStoreVO vmTemplateStore = vmTemplateStoreDao.findByStoreTemplate(store.getId(), template.getId());
         if (vmTemplateStore == null) {
             vmTemplateStore =
                     new TemplateDataStoreVO(store.getId(), template.getId(), new Date(), 100, VMTemplateStorageResourceAssoc.Status.DOWNLOADED, info.getInstallPath(), null, null, info.getInstallPath(), template.getUri());
             vmTemplateStore.setDataStoreRole(store.getRole());
-            _vmTemplateStoreDao.persist(vmTemplateStore);
+            vmTemplateStoreDao.persist(vmTemplateStore);
         } else {
             vmTemplateStore.setDownloadPercent(100);
             vmTemplateStore.setDownloadState(VMTemplateStorageResourceAssoc.Status.DOWNLOADED);
@@ -85,7 +92,7 @@ public class ManagementServerDownloader {
             vmTemplateStore.setLocalDownloadPath(info.getLocalPath());
             vmTemplateStore.setDownloadUrl(template.getUri());
             vmTemplateStore.setState(ObjectInDataStoreStateMachine.State.Ready);
-            _vmTemplateStoreDao.update(vmTemplateStore.getId(), vmTemplateStore);
+            vmTemplateStoreDao.update(vmTemplateStore.getId(), vmTemplateStore);
         }
     }
 
@@ -100,7 +107,7 @@ public class ManagementServerDownloader {
             sPoolRef.setDownloadState(VMTemplateStorageResourceAssoc.Status.DOWNLOADED);
             sPoolRef.setState(ObjectInDataStoreStateMachine.State.Ready);
             sPoolRef.setTemplateSize(info.getSize());
-            sPoolRef.setLocalDownloadPath(info.getInstallPath());
+            sPoolRef.setLocalDownloadPath(info.getLocalPath());
             sPoolRef.setInstallPath(info.getInstallPath());
             vmTemplatePoolDao.persist(sPoolRef);
         } else {
@@ -108,7 +115,7 @@ public class ManagementServerDownloader {
             sPoolRef.setDownloadState(VMTemplateStorageResourceAssoc.Status.DOWNLOADED);
             sPoolRef.setState(ObjectInDataStoreStateMachine.State.Ready);
             sPoolRef.setTemplateSize(info.getSize());
-            sPoolRef.setLocalDownloadPath(info.getInstallPath());
+            sPoolRef.setLocalDownloadPath(info.getLocalPath());
             sPoolRef.setInstallPath(info.getInstallPath());
             vmTemplatePoolDao.update(sPoolRef.getId(), sPoolRef);
         }

@@ -16,8 +16,10 @@
 // specific language governing permissions and limitations
 // under the License.
 //
-package com.cloud.storage.download.managementserver;
+package com.cloud.storage.download.managementserver.system;
 
+import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.download.managementserver.TemplateDownloader;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.utils.UriUtils;
 import com.cloud.utils.exception.CloudRuntimeException;
@@ -32,25 +34,30 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 import java.util.UUID;
 
-public abstract class TemplateDownloaderImpl implements TemplateDownloader {
+public abstract class SystemTemplateDownloader implements TemplateDownloader {
 
     private String destPoolPath;
     private String downloadedFilePath;
     private String installPath;
     private VirtualMachineTemplate template;
+    private VMTemplateVO templateVO;
     private boolean redownload = false;
     private String srcHost;
     private String srcPath;
 
-    public static final Logger s_logger = Logger.getLogger(TemplateDownloaderImpl.class.getName());
+    public static final Logger s_logger = Logger.getLogger(SystemTemplateDownloader.class.getName());
     private static String systemInstallDir = "template" + File.separator + "tmpl" + File.separator + "1";
+    private static final String systemPropertiesFileName = "template.properties";
 
-    protected TemplateDownloaderImpl(final VirtualMachineTemplate template, final String destPoolPath) {
+    protected SystemTemplateDownloader(VirtualMachineTemplate template, VMTemplateVO templateVO, String destPoolPath) {
         this.template = template;
+        this.templateVO = templateVO;
         this.destPoolPath = destPoolPath;
         parseUrl();
     }
@@ -123,10 +130,39 @@ public abstract class TemplateDownloaderImpl implements TemplateDownloader {
         if (isTemplateExtractable()) {
             extractDownloadedTemplate();
         } else {
-            s_logger.error(String.format("The downloaded template from %s is not extractable.%n", template.getUrl()));
-            return false;
+            s_logger.info(String.format("The downloaded template from %s is not extractable.%n", template.getUrl()));
         }
+        createPropertiesFile();
         return true;
+    }
+
+    private void createPropertiesFile() {
+        try {
+            Path propertiesFile = Files.createFile(Paths.get(getInstallFullPath() + File.separator + systemPropertiesFileName));
+            Files.write(propertiesFile, getTemplatePropertiesFileContent().getBytes());
+        } catch (IOException e) {
+            String errorMessage = String.format("Unable to create %s file for downloaded template %s: %s.%n", systemPropertiesFileName, template.getUrl(), e.getMessage());
+            s_logger.error(errorMessage);
+            throw new CloudRuntimeException(errorMessage);
+        }
+    }
+
+    private String getTemplatePropertiesFileContent() {
+        TemplateInformation info = getTemplateInformation();
+        StringBuffer content = new StringBuffer(500);
+        content.append(String.format("filename=%s%n", getInstallFileName()));
+        content.append(String.format("description=%s%n", template.getDisplayText()));
+        content.append(String.format("checksum=%s%n", Optional.ofNullable(template.getChecksum()).orElse("")));
+        content.append(String.format("hvm=%s%n", template.isRequiresHvm()));
+        content.append(String.format("size=%s%n", info.getSize()));
+        content.append(String.format("%s=true%n", template.getFormat().getFileExtension()));
+        content.append(String.format("id=%s%n", template.getId()));
+        content.append(String.format("public=%s%n", template.isPublicTemplate()));
+        content.append(String.format("%s.filename=%s%n", template.getFormat().getFileExtension(), getInstallFileName()));
+        content.append(String.format("uniquename=%s%n", templateVO.getUniqueName()));
+        content.append(String.format("%s.virtualsize=%s%n", template.getFormat().getFileExtension(), info.getSize()));
+        content.append(String.format("%s.size=%s%n", template.getFormat().getFileExtension(), info.getSize()));
+        return content.toString();
     }
 
     /**
@@ -164,7 +200,7 @@ public abstract class TemplateDownloaderImpl implements TemplateDownloader {
     public TemplateInformation getTemplateInformation() {
         String sizeResult = Script.runSimpleBashScript("ls -als " + getInstallFullPath() + File.separator + getInstallFileName() + " | awk '{print $1}'");
         long size = Long.parseLong(sizeResult);
-        return new TemplateInformation(systemInstallDir + File.separator + String.valueOf(template.getId()) + File.separator + getInstallFileName(),
+        return new TemplateInformation(systemInstallDir + File.separator + String.valueOf(template.getId()),
                 getTemplate().getUuid(), size, template.getChecksum());
     }
 
