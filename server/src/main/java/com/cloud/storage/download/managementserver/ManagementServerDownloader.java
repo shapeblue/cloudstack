@@ -61,6 +61,7 @@ public class ManagementServerDownloader {
                 if (downloader.extractAndInstallDownloadedTemplate()) {
                     TemplateDownloader.TemplateInformation info = downloader.getTemplateInformation();
                     try(TransactionLegacy txn = TransactionLegacy.open(ManagementServerDownloader.class.getName())) {
+                        persistTemplate(template, templateVO, info);
                         persistTemplateStorePoolRef(tmpl, template.getDataStore().getId(), info);
                         persistTemplateStoreRef(template, info);
                     }
@@ -72,6 +73,11 @@ public class ManagementServerDownloader {
             }
         };
         THREAD_SERVICE.submit(downloadFile);
+    }
+
+    private void persistTemplate(DataObject template, VMTemplateVO templateVO, TemplateDownloader.TemplateInformation info) {
+        templateVO.setSize(info.getSize());
+        templateDao.update(template.getId(), templateVO);
     }
 
     private void persistTemplateStoreRef(DataObject template, TemplateDownloader.TemplateInformation info) {
