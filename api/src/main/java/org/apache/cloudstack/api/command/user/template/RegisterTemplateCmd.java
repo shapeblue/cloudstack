@@ -166,7 +166,7 @@ public class RegisterTemplateCmd extends BaseCmd {
     private Boolean system;
 
     @Parameter(name=ApiConstants.ACTIVATE, type = CommandType.BOOLEAN,
-            description = "true if this template should be used by CloudStack to create System VMs. Must be used with templatetype of 'system'.")
+            description = "true if this template should be used by CloudStack to create System VMs. Must be used with template type of 'system'.")
     private Boolean activate;
 
     /////////////////////////////////////////////////////

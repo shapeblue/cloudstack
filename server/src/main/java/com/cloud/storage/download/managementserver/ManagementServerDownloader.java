@@ -78,8 +78,8 @@ public class ManagementServerDownloader {
         DataStore store = template.getDataStore();
         TemplateDataStoreVO vmTemplateStore = vmTemplateStoreDao.findByStoreTemplate(store.getId(), template.getId());
         if (vmTemplateStore == null) {
-            vmTemplateStore =
-                    new TemplateDataStoreVO(store.getId(), template.getId(), new Date(), 100, VMTemplateStorageResourceAssoc.Status.DOWNLOADED, info.getInstallPath(), null, null, info.getInstallPath(), template.getUri());
+            vmTemplateStore = new TemplateDataStoreVO(store.getId(), template.getId(), new Date(), 100,
+                    VMTemplateStorageResourceAssoc.Status.DOWNLOADED, info.getInstallPath(), null, null, info.getInstallPath(), template.getUri());
             vmTemplateStore.setDataStoreRole(store.getRole());
             vmTemplateStoreDao.persist(vmTemplateStore);
         } else {
