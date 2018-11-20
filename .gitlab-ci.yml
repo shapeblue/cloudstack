@@ -53,7 +53,7 @@ variables:
 .yum_repo_path_function: &YUM_REPO_PATH |
   function yum_repo_path() {
     if [ "${CI_PROJECT_NAMESPACE}" = "eng" ]; then
-      if [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_custom_4.10jdk8" ]; then
+      if [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_4.10" ]; then
         local version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
         local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
         local os_target="centos7"
@@ -75,7 +75,7 @@ variables:
 .template_path_function: &TEMPLATE_PATH |
   function template_path() {
     if [ "${CI_PROJECT_NAMESPACE}" = "eng" ]; then
-      if [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_custom_4.10jdk8" ]; then
+      if [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_4.10" ]; then
         local version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
         local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
 
@@ -270,7 +270,9 @@ integration test:
     - echo "TODO"
   except:
     - master
-    - cca_custom_4.10jdk8
+    - cca_4.10
+    - cca_4.11
+    - cca_4.12
 
 .deploy: &DEPLOY
   stage: deploy
@@ -297,14 +299,14 @@ integration test:
         set -e
 
         # stop services
+        echo -e "stopping chef-client...\n"
+        systemctl stop chef-client
+
         echo -e "stopping cloudstack-usage...\n"
         systemctl stop cloudstack-usage
 
         echo -e "stopping cloudstack-management...\n"
         systemctl stop cloudstack-management
-
-        echo -e "stopping chef-client...\n"
-        systemctl stop chef-client
 
         # update yum repo
         echo -e "updating /etc/yum.repos.d/cloudstack.repo...\n"
@@ -337,7 +339,7 @@ ccd-r1-acs1-acs01:
   <<: *DEPLOY
   variables:
     LAB_ENV_NAME: "ccd-r1-acs1-acs01"
-    LAB_ENV_IP: "10.218.184.65"
+    LAB_ENV_IP: "10.218.184.158"
 
 ccd-r1-dev1-acs01:
   <<: *DEPLOY
@@ -350,6 +352,18 @@ ccd-r1-dev2-acs01:
   variables:
     LAB_ENV_NAME: "ccd-r1-dev2-acs01"
     LAB_ENV_IP: "10.218.184.116"
+
+ccd-r1-stg-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-stg-acs01"
+    LAB_ENV_IP: "10.218.184.166"
+
+ccd-r1-stg-acs02:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-stg-acs02"
+    LAB_ENV_IP: "10.218.184.207"
 
 cca-r1-beta02-mtg02:
   <<: *DEPLOY
