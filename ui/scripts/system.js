@@ -3930,6 +3930,56 @@
                                                 }
                                             },
 
+                                            retrieveDiagnostics: {
+                                                label: 'label.action.get.diagnostics',
+                                                messages: {
+                                                    notification: function (args) {
+                                                        return 'label.action.get.diagnostics';
+                                                    },
+                                                    complete: function(args) {
+                                                        var url = args.url;
+                                                        var htmlMsg = _l('message.download.diagnostics');
+                                                        var htmlMsg2 = htmlMsg.replace(/#/, url).replace(/00000/, url);
+                                                        return htmlMsg2;
+                                                    }
+                                                },
+                                                createForm: {
+                                                    title: 'label.action.get.diagnostics',
+                                                    desc: '',
+                                                    fields: {
+                                                        files: {
+                                                            label: 'label.get.diagnostics.files'
+                                                        }
+                                                    }
+                                                },
+                                                action: function (args) {
+                                                    $.ajax({
+                                                        url: createURL("getDiagnosticsData&targetid=" + args.context.routers[0].id + "&files=" + args.data.files),
+                                                        dataType: "json",
+                                                        async: true,
+                                                        success: function(json) {
+                                                            var jid = json.getdiagnosticsdataresponse.jobid;
+                                                            args.response.success({
+                                                                _custom: {
+                                                                    jobId : jid,
+                                                                    getUpdatedItem: function (json) {
+                                                                        return json.queryasyncjobresultresponse.jobresult.diagnostics;
+
+                                                                    },
+                                                                    getActionFilter: function(){
+                                                                        return systemvmActionfilter;
+                                                                   }
+                                                                }
+
+                                                            });
+                                                        }
+                                                    }); //end ajax
+                                                },
+                                                notification: {
+                                                    poll: pollAsyncJobResult
+                                                }
+                                            },
+
                                             viewConsole: {
                                                 label: 'label.view.console',
                                                 action: {
@@ -9084,6 +9134,56 @@
                                                         }
                                                     },
 
+                                                    retrieveDiagnostics: {
+                                                        label: 'label.action.get.diagnostics',
+                                                        messages: {
+                                                            notification: function (args) {
+                                                                return 'label.action.get.diagnostics';
+                                                            },
+                                                            complete: function(args) {
+                                                                var url = args.url;
+                                                                var htmlMsg = _l('message.download.diagnostics');
+                                                                var htmlMsg2 = htmlMsg.replace(/#/, url).replace(/00000/, url);
+                                                                return htmlMsg2;
+                                                            }
+                                                        },
+                                                        createForm: {
+                                                            title: 'label.action.get.diagnostics',
+                                                            desc: '',
+                                                            fields: {
+                                                                files: {
+                                                                    label: 'label.get.diagnostics.files'
+                                                                }
+                                                            }
+                                                        },
+                                                        action: function (args) {
+                                                            $.ajax({
+                                                                url: createURL("getDiagnosticsData&targetid=" + args.context.systemVMs[0].id + "&files=" + args.data.files),
+                                                                dataType: "json",
+                                                                async: true,
+                                                                success: function(json) {
+                                                                    var jid = json.getdiagnosticsdataresponse.jobid;
+                                                                    args.response.success({
+                                                                        _custom: {
+                                                                            jobId : jid,
+                                                                            getUpdatedItem: function (json) {
+                                                                                return json.queryasyncjobresultresponse.jobresult.diagnostics;
+
+                                                                            },
+                                                                            getActionFilter: function(){
+                                                                                return systemvmActionfilter;
+                                                                           }
+                                                                        }
+
+                                                                    });
+                                                                }
+                                                            }); //end ajax
+                                                        },
+                                                        notification: {
+                                                            poll: pollAsyncJobResult
+                                                        }
+                                                    },
+
                                                     scaleUp: {
                                                         label: 'label.change.service.offering',
                                                         createForm: {
@@ -10530,6 +10630,56 @@
                                         }
                                     },
 
+                                    retrieveDiagnostics: {
+                                        label: 'label.action.get.diagnostics',
+                                        messages: {
+                                            notification: function (args) {
+                                                return 'label.action.get.diagnostics';
+                                            },
+                                            complete: function(args) {
+                                                var url = args.url;
+                                                var htmlMsg = _l('message.download.diagnostics');
+                                                var htmlMsg2 = htmlMsg.replace(/#/, url).replace(/00000/, url);
+                                                return htmlMsg2;
+                                            }
+                                        },
+                                        createForm: {
+                                            title: 'label.action.get.diagnostics',
+                                            desc: '',
+                                            fields: {
+                                                files: {
+                                                    label: 'label.get.diagnostics.files'
+                                                }
+                                            }
+                                        },
+                                        action: function (args) {
+                                            $.ajax({
+                                                url: createURL("getDiagnosticsData&targetid=" + args.context.routers[0].id + "&files=" + args.data.files),
+                                                dataType: "json",
+                                                async: true,
+                                                success: function(json) {
+                                                    var jid = json.getdiagnosticsdataresponse.jobid;
+                                                    args.response.success({
+                                                        _custom: {
+                                                            jobId : jid,
+                                                            getUpdatedItem: function (json) {
+                                                                return json.queryasyncjobresultresponse.jobresult.diagnostics;
+
+                                                            },
+                                                            getActionFilter: function(){
+                                                                return systemvmActionfilter;
+                                                           }
+                                                        }
+
+                                                    });
+                                                }
+                                            }); //end ajax
+                                        },
+                                        notification: {
+                                            poll: pollAsyncJobResult
+                                        }
+                                    },
+
                                     scaleUp: { //*** Infrastructure > Virtual Routers > change service offering ***
                                         label: 'label.change.service.offering',
                                         createForm: {
@@ -11859,6 +12009,56 @@
                                         async: true,
                                         success: function(json) {
                                             var jid = json.rundiagnosticsresponse.jobid;
+                                            args.response.success({
+                                                _custom: {
+                                                    jobId : jid,
+                                                    getUpdatedItem: function (json) {
+                                                        return json.queryasyncjobresultresponse.jobresult.diagnostics;
+
+                                                    },
+                                                    getActionFilter: function(){
+                                                        return systemvmActionfilter;
+                                                   }
+                                                }
+
+                                            });
+                                        }
+                                    }); //end ajax
+                                },
+                                notification: {
+                                    poll: pollAsyncJobResult
+                                }
+                            },
+
+                            retrieveDiagnostics: {
+                                label: 'label.action.get.diagnostics',
+                                messages: {
+                                    notification: function (args) {
+                                        return 'label.action.get.diagnostics';
+                                    },
+                                    complete: function(args) {
+                                        var url = args.url;
+                                        var htmlMsg = _l('message.download.diagnostics');
+                                        var htmlMsg2 = htmlMsg.replace(/#/, url).replace(/00000/, url);
+                                        return htmlMsg2;
+                                    }
+                                },
+                                createForm: {
+                                    title: 'label.action.get.diagnostics',
+                                    desc: '',
+                                    fields: {
+                                        files: {
+                                            label: 'label.get.diagnostics.files'
+                                        }
+                                    }
+                                },
+                                action: function (args) {
+                                    $.ajax({
+                                        url: createURL("getDiagnosticsData&targetid=" + args.context.systemVMs[0].id + "&files=" + args.data.files),
+                                        dataType: "json",
+                                        async: true,
+                                        success: function(json) {
+                                            var jid = json.getdiagnosticsdataresponse.jobid;
                                             args.response.success({
                                                 _custom: {
                                                     jobId : jid,
@@ -22533,6 +22733,7 @@
             if (isAdmin()) {
                 allowedActions.push("migrate");
                 allowedActions.push("diagnostics");
+                allowedActions.push("retrieveDiagnostics");
             }
         } else if (jsonObj.state == 'Starting') {
             if (isAdmin()) {
@@ -22586,6 +22787,7 @@
             if (isAdmin()) {
                 allowedActions.push("migrate");
                 allowedActions.push("diagnostics");
+                allowedActions.push("retrieveDiagnostics");
             }
         } else if (jsonObj.state == 'Starting') {
             if (isAdmin()) {
