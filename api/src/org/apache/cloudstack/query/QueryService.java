@@ -85,7 +85,8 @@ public interface QueryService {
     static final ConfigKey<Boolean> AllowUserViewDestroyedVM = new ConfigKey<Boolean>("Advanced", Boolean.class, "allow.user.view.destroyed.vm", "false",
             "Determines whether users can view their destroyed or expunging vm ", true, ConfigKey.Scope.Account);
 
-    static final ConfigKey<String> HideUserViewVMSettings = new ConfigKey<String>("Advanced", String.class, "hide.user.view.vm.resource.details", "rootdisksize, cpuOvercommitRatio, memoryOvercommitRatio",
+    static final ConfigKey<String> HideUserViewVMSettings = new ConfigKey<String>("Advanced", String.class,
+            "vm.details.user.blacklist.keys", "rootdisksize, cpuOvercommitRatio, memoryOvercommitRatio, Message.ReservedCapacityFreed.flag",
             "Determines whether users can view certain vm settings", true);
 
 

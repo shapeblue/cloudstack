@@ -310,12 +310,12 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
         List<UserVmDetailVO> vmDetails = _userVmDetailsDao.listDetails(userVm.getId(), true);
         if (vmDetails != null) {
             Map<String, String> resourceDetails = new HashMap<String, String>();
-            String[] userVmSettingsToHide = QueryManagerImpl.HideUserViewVMSettings.value().split(",");
             for (UserVmDetailVO userVmDetailVO : vmDetails) {
                 resourceDetails.put(userVmDetailVO.getName(), userVmDetailVO.getValue());
             }
             // Remove blacklisted settings if user is not admin
             if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
+                String[] userVmSettingsToHide = QueryManagerImpl.HideUserViewVMSettings.value().split(",");
                 for (String key : userVmSettingsToHide) {
                     resourceDetails.remove(key.trim());
                 }
