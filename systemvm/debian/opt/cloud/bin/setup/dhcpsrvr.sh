@@ -48,6 +48,10 @@ setup_dhcpsrvr() {
   else
     setup_sshd $ETH1_IP "eth1"
   fi
+
+  #disable and stop rpcbind service on DHCP server
+  chkconfig rpcbind off
+  service rpcbind stop 
 }
 
 dhcpsrvr_svcs

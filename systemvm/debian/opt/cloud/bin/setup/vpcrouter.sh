@@ -110,6 +110,10 @@ EOF
 
   #setup hourly logrotate
   mv -n /etc/cron.daily/logrotate /etc/cron.hourly 2>&1
+
+  #disable and stop rpcbind service on VPC VR
+  chkconfig rpcbind off
+  service rpcbind stop
 }
 
 routing_svcs

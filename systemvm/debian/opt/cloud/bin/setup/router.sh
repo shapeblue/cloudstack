@@ -97,6 +97,10 @@ setup_router() {
 
   # Setup hourly logrotate
   mv -n /etc/cron.daily/logrotate /etc/cron.hourly 2>&1
+
+  #disable and stop rpcbind service on VR
+  chkconfig rpcbind off
+  service rpcbind stop 
 }
 
 routing_svcs

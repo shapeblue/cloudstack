@@ -49,6 +49,10 @@ setup_console_proxy() {
   enable_fwding 0
   enable_irqbalance 0
   rm -f /etc/logrotate.d/cloud
+
+  #disable and stop rpcbind service on VR
+  chkconfig rpcbind off
+  service rpcbind stop
 }
 
 consoleproxy_svcs
