@@ -295,7 +295,7 @@ def java_for(command, user):
 
 def java_for_user(user):
     strings = []
-    for category in categories.keys():
+    for category in sorted(categories.keys()):
         for command in categories[category]:
             if command['user'] == user:
                 strings.append(java_for(command, user))
