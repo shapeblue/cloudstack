@@ -50,8 +50,13 @@ public class PkiEngineVault implements PkiEngine {
     public static final int OPEN_CONNECTION_TIMEOUT_SECONDS = 5;
     public static final int READ_CONNECTION_TIMEOUT_SECONDS = 5;
 
+    private static final String DEFAULT_FAULT_CERT_URL = "<VAULT_URL>/v1/<PKI_MOUNT_PATH>/ca";
+    private static final String DEFAULT_FAULT_CRL_URL = "<VAULT_URL>/v1/<PKI_MOUNT_PATH>/crl";
+
     private final String _vaultUrl;
     private final boolean _vaultVerifySsl;
+    private final String _vaultCertUrl;
+    private final String _vaultCrlUrl;
     private final String _vaultToken;
     private final String _vaultTokenRoleId;
     private final String _vaultTokenSecretId;
@@ -68,6 +73,9 @@ public class PkiEngineVault implements PkiEngine {
         Assert.isTrue(!Strings.isNullOrEmpty(_vaultUrl), "PKI Engine: URL of Vault endpoint is missing");
 
         _vaultVerifySsl = BooleanUtils.toBoolean(configs.get(PkiConfig.VaultVerifySsl.key()));
+
+        _vaultCertUrl = configs.get(PkiConfig.VaultCertUrl.key());
+        _vaultCrlUrl = configs.get(PkiConfig.VaultCrlUrl.key());
 
         _vaultToken = configs.get(PkiConfig.VaultToken.key());
 
@@ -272,19 +280,43 @@ public class PkiEngineVault implements PkiEngine {
             // config urls for this pki endpoint don't exist, continue to create them
         }
 
-        String caUrl = new StringBuilder()
+        String caUrl;
+
+        if (Strings.isNullOrEmpty(_vaultCertUrl)) {
+            caUrl = "";
+        } else if (_vaultCertUrl.equals(DEFAULT_FAULT_CERT_URL)) {
+            caUrl = new StringBuilder()
                 .append(_vaultUrl)
                 .append("/v1/")
                 .append(path)
                 .append("/ca")
                 .toString();
+        } else {
+            caUrl = new StringBuilder()
+                .append(_vaultCertUrl)
+                .append(StringUtils.endsWith(_vaultCertUrl, "/") ? "" : "/")
+                .append(domain.getUuid())
+                .toString();
+        }
 
-        String crlUrl = new StringBuilder()
+        String crlUrl;
+
+        if (Strings.isNullOrEmpty(_vaultCrlUrl)) {
+            crlUrl = "";
+        } else if (_vaultCrlUrl.equals(DEFAULT_FAULT_CRL_URL)) {
+            crlUrl = new StringBuilder()
                 .append(_vaultUrl)
                 .append("/v1/")
                 .append(path)
                 .append("/crl")
                 .toString();
+        } else {
+            crlUrl = new StringBuilder()
+                .append(_vaultCrlUrl)
+                .append(StringUtils.endsWith(_vaultCrlUrl, "/") ? "" : "/")
+                .append(domain.getUuid())
+                .toString();
+        }
 
         // create CRL config urls
         Map<String, Object> createPayload = ImmutableMap.of("issuing_certificates", caUrl, "crl_distribution_points", crlUrl);

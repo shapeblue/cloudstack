@@ -32,6 +32,8 @@ public enum PkiConfig {
             "Certificate's common name template (brand will be filled from 'pki.engine.certificate.brand', domain will be provided on the fly"),
     VaultEnabled("Network", Boolean.class, "pki.engine.vault.enabled", "false", "Enable Vault as the backend PKI engine"),
     VaultUrl("Network", String.class, "pki.engine.vault.url", "", "Full URL of Vault endpoint (e.g. http://127.0.0.1:8200)"),
+    VaultCertUrl("Network", String.class, "pki.engine.vault.url.cert", "<VAULT_URL>/v1/<PKI_MOUNT_PATH>/ca", "Full URL value for the Issuing Certificate"),
+    VaultCrlUrl("Network", String.class, "pki.engine.vault.url.crl", "<VAULT_URL>/v1/<PKI_MOUNT_PATH>/crl", "Full URL for the CRL Distribution Point"),
     VaultVerifySsl("Network", Boolean.class, "pki.engine.vault.verify.ssl", "true", "Verify SSL of Vault endpoint"),
     VaultToken("Network", String.class, "pki.engine.vault.token", "", "Token to access Vault"),
     VaultAppRoleId("Network", String.class, "pki.engine.vault.token.role.id", "", "App Role id to be used to fetch token to access Vault"),
