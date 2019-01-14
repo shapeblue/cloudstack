@@ -36,7 +36,7 @@ setup_dhcpsrvr() {
   enable_irqbalance 0
   enable_fwding 0
 
-  cp /etc/iptables/iptables-router /etc/iptables/rules.v4
+  cp /etc/iptables/iptables-dhcpsrvr /etc/iptables/rules.v4
 
   #Only allow DNS service for current network
   sed -i "s/-A INPUT -i eth0 -p udp -m udp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p udp -m udp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
