@@ -19,9 +19,11 @@ package org.apache.cloudstack.pki;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.util.Assert;
 
+import com.bettercloud.vault.SslConfig;
 import com.bettercloud.vault.Vault;
 import com.bettercloud.vault.VaultConfig;
 import com.bettercloud.vault.VaultException;
@@ -49,6 +51,7 @@ public class PkiEngineVault implements PkiEngine {
     public static final int READ_CONNECTION_TIMEOUT_SECONDS = 5;
 
     private final String _vaultUrl;
+    private final boolean _vaultVerifySsl;
     private final String _vaultToken;
     private final String _vaultTokenRoleId;
     private final String _vaultTokenSecretId;
@@ -63,6 +66,8 @@ public class PkiEngineVault implements PkiEngine {
     public PkiEngineVault(Map<String, String> configs) {
         _vaultUrl = configs.get(PkiConfig.VaultUrl.key());
         Assert.isTrue(!Strings.isNullOrEmpty(_vaultUrl), "PKI Engine: URL of Vault endpoint is missing");
+
+        _vaultVerifySsl = BooleanUtils.toBoolean(configs.get(PkiConfig.VaultVerifySsl.key()));
 
         _vaultToken = configs.get(PkiConfig.VaultToken.key());
 
@@ -307,6 +312,7 @@ public class PkiEngineVault implements PkiEngine {
             final VaultConfig config = new VaultConfig()
                                             .address(_vaultUrl)
                                             .token(_vaultToken)
+                                            .sslConfig(new SslConfig().verify(_vaultVerifySsl))
                                             .openTimeout(OPEN_CONNECTION_TIMEOUT_SECONDS)
                                             .readTimeout(READ_CONNECTION_TIMEOUT_SECONDS)
                                             .build();
