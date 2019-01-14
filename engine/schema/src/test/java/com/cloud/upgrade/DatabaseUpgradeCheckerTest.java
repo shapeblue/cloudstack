@@ -32,7 +32,6 @@ import com.cloud.upgrade.dao.Upgrade4100226to4100227;
 import com.cloud.upgrade.dao.Upgrade4100227to4100228;
 import com.cloud.upgrade.dao.Upgrade4100228to4100229;
 import com.cloud.upgrade.dao.Upgrade4100229to4100230;
-import com.cloud.upgrade.dao.Upgrade4100230to41100;
 import com.cloud.upgrade.dao.Upgrade41100to41110;
 import com.cloud.upgrade.dao.Upgrade41110to41120;
 import com.cloud.upgrade.dao.Upgrade41120to41200;
@@ -105,13 +104,12 @@ public class DatabaseUpgradeCheckerTest {
         assertTrue(upgrades[2] instanceof Upgrade4100227to4100228);
         assertTrue(upgrades[3] instanceof Upgrade4100228to4100229);
         assertTrue(upgrades[4] instanceof Upgrade4100229to4100230);
-        assertTrue(upgrades[5] instanceof Upgrade4100230to41100);
-        assertTrue(upgrades[6] instanceof Upgrade41100to41110);
-        assertTrue(upgrades[7] instanceof Upgrade41110to41120);
-        assertTrue(upgrades[8] instanceof Upgrade41120to41200);
+        assertTrue(upgrades[7] instanceof Upgrade41100to41110);
+        assertTrue(upgrades[8] instanceof Upgrade41110to41120);
+        assertTrue(upgrades[9] instanceof Upgrade41120to41200);
 
-        assertTrue(Arrays.equals(new String[] {"4.11.0.0", "4.11.1.0"}, upgrades[6].getUpgradableVersionRange()));
-        assertEquals(currentVersion.toString(), upgrades[8].getUpgradedVersion());
+        assertTrue(Arrays.equals(new String[] {"4.11.0.0", "4.11.1.0"}, upgrades[7].getUpgradableVersionRange()));
+        assertEquals(currentVersion.toString(), upgrades[9].getUpgradedVersion());
 
     }
 

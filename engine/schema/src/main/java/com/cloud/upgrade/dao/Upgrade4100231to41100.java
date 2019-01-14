@@ -29,12 +29,12 @@ import org.apache.log4j.Logger;
 import com.cloud.utils.PropertiesUtil;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-public class Upgrade4100230to41100 implements DbUpgrade {
-    final static Logger LOG = Logger.getLogger(Upgrade4100230to41100.class);
+public class Upgrade4100231to41100 implements DbUpgrade {
+    final static Logger LOG = Logger.getLogger(Upgrade4100231to41100.class);
 
     @Override
     public String[] getUpgradableVersionRange() {
-        return new String[] {"4.10.0.230", "4.11.0.0"};
+        return new String[] {"4.10.0.231", "4.11.0.0"};
     }
 
     @Override
@@ -49,7 +49,7 @@ public class Upgrade4100230to41100 implements DbUpgrade {
 
     @Override
     public InputStream[] getPrepareScripts() {
-        final String scriptFile = "META-INF/db/schema-4100230to41100.sql";
+        final String scriptFile = "META-INF/db/schema-4100231to41100.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
@@ -66,7 +66,7 @@ public class Upgrade4100230to41100 implements DbUpgrade {
 
     @Override
     public InputStream[] getCleanupScripts() {
-        final String scriptFile = "META-INF/db/schema-4100230to41100-cleanup.sql";
+        final String scriptFile = "META-INF/db/schema-4100231to41100-cleanup.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
