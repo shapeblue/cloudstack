@@ -252,7 +252,7 @@ def write_xml(out, user):
     with open(out, 'w') as f:
         cat_strings = []
 
-        for category in categories.keys():
+        for category in sorted(categories.keys()):
             strings = []
             for command in categories[category]:
                 if command['user'] == user:
