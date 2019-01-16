@@ -89,7 +89,6 @@ public interface QueryService {
             "user.vm.blacklisted.details", "rootdisksize, cpuOvercommitRatio, memoryOvercommitRatio, Message.ReservedCapacityFreed.flag",
             "Determines whether users can view certain VM settings", true);
 
-
     ListResponse<UserResponse> searchForUsers(ListUsersCmd cmd) throws PermissionDeniedException;
 
     ListResponse<EventResponse> searchForEvents(ListEventsCmd cmd);
