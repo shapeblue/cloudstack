@@ -1007,11 +1007,13 @@ public class NetworkServiceImpl extends ManagerBase implements  NetworkService {
         String networkDomain = cmd.getNetworkDomain();
         String vlanId = null;
         boolean bypassVlanOverlapCheck = false;
+        boolean hideIpAddressUsage = false;
         if (cmd instanceof CreateNetworkCmdByAdmin) {
             vlanId = ((CreateNetworkCmdByAdmin)cmd).getVlan();
         }
         if (cmd instanceof CreateNetworkCmdByAdmin) {
             bypassVlanOverlapCheck = ((CreateNetworkCmdByAdmin)cmd).getBypassVlanOverlapCheck();
+            hideIpAddressUsage = ((CreateNetworkCmdByAdmin)cmd).getHideIpAddressUsage();
         }
 
         String name = cmd.getNetworkName();
@@ -1294,6 +1296,10 @@ public class NetworkServiceImpl extends ManagerBase implements  NetworkService {
         Network network = commitNetwork(networkOfferingId, gateway, startIP, endIP, netmask, networkDomain, vlanId, bypassVlanOverlapCheck, name, displayText, caller, physicalNetworkId, zoneId, domainId,
                 isDomainSpecific, subdomainAccess, vpcId, startIPv6, endIPv6, ip6Gateway, ip6Cidr, displayNetwork, aclId, isolatedPvlan, ntwkOff, pNtwk, aclType, owner, cidr,
                 createVlan, externalId);
+
+        if (hideIpAddressUsage) {
+            _networkDetailsDao.persist(new NetworkDetailVO(network.getId(), Network.hideIpAddressUsage, String.valueOf(hideIpAddressUsage), false));
+        }
 
         // if the network offering has persistent set to true, implement the network
         if (ntwkOff.getIsPersistent()) {
