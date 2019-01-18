@@ -34,10 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
@@ -46,10 +45,12 @@ import org.apache.cloudstack.api.command.admin.address.ReleasePodIpCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.network.CreateNetworkCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.network.DedicateGuestVlanRangeCmd;
 import org.apache.cloudstack.api.command.admin.network.ListDedicatedGuestVlanRangesCmd;
+import org.apache.cloudstack.api.command.admin.network.UpdateNetworkCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.usage.ListTrafficTypeImplementorsCmd;
 import org.apache.cloudstack.api.command.user.network.CreateNetworkCmd;
 import org.apache.cloudstack.api.command.user.network.ListNetworksCmd;
 import org.apache.cloudstack.api.command.user.network.RestartNetworkCmd;
+import org.apache.cloudstack.api.command.user.network.UpdateNetworkCmd;
 import org.apache.cloudstack.api.command.user.vm.ListNicsCmd;
 import org.apache.cloudstack.api.response.AcquirePodIpCmdResponse;
 import org.apache.cloudstack.context.CallContext;
@@ -58,6 +59,7 @@ import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.messagebus.MessageBus;
 import org.apache.cloudstack.framework.messagebus.PublishScope;
 import org.apache.cloudstack.network.element.InternalLoadBalancerElementService;
+import org.apache.log4j.Logger;
 
 import com.cloud.api.ApiDBUtils;
 import com.cloud.configuration.Config;
@@ -1984,8 +1986,21 @@ public class NetworkServiceImpl extends ManagerBase implements  NetworkService {
     @Override
     @DB
     @ActionEvent(eventType = EventTypes.EVENT_NETWORK_UPDATE, eventDescription = "updating network", async = true)
-    public Network updateGuestNetwork(final long networkId, String name, String displayText, Account callerAccount, User callerUser, String domainSuffix,
-            final Long networkOfferingId, Boolean changeCidr, String guestVmCidr, Boolean displayNetwork, String customId, boolean updateInSequence, boolean forced) {
+    public Network updateGuestNetwork(final UpdateNetworkCmd cmd) {
+        User callerUser = _accountService.getActiveUser(CallContext.current().getCallingUserId());
+        Account callerAccount = _accountService.getActiveAccountById(callerUser.getAccountId());
+        final long networkId = cmd.getId();
+        String name = cmd.getNetworkName();
+        String displayText = cmd.getDisplayText();
+        String domainSuffix = cmd.getNetworkDomain();
+        final Long networkOfferingId = cmd.getNetworkOfferingId();
+        Boolean changeCidr = cmd.getChangeCidr();
+        String guestVmCidr = cmd.getGuestVmCidr();
+        Boolean displayNetwork = cmd.getDisplayNetwork();
+        String customId = cmd.getCustomId();
+        boolean updateInSequence = cmd.getUpdateInSequence();
+        boolean forced = cmd.getForced();
+
         boolean restartNetwork = false;
 
         // verify input parameters
@@ -2018,6 +2033,20 @@ public class NetworkServiceImpl extends ManagerBase implements  NetworkService {
         }
 
         _accountMgr.checkAccess(callerAccount, null, true, network);
+
+        if (cmd instanceof UpdateNetworkCmdByAdmin) {
+            final Boolean hideIpAddressUsage = ((UpdateNetworkCmdByAdmin) cmd).getHideIpAddressUsage();
+            if (hideIpAddressUsage != null) {
+                final NetworkDetailVO detail = _networkDetailsDao.findDetail(network.getId(), Network.hideIpAddressUsage);
+                if (detail != null) {
+                    detail.setValue(hideIpAddressUsage.toString());
+                    detail.setDisplay(false);
+                    _networkDetailsDao.update(detail.getId(), detail);
+                } else {
+                    _networkDetailsDao.persist(new NetworkDetailVO(network.getId(), Network.hideIpAddressUsage, hideIpAddressUsage.toString(), false));
+                }
+            }
+        }
 
         if (name != null) {
             network.setName(name);
