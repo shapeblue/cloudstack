@@ -2114,6 +2114,15 @@ public class ApiResponseHelper implements ResponseGenerator {
             response.setVlan(vlan);
         }
 
+        // return network details only to Root admin
+        if (view == ResponseView.Full) {
+            Map<String, String> details = new HashMap<>();
+            for (NetworkDetailVO detail: networkDetailsDao.listDetails(network.getId())) {
+                details.put(detail.getName(),detail.getValue());
+            }
+            response.setDetails(details);
+        }
+
         DataCenter zone = ApiDBUtils.findZoneById(network.getDataCenterId());
         if (zone != null) {
             response.setZoneId(zone.getUuid());

@@ -1300,7 +1300,7 @@ public class NetworkServiceImpl extends ManagerBase implements  NetworkService {
                 createVlan, externalId);
 
         if (hideIpAddressUsage) {
-            _networkDetailsDao.persist(new NetworkDetailVO(network.getId(), Network.hideIpAddressUsage, String.valueOf(hideIpAddressUsage), false));
+            _networkDetailsDao.persist(new NetworkDetailVO(network.getId(), Network.hideIpAddressUsage, String.valueOf(hideIpAddressUsage), true));
         }
 
         // if the network offering has persistent set to true, implement the network
@@ -2043,7 +2043,7 @@ public class NetworkServiceImpl extends ManagerBase implements  NetworkService {
                     detail.setDisplay(false);
                     _networkDetailsDao.update(detail.getId(), detail);
                 } else {
-                    _networkDetailsDao.persist(new NetworkDetailVO(network.getId(), Network.hideIpAddressUsage, hideIpAddressUsage.toString(), false));
+                    _networkDetailsDao.persist(new NetworkDetailVO(network.getId(), Network.hideIpAddressUsage, hideIpAddressUsage.toString(), true));
                 }
             }
         }
