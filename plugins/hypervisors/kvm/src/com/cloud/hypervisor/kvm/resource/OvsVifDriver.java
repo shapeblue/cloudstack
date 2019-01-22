@@ -43,6 +43,8 @@ public class OvsVifDriver extends VifDriverBase {
     private int _timeout;
 
     protected static final String DPDK_PORT_PREFIX = "csdpdk-";
+    protected static final String DPDK_PORT_VHOST_USER_TYPE = "dpdkvhostuser";
+    protected static final String DPDK_PORT_VHOST_USER_CLIENT_TYPE = "dpdkvhostuserclient";
 
     @Override
     public void configure(Map<String, Object> params) throws ConfigurationException {
@@ -108,10 +110,14 @@ public class OvsVifDriver extends VifDriverBase {
     /**
      * Add OVS port (if it does not exist) to bridge with DPDK support
      */
-    protected void addDpdkPort(String bridgeName, String port, String vlan) {
+    protected void addDpdkPort(String bridgeName, String port, String vlan, String vHostUserMode) {
+        String type = vHostUserMode.equals("server") ? DPDK_PORT_VHOST_USER_TYPE : DPDK_PORT_VHOST_USER_CLIENT_TYPE;
         String cmd = String.format("ovs-vsctl add-port %s %s " +
                 "vlan_mode=access tag=%s " +
-                "-- set Interface %s type=dpdkvhostuser", bridgeName, port, vlan, port);
+                "-- set Interface %s type=%s", bridgeName, port, vlan, port, type);
+        if (vHostUserMode.equals("client")) {
+            cmd += " options:vhost-server-path=" + _libvirtComputingResource.dpdkOvsPath + "/" + port;
+        }
         s_logger.debug("DPDK property enabled, executing: " + cmd);
         Script.runSimpleBashScript(cmd);
     }
@@ -162,8 +168,12 @@ public class OvsVifDriver extends VifDriverBase {
                             throw new CloudRuntimeException("DPDK is enabled on the host but no OVS path has been provided");
                         }
                         String port = getNextDpdkPort();
-                        addDpdkPort(_pifs.get(trafficLabel), port, vlanId);
-                        intf.defDpdkNet(_libvirtComputingResource.dpdkOvsPath, port, nic.getMac(), getGuestNicModel(guestOsType, nicAdapter), 0, getExtraDpdkProperties(extraConfig));
+                        String vHostUserMode = extraConfig.getOrDefault(DPDK_PORT_PREFIX, "server");
+                        addDpdkPort(_pifs.get(trafficLabel), port, vlanId, vHostUserMode);
+                        intf.defDpdkNet(_libvirtComputingResource.dpdkOvsPath, port, nic.getMac(),
+                                getGuestNicModel(guestOsType, nicAdapter), 0,
+                                getExtraDpdkProperties(extraConfig),
+                                vHostUserMode.equals("server") ? "client" : "server");
                     } else {
                         s_logger.debug("creating a vlan dev and bridge for guest traffic per traffic label " + trafficLabel);
                         intf.defBridgeNet(_pifs.get(trafficLabel), null, nic.getMac(), getGuestNicModel(guestOsType, nicAdapter), networkRateKBps);
