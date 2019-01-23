@@ -24,6 +24,7 @@ import java.util.Map;
 
 import javax.naming.ConfigurationException;
 
+import com.cloud.hypervisor.KVMGuru;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -110,14 +111,22 @@ public class OvsVifDriver extends VifDriverBase {
     /**
      * Add OVS port (if it does not exist) to bridge with DPDK support
      */
-    protected void addDpdkPort(String bridgeName, String port, String vlan, String vHostUserMode) {
-        String type = vHostUserMode.equals("server") ? DPDK_PORT_VHOST_USER_TYPE : DPDK_PORT_VHOST_USER_CLIENT_TYPE;
-        String cmd = String.format("ovs-vsctl add-port %s %s " +
+    protected void addDpdkPort(String bridgeName, String port, String vlan, KVMGuru.DPDKvHostUserMode vHostUserMode) {
+        String type = vHostUserMode == KVMGuru.DPDKvHostUserMode.SERVER ?
+                DPDK_PORT_VHOST_USER_TYPE :
+                DPDK_PORT_VHOST_USER_CLIENT_TYPE;
+
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(String.format("ovs-vsctl add-port %s %s " +
                 "vlan_mode=access tag=%s " +
-                "-- set Interface %s type=%s", bridgeName, port, vlan, port, type);
-        if (vHostUserMode.equals("client")) {
-            cmd += " options:vhost-server-path=" + _libvirtComputingResource.dpdkOvsPath + "/" + port;
+                "-- set Interface %s type=%s", bridgeName, port, vlan, port, type));
+
+        if (vHostUserMode == KVMGuru.DPDKvHostUserMode.CLIENT) {
+            stringBuilder.append(String.format(" options:vhost-server-path=%s/%s",
+                    _libvirtComputingResource.dpdkOvsPath, port));
         }
+
+        String cmd = stringBuilder.toString();
         s_logger.debug("DPDK property enabled, executing: " + cmd);
         Script.runSimpleBashScript(cmd);
     }
@@ -133,6 +142,22 @@ public class OvsVifDriver extends VifDriverBase {
             }
         }
         return stringBuilder.toString();
+    }
+
+    /**
+     * Since DPDK user client/server mode, retrieve the guest interfaces mode from the DPDK vHost User mode
+     */
+    protected String getGuestInterfacesModeFromDPDKVhostUserMode(KVMGuru.DPDKvHostUserMode dpdKvHostUserMode) {
+        return dpdKvHostUserMode == KVMGuru.DPDKvHostUserMode.CLIENT ? "server" : "client";
+    }
+
+    /**
+     * Get DPDK vHost User mode from extra config. If it is not present, server is returned as default
+     */
+    protected KVMGuru.DPDKvHostUserMode getDPDKvHostUserMode(Map<String, String> extraConfig) {
+        return extraConfig.containsKey(KVMGuru.DPDK_VHOST_USER_MODE) ?
+                KVMGuru.DPDKvHostUserMode.fromValue(extraConfig.get(KVMGuru.DPDK_VHOST_USER_MODE)) :
+                KVMGuru.DPDKvHostUserMode.SERVER;
     }
 
     @Override
@@ -168,12 +193,13 @@ public class OvsVifDriver extends VifDriverBase {
                             throw new CloudRuntimeException("DPDK is enabled on the host but no OVS path has been provided");
                         }
                         String port = getNextDpdkPort();
-                        String vHostUserMode = extraConfig.getOrDefault(DPDK_PORT_PREFIX, "server");
-                        addDpdkPort(_pifs.get(trafficLabel), port, vlanId, vHostUserMode);
+                        KVMGuru.DPDKvHostUserMode dpdKvHostUserMode = getDPDKvHostUserMode(extraConfig);
+                        addDpdkPort(_pifs.get(trafficLabel), port, vlanId, dpdKvHostUserMode);
+                        String interfaceMode = getGuestInterfacesModeFromDPDKVhostUserMode(dpdKvHostUserMode);
                         intf.defDpdkNet(_libvirtComputingResource.dpdkOvsPath, port, nic.getMac(),
                                 getGuestNicModel(guestOsType, nicAdapter), 0,
                                 getExtraDpdkProperties(extraConfig),
-                                vHostUserMode.equals("server") ? "client" : "server");
+                                interfaceMode);
                     } else {
                         s_logger.debug("creating a vlan dev and bridge for guest traffic per traffic label " + trafficLabel);
                         intf.defBridgeNet(_pifs.get(trafficLabel), null, nic.getMac(), getGuestNicModel(guestOsType, nicAdapter), networkRateKBps);

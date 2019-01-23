@@ -22,7 +22,6 @@ import java.util.UUID;
 
 import javax.inject.Inject;
 
-import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
 
@@ -56,7 +55,6 @@ import com.cloud.vm.dao.VMInstanceDao;
 
 public abstract class HypervisorGuruBase extends AdapterBase implements HypervisorGuru {
     public static final Logger s_logger = Logger.getLogger(HypervisorGuruBase.class);
-    private static final String DPDK_VHOST_USER_MODE = "DPDK.VHOST.USER.MODE";
 
     @Inject
     private NicDao _nicDao;
@@ -73,7 +71,7 @@ public abstract class HypervisorGuruBase extends AdapterBase implements Hypervis
     @Inject
     private ResourceManager _resourceMgr;
     @Inject
-    private ServiceOfferingDetailsDao _serviceOfferingDetailsDao;
+    protected ServiceOfferingDetailsDao _serviceOfferingDetailsDao;
     @Inject
     private ServiceOfferingDao _serviceOfferingDao;
 
@@ -179,9 +177,6 @@ public abstract class HypervisorGuruBase extends AdapterBase implements Hypervis
             to.setGpuDevice(_resourceMgr.getGPUDevice(vm.getHostId(), groupName.getValue(), offeringDetail.getValue()));
         }
 
-        addServiceOfferingExtraConfiguration(offering, to);
-        addDPDKvHostUserMode(offering, to);
-
         // Workaround to make sure the TO has the UUID we need for Niciri integration
         VMInstanceVO vmInstance = _virtualMachineDao.findById(to.getId());
         // check if XStools/VMWare tools are present in the VM and dynamic scaling feature is enabled (per zone/global)
@@ -195,29 +190,6 @@ public abstract class HypervisorGuruBase extends AdapterBase implements Hypervis
         to.setConfigDriveIsoFile(vmProfile.getConfigDriveIsoFile());
 
         return to;
-    }
-
-    /**
-     * Add DPDK vHost User Mode as extra configuration to the VM TO
-     */
-    private void addDPDKvHostUserMode(ServiceOffering offering, VirtualMachineTO to) {
-        ServiceOfferingDetailsVO dpdkMode = _serviceOfferingDetailsDao.findDetail(offering.getId(), DPDK_VHOST_USER_MODE);
-        to.addExtraConfig(DPDK_VHOST_USER_MODE, dpdkMode != null ? dpdkMode.getValue() : "server");
-    }
-
-    /**
-     * Add extra configurations from service offering to the VM TO.
-     * Extra configuration keys are expected in formats:
-     * - "extraconfig-N"
-     * - "extraconfig-CONFIG_NAME"
-     */
-    protected void addServiceOfferingExtraConfiguration(ServiceOffering offering, VirtualMachineTO to) {
-        List<ServiceOfferingDetailsVO> details = _serviceOfferingDetailsDao.listDetails(offering.getId());
-        for (ServiceOfferingDetailsVO detail : details) {
-            if (detail.getName().startsWith(ApiConstants.EXTRA_CONFIG)) {
-                to.addExtraConfig(detail.getName(), detail.getValue());
-            }
-        }
     }
 
     @Override

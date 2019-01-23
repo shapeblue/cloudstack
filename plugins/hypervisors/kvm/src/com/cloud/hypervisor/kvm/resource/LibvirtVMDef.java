@@ -952,7 +952,7 @@ public class LibvirtVMDef {
         private String _dpdkSourcePath;
         private String _dpdkSourcePort;
         private String _dpdkExtraLines;
-        private String _qemuUserMode;
+        private String _interfaceMode;
 
         public void defBridgeNet(String brName, String targetBrName, String macAddr, NicModel model) {
             defBridgeNet(brName, targetBrName, macAddr, model, 0);
@@ -968,7 +968,7 @@ public class LibvirtVMDef {
         }
 
         public void defDpdkNet(String dpdkSourcePath, String dpdkPort, String macAddress, NicModel model,
-                               Integer networkRateKBps, String extra, String qemuUserMode) {
+                               Integer networkRateKBps, String extra, String interfaceMode) {
             _netType = GuestNetType.VHOSTUSER;
             _dpdkSourcePath = dpdkSourcePath;
             _dpdkSourcePort = dpdkPort;
@@ -976,7 +976,7 @@ public class LibvirtVMDef {
             _model = model;
             _networkRateKBps = networkRateKBps;
             _dpdkExtraLines = extra;
-            _qemuUserMode = qemuUserMode;
+            _interfaceMode = interfaceMode;
         }
 
         public void defDirectNet(String sourceName, String targetName, String macAddr, NicModel model, String sourceMode) {
@@ -1124,7 +1124,7 @@ public class LibvirtVMDef {
                 netBuilder.append("<source dev='" + _sourceName + "' mode='" + _netSourceMode + "'/>\n");
             } else if (_netType == GuestNetType.VHOSTUSER) {
                 netBuilder.append("<source type='unix' path='"+ _dpdkSourcePath + _dpdkSourcePort +
-                        "' mode='" + _qemuUserMode + "'/>\n");
+                        "' mode='" + _interfaceMode + "'/>\n");
             }
             if (_networkName != null) {
                 netBuilder.append("<target dev='" + _networkName + "'/>\n");
