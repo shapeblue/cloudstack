@@ -86,7 +86,7 @@ public interface QueryService {
             "Determines whether users can view their destroyed or expunging vm ", true, ConfigKey.Scope.Account);
 
     static final ConfigKey<String> UserVMBlacklistedDetails = new ConfigKey<String>("Advanced", String.class,
-            "user.vm.blacklisted.details", "rootdisksize, cpuOvercommitRatio, memoryOvercommitRatio, Message.ReservedCapacityFreed.flag",
+            "user.vm.blacklisted.details", "rootdisksize, cpuOvercommitRatio, memoryOvercommitRatio, Message.ReservedCapacityFreed.Flag",
             "Determines whether users can view certain VM settings", true);
 
     ListResponse<UserResponse> searchForUsers(ListUsersCmd cmd) throws PermissionDeniedException;
