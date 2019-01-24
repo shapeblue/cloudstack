@@ -1000,15 +1000,17 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 workerVm.attachDisk(new String[] {datastoreVolumePath}, morDs);
                 vmMo = workerVm;
                 clonedWorkerVMNeeded = false;
+            } else {
+                vmMo.createSnapshot(exportName, "Temporary snapshot for copy-volume command", false, false);
             }
-
-            vmMo.createSnapshot(exportName, "Temporary snapshot for copy-volume command", false, false);
 
             exportVolumeToSecondaryStorage(vmMo, volumePath, secStorageUrl, destVolumePath, exportName, hostService.getWorkerName(hyperHost.getContext(), cmd, 1), _nfsVersion, clonedWorkerVMNeeded);
             return new Pair<>(destVolumePath, exportName);
 
         } finally {
-            vmMo.removeSnapshot(exportName, false);
+            if (vmMo != null && vmMo.getSnapshotMor(exportName) != null) {
+                vmMo.removeSnapshot(exportName, false);
+            }
             if (workerVm != null) {
                 //detach volume and destroy worker vm
                 workerVm.detachAllDisks();

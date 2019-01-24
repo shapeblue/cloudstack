@@ -1019,16 +1019,18 @@ public class VmwareStorageManagerImpl implements VmwareStorageManager {
                 workerVm.attachDisk(new String[] {datastoreVolumePath}, morDs);
                 vmMo = workerVm;
                 clonedWorkerVMNeeded = false;
+            } else {
+                vmMo.createSnapshot(exportName, "Temporary snapshot for copy-volume command", false, false);
             }
-
-            vmMo.createSnapshot(exportName, "Temporary snapshot for copy-volume command", false, false);
 
             exportVolumeToSecondaryStorage(vmMo, volumePath, secStorageUrl, "volumes/" + volumeFolder, exportName, hostService.getWorkerName(hyperHost.getContext(), cmd, 1),
                     nfsVersion, clonedWorkerVMNeeded);
             return new Pair<String, String>(volumeFolder, exportName);
 
         } finally {
-            vmMo.removeSnapshot(exportName, false);
+            if (vmMo != null && vmMo.getSnapshotMor(exportName) != null) {
+                vmMo.removeSnapshot(exportName, false);
+            }
             if (workerVm != null) {
                 //detach volume and destroy worker vm
                 workerVm.detachAllDisks();
