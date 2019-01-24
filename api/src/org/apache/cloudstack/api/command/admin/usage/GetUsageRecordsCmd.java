@@ -168,8 +168,10 @@ public class GetUsageRecordsCmd extends BaseListCmd {
             }
             for (Usage usageRecord : usageRecords.first()) {
                 UsageRecordResponse usageResponse = _responseGenerator.createUsageResponse(usageRecord, resourceTagResponseMap);
-                usageResponse.setObjectName("usagerecord");
-                usageResponses.add(usageResponse);
+                if (usageResponse != null) {
+                    usageResponse.setObjectName("usagerecord");
+                    usageResponses.add(usageResponse);
+                }
             }
 
             response.setResponses(usageResponses, usageRecords.second());
