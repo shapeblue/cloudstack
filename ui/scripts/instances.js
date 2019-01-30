@@ -982,7 +982,7 @@
                                     label: 'label.select.a.template',
                                     select: function(args) {
                                         var data = {
-                                            templatefilter: 'featured'
+                                            templatefilter: 'executable'
                                         };
                                         $.ajax({
                                             url: createURL('listTemplates'),
