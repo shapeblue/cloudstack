@@ -78,13 +78,16 @@ import com.cloud.exception.PermissionDeniedException;
 
 /**
  * Service used for list api query.
- *
  */
 public interface QueryService {
 
     // Config keys
     static final ConfigKey<Boolean> AllowUserViewDestroyedVM = new ConfigKey<Boolean>("Advanced", Boolean.class, "allow.user.view.destroyed.vm", "false",
             "Determines whether users can view their destroyed or expunging vm ", true, ConfigKey.Scope.Account);
+
+    static final ConfigKey<String> UserVMBlacklistedDetails = new ConfigKey<String>("Advanced", String.class,
+            "user.vm.blacklisted.details", "rootdisksize, cpuOvercommitRatio, memoryOvercommitRatio, Message.ReservedCapacityFreed.Flag",
+            "Determines whether users can view certain VM settings", true);
 
     ListResponse<UserResponse> searchForUsers(ListUsersCmd cmd) throws PermissionDeniedException;
 
@@ -120,13 +123,13 @@ public interface QueryService {
 
     ListResponse<AccountResponse> searchForAccounts(ListAccountsCmd cmd);
 
-    ListResponse<AsyncJobResponse>  searchForAsyncJobs(ListAsyncJobsCmd cmd);
+    ListResponse<AsyncJobResponse> searchForAsyncJobs(ListAsyncJobsCmd cmd);
 
-    ListResponse<DiskOfferingResponse>  searchForDiskOfferings(ListDiskOfferingsCmd cmd);
+    ListResponse<DiskOfferingResponse> searchForDiskOfferings(ListDiskOfferingsCmd cmd);
 
-    ListResponse<ServiceOfferingResponse>  searchForServiceOfferings(ListServiceOfferingsCmd cmd);
+    ListResponse<ServiceOfferingResponse> searchForServiceOfferings(ListServiceOfferingsCmd cmd);
 
-    ListResponse<ZoneResponse>  listDataCenters(ListZonesCmd cmd);
+    ListResponse<ZoneResponse> listDataCenters(ListZonesCmd cmd);
 
     ListResponse<TemplateResponse> listTemplates(ListTemplatesCmd cmd);
 

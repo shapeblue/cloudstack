@@ -692,8 +692,10 @@
                     if (includingSecurityGroupService == false) {
                         hiddenTabs.push("securityGroups");
                     }
-					
-					if (args.context.instances[0].state == 'Running') {
+
+					// Settings dont work on VMware and untill that bug is fixed we should hide the settings tab
+					// for all VMs running on VMWare as hypervisor.
+					if (args.context.instances[0].state == 'Running' || args.context.instances[0].hypervisor == 'VMware') {
 						hiddenTabs.push("settings");
 					}
 
