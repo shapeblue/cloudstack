@@ -2580,7 +2580,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             Long bytesWriteRate, Long bytesWriteRateMax, Long bytesWriteRateMaxLength,
             Long iopsReadRate, Long iopsReadRateMax, Long iopsReadRateMaxLength,
             Long iopsWriteRate, Long iopsWriteRateMax, Long iopsWriteRateMaxLength,
-            Long minIopsPerGb, Long maxIopsPerGb, Long highestMinIops, Long highestMaxIops, 
+            Long minIopsPerGb, Long maxIopsPerGb, Long highestMinIops, Long highestMaxIops,
             final Integer hypervisorSnapshotReserve) {
         long diskSize = 0;// special case for custom disk offerings
         if (numGibibytes != null && numGibibytes <= 0) {

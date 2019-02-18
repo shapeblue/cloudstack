@@ -917,7 +917,7 @@ public class ConfigurationManagerTest {
         when(configurationMgr._diskOfferingDao.persist(any(DiskOfferingVO.class))).then(returnsFirstArg());
 
         DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null);
+                10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         Assert.assertEquals((10L * 1024 * 1024 * 1024), diskOfferingVO.getDiskSize());
         Assert.assertNull(diskOfferingVO.getMinIops());
@@ -945,7 +945,7 @@ public class ConfigurationManagerTest {
         when(configurationMgr._diskOfferingDao.persist(any(DiskOfferingVO.class))).then(returnsFirstArg());
 
         DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null);
+                10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         Assert.assertEquals((10L * 1024 * 1024 * 1024), diskOfferingVO.getDiskSize());
         Assert.assertNull(diskOfferingVO.getMinIops());
@@ -975,7 +975,7 @@ public class ConfigurationManagerTest {
 
         try {
             DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, null, null, null, null, null, null, null, null, null, 1000L, 5000L, null);
+                    10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1000L, 5000L, null);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue(e.toString().contains("highestminops specified but none of customizediops or miniopspergb specified"));
             seenException = true;
@@ -1001,7 +1001,7 @@ public class ConfigurationManagerTest {
 
         try {
             DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, null, 1000L, 5000L, null, null, null, null, null, null, 1000L, 5000L, null);
+                    10L, null, false, false, false, null, 1000L, 5000L, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1000L, 5000L, null);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue(e.toString().contains("highestminops specified but none of customizediops or miniopspergb specified"));
             seenException = true;
@@ -1026,7 +1026,7 @@ public class ConfigurationManagerTest {
         when(configurationMgr._diskOfferingDao.persist(any(DiskOfferingVO.class))).then(returnsFirstArg());
 
         DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null);
+                10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         Assert.assertEquals((10L * 1024 * 1024 * 1024), diskOfferingVO.getDiskSize());
         Assert.assertNull(diskOfferingVO.getMinIops());
@@ -1059,7 +1059,7 @@ public class ConfigurationManagerTest {
         boolean seenException = false;
 
         diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                10L, null, false, false, false, true, null, null, null, null, null, null, null, null, testHighestMinIops, testHighestMaxIops, null);
+                10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testHighestMinIops, testHighestMaxIops, null);
 
         Assert.assertEquals((10L * 1024 * 1024 * 1024), diskOfferingVO.getDiskSize());
         Assert.assertNull(diskOfferingVO.getMinIops());
@@ -1074,7 +1074,7 @@ public class ConfigurationManagerTest {
         // highestminiops specified but no highestmaxiops
         try {
             diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, testHighestMinIops, null, null);
+                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testHighestMinIops, null, null);
         }catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised", e.toString().contains("Both highestminiops and highestmaxiops should be specified"));
             seenException = true;
@@ -1085,7 +1085,7 @@ public class ConfigurationManagerTest {
         seenException = false;
          try {
             diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, testHighestMaxIops, null);
+                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testHighestMaxIops, null);
         }catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised", e.toString().contains("Both highestminiops and highestmaxiops should be specified"));
             seenException = true;
@@ -1098,7 +1098,7 @@ public class ConfigurationManagerTest {
         seenException = false;
          try {
             diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, testHighestMinIops, testHighestMaxIops, null);
+                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testHighestMinIops, testHighestMaxIops, null);
         }catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised", e.toString().contains("highestminiops must be less than highestmaxiops"));
             seenException = true;
@@ -1111,7 +1111,7 @@ public class ConfigurationManagerTest {
         seenException = false;
          try {
             diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, testHighestMinIops, testHighestMaxIops, null);
+                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testHighestMinIops, testHighestMaxIops, null);
         }catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised", e.toString().contains("highestminiops/highestmaxiops value must be greater than 0"));
             seenException = true;
@@ -1139,7 +1139,7 @@ public class ConfigurationManagerTest {
 
         try {
          diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                10L, null, false, false, false, true, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
+                10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised:" + e.toString(), e.toString().contains("Cannot set Min/Max IOPS/GB for a fixed size disk offering"));
             seenException = true;
@@ -1168,7 +1168,7 @@ public class ConfigurationManagerTest {
         //fixed iops, custom size
         try {
          diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                null, null, true, false, false, null, 1000L, 5000L, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
+                null, null, true, false, false, null, 1000L, 5000L, null, null, null, null, null, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised:" + e.toString(), e.toString().contains("Cannot set Min/Max IOPS/GB with either custom IOPS or fixed IOPS"));
             seenException = true;
@@ -1180,7 +1180,7 @@ public class ConfigurationManagerTest {
         seenException = false;
         try {
          diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                10L, null, true, false, false, true, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
+                10L, null, true, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised:" + e.toString(), e.toString().contains("Cannot set Min/Max IOPS/GB with either custom IOPS or fixed IOPS"));
             seenException = true;
@@ -1207,7 +1207,7 @@ public class ConfigurationManagerTest {
         boolean seenException = false;
 
         diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                null, null, true, false, false, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
+                null, null, true, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, null, null, null);
 
         Assert.assertNull(diskOfferingVO.getMinIops());
         Assert.assertNull(diskOfferingVO.getMaxIops());
@@ -1239,7 +1239,7 @@ public class ConfigurationManagerTest {
         Long testHighestMaxIops = 1000L;
 
         diskOfferingVO = configurationMgr.createDiskOffering(1L, 1L, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                null, null, true, false, false, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, testHighestMinIops, testHighestMaxIops, null);
+                null, null, true, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, testMinIopsPerGb, testMaxIopsPerGb, testHighestMinIops, testHighestMaxIops, null);
 
         Assert.assertNull(diskOfferingVO.getMinIops());
         Assert.assertNull(diskOfferingVO.getMaxIops());

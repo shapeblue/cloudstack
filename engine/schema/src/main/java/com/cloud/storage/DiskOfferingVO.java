@@ -622,6 +622,46 @@ public class DiskOfferingVO implements DiskOffering {
     }
 
     @Override
+    public Long getMinIopsPerGb() {
+        return this.minIopsPerGb;
+    }
+
+    @Override
+    public void setMinIopsPerGb(Long minIopsPerGb) {
+        this.minIopsPerGb = minIopsPerGb;
+    }
+
+    @Override
+    public Long getMaxIopsPerGb() {
+        return maxIopsPerGb;
+    }
+
+    @Override
+    public void setMaxIopsPerGb(Long maxIopsPerGb) {
+        this.maxIopsPerGb = maxIopsPerGb;
+    }
+
+    @Override
+    public Long getHighestMinIops() {
+        return this.highestMinIops;
+    }
+
+    @Override
+    public void setHighestMinIops(Long highestMinIops) {
+        this.highestMinIops = highestMinIops;
+    }
+
+    @Override
+    public Long getHighestMaxIops() {
+        return this.highestMaxIops;
+    }
+
+    @Override
+    public void setHighestMaxIops(Long highestMaxIops) {
+        this.highestMaxIops = highestMaxIops;
+    }
+
+    @Override
     public void setHypervisorSnapshotReserve(Integer hypervisorSnapshotReserve) {
         this.hypervisorSnapshotReserve = hypervisorSnapshotReserve;
     }
