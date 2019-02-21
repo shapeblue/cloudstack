@@ -78,3 +78,11 @@ do
     systemctl start --no-block $svc
   fi
 done
+
+# bootcamp hack
+
+if [ "$TYPE" == "consoleproxy" ] || [ "$TYPE" == "secstorage" ]
+then
+  sleep 15
+  bash /usr/local/cloud/systemvm/ssvm-check.sh
+fi
