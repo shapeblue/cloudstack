@@ -83,6 +83,6 @@ done
 
 if [ "$TYPE" == "consoleproxy" ] || [ "$TYPE" == "secstorage" ]
 then
-  sleep 15
+  sleep 120
   bash /usr/local/cloud/systemvm/ssvm-check.sh
 fi
