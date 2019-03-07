@@ -5114,7 +5114,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     userVmDetailsDao.addDetail(vm.getId(), extraConfigKey + String.valueOf(i), cfg, true);
                     i++;
                 } else {
-                    throw new CloudRuntimeException("Configuration " + cfg + " contains a blacklisted key by Root admin");
+                    throw new CloudRuntimeException("Extra config " + cfg + " is not on the list of allowed keys for XenServer hypervisor hosts.");
                 }
             }
         } else {
@@ -5208,7 +5208,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
      */
     protected void validateKvmExtraConfig(String decodedUrl) {
         String[] allowedConfigOptionList = KvmAdditionalConfigAllowList.value().split(",");
-        String msg = "An invalid extra configuration option has been supplied: ";
         // Skip allowed keys validation validation for DPDK
         if (!decodedUrl.contains(":")) {
             try {
@@ -5221,7 +5220,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     NodeList nodeList = doc.getElementsByTagName(tag.trim());
                     // Node list should not be empty to show that allowed command is contained in passed XML
                     if (nodeList.getLength() == 0) {
-                        throw new CloudRuntimeException(msg + tag);
+                        throw new CloudRuntimeException(String.format("Extra config %s is not on the list of allowed keys for KVM hypervisor hosts", tag));
                     }
                 }
             } catch (ParserConfigurationException | IOException | SAXException e) {
