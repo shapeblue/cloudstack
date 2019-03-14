@@ -42,6 +42,7 @@ import org.springframework.stereotype.Component;
 
 import com.cloud.api.ApiDBUtils;
 import com.cloud.api.ApiResponseHelper;
+import com.cloud.api.query.QueryManagerImpl;
 import com.cloud.api.query.vo.UserVmJoinVO;
 import com.cloud.gpu.GPU;
 import com.cloud.service.ServiceOfferingDetailsVO;
@@ -312,6 +313,9 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
                 resourceDetails.put(userVmDetailVO.getName(), userVmDetailVO.getValue());
             }
             userVmResponse.setDetails(resourceDetails);
+            if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
+                userVmResponse.setReadOnlyUIDetails(QueryManagerImpl.UserVMReadOnlyUIDetails.value());
+            }
         }
 
         userVmResponse.setObjectName(objectName);
