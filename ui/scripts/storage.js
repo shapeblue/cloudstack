@@ -924,8 +924,12 @@
                                             label: 'label.name'
                                         },
                                         asyncBackup: {
-						label: 'label.async.backup',
-						isBoolean: true
+                                            label: 'label.async.backup',
+                                            isBoolean: true
+                                        },
+                                        tags: {
+                                            label: 'label.tags',
+                                            tagger: true
                                         }
                                     }
                                 },
@@ -940,6 +944,15 @@
                                             name: args.data.name
                                         });
                                     }
+                                    if (!$.isEmptyObject(args.data.tags)) {
+                                        $(args.data.tags).each(function(idx, tagData) {
+                                            var formattedTagData = {};
+                                            formattedTagData["tags[" + _s(idx) + "].key"] = _s(tagData.key);
+                                            formattedTagData["tags[" + _s(idx) + "].value"] = _s(tagData.value);
+                                            $.extend(data, formattedTagData);
+                                        });
+                                    }
+
                                     $.ajax({
                                         url: createURL("createSnapshot"),
                                         data: data,
@@ -998,7 +1011,9 @@
                                                 var snap = args.snapshot;
 
                                                 var data = {
-                                                    keep: snap.maxsnaps,
+                                                    volumeid: args.context.volumes[0].id,
+                                                    intervaltype: snap['snapshot-type'],
+                                                    maxsnaps: snap.maxsnaps,
                                                     timezone: snap.timezone
                                                 };
 
@@ -1051,15 +1066,18 @@
                                                         break;
                                                 }
 
+                                                if (!$.isEmptyObject(snap.tags)) {
+                                                    $(snap.tags).each(function(idx, tagData) {
+                                                        var formattedTagData = {};
+                                                        formattedTagData["tags[" + _s(idx) + "].key"] = _s(tagData.key);
+                                                        formattedTagData["tags[" + _s(idx) + "].value"] = _s(tagData.value);
+                                                        $.extend(data, formattedTagData);
+                                                    });
+                                                }
+
                                                 $.ajax({
                                                     url: createURL('createSnapshotPolicy'),
-                                                    data: {
-                                                        volumeid: args.context.volumes[0].id,
-                                                        intervaltype: snap['snapshot-type'],
-                                                        maxsnaps: snap.maxsnaps,
-                                                        schedule: data.schedule,
-                                                        timezone: snap.timezone
-                                                    },
+                                                    data: data,
                                                     dataType: 'json',
                                                     async: true,
                                                     success: function(successData) {

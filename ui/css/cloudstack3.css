@@ -4179,7 +4179,7 @@ textarea {
   float: left;
 }
 
-.ui-dialog div.form-container div.value label {
+#label_delete_volumes label {
   display: block;
   width: 119px;
   text-align: left;
@@ -8782,6 +8782,11 @@ div#details-tab-aclRules td.cidrlist span {
   top: 4px;
 }
 
+.recurring-snapshots .schedule .forms .tagger form div.value label {
+  width: 25px;
+  top: 10px;
+}
+
 .recurring-snapshots .schedule .forms form label.error {
   width: 100%;
   float: left;
@@ -8792,6 +8797,10 @@ div#details-tab-aclRules td.cidrlist span {
   width: 100%;
   float: left;
   margin: 8px 0 0;
+}
+
+.recurring-snapshots .schedule .forms .tagger form .field {
+  margin: 0;
 }
 
 .recurring-snapshots .schedule .forms form .name {
@@ -8936,6 +8945,11 @@ div#details-tab-aclRules td.cidrlist span {
   padding: 0;
   margin: 0;
   display: block;
+}
+
+.recurring-snapshots .ui-tabs .tagger ul {
+    margin: 16px auto auto;
+    padding-bottom: 10px;
 }
 
 .recurring-snapshots .ui-tabs ul li a {
@@ -11036,6 +11050,11 @@ div#details-tab-aclRules td.cidrlist span {
 
 .ui-dialog .tagger .tag-info {
   display: none;
+}
+
+.ui-dialog .tagger .tag-info.inside-form {
+  display: block;
+  text-align: left;
 }
 
 .ui-dialog.editTags .ui-button {
