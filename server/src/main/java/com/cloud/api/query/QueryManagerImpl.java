@@ -16,8 +16,10 @@
 // under the License.
 package com.cloud.api.query;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,17 +27,17 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
-import com.cloud.cluster.ManagementServerHostVO;
-import com.cloud.cluster.dao.ManagementServerHostDao;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.affinity.AffinityGroupDomainMapVO;
 import org.apache.cloudstack.affinity.AffinityGroupResponse;
 import org.apache.cloudstack.affinity.AffinityGroupVMMapVO;
 import org.apache.cloudstack.affinity.dao.AffinityGroupDomainMapDao;
 import org.apache.cloudstack.affinity.dao.AffinityGroupVMMapDao;
+import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
 import org.apache.cloudstack.api.ResourceDetail;
 import org.apache.cloudstack.api.ResponseObject.ResponseView;
+import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.account.ListAccountsCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.domain.ListDomainsCmd;
 import org.apache.cloudstack.api.command.admin.domain.ListDomainsCmdByAdmin;
@@ -66,7 +68,9 @@ import org.apache.cloudstack.api.command.user.project.ListProjectInvitationsCmd;
 import org.apache.cloudstack.api.command.user.project.ListProjectsCmd;
 import org.apache.cloudstack.api.command.user.securitygroup.ListSecurityGroupsCmd;
 import org.apache.cloudstack.api.command.user.tag.ListTagsCmd;
+import org.apache.cloudstack.api.command.user.template.ListTemplateDetailsCmd;
 import org.apache.cloudstack.api.command.user.template.ListTemplatesCmd;
+import org.apache.cloudstack.api.command.user.vm.ListVMDetailsCmd;
 import org.apache.cloudstack.api.command.user.vm.ListVMsCmd;
 import org.apache.cloudstack.api.command.user.vmgroup.ListVMGroupsCmd;
 import org.apache.cloudstack.api.command.user.volume.ListResourceDetailsCmd;
@@ -93,9 +97,11 @@ import org.apache.cloudstack.api.response.SecurityGroupResponse;
 import org.apache.cloudstack.api.response.ServiceOfferingResponse;
 import org.apache.cloudstack.api.response.StoragePoolResponse;
 import org.apache.cloudstack.api.response.StorageTagResponse;
+import org.apache.cloudstack.api.response.TemplateDetailsResponse;
 import org.apache.cloudstack.api.response.TemplateResponse;
 import org.apache.cloudstack.api.response.UserResponse;
 import org.apache.cloudstack.api.response.UserVmResponse;
+import org.apache.cloudstack.api.response.VmDetailsResponse;
 import org.apache.cloudstack.api.response.VolumeResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
@@ -108,6 +114,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.query.QueryService;
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -156,6 +163,8 @@ import com.cloud.api.query.vo.TemplateJoinVO;
 import com.cloud.api.query.vo.UserAccountJoinVO;
 import com.cloud.api.query.vo.UserVmJoinVO;
 import com.cloud.api.query.vo.VolumeJoinVO;
+import com.cloud.cluster.ManagementServerHostVO;
+import com.cloud.cluster.dao.ManagementServerHostDao;
 import com.cloud.dc.DedicatedResourceVO;
 import com.cloud.dc.dao.DedicatedResourceDao;
 import com.cloud.domain.Domain;
@@ -219,6 +228,7 @@ import com.cloud.vm.DomainRouterVO;
 import com.cloud.vm.UserVmVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.DomainRouterDao;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.UserVmDetailsDao;
@@ -763,6 +773,33 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
 
         response.setResponses(vmResponses, result.second());
         return response;
+    }
+
+    @Override
+    public List<VmDetailsResponse> listVMDetails(ListVMDetailsCmd cmd) {
+        final Account account = CallContext.current().getCallingAccount();
+        final List<VmDetailsResponse> responseList = new ArrayList<>();
+
+        List<UserVmResponse> vmResponses = searchForUserVMs(cmd).getResponses();
+        for (UserVmResponse userVmResponse : vmResponses) {
+            VmDetailsResponse vmDetailsResponse = new VmDetailsResponse();
+
+            try {
+                BeanUtils.copyProperties(vmDetailsResponse, userVmResponse);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to generate vm detail response");
+            }
+
+            Map userVmResponseDetails = userVmResponse.getDetails();
+            addDetailResponseKeyPairs(account, userVmResponseDetails, userVmResponse.getHypervisor());
+
+            userVmResponseDetails.putIfAbsent(VmDetailConstants.KEYBOARD, "us, uk ...");
+
+            vmDetailsResponse.setDetails(userVmResponseDetails);
+            responseList.add(vmDetailsResponse);
+        }
+
+        return responseList;
     }
 
     private Pair<List<UserVmJoinVO>, Integer> searchForUserVMsInternal(ListVMsCmd cmd) {
@@ -3038,6 +3075,66 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         response.setResponses(templateResponses, result.second());
         return response;
     }
+
+    @Override
+    public List<TemplateDetailsResponse> listTemplateDetails(ListTemplateDetailsCmd cmd) {
+        final Account account = CallContext.current().getCallingAccount();
+        final List<TemplateDetailsResponse> responseList = new ArrayList<>();
+
+        List<TemplateResponse> templateResponses = listTemplates(cmd).getResponses();
+        for (TemplateResponse templateResponse : templateResponses) {
+            TemplateDetailsResponse templateDetailsResponse = new TemplateDetailsResponse();
+
+            try {
+                BeanUtils.copyProperties(templateDetailsResponse, templateResponse);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to generate template detail response");
+            }
+
+            Map templateResponseDetails = (templateResponse.getDetails() == null)? new HashMap(): templateResponse.getDetails();
+            addDetailResponseKeyPairs(account, templateResponseDetails, templateResponse.getHypervisor());
+
+            templateDetailsResponse.setDetails(templateResponseDetails);
+            responseList.add(templateDetailsResponse);
+        }
+        return responseList;
+    }
+
+    private void addDetailResponseKeyPairs(Account account, Map detailsMap, String hypervisorType) {
+        //VMware settings
+        if (hypervisorType.equalsIgnoreCase(String.valueOf(HypervisorType.VMware))) {
+            detailsMap.putIfAbsent(VmDetailConstants.SMC_PRESENT, "TRUE, FALSE");
+            detailsMap.putIfAbsent(VmDetailConstants.FIRMWARE, "efi ...");
+            detailsMap.putIfAbsent(VmDetailConstants.SVGA_VRAM_SIZE, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.ROOT_DISK_CONTROLLER, "scsi");
+            detailsMap.putIfAbsent(VmDetailConstants.DATA_DISK_CONTROLLER, "scsi, osdefault");
+        }
+
+        // KVM settings
+        if (hypervisorType.equalsIgnoreCase(String.valueOf(HypervisorType.KVM))) {
+            detailsMap.putIfAbsent(VmDetailConstants.KVM_VNC_ADDRESS, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.KVM_VNC_PORT, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.NIC_ADAPTER, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.ROOT_DISK_CONTROLLER, "ide, osdefault, virtio-scsi, virtio");
+            detailsMap.putIfAbsent(VmDetailConstants.DATA_DISK_CONTROLLER, "ide, osdefault, virtio-scsi, virtio");
+        }
+
+        // XenServer settings
+        if (hypervisorType.equalsIgnoreCase(String.valueOf(HypervisorType.XenServer))) {
+            detailsMap.putIfAbsent(VmDetailConstants.PLATFORM, "xenserver51, xenserver65 ...");
+            detailsMap.putIfAbsent(VmDetailConstants.HYPERVISOR_TOOLS_VERSION, "xenserver51, xenserver65 ...");
+            detailsMap.putIfAbsent(VmDetailConstants.CPU_CORE_PER_SOCKET, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.TIME_OFFSET, "...");
+        }
+
+        if (_accountMgr.isAdmin(account.getAccountId())) {
+            detailsMap.putIfAbsent(VmDetailConstants.MESSAGE_RESERVED_CAPACITY_FREED_FLAG, "true, false");
+            detailsMap.putIfAbsent(VmDetailConstants.CPU_OVER_COMMIT_RATIO, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.MEMORY_OVER_COMMIT_RATIO, "...");
+            detailsMap.putIfAbsent(VmDetailConstants.ROOT_DISK_SIZE, "...");
+        }
+    }
+
 
     private Pair<List<TemplateJoinVO>, Integer> searchForTemplatesInternal(ListTemplatesCmd cmd) {
         TemplateFilter templateFilter = TemplateFilter.valueOf(cmd.getTemplateFilter());

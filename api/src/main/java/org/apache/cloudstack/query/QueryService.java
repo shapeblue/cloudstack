@@ -42,7 +42,9 @@ import org.apache.cloudstack.api.command.user.project.ListProjectInvitationsCmd;
 import org.apache.cloudstack.api.command.user.project.ListProjectsCmd;
 import org.apache.cloudstack.api.command.user.securitygroup.ListSecurityGroupsCmd;
 import org.apache.cloudstack.api.command.user.tag.ListTagsCmd;
+import org.apache.cloudstack.api.command.user.template.ListTemplateDetailsCmd;
 import org.apache.cloudstack.api.command.user.template.ListTemplatesCmd;
+import org.apache.cloudstack.api.command.user.vm.ListVMDetailsCmd;
 import org.apache.cloudstack.api.command.user.vm.ListVMsCmd;
 import org.apache.cloudstack.api.command.user.vmgroup.ListVMGroupsCmd;
 import org.apache.cloudstack.api.command.user.volume.ListResourceDetailsCmd;
@@ -59,6 +61,8 @@ import org.apache.cloudstack.api.response.HostTagResponse;
 import org.apache.cloudstack.api.response.ImageStoreResponse;
 import org.apache.cloudstack.api.response.InstanceGroupResponse;
 import org.apache.cloudstack.api.response.ListResponse;
+import org.apache.cloudstack.api.response.TemplateDetailsResponse;
+import org.apache.cloudstack.api.response.VmDetailsResponse;
 import org.apache.cloudstack.api.response.ManagementServerResponse;
 import org.apache.cloudstack.api.response.ProjectAccountResponse;
 import org.apache.cloudstack.api.response.ProjectInvitationResponse;
@@ -98,6 +102,8 @@ public interface QueryService {
 
     ListResponse<UserVmResponse> searchForUserVMs(ListVMsCmd cmd);
 
+    List<VmDetailsResponse> listVMDetails(ListVMDetailsCmd cmd);
+
     ListResponse<SecurityGroupResponse> searchForSecurityGroups(ListSecurityGroupsCmd cmd);
 
     ListResponse<DomainRouterResponse> searchForRouters(ListRoutersCmd cmd);
@@ -131,6 +137,8 @@ public interface QueryService {
     ListResponse<ZoneResponse>  listDataCenters(ListZonesCmd cmd);
 
     ListResponse<TemplateResponse> listTemplates(ListTemplatesCmd cmd);
+
+    List<TemplateDetailsResponse> listTemplateDetails(ListTemplateDetailsCmd cmd);
 
     ListResponse<TemplateResponse> listIsos(ListIsosCmd cmd);
 

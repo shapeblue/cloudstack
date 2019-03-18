@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.UserVmDetailsDao;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.commons.lang.ObjectUtils;
@@ -1313,8 +1314,8 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         for (VMInstanceVO vm : vms) {
             GetVncPortAnswer vmVncPortAnswer = (GetVncPortAnswer) _agentMgr.easySend(hostId, new GetVncPortCommand(vm.getId(), vm.getInstanceName()));
             if (vmVncPortAnswer != null) {
-                userVmDetailsDao.addDetail(vm.getId(), "kvm.vnc.address", vmVncPortAnswer.getAddress(), true);
-                userVmDetailsDao.addDetail(vm.getId(), "kvm.vnc.port", String.valueOf(vmVncPortAnswer.getPort()), true);
+                userVmDetailsDao.addDetail(vm.getId(), VmDetailConstants.KVM_VNC_ADDRESS, vmVncPortAnswer.getAddress(), true);
+                userVmDetailsDao.addDetail(vm.getId(), VmDetailConstants.KVM_VNC_PORT, String.valueOf(vmVncPortAnswer.getPort()), true);
             }
         }
     }

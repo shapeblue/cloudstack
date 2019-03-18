@@ -17,14 +17,38 @@
 package com.cloud.vm;
 
 public interface VmDetailConstants {
-    public static final String KEYBOARD = "keyboard";
-    public static final String NIC_ADAPTER = "nicAdapter";
-    public static final String ROOT_DISK_CONTROLLER = "rootDiskController";
-    public static final String NESTED_VIRTUALIZATION_FLAG = "nestedVirtualizationFlag";
-    public static final String HYPERVISOR_TOOLS_VERSION = "hypervisortoolsversion";
-    public static final String DATA_DISK_CONTROLLER = "dataDiskController";
-    public static final String SVGA_VRAM_SIZE = "svga.vramSize";
-    public static final String CPU_NUMBER = "cpuNumber";
-    public static final String CPU_SPEED = "cpuSpeed";
-    public static final String MEMORY = "memory";
+    String KEYBOARD = "keyboard";
+    String NIC_ADAPTER = "nicAdapter";
+    String ROOT_DISK_CONTROLLER = "rootDiskController";
+    String NESTED_VIRTUALIZATION_FLAG = "nestedVirtualizationFlag";
+    String HYPERVISOR_TOOLS_VERSION = "hypervisortoolsversion";
+    String DATA_DISK_CONTROLLER = "dataDiskController";
+    String SVGA_VRAM_SIZE = "svga.vramSize";
+    String PLATFORM = "platform";
+    String TIME_OFFSET = "timeoffset";
+    String CPU_CORE_PER_SOCKET = "cpu.corespersocket";
+
+    // VM deployment with custom compute offering params
+    String CPU_NUMBER = "cpuNumber";
+    String CPU_SPEED = "cpuSpeed";
+    String MEMORY = "memory";
+
+    // Root Admin constants only
+    String ROOT_DISK_SIZE = "rootdisksize";
+    String CPU_OVER_COMMIT_RATIO = "cpuOvercommitRatio";
+    String MEMORY_OVER_COMMIT_RATIO = "memoryOvercommitRatio";
+    String MESSAGE_RESERVED_CAPACITY_FREED_FLAG = "Message.ReservedCapacityFreed.Flag";
+
+    // Add VNC details as user VM details for each VM in 'vms' (KVM hosts only)
+    String KVM_VNC_PORT = "kvm.vnc.port";
+    String KVM_VNC_ADDRESS = "kvm.vnc.address";
+
+    String PASSWORD = "password";
+    String ENCRYPTED_PASSWORD = "Encrypted.Password";
+    String DEPLOY_VM = "deployvm";
+    String SSH_PUBLIC_KEY = "SSH.PublicKey";
+
+    // If hypervisor is vSphere and OS is OS X, set special settings.
+    String SMC_PRESENT = "smc.present";
+    String FIRMWARE = "firmware";
 }
