@@ -2026,6 +2026,44 @@
                                             });
                                         },
                                         isHidden: true
+                                    },
+                                    zone: {
+                                        label: 'label.zone',
+                                        docID: 'helpDiskOfferingZone',
+                                        isMultiple: true,
+                                        isHidden: true,
+                                        dependsOn: 'isPublic',
+                                        validation: {
+                                            allzonesonly: true
+                                        },
+                                        select: function(args) {
+                                            $.ajax({
+                                                url: createURL("listZones&available=true"),
+                                                dataType: "json",
+                                                async: true,
+                                                success: function(json) {
+                                                    var zoneObjs = [];
+                                                    var items = json.listzonesresponse.zone;
+                                                    if (items != null) {
+                                                        for (var i = 0; i < items.length; i++) {
+                                                            zoneObjs.push({
+                                                                id: items[i].id,
+                                                                description: items[i].name
+                                                            });
+                                                        }
+                                                    }
+                                                    if (isAdmin()) {
+                                                        zoneObjs.unshift({
+                                                            id: -1,
+                                                            description: "All Zones"
+                                                        });
+                                                    }
+                                                    args.response.success({
+                                                        data: zoneObjs
+                                                    });
+                                                }
+                                            });
+                                        }
                                     }
                                 }
                             },
@@ -2109,6 +2147,16 @@
                                     $.extend(data, {
                                         domainid: args.data.domainId
                                     });
+                                    var zones = "";
+                                    if (Object.prototype.toString.call( args.data.zone ) === '[object Array]') {
+                                        zones = args.data.zone.join(",");
+                                    } else
+                                        zones = args.data.zone;
+                                    if (zones != "") {
+                                        $.extend(data, {
+                                            zoneids: zones
+                                        });
+                                    }
                                 }
 
                                 $.ajax({
@@ -2282,6 +2330,9 @@
                                     domain: {
                                         label: 'label.domain'
                                     },
+                                    zones: {
+                                        label: 'label.zones'
+                                    },
                                     storagetype: {
                                         label: 'label.storage.type'
                                     },
@@ -2299,6 +2350,12 @@
                                         data: data
                                     };
                                     var diskOfferings = cloudStack.listDiskOfferings(listDiskOfferingsOptions);
+                                    var diskOffering = diskOfferings[0]
+                                    if(diskOffering.details && diskOffering.details.zonenames) {
+                                        $.extend(diskOffering, {
+                                            zones: diskOffering.details.zonenames
+                                        });
+                                    }
                                     args.response.success({
                                         actionFilter: diskOfferingActionfilter,
                                         data: diskOfferings[0]

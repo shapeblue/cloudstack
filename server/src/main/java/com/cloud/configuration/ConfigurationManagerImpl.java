@@ -35,12 +35,11 @@ import java.util.UUID;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.google.common.collect.Sets;
-
 import org.apache.cloudstack.acl.SecurityChecker;
 import org.apache.cloudstack.affinity.AffinityGroup;
 import org.apache.cloudstack.affinity.AffinityGroupService;
 import org.apache.cloudstack.affinity.dao.AffinityGroupDao;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.config.UpdateCfgCmd;
 import org.apache.cloudstack.api.command.admin.network.CreateManagementNetworkIpRangeCmd;
 import org.apache.cloudstack.api.command.admin.network.CreateNetworkOfferingCmd;
@@ -87,6 +86,7 @@ import org.apache.cloudstack.region.PortableIpVO;
 import org.apache.cloudstack.region.Region;
 import org.apache.cloudstack.region.RegionVO;
 import org.apache.cloudstack.region.dao.RegionDao;
+import org.apache.cloudstack.resourcedetail.dao.DiskOfferingDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreVO;
@@ -232,6 +232,7 @@ import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 
 public class ConfigurationManagerImpl extends ManagerBase implements ConfigurationManager, ConfigurationService, Configurable {
     public static final Logger s_logger = Logger.getLogger(ConfigurationManagerImpl.class);
@@ -266,6 +267,8 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
     ServiceOfferingDetailsDao _serviceOfferingDetailsDao;
     @Inject
     DiskOfferingDao _diskOfferingDao;
+    @Inject
+    DiskOfferingDetailsDao diskOfferingDetailsDao;
     @Inject
     NetworkOfferingDao _networkOfferingDao;
     @Inject
@@ -2573,7 +2576,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         }
     }
 
-    protected DiskOfferingVO createDiskOffering(final Long userId, final Long domainId, final String name, final String description, final String provisioningType,
+    protected DiskOfferingVO createDiskOffering(final Long userId, final Long domainId, final List<Long> zoneIds, final String name, final String description, final String provisioningType,
             final Long numGibibytes, String tags, boolean isCustomized, final boolean localStorageRequired,
             final boolean isDisplayOfferingEnabled, final Boolean isCustomizedIops, Long minIops, Long maxIops,
             Long bytesReadRate, Long bytesReadRateMax, Long bytesReadRateMaxLength,
@@ -2640,6 +2643,13 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             throw new InvalidParameterValueException("Unable to create disk offering by id " + userId + " because it is not root-admin or domain-admin");
         }
 
+        if (zoneIds != null) {
+            for (Long zoneId : zoneIds) {
+                if (_zoneDao.findById(zoneId) == null)
+                    throw new InvalidParameterValueException("Unable to create disk offering associated with invalid zone, " + zoneId);
+            }
+        }
+
         tags = StringUtils.cleanupTags(tags);
         final DiskOfferingVO newDiskOffering = new DiskOfferingVO(domainId, name, description, typedProvisioningType, diskSize, tags, isCustomized,
                 isCustomizedIops, minIops, maxIops);
@@ -2692,11 +2702,16 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         CallContext.current().setEventDetails("Disk offering id=" + newDiskOffering.getId());
         final DiskOfferingVO offering = _diskOfferingDao.persist(newDiskOffering);
         if (offering != null) {
+            if(zoneIds!=null && !zoneIds.isEmpty()) {
+                List<String> zoneIdsStringList = new ArrayList<>();
+                for(Long zoneId : zoneIds)
+                    zoneIdsStringList.add(String.valueOf(zoneId));
+                diskOfferingDetailsDao.addDetail(offering.getId(), ApiConstants.ZONE_ID_LIST, String.join(",", zoneIdsStringList), true);
+            }
             CallContext.current().setEventDetails("Disk offering id=" + newDiskOffering.getId());
             return offering;
-        } else {
-            return null;
         }
+        return null;
     }
 
     @Override
@@ -2716,6 +2731,8 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         // always gets created under the root domain.Bug # 6055 if not passed in
         // cmd
         final Long domainId = cmd.getDomainId();
+
+        final List<Long> zoneIds = cmd.getZoneIds();
 
         if (!isCustomized && numGibibytes == null) {
             throw new InvalidParameterValueException("Disksize is required for a non-customized disk offering");
@@ -2753,7 +2770,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         final Integer hypervisorSnapshotReserve = cmd.getHypervisorSnapshotReserve();
 
         final Long userId = CallContext.current().getCallingUserId();
-        return createDiskOffering(userId, domainId, name, description, provisioningType, numGibibytes, tags, isCustomized,
+        return createDiskOffering(userId, domainId, zoneIds, name, description, provisioningType, numGibibytes, tags, isCustomized,
                 localStorageRequired, isDisplayOfferingEnabled, isCustomizedIops, minIops,
                 maxIops, bytesReadRate, bytesReadRateMax, bytesReadRateMaxLength, bytesWriteRate, bytesWriteRateMax, bytesWriteRateMaxLength,
                 iopsReadRate, iopsReadRateMax, iopsReadRateMaxLength, iopsWriteRate, iopsWriteRateMax, iopsWriteRateMaxLength,

@@ -16,7 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.offering;
 
-import org.apache.log4j.Logger;
+import java.util.List;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -26,10 +26,12 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.DiskOfferingResponse;
 import org.apache.cloudstack.api.response.DomainResponse;
+import org.apache.cloudstack.api.response.ZoneResponse;
+import org.apache.log4j.Logger;
 
-import com.cloud.storage.Storage.ProvisioningType;
 import com.cloud.offering.DiskOffering;
 import com.cloud.offering.ServiceOffering;
+import com.cloud.storage.Storage.ProvisioningType;
 import com.cloud.user.Account;
 
 @APICommand(name = "createDiskOffering", description = "Creates a disk offering.", responseObject = DiskOfferingResponse.class,
@@ -63,6 +65,14 @@ public class CreateDiskOfferingCmd extends BaseCmd {
                entityType = DomainResponse.class,
                description = "the ID of the containing domain, null for public offerings")
     private Long domainId;
+
+    @Parameter(name = ApiConstants.ZONE_ID_LIST,
+            type=CommandType.LIST,
+            collectionType = CommandType.UUID,
+            entityType = ZoneResponse.class,
+            required = false,
+            description = "the ID of the zones offering is associated with, null for all zone offerings")
+    protected List<Long> zoneIds;
 
     @Parameter(name = ApiConstants.STORAGE_TYPE, type = CommandType.STRING, description = "the storage type of the disk offering. Values are local and shared.")
     private String storageType = ServiceOffering.StorageType.shared.toString();
@@ -168,6 +178,10 @@ public class CreateDiskOfferingCmd extends BaseCmd {
 
     public Long getDomainId() {
         return domainId;
+    }
+
+    public List<Long> getZoneIds() {
+        return zoneIds;
     }
 
     public Long getBytesReadRate() {

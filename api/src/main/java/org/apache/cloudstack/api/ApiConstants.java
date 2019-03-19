@@ -706,6 +706,7 @@ public class ApiConstants {
     public static final String NETSCALER_SERVICEPACKAGE_ID = "netscalerservicepackageid";
 
     public static final String ZONE_ID_LIST = "zoneids";
+    public static final String ZONE_NAME_LIST = "zonenames";
     public static final String DESTINATION_ZONE_ID_LIST = "destzoneids";
     public static final String ADMIN = "admin";
     public static final String CHECKSUM_PARAMETER_PREFIX_DESCRIPTION = "The parameter containing the checksum will be considered a MD5sum if it is not prefixed\n"

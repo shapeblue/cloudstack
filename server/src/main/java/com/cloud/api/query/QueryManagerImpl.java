@@ -25,14 +25,13 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
-import com.cloud.cluster.ManagementServerHostVO;
-import com.cloud.cluster.dao.ManagementServerHostDao;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.affinity.AffinityGroupDomainMapVO;
 import org.apache.cloudstack.affinity.AffinityGroupResponse;
 import org.apache.cloudstack.affinity.AffinityGroupVMMapVO;
 import org.apache.cloudstack.affinity.dao.AffinityGroupDomainMapDao;
 import org.apache.cloudstack.affinity.dao.AffinityGroupVMMapDao;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
 import org.apache.cloudstack.api.ResourceDetail;
 import org.apache.cloudstack.api.ResponseObject.ResponseView;
@@ -108,6 +107,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.query.QueryService;
+import org.apache.cloudstack.resourcedetail.dao.DiskOfferingDetailsDao;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -156,6 +156,8 @@ import com.cloud.api.query.vo.TemplateJoinVO;
 import com.cloud.api.query.vo.UserAccountJoinVO;
 import com.cloud.api.query.vo.UserVmJoinVO;
 import com.cloud.api.query.vo.VolumeJoinVO;
+import com.cloud.cluster.ManagementServerHostVO;
+import com.cloud.cluster.dao.ManagementServerHostDao;
 import com.cloud.dc.DedicatedResourceVO;
 import com.cloud.dc.dao.DedicatedResourceDao;
 import com.cloud.domain.Domain;
@@ -223,6 +225,7 @@ import com.cloud.vm.dao.DomainRouterDao;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.UserVmDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.base.Strings;
 
 @Component
 public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements QueryService, Configurable {
@@ -320,6 +323,9 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
 
     @Inject
     private DiskOfferingJoinDao _diskOfferingJoinDao;
+
+    @Inject
+    private DiskOfferingDetailsDao diskOfferingDetailsDao;
 
     @Inject
     private ServiceOfferingJoinDao _srvOfferingJoinDao;
@@ -2610,7 +2616,28 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
          * domain.getPath() + "%"); // }
          */
 
-        return _diskOfferingJoinDao.searchAndCount(sc, searchFilter);
+        Pair<List<DiskOfferingJoinVO>, Integer> result = _diskOfferingJoinDao.searchAndCount(sc, searchFilter);
+        // If zoneid is passed remove offer offerings that are not associated with the zone
+        // TODO: Needs better approach
+        if (cmd.getZoneId() != null && result.first() != null && !result.first().isEmpty()) {
+            final Long zoneId = cmd.getZoneId();
+            List<DiskOfferingJoinVO> offerings = result.first();
+            for (int i = offerings.size() - 1; i >= 0; i--) {
+                DiskOfferingJoinVO offering = offerings.get(i);
+                Map<String, String> details = diskOfferingDetailsDao.listDetailsKeyPairs(offering.getId());
+                if (details.containsKey(ApiConstants.ZONE_ID_LIST) &&
+                        !Strings.isNullOrEmpty(details.get(ApiConstants.ZONE_ID_LIST))) {
+                    String[] zoneIdsArray = details.get(ApiConstants.ZONE_ID_LIST).split(",");
+                    List<Long> zoneIds = new ArrayList<>();
+                    for (String zId : zoneIdsArray)
+                        zoneIds.add(Long.valueOf(zId.trim()));
+                    if (!zoneIds.contains(zoneId)) {
+                        offerings.remove(i);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     private List<ServiceOfferingJoinVO> filterOfferingsOnCurrentTags(List<ServiceOfferingJoinVO> offerings, ServiceOfferingVO currentVmOffering) {

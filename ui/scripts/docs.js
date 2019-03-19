@@ -386,6 +386,10 @@ cloudStack.docs = {
         desc: 'Select the subdomain in which this offering is available',
         externalLink: ''
     },
+    helpDiskOfferingZone: {
+        desc: 'Select the zones in which this offering is available (Tip: Use Ctrl to choose multiple zones)',
+        externalLink: ''
+    },
     // Add domain
     helpDomainName: {
         desc: 'Any desired name for the new sub-domain. Must be unique within the current domain.',
