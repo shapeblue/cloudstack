@@ -16,6 +16,10 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.offering;
 
+import java.util.List;
+
+import org.apache.cloudstack.api.response.DomainResponse;
+import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
@@ -59,6 +63,20 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
                description = "an optional field, whether to display the offering to the end user or not.")
     private Boolean displayOffering;
 
+    @Parameter(name = ApiConstants.DOMAIN_ID,
+            type = CommandType.UUID,
+            entityType = DomainResponse.class,
+            description = "the ID of the containing domain, null for public offerings")
+    private Long domainId;
+
+    @Parameter(name = ApiConstants.ZONE_ID_LIST,
+            type=CommandType.LIST,
+            collectionType = CommandType.UUID,
+            entityType = ZoneResponse.class,
+            required = false,
+            description = "the ID of the zones offering is associated with, null for all zone offerings")
+    protected List<Long> zoneIds;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -81,6 +99,14 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
 
     public Boolean getDisplayOffering() {
         return displayOffering;
+    }
+
+    public Long getDomainId() {
+        return domainId;
+    }
+
+    public List<Long> getZoneIds() {
+        return zoneIds;
     }
 
 /////////////////////////////////////////////////////
