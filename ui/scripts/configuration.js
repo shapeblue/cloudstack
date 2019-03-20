@@ -2148,10 +2148,22 @@
                                         domainid: args.data.domainId
                                     });
                                     var zones = "";
-                                    if (Object.prototype.toString.call( args.data.zone ) === '[object Array]') {
-                                        zones = args.data.zone.join(",");
-                                    } else
-                                        zones = args.data.zone;
+                                    if (Object.prototype.toString.call(args.data.zone) === '[object Array]') {
+                                        var allZonesSelected = false;
+                                        args.data.zone.forEach(function (zone) {
+                                            if (zone === null) {
+                                                allZonesSelected = true;
+                                                break;
+                                            }
+                                        });
+                                        if(!allZonesSelected) {
+                                            zones = args.data.zone.join(",");
+                                        }
+                                    } else {
+                                        if (args.data.zone != null) {
+                                            zones = args.data.zone;
+                                        }
+                                    }
                                     if (zones != "") {
                                         $.extend(data, {
                                             zoneids: zones
