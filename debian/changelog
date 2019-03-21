@@ -1,6 +1,6 @@
-cloudstack (4.12.0.0-cca) unstable; urgency=low
+cloudstack (4.12.0.1-cca-SNAPSHOT) unstable; urgency=low
 
-  * Update the version to 4.12.0.0-cca
+  * Update the version to 4.12.0.1-cca-SNAPSHOT
 
  -- the Apache CloudStack project <dev@cloudstack.apache.org>  Mon, 15 Jan 2018 17:42:30 +0530
 
