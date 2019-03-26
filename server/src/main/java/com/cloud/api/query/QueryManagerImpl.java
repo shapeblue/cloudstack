@@ -3432,42 +3432,29 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
     }
 
 
-    private void fillVMOrTemplateDetailOptions(List<DetailOptionsResponse> options, HypervisorType hypervisorType) {
-        options.add(new DetailOptionsResponse(VmDetailConstants.ROOT_DISK_SIZE, true));
-        if (HypervisorType.VMware.equals(hypervisorType)) {
-            options.add(new DetailOptionsResponse(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("scsi", "ide", "osdefault")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.DATA_DISK_CONTROLLER, Arrays.asList("scsi", "ide", "osdefault")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.SMC_PRESENT, Arrays.asList("true", "false")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.FIRMWARE, Arrays.asList("efi")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.SVGA_VRAM_SIZE, true));
+    private void fillVMOrTemplateDetailOptions(final List<DetailOptionsResponse> options, final HypervisorType hypervisorType) {
+        if (options == null) {
+            throw new CloudRuntimeException("Invalid/null detail-options response object passed");
         }
 
+        options.add(new DetailOptionsResponse(VmDetailConstants.KEYBOARD, Arrays.asList("uk", "us", "jp", "fr")));
+        options.add(new DetailOptionsResponse(VmDetailConstants.CPU_CORE_PER_SOCKET, true));
+
         if (HypervisorType.KVM.equals(hypervisorType)) {
-            /*
-            detailsMap.putIfAbsent(VmDetailConstants.KVM_VNC_ADDRESS, "...");
-            detailsMap.putIfAbsent(VmDetailConstants.KVM_VNC_PORT, "...");
-            detailsMap.putIfAbsent(VmDetailConstants.NIC_ADAPTER, "...");
-            detailsMap.putIfAbsent(VmDetailConstants.ROOT_DISK_CONTROLLER, "ide, osdefault, virtio-scsi, virtio");
-            detailsMap.putIfAbsent(VmDetailConstants.DATA_DISK_CONTROLLER, "ide, osdefault, virtio-scsi, virtio");
-            */
+            options.add(new DetailOptionsResponse(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("ide", "scsi", "virtio")));
         }
 
         if (HypervisorType.XenServer.equals(hypervisorType)) {
-            /*
-            detailsMap.putIfAbsent(VmDetailConstants.PLATFORM, "xenserver51, xenserver65 ...");
-            detailsMap.putIfAbsent(VmDetailConstants.HYPERVISOR_TOOLS_VERSION, "xenserver51, xenserver65 ...");
-            detailsMap.putIfAbsent(VmDetailConstants.CPU_CORE_PER_SOCKET, "...");
-            detailsMap.putIfAbsent(VmDetailConstants.TIME_OFFSET, "...");
-            */
+            options.add(new DetailOptionsResponse(VmDetailConstants.TIME_OFFSET, true));
         }
 
-        /*
-        if (_accountMgr.isAdmin(account.getAccountId())) {
-            detailsMap.putIfAbsent(VmDetailConstants.CPU_OVER_COMMIT_RATIO, "...");
-            detailsMap.putIfAbsent(VmDetailConstants.MEMORY_OVER_COMMIT_RATIO, "...");
-            detailsMap.putIfAbsent(VmDetailConstants.ROOT_DISK_SIZE, "...");
+        if (HypervisorType.VMware.equals(hypervisorType)) {
+            options.add(new DetailOptionsResponse(VmDetailConstants.NIC_ADAPTER, Arrays.asList("E1000", "PCNet32", "Vmxnet2", "Vmxnet3")));
+            options.add(new DetailOptionsResponse(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("osdefault", "ide", "scsi", "lsilogic", "lsisas1068", "buslogic", "pvscsi")));
+            options.add(new DetailOptionsResponse(VmDetailConstants.DATA_DISK_CONTROLLER, Arrays.asList("osdefault", "ide", "scsi", "lsilogic", "lsisas1068", "buslogic", "pvscsi")));
+            options.add(new DetailOptionsResponse(VmDetailConstants.NESTED_VIRTUALIZATION_FLAG, Arrays.asList("true", "false")));
+            options.add(new DetailOptionsResponse(VmDetailConstants.SVGA_VRAM_SIZE, true));
         }
-        */
     }
 
     @Override

@@ -42,7 +42,7 @@ public class ListDetailOptionsCmd extends BaseCmd {
     /////////////////////////////////////////////////////
 
     @Parameter(name = ApiConstants.RESOURCE_TYPE, type = CommandType.STRING, required = true,
-            description = "the resource type for which to list detail keys and their possible options",
+            description = "the resource type such as UserVm, Template etc.",
             validations = {ApiArgValidator.NotNullOrEmpty}
     )
     private String resourceType;

@@ -196,7 +196,7 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
     }
 
     private String getSshKey(VirtualMachineProfile profile) {
-        final UserVmDetailVO vmDetailSshKey = _userVmDetailsDao.findDetail(profile.getId(), "SSH.PublicKey");
+        final UserVmDetailVO vmDetailSshKey = _userVmDetailsDao.findDetail(profile.getId(), VmDetailConstants.SSH_PUBLIC_KEY);
         return (vmDetailSshKey!=null ? vmDetailSshKey.getValue() : null);
     }
 

@@ -18,37 +18,40 @@ package com.cloud.vm;
 
 public interface VmDetailConstants {
     String KEYBOARD = "keyboard";
+    String CPU_CORE_PER_SOCKET = "cpu.corespersocket";
+
+    // VMware specific
     String NIC_ADAPTER = "nicAdapter";
     String ROOT_DISK_CONTROLLER = "rootDiskController";
     String DATA_DISK_CONTROLLER = "dataDiskController";
-    String NESTED_VIRTUALIZATION_FLAG = "nestedVirtualizationFlag";
-    String HYPERVISOR_TOOLS_VERSION = "hypervisortoolsversion";
     String SVGA_VRAM_SIZE = "svga.vramSize";
+    String NESTED_VIRTUALIZATION_FLAG = "nestedVirtualizationFlag";
+
+    // XenServer specific
+    String HYPERVISOR_TOOLS_VERSION = "hypervisortoolsversion";
     String PLATFORM = "platform";
     String TIME_OFFSET = "timeoffset";
-    String CPU_CORE_PER_SOCKET = "cpu.corespersocket";
+
+    // KVM specific
+    String KVM_VNC_PORT = "kvm.vnc.port";
+    String KVM_VNC_ADDRESS = "kvm.vnc.address";
+
+    // Mac OSX guest specific
+    String SMC_PRESENT = "smc.present";
+    String FIRMWARE = "firmware";
 
     // VM deployment with custom compute offering params
     String CPU_NUMBER = "cpuNumber";
     String CPU_SPEED = "cpuSpeed";
     String MEMORY = "memory";
 
-    // Root Admin constants only
-    String ROOT_DISK_SIZE = "rootdisksize";
+    // CloudStack Internal Usage (not to be set/changed by user or admin)
     String CPU_OVER_COMMIT_RATIO = "cpuOvercommitRatio";
     String MEMORY_OVER_COMMIT_RATIO = "memoryOvercommitRatio";
     String MESSAGE_RESERVED_CAPACITY_FREED_FLAG = "Message.ReservedCapacityFreed.Flag";
-
-    // Add VNC details as user VM details for each VM in 'vms' (KVM hosts only)
-    String KVM_VNC_PORT = "kvm.vnc.port";
-    String KVM_VNC_ADDRESS = "kvm.vnc.address";
-
+    String DEPLOY_VM = "deployvm";
+    String ROOT_DISK_SIZE = "rootdisksize";
+    String SSH_PUBLIC_KEY = "SSH.PublicKey";
     String PASSWORD = "password";
     String ENCRYPTED_PASSWORD = "Encrypted.Password";
-    String DEPLOY_VM = "deployvm";
-    String SSH_PUBLIC_KEY = "SSH.PublicKey";
-
-    // If hypervisor is vSphere and OS is OS X, set special settings.
-    String SMC_PRESENT = "smc.present";
-    String FIRMWARE = "firmware";
 }
