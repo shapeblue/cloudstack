@@ -16,13 +16,18 @@
 // under the License.
 package com.cloud.acl;
 
-import javax.inject.Inject;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
-import org.springframework.stereotype.Component;
+import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.SecurityChecker;
 import org.apache.cloudstack.affinity.AffinityGroup;
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.resourcedetail.dao.DiskOfferingDetailsDao;
+import org.springframework.stereotype.Component;
 
 import com.cloud.dc.DataCenter;
 import com.cloud.dc.DedicatedResourceVO;
@@ -44,6 +49,7 @@ import com.cloud.user.AccountService;
 import com.cloud.user.User;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.component.AdapterBase;
+import com.google.common.base.Strings;
 
 @Component
 public class DomainChecker extends AdapterBase implements SecurityChecker {
@@ -64,6 +70,8 @@ public class DomainChecker extends AdapterBase implements SecurityChecker {
     private DedicatedResourceDao _dedicatedDao;
     @Inject
     AccountService _accountService;
+    @Inject
+    DiskOfferingDetailsDao diskOfferingDetailsDao;
 
     protected DomainChecker() {
         super();
@@ -167,13 +175,14 @@ public class DomainChecker extends AdapterBase implements SecurityChecker {
     }
 
     @Override
-    public boolean checkAccess(Account account, DiskOffering dof) throws PermissionDeniedException {
+    public boolean checkAccess(Account account, DiskOffering dof, DataCenter zone) throws PermissionDeniedException {
+        boolean isAccess = false;
         if (account == null || dof == null || dof.getDomainId() == null) {//public offering
-            return true;
+            isAccess = true;
         } else {
             //admin has all permissions
             if (_accountService.isRootAdmin(account.getId())) {
-                return true;
+                isAccess = true;
             }
             //if account is normal user or domain admin
             //check if account's domain is a child of zone's domain (Note: This is made consistent with the list command for disk offering)
@@ -182,14 +191,14 @@ public class DomainChecker extends AdapterBase implements SecurityChecker {
                     || _accountService.isDomainAdmin(account.getId())
                     || account.getType() == Account.ACCOUNT_TYPE_PROJECT) {
                 if (account.getDomainId() == dof.getDomainId()) {
-                    return true; //disk offering and account at exact node
+                    isAccess = true; //disk offering and account at exact node
                 } else {
                     Domain domainRecord = _domainDao.findById(account.getDomainId());
                     if (domainRecord != null) {
                         while (true) {
                             if (domainRecord.getId() == dof.getDomainId()) {
                                 //found as a child
-                                return true;
+                                isAccess = true;
                             }
                             if (domainRecord.getParent() != null) {
                                 domainRecord = _domainDao.findById(domainRecord.getParent());
@@ -201,8 +210,18 @@ public class DomainChecker extends AdapterBase implements SecurityChecker {
                 }
             }
         }
+
+        if (isAccess && dof != null && zone != null) {
+            Map<String, String> details = diskOfferingDetailsDao.listDetailsKeyPairs(dof.getId());
+            if (details != null && !details.isEmpty() &&
+                    details.containsKey(ApiConstants.ZONE_ID_LIST) &&
+                    !Strings.isNullOrEmpty(details.get(ApiConstants.ZONE_ID_LIST))) {
+                List<String> zoneIds = Arrays.asList(details.get(ApiConstants.ZONE_ID_LIST).split(","));
+                isAccess = zoneIds.contains(String.valueOf(zone.getId()));
+            }
+        }
         //not found
-        return false;
+        return isAccess;
     }
 
     @Override

@@ -4236,15 +4236,15 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
     }
 
     @Override
-    public void checkDiskOfferingAccess(final Account caller, final DiskOffering dof) {
+    public void checkDiskOfferingAccess(final Account caller, final DiskOffering dof, DataCenter zone) {
         for (final SecurityChecker checker : _secChecker) {
-            if (checker.checkAccess(caller, dof)) {
+            if (checker.checkAccess(caller, dof, zone)) {
                 if (s_logger.isDebugEnabled()) {
                     s_logger.debug("Access granted to " + caller + " to disk offering:" + dof.getId() + " by " + checker.getName());
                 }
                 return;
             } else {
-                throw new PermissionDeniedException("Access denied to " + caller + " by " + checker.getName());
+                throw new PermissionDeniedException(String.format("Access denied to %s for disk offering: %s, zone: %s by %s", caller, dof.getUuid(), zone.getUuid(), checker.getName()));
             }
         }
 
