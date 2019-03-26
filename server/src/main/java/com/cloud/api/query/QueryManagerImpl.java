@@ -3431,7 +3431,6 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         return response;
     }
 
-
     private void fillVMOrTemplateDetailOptions(final List<DetailOptionsResponse> options, final HypervisorType hypervisorType) {
         if (options == null) {
             throw new CloudRuntimeException("Invalid/null detail-options response object passed");
