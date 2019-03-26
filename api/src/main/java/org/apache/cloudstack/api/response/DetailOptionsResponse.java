@@ -40,11 +40,13 @@ public class DetailOptionsResponse extends BaseResponse {
     public DetailOptionsResponse(String key, List<String> details) {
         this.key = key;
         this.details = details;
+        setObjectName("details");
     }
 
     public DetailOptionsResponse(String key, Boolean isCustom) {
         this.key = key;
         this.isCustom = isCustom;
+        setObjectName("details");
     }
 
     public String getKey() {
