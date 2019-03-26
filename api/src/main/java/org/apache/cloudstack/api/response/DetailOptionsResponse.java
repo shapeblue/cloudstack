@@ -16,7 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.response;
 
-import java.util.Map;
+import java.util.List;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
@@ -24,40 +24,42 @@ import org.apache.cloudstack.api.BaseResponse;
 import com.cloud.serializer.Param;
 import com.google.gson.annotations.SerializedName;
 
-public class TemplateDetailsResponse extends BaseResponse {
-    @SerializedName(ApiConstants.ID)
-    @Param(description = "the template ID")
-    private String id;
+public class DetailOptionsResponse extends BaseResponse {
+    @SerializedName(ApiConstants.KEY)
+    @Param(description = "Name of a possible detail key for the resource")
+    private String key;
 
-    @SerializedName(ApiConstants.NAME)
-    @Param(description = "the template name")
-    private String name;
+    @SerializedName(ApiConstants.VALUES)
+    @Param(description = "List of possible values for the key")
+    private List<String> details;
 
-    @SerializedName(ApiConstants.DETAILS)
-    @Param(description = "additional key/value details tied with template")
-    private Map details;
+    @SerializedName(ApiConstants.CUSTOMIZED)
+    @Param(description = "True is value can be a custom value")
+    private Boolean isCustom = false;
 
-    public String getId() {
-        return id;
+    public DetailOptionsResponse(String key, List<String> details) {
+        this.key = key;
+        this.details = details;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public DetailOptionsResponse(String key, Boolean isCustom) {
+        this.key = key;
+        this.isCustom = isCustom;
     }
 
-    public String getName() {
-        return name;
+    public String getKey() {
+        return key;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setKey(String key) {
+        this.key = key;
     }
 
-    public Map getDetails() {
+    public List<String> getDetails() {
         return details;
     }
 
-    public void setDetails(Map details) {
+    public void setDetails(List<String> details) {
         this.details = details;
     }
 }

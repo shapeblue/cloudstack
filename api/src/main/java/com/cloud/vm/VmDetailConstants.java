@@ -20,9 +20,9 @@ public interface VmDetailConstants {
     String KEYBOARD = "keyboard";
     String NIC_ADAPTER = "nicAdapter";
     String ROOT_DISK_CONTROLLER = "rootDiskController";
+    String DATA_DISK_CONTROLLER = "dataDiskController";
     String NESTED_VIRTUALIZATION_FLAG = "nestedVirtualizationFlag";
     String HYPERVISOR_TOOLS_VERSION = "hypervisortoolsversion";
-    String DATA_DISK_CONTROLLER = "dataDiskController";
     String SVGA_VRAM_SIZE = "svga.vramSize";
     String PLATFORM = "platform";
     String TIME_OFFSET = "timeoffset";

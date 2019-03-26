@@ -247,10 +247,6 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
         this.name = name;
     }
 
-    public String getName() {
-        return name;
-    }
-
     public void setDisplayText(String displayText) {
         this.displayText = displayText;
     }
@@ -307,16 +303,8 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
         this.templateType = templateType;
     }
 
-    public String getTemplateType() {
-        return templateType;
-    }
-
     public void setHypervisor(String hypervisor) {
         this.hypervisor = hypervisor;
-    }
-
-    public String getHypervisor() {
-        return hypervisor;
     }
 
     @Override
