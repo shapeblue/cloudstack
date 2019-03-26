@@ -82,7 +82,7 @@ public class ListDetailOptionsCmd extends BaseCmd {
 
     @Override
     public void execute() {
-        ListResponse<DetailOptionsResponse> response = _queryService.listDetailOptions(this);
+        final ListResponse<DetailOptionsResponse> response = _queryService.listDetailOptions(this);
         response.setResponseName(getCommandName());
         setResponseObject(response);
     }

@@ -3406,10 +3406,10 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
     }
 
     @Override
-    public ListResponse<DetailOptionsResponse> listDetailOptions(ListDetailOptionsCmd cmd) {
-        ResourceObjectType type = cmd.getResourceType();
-        String resourceUuid = cmd.getResourceId();
-        List<DetailOptionsResponse> options = new ArrayList<>();
+    public ListResponse<DetailOptionsResponse> listDetailOptions(final ListDetailOptionsCmd cmd) {
+        final ResourceObjectType type = cmd.getResourceType();
+        final String resourceUuid = cmd.getResourceId();
+        final List<DetailOptionsResponse> options = new ArrayList<>();
         switch (type) {
             case Template:
             case UserVm:
@@ -3425,7 +3425,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
             default:
                 throw new CloudRuntimeException("Resource type not supported.");
         }
-        ListResponse<DetailOptionsResponse> response = new ListResponse<>();
+        final ListResponse<DetailOptionsResponse> response = new ListResponse<>();
         response.setResponses(options);
         response.setObjectName("details");
         return response;
@@ -3444,6 +3444,8 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         }
 
         if (HypervisorType.XenServer.equals(hypervisorType)) {
+            options.add(new DetailOptionsResponse(VmDetailConstants.PLATFORM, true));
+            options.add(new DetailOptionsResponse(VmDetailConstants.HYPERVISOR_TOOLS_VERSION, true));
             options.add(new DetailOptionsResponse(VmDetailConstants.TIME_OFFSET, true));
         }
 
