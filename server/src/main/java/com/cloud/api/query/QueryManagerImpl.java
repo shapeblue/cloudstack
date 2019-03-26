@@ -3427,6 +3427,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         }
         ListResponse<DetailOptionsResponse> response = new ListResponse<>();
         response.setResponses(options);
+        response.setObjectName("details");
         return response;
     }
 
