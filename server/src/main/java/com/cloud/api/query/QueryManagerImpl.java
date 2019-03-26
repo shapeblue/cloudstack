@@ -2544,7 +2544,6 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
             }
         }
 
-        List<Long> domainIds = null;
         // For non-root users, only return all offerings for the user's domain,
         // and everything above till root
         if ((_accountMgr.isNormalUser(account.getId()) || _accountMgr.isDomainAdmin(account.getId())) || account.getType() == Account.ACCOUNT_TYPE_RESOURCE_DOMAIN_ADMIN) {
@@ -2552,27 +2551,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
                 if (account.getType() == Account.ACCOUNT_TYPE_NORMAL) {
                     throw new InvalidParameterValueException("Only ROOT admins and Domain admins can list disk offerings with isrecursive=true");
                 }
-                DomainVO domainRecord = _domainDao.findById(account.getDomainId());
-                sc.addAnd("domainPath", SearchCriteria.Op.LIKE, domainRecord.getPath() + "%");
             } else { // domain + all ancestors
-                // find all domain Id up to root domain for this account
-                domainIds = new ArrayList<Long>();
-                DomainVO domainRecord = _domainDao.findById(account.getDomainId());
-                if (domainRecord == null) {
-                    s_logger.error("Could not find the domainId for account:" + account.getAccountName());
-                    throw new CloudAuthenticationException("Could not find the domainId for account:" + account.getAccountName());
-                }
-                domainIds.add(domainRecord.getId());
-                while (domainRecord.getParent() != null) {
-                    domainRecord = _domainDao.findById(domainRecord.getParent());
-                    domainIds.add(domainRecord.getId());
-                }
-
-                SearchCriteria<DiskOfferingJoinVO> spc = _diskOfferingJoinDao.createSearchCriteria();
-
-                spc.addOr("domainId", SearchCriteria.Op.IN, domainIds.toArray());
-                spc.addOr("domainId", SearchCriteria.Op.NULL); // include public offering as where
-                sc.addAnd("domainId", SearchCriteria.Op.SC, spc);
                 sc.addAnd("systemUse", SearchCriteria.Op.EQ, false); // non-root users should not see system offering at all
             }
 
@@ -2617,22 +2596,50 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
          */
 
         Pair<List<DiskOfferingJoinVO>, Integer> result = _diskOfferingJoinDao.searchAndCount(sc, searchFilter);
-        // If zoneid is passed remove offer offerings that are not associated with the zone
-        // TODO: Needs better approach
-        if (cmd.getZoneId() != null && result.first() != null && !result.first().isEmpty()) {
-            final Long zoneId = cmd.getZoneId();
+        // Remove offerings that are not associated with caller's domain and passed zone
+        // TODO: Better approach
+        if (result.first() != null && !result.first().isEmpty()) {
             List<DiskOfferingJoinVO> offerings = result.first();
             for (int i = offerings.size() - 1; i >= 0; i--) {
                 DiskOfferingJoinVO offering = offerings.get(i);
                 Map<String, String> details = diskOfferingDetailsDao.listDetailsKeyPairs(offering.getId());
-                if (details.containsKey(ApiConstants.ZONE_ID_LIST) &&
-                        !Strings.isNullOrEmpty(details.get(ApiConstants.ZONE_ID_LIST))) {
-                    String[] zoneIdsArray = details.get(ApiConstants.ZONE_ID_LIST).split(",");
-                    List<Long> zoneIds = new ArrayList<>();
-                    for (String zId : zoneIdsArray)
-                        zoneIds.add(Long.valueOf(zId.trim()));
-                    if (!zoneIds.contains(zoneId)) {
-                        offerings.remove(i);
+                boolean toRemove = isRecursive;
+                if (account.getType() != Account.ACCOUNT_TYPE_ADMIN &&
+                        details.containsKey(ApiConstants.DOMAIN_ID_LIST) &&
+                        !Strings.isNullOrEmpty(details.get(ApiConstants.DOMAIN_ID_LIST))) {
+                    toRemove = true;
+                    String[] domainIdsArray = details.get(ApiConstants.DOMAIN_ID_LIST).split(",");
+                    for (String dIdStr : domainIdsArray) {
+                        Long dId = Long.valueOf(dIdStr.trim());
+                        if(isRecursive) {
+                            if (_domainDao.isChildDomain(account.getDomainId(), dId)) {
+                                toRemove = false;
+                                break;
+                            }
+                        } else {
+                            if (_domainDao.isChildDomain(dId, account.getDomainId())) {
+                                toRemove = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (toRemove) {
+                    offerings.remove(i);
+                } else {
+                    // If zoneid is passed remove offerings that are not associated with the zone
+                    if (cmd.getZoneId() != null) {
+                        final Long zoneId = cmd.getZoneId();
+                        if (details.containsKey(ApiConstants.ZONE_ID_LIST) &&
+                                !Strings.isNullOrEmpty(details.get(ApiConstants.ZONE_ID_LIST))) {
+                            String[] zoneIdsArray = details.get(ApiConstants.ZONE_ID_LIST).split(",");
+                            List<Long> zoneIds = new ArrayList<>();
+                            for (String zId : zoneIdsArray)
+                                zoneIds.add(Long.valueOf(zId.trim()));
+                            if (!zoneIds.contains(zoneId)) {
+                                offerings.remove(i);
+                            }
+                        }
                     }
                 }
             }

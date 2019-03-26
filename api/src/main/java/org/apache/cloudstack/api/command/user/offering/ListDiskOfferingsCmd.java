@@ -43,7 +43,11 @@ public class ListDiskOfferingsCmd extends BaseListDomainResourcesCmd {
     @Parameter(name = ApiConstants.NAME, type = CommandType.STRING, description = "name of the disk offering")
     private String diskOfferingName;
 
-    @Parameter(name = ApiConstants.ZONE_ID, type = CommandType.UUID, entityType = ZoneResponse.class, description = "id of zone disk offering is associated with")
+    @Parameter(name = ApiConstants.ZONE_ID,
+            type = CommandType.UUID,
+            entityType = ZoneResponse.class,
+            description = "id of zone disk offering is associated with",
+            since = "4.13")
     private Long zoneId;
 
     /////////////////////////////////////////////////////

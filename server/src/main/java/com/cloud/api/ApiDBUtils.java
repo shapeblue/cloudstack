@@ -1917,6 +1917,19 @@ public class ApiDBUtils {
         if(diskOfferingResponse!=null) {
             Map<String, String> details = s_diskOfferingDetailsDao.listDetailsKeyPairs(offering.getId());
             if (details != null && !details.isEmpty()) {
+                if(details.containsKey(ApiConstants.DOMAIN_ID_LIST) &&
+                        !Strings.isNullOrEmpty(details.get(ApiConstants.DOMAIN_ID_LIST))) {
+                    String[] domainIdsArray = details.get(ApiConstants.DOMAIN_ID_LIST).split(",");
+                    List<DomainVO> domains = s_domainDao.list(domainIdsArray);
+                    List<String> domainIdsList = new ArrayList<>();
+                    List<String> domainNamesList = new ArrayList<>();
+                    for (DomainVO domain : domains) {
+                        domainIdsList.add(domain.getUuid());
+                        domainNamesList.add(domain.getName());
+                    }
+                    details.put(ApiConstants.DOMAIN_ID_LIST, String.join(",", domainIdsList));
+                    details.put(ApiConstants.DOMAIN_NAME_LIST, String.join(", ", domainNamesList));
+                }
                 if(details.containsKey(ApiConstants.ZONE_ID_LIST) &&
                         !Strings.isNullOrEmpty(details.get(ApiConstants.ZONE_ID_LIST))) {
                     String[] zoneIdsArray = details.get(ApiConstants.ZONE_ID_LIST).split(",");

@@ -1994,10 +1994,11 @@
                                         isChecked: false,
                                         docID: 'helpDiskOfferingPublic'
                                     },
-                                    domainId: {
+                                    domain: {
                                         label: 'label.domain',
                                         docID: 'helpDiskOfferingDomain',
                                         dependsOn: 'isPublic',
+                                        isMultiple: true,
                                         select: function(args) {
                                             $.ajax({
                                                 url: createURL('listDomains'),
@@ -2144,9 +2145,29 @@
                                 }
 
                                 if (args.data.isPublic != "on") {
-                                    $.extend(data, {
-                                        domainid: args.data.domainId
-                                    });
+                                    var domains = "";
+                                    if (Object.prototype.toString.call(args.data.domain) === '[object Array]') {
+                                        var rootDomainSelected = false;
+                                        args.data.domain.forEach(function (domain) {
+                                            if (domain === null) {
+                                                rootDomainSelected = true;
+                                                break;
+                                            }
+                                        });
+                                        if(!rootDomainSelected) {
+                                            domains = args.data.domain.join(",");
+                                        }
+                                    } else {
+                                        if (args.data.domain != null) {
+                                            domains = args.data.domain;
+                                        }
+                                    }
+                                    if (domains != "") {
+                                        $.extend(data, {
+                                            domainids: domains
+                                        });
+                                    }
+
                                     var zones = "";
                                     if (Object.prototype.toString.call(args.data.zone) === '[object Array]') {
                                         var allZonesSelected = false;
@@ -2339,8 +2360,8 @@
                                     tags: {
                                         label: 'label.storage.tags'
                                     },
-                                    domain: {
-                                        label: 'label.domain'
+                                    domains: {
+                                        label: 'label.domains'
                                     },
                                     zones: {
                                         label: 'label.zones'
@@ -2363,10 +2384,17 @@
                                     };
                                     var diskOfferings = cloudStack.listDiskOfferings(listDiskOfferingsOptions);
                                     var diskOffering = diskOfferings[0]
-                                    if(diskOffering.details && diskOffering.details.zonenames) {
-                                        $.extend(diskOffering, {
-                                            zones: diskOffering.details.zonenames
-                                        });
+                                    if(diskOffering.details) {
+                                        if(diskOffering.details.domainnames) {
+                                            $.extend(diskOffering, {
+                                                domains: diskOffering.details.domainnames
+                                            });
+                                        }
+                                        if(diskOffering.details.zonenames) {
+                                            $.extend(diskOffering, {
+                                                zones: diskOffering.details.zonenames
+                                            });
+                                        }
                                     }
                                     args.response.success({
                                         actionFilter: diskOfferingActionfilter,

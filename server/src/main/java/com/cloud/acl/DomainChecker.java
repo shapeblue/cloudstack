@@ -177,7 +177,8 @@ public class DomainChecker extends AdapterBase implements SecurityChecker {
     @Override
     public boolean checkAccess(Account account, DiskOffering dof, DataCenter zone) throws PermissionDeniedException {
         boolean isAccess = false;
-        if (account == null || dof == null || dof.getDomainId() == null) {//public offering
+        Map<String, String> details = null;
+        if (account == null || dof == null) {//public offering
             isAccess = true;
         } else {
             //admin has all permissions
@@ -190,31 +191,26 @@ public class DomainChecker extends AdapterBase implements SecurityChecker {
                     || account.getType() == Account.ACCOUNT_TYPE_RESOURCE_DOMAIN_ADMIN
                     || _accountService.isDomainAdmin(account.getId())
                     || account.getType() == Account.ACCOUNT_TYPE_PROJECT) {
-                if (account.getDomainId() == dof.getDomainId()) {
-                    isAccess = true; //disk offering and account at exact node
-                } else {
-                    Domain domainRecord = _domainDao.findById(account.getDomainId());
-                    if (domainRecord != null) {
-                        while (true) {
-                            if (domainRecord.getId() == dof.getDomainId()) {
-                                //found as a child
-                                isAccess = true;
-                            }
-                            if (domainRecord.getParent() != null) {
-                                domainRecord = _domainDao.findById(domainRecord.getParent());
-                            } else {
-                                break;
-                            }
+                details = diskOfferingDetailsDao.listDetailsKeyPairs(dof.getId());
+                isAccess = true;
+                if (details.containsKey(ApiConstants.DOMAIN_ID_LIST) &&
+                        !Strings.isNullOrEmpty(details.get(ApiConstants.DOMAIN_ID_LIST))) {
+                    List<String> domainIds = Arrays.asList(details.get(ApiConstants.DOMAIN_ID_LIST).split(","));
+                    for (String domainId : domainIds) {
+                        if (!_domainDao.isChildDomain(Long.valueOf(domainId), account.getDomainId())) {
+                            isAccess = false;
+                            break;
                         }
                     }
                 }
             }
         }
 
+        // Check for zones
         if (isAccess && dof != null && zone != null) {
-            Map<String, String> details = diskOfferingDetailsDao.listDetailsKeyPairs(dof.getId());
-            if (details != null && !details.isEmpty() &&
-                    details.containsKey(ApiConstants.ZONE_ID_LIST) &&
+            if (details == null)
+                details = diskOfferingDetailsDao.listDetailsKeyPairs(dof.getId());
+            if (details.containsKey(ApiConstants.ZONE_ID_LIST) &&
                     !Strings.isNullOrEmpty(details.get(ApiConstants.ZONE_ID_LIST))) {
                 List<String> zoneIds = Arrays.asList(details.get(ApiConstants.ZONE_ID_LIST).split(","));
                 isAccess = zoneIds.contains(String.valueOf(zone.getId()));

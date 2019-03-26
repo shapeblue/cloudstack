@@ -69,12 +69,22 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
             description = "the ID of the containing domain, null for public offerings")
     private Long domainId;
 
+    @Parameter(name = ApiConstants.DOMAIN_ID_LIST,
+            type = CommandType.LIST,
+            collectionType = CommandType.UUID,
+            entityType = DomainResponse.class,
+            required = false,
+            description = "the ID of the domains offering is associated with, null for all domain offerings",
+            since = "4.13")
+    protected List<Long> domainIds;
+
     @Parameter(name = ApiConstants.ZONE_ID_LIST,
-            type=CommandType.LIST,
+            type = CommandType.LIST,
             collectionType = CommandType.UUID,
             entityType = ZoneResponse.class,
             required = false,
-            description = "the ID of the zones offering is associated with, null for all zone offerings")
+            description = "the ID of the zones offering is associated with, null for all zone offerings",
+            since = "4.13")
     protected List<Long> zoneIds;
 
     /////////////////////////////////////////////////////
@@ -103,6 +113,10 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
 
     public Long getDomainId() {
         return domainId;
+    }
+
+    public List<Long> getDomainIds() {
+        return domainIds;
     }
 
     public List<Long> getZoneIds() {
