@@ -2622,6 +2622,27 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             }
         }
 
+        // Filter child domains when both parent and child domains are present
+        List<Long> filteredDomainIds = new ArrayList<>();
+        if (domainIds != null) {
+            filteredDomainIds.addAll(domainIds);
+        }
+        if (filteredDomainIds.size() > 1) {
+            for (int i = filteredDomainIds.size() - 1; i >= 1; i--) {
+                long first = filteredDomainIds.get(i);
+                for (int j = i - 1; j >= 0; j--) {
+                    long second = filteredDomainIds.get(j);
+                    if (_domainDao.isChildDomain(filteredDomainIds.get(i), filteredDomainIds.get(j))) {
+                        filteredDomainIds.remove(j);
+                        i--;
+                    }
+                    if (_domainDao.isChildDomain(filteredDomainIds.get(j), filteredDomainIds.get(i))) {
+                        filteredDomainIds.remove(i);
+                        break;
+                    }
+                }
+            }
+        }
 
         // Check if user exists in the system
         final User user = _userDao.findById(userId);
@@ -2630,13 +2651,13 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         }
         final Account account = _accountDao.findById(user.getAccountId());
         if (account.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
-            if (domainIds == null || domainIds.isEmpty()) {
+            if (filteredDomainIds.isEmpty()) {
                 throw new InvalidParameterValueException("Unable to create public disk offering by id " + userId + " because it is domain-admin");
             }
             if (tags != null) {
                 throw new InvalidParameterValueException("Unable to create disk offering with storage tags by id " + userId + " because it is domain-admin");
             }
-            for (Long domainId : domainIds) {
+            for (Long domainId : filteredDomainIds) {
                 if (domainId == null || !_domainDao.isChildDomain(account.getDomainId(), domainId)) {
                     throw new InvalidParameterValueException("Unable to create disk offering by another domain admin with id " + userId);
                 }
@@ -2704,9 +2725,9 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         CallContext.current().setEventDetails("Disk offering id=" + newDiskOffering.getId());
         final DiskOfferingVO offering = _diskOfferingDao.persist(newDiskOffering);
         if (offering != null) {
-            if(domainIds!=null && !domainIds.isEmpty()) {
+            if(!filteredDomainIds.isEmpty()) {
                 List<String> domainIdsStringList = new ArrayList<>();
-                for(Long domainId : domainIds)
+                for(Long domainId : filteredDomainIds)
                     domainIdsStringList.add(String.valueOf(domainId));
                 diskOfferingDetailsDao.addDetail(offering.getId(), ApiConstants.DOMAIN_ID_LIST, String.join(",", domainIdsStringList), true);
             }
@@ -2817,8 +2838,31 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         }
         final Account account = _accountDao.findById(user.getAccountId());
         final List<Long> domainIds = cmd.getDomainIds();
+
+        // Filter child domains when both parent and child domains are present
+        List<Long> filteredDomainIds = new ArrayList<>();
+        if (domainIds != null) {
+            filteredDomainIds.addAll(domainIds);
+        }
+        if (filteredDomainIds.size() > 1) {
+            for (int i = filteredDomainIds.size() - 1; i >= 1; i--) {
+                long first = filteredDomainIds.get(i);
+                for (int j = i - 1; j >= 0; j--) {
+                    long second = filteredDomainIds.get(j);
+                    if (_domainDao.isChildDomain(filteredDomainIds.get(i), filteredDomainIds.get(j))) {
+                        filteredDomainIds.remove(j);
+                        i--;
+                    }
+                    if (_domainDao.isChildDomain(filteredDomainIds.get(j), filteredDomainIds.get(i))) {
+                        filteredDomainIds.remove(i);
+                        break;
+                    }
+                }
+            }
+        }
+
         if (account.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
-            if (domainIds == null) {
+            if (filteredDomainIds.isEmpty()) {
                 if (existingDomainIds.isEmpty()) {
                     throw new InvalidParameterValueException("Unable to update public disk offering by id " + userId + " because it is domain-admin");
                 }
@@ -2828,7 +2872,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
                     }
                 }
             } else {
-                for (Long domainId : domainIds) {
+                for (Long domainId : filteredDomainIds) {
                     if (!_domainDao.isChildDomain(account.getDomainId(), domainId)) {
                         throw new InvalidParameterValueException("Unable to update disk offering by another domain admin with id " + userId);
                     }
@@ -2847,7 +2891,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         }
 
         final boolean updateNeeded = name != null || displayText != null || sortKey != null || displayDiskOffering != null;
-        final boolean detailsUpdateNeeded = (domainIds != null && !domainIds.isEmpty()) || (zoneIds != null && !zoneIds.isEmpty());
+        final boolean detailsUpdateNeeded = (!filteredDomainIds.isEmpty()) || (zoneIds != null && !zoneIds.isEmpty());
         if (!updateNeeded && !detailsUpdateNeeded) {
             return _diskOfferingDao.findById(diskOfferingId);
         }
@@ -2896,9 +2940,9 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         // }
 
         if (!updateNeeded || _diskOfferingDao.update(diskOfferingId, diskOffering)) {
-            if(domainIds!=null && !domainIds.isEmpty()) {
+            if(!filteredDomainIds.isEmpty()) {
                 List<String> domainIdsStringList = new ArrayList<>();
-                for(Long domainId : domainIds)
+                for(Long domainId : filteredDomainIds)
                     domainIdsStringList.add(String.valueOf(domainId));
                 diskOfferingDetailsDao.addDetail(diskOfferingId, ApiConstants.DOMAIN_ID_LIST, String.join(",", domainIdsStringList), true);
             }
