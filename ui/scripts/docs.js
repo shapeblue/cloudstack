@@ -383,7 +383,7 @@ cloudStack.docs = {
         externalLink: ''
     },
     helpDiskOfferingDomain: {
-        desc: 'Select the subdomain in which this offering is available',
+        desc: 'Select the domains in which this offering is available (Tip: Use Ctrl to choose multiple domains)',
         externalLink: ''
     },
     helpDiskOfferingZone: {

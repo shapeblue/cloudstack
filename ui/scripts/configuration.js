@@ -2032,8 +2032,6 @@
                                         label: 'label.zone',
                                         docID: 'helpDiskOfferingZone',
                                         isMultiple: true,
-                                        isHidden: true,
-                                        dependsOn: 'isPublic',
                                         validation: {
                                             allzonesonly: true
                                         },
@@ -2147,16 +2145,7 @@
                                 if (args.data.isPublic != "on") {
                                     var domains = "";
                                     if (Object.prototype.toString.call(args.data.domain) === '[object Array]') {
-                                        var rootDomainSelected = false;
-                                        args.data.domain.forEach(function (domain) {
-                                            if (domain === null) {
-                                                rootDomainSelected = true;
-                                                break;
-                                            }
-                                        });
-                                        if(!rootDomainSelected) {
-                                            domains = args.data.domain.join(",");
-                                        }
+                                        domains = args.data.domain.join(",");
                                     } else {
                                         if (args.data.domain != null) {
                                             domains = args.data.domain;
@@ -2167,29 +2156,29 @@
                                             domainids: domains
                                         });
                                     }
+                                }
 
-                                    var zones = "";
-                                    if (Object.prototype.toString.call(args.data.zone) === '[object Array]') {
-                                        var allZonesSelected = false;
-                                        args.data.zone.forEach(function (zone) {
-                                            if (zone === null) {
-                                                allZonesSelected = true;
-                                                break;
-                                            }
-                                        });
-                                        if(!allZonesSelected) {
-                                            zones = args.data.zone.join(",");
+                                var zones = "";
+                                if (Object.prototype.toString.call(args.data.zone) === '[object Array]') {
+                                    var allZonesSelected = false;
+                                    args.data.zone.forEach(function (zone) {
+                                        if (zone === null) {
+                                            allZonesSelected = true;
+                                            break;
                                         }
-                                    } else {
-                                        if (args.data.zone != null) {
-                                            zones = args.data.zone;
-                                        }
+                                    });
+                                    if(!allZonesSelected) {
+                                        zones = args.data.zone.join(",");
                                     }
-                                    if (zones != "") {
-                                        $.extend(data, {
-                                            zoneids: zones
-                                        });
+                                } else {
+                                    if (args.data.zone != null) {
+                                        zones = args.data.zone;
                                     }
+                                }
+                                if (zones != "") {
+                                    $.extend(data, {
+                                        zoneids: zones
+                                    });
                                 }
 
                                 $.ajax({
