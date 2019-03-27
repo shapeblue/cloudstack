@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.offering;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.cloudstack.api.response.DomainResponse;
@@ -116,6 +117,12 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
     }
 
     public List<Long> getDomainIds() {
+        if (domainId != null) {
+            if (domainIds == null) {
+                domainIds = new ArrayList<>();
+            }
+            domainIds.add(domainId);
+        }
         return domainIds;
     }
 
