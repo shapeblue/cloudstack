@@ -27,16 +27,16 @@ public interface VmDetailConstants {
     String SVGA_VRAM_SIZE = "svga.vramSize";
     String NESTED_VIRTUALIZATION_FLAG = "nestedVirtualizationFlag";
 
-    // XenServer specific
+    // XenServer specific (internal)
     String HYPERVISOR_TOOLS_VERSION = "hypervisortoolsversion";
     String PLATFORM = "platform";
     String TIME_OFFSET = "timeoffset";
 
-    // KVM specific
+    // KVM specific (internal)
     String KVM_VNC_PORT = "kvm.vnc.port";
     String KVM_VNC_ADDRESS = "kvm.vnc.address";
 
-    // Mac OSX guest specific
+    // Mac OSX guest specific (internal)
     String SMC_PRESENT = "smc.present";
     String FIRMWARE = "firmware";
 
@@ -45,7 +45,7 @@ public interface VmDetailConstants {
     String CPU_SPEED = "cpuSpeed";
     String MEMORY = "memory";
 
-    // CloudStack Internal Usage (not to be set/changed by user or admin)
+    // Misc details for internal usage (not to be set/changed by user or admin)
     String CPU_OVER_COMMIT_RATIO = "cpuOvercommitRatio";
     String MEMORY_OVER_COMMIT_RATIO = "memoryOvercommitRatio";
     String MESSAGE_RESERVED_CAPACITY_FREED_FLAG = "Message.ReservedCapacityFreed.Flag";

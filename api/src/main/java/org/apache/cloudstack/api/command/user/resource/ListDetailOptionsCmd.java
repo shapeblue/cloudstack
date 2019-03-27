@@ -22,7 +22,6 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.DetailOptionsResponse;
-import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.context.CallContext;
 
 import com.cloud.server.ResourceTag;
@@ -82,7 +81,7 @@ public class ListDetailOptionsCmd extends BaseCmd {
 
     @Override
     public void execute() {
-        final ListResponse<DetailOptionsResponse> response = _queryService.listDetailOptions(this);
+        final DetailOptionsResponse response = _queryService.listDetailOptions(this);
         response.setResponseName(getCommandName());
         setResponseObject(response);
     }

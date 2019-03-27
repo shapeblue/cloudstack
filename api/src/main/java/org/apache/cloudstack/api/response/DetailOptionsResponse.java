@@ -17,6 +17,7 @@
 package org.apache.cloudstack.api.response;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
@@ -25,43 +26,16 @@ import com.cloud.serializer.Param;
 import com.google.gson.annotations.SerializedName;
 
 public class DetailOptionsResponse extends BaseResponse {
-    @SerializedName(ApiConstants.KEY)
-    @Param(description = "Name of a possible detail key for the resource")
-    private String key;
+    @SerializedName(ApiConstants.DETAILS)
+    @Param(description = "Map of all possible details and their possible list of values")
+    private Map<String, List<String>> details;
 
-    @SerializedName(ApiConstants.VALUES)
-    @Param(description = "List of possible values for the key")
-    private List<String> details;
-
-    @SerializedName(ApiConstants.CUSTOMIZED)
-    @Param(description = "True is value can be a custom value")
-    private Boolean isCustom = false;
-
-    public DetailOptionsResponse(String key, List<String> details) {
-        this.key = key;
+    public DetailOptionsResponse(Map<String, List<String>> details) {
         this.details = details;
         setObjectName("details");
     }
 
-    public DetailOptionsResponse(String key, Boolean isCustom) {
-        this.key = key;
-        this.isCustom = isCustom;
-        setObjectName("details");
-    }
-
-    public String getKey() {
-        return key;
-    }
-
-    public void setKey(String key) {
-        this.key = key;
-    }
-
-    public List<String> getDetails() {
-        return details;
-    }
-
-    public void setDetails(List<String> details) {
+    public void setDetails(Map<String, List<String>> details) {
         this.details = details;
     }
 }

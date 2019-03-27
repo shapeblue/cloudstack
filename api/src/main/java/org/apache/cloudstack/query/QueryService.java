@@ -136,7 +136,7 @@ public interface QueryService {
 
     ListResponse<TemplateResponse> listIsos(ListIsosCmd cmd);
 
-    ListResponse<DetailOptionsResponse> listDetailOptions(ListDetailOptionsCmd cmd);
+    DetailOptionsResponse listDetailOptions(ListDetailOptionsCmd cmd);
 
     ListResponse<AffinityGroupResponse> searchForAffinityGroups(ListAffinityGroupsCmd cmd);
 

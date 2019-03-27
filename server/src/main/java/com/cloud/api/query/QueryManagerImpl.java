@@ -18,7 +18,9 @@ package com.cloud.api.query;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -3406,10 +3408,10 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
     }
 
     @Override
-    public ListResponse<DetailOptionsResponse> listDetailOptions(final ListDetailOptionsCmd cmd) {
+    public DetailOptionsResponse listDetailOptions(final ListDetailOptionsCmd cmd) {
         final ResourceObjectType type = cmd.getResourceType();
         final String resourceUuid = cmd.getResourceId();
-        final List<DetailOptionsResponse> options = new ArrayList<>();
+        final Map<String, List<String>> options = new HashMap<>();
         switch (type) {
             case Template:
             case UserVm:
@@ -3425,36 +3427,27 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
             default:
                 throw new CloudRuntimeException("Resource type not supported.");
         }
-        final ListResponse<DetailOptionsResponse> response = new ListResponse<>();
-        response.setResponses(options);
-        response.setObjectName("details");
-        return response;
+        return new DetailOptionsResponse(options);
     }
 
-    private void fillVMOrTemplateDetailOptions(final List<DetailOptionsResponse> options, final HypervisorType hypervisorType) {
+    private void fillVMOrTemplateDetailOptions(final Map<String, List<String>> options, final HypervisorType hypervisorType) {
         if (options == null) {
             throw new CloudRuntimeException("Invalid/null detail-options response object passed");
         }
 
-        options.add(new DetailOptionsResponse(VmDetailConstants.KEYBOARD, Arrays.asList("uk", "us", "jp", "fr")));
-        options.add(new DetailOptionsResponse(VmDetailConstants.CPU_CORE_PER_SOCKET, true));
+        options.put(VmDetailConstants.KEYBOARD, Arrays.asList("uk", "us", "jp", "fr"));
+        options.put(VmDetailConstants.CPU_CORE_PER_SOCKET, Collections.emptyList());
 
         if (HypervisorType.KVM.equals(hypervisorType)) {
-            options.add(new DetailOptionsResponse(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("ide", "scsi", "virtio")));
-        }
-
-        if (HypervisorType.XenServer.equals(hypervisorType)) {
-            options.add(new DetailOptionsResponse(VmDetailConstants.PLATFORM, true));
-            options.add(new DetailOptionsResponse(VmDetailConstants.HYPERVISOR_TOOLS_VERSION, true));
-            options.add(new DetailOptionsResponse(VmDetailConstants.TIME_OFFSET, true));
+            options.put(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("ide", "scsi", "virtio"));
         }
 
         if (HypervisorType.VMware.equals(hypervisorType)) {
-            options.add(new DetailOptionsResponse(VmDetailConstants.NIC_ADAPTER, Arrays.asList("E1000", "PCNet32", "Vmxnet2", "Vmxnet3")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("osdefault", "ide", "scsi", "lsilogic", "lsisas1068", "buslogic", "pvscsi")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.DATA_DISK_CONTROLLER, Arrays.asList("osdefault", "ide", "scsi", "lsilogic", "lsisas1068", "buslogic", "pvscsi")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.NESTED_VIRTUALIZATION_FLAG, Arrays.asList("true", "false")));
-            options.add(new DetailOptionsResponse(VmDetailConstants.SVGA_VRAM_SIZE, true));
+            options.put(VmDetailConstants.NIC_ADAPTER, Arrays.asList("E1000", "PCNet32", "Vmxnet2", "Vmxnet3"));
+            options.put(VmDetailConstants.ROOT_DISK_CONTROLLER, Arrays.asList("osdefault", "ide", "scsi", "lsilogic", "lsisas1068", "buslogic", "pvscsi"));
+            options.put(VmDetailConstants.DATA_DISK_CONTROLLER, Arrays.asList("osdefault", "ide", "scsi", "lsilogic", "lsisas1068", "buslogic", "pvscsi"));
+            options.put(VmDetailConstants.NESTED_VIRTUALIZATION_FLAG, Arrays.asList("true", "false"));
+            options.put(VmDetailConstants.SVGA_VRAM_SIZE, Collections.emptyList());
         }
     }
 
