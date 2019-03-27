@@ -2603,7 +2603,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
             for (int i = offerings.size() - 1; i >= 0; i--) {
                 DiskOfferingJoinVO offering = offerings.get(i);
                 Map<String, String> details = diskOfferingDetailsDao.listDetailsKeyPairs(offering.getId());
-                boolean toRemove = isRecursive;
+                boolean toRemove = account.getType() == Account.ACCOUNT_TYPE_ADMIN ? false : isRecursive;
                 if (account.getType() != Account.ACCOUNT_TYPE_ADMIN &&
                         details.containsKey(ApiConstants.DOMAIN_ID_LIST) &&
                         !Strings.isNullOrEmpty(details.get(ApiConstants.DOMAIN_ID_LIST))) {
