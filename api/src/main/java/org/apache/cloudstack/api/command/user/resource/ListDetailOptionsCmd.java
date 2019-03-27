@@ -83,6 +83,7 @@ public class ListDetailOptionsCmd extends BaseCmd {
     public void execute() {
         final DetailOptionsResponse response = _queryService.listDetailOptions(this);
         response.setResponseName(getCommandName());
+        response.setObjectName("detailoptions");
         setResponseObject(response);
     }
 }

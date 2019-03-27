@@ -32,10 +32,13 @@ public class DetailOptionsResponse extends BaseResponse {
 
     public DetailOptionsResponse(Map<String, List<String>> details) {
         this.details = details;
-        setObjectName("details");
     }
 
     public void setDetails(Map<String, List<String>> details) {
         this.details = details;
+    }
+
+    public Map<String, List<String>> getDetails() {
+        return details;
     }
 }

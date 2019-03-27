@@ -3241,7 +3241,6 @@
 										async:false,
 										success: function(json) {
 											var details = json.listvirtualmachinesresponse.virtualmachine[0].details;
-											console.log(details);
 											existingDetails = details;
 										},
 
@@ -3249,7 +3248,6 @@
 											args.response.error(parseXMLHttpResponse(json));
 										}
 									});
-									console.log(existingDetails);
 									var newDetails = '';
 									for (d in existingDetails) {
 										if (d != data.name) {

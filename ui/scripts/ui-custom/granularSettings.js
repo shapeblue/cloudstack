@@ -121,20 +121,16 @@
                                     data.resourceid = args.context.templates[0].id;
                                 }
 
-                                console.log(args.$form);
-                                console.log(data);
-                                console.log($.find('input[name="name"]')[0]);
-
                                 $.ajax({
                                     url: createURL("listDetailOptions"),
                                     data: data,
                                     dataType: "json",
                                     success: function(json) {
-                                        var details = json.listdetailoptionsresponse.details;
+                                        var details = json.listdetailoptionsresponse.detailoptions.details;
                                         var keys = [];
-                                        for (const detail in details) {
-                                            keys.push(detail);
-                                        }
+                                        Object.keys(details).forEach(function(key,index) {
+                                            keys.push(key);
+                                        });
                                         $(args.$form.find('input[name="name"]')).blur();
                                         $(args.$form.find('input[name="name"]')).autocomplete({
                                             minLength: 0,
@@ -178,7 +174,44 @@
                         action: actions.add
                     }
                 },
-                dataProvider: dataProvider
+                dataProvider: function(args) {
+                    dataProvider(args);
+                    var data = {
+                        resourcetype: resourceType
+                    };
+                    if (resourceType === 'UserVm') {
+                        data.resourceid = args.context.instances[0].id;
+                    }
+                    if (resourceType === 'Template') {
+                        data.resourceid = args.context.templates[0].id;
+                    }
+                    $.ajax({
+                        url: createURL("listDetailOptions"),
+                        data: data,
+                        dataType: "json",
+                        success: function(json) {
+                            var details = json.listdetailoptionsresponse.detailoptions.details;
+                            var tbody = $.find('#details-tab-settings .data-table tbody');
+                            $(tbody).on('DOMNodeInserted', "tr", function() {
+                                $.each($.find('#details-tab-settings .data-table tbody tr'), function(idx, row) {
+                                    const key = $(row).find('td.name').attr('title');
+                                    const options = details[key];
+                                    if (options) {
+                                        $($(row).find('input.edit')).autocomplete({
+                                            minLength: 0,
+                                            delay: 0,
+                                            autoFocus: true,
+                                            source: options.sort()
+                                        }).focus(function() {
+                                            $(this).data("uiAutocomplete").search($(this).val());
+                                        });
+                                        $(row).find('input.edit').blur();
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
             };
 
             var $listView = $('<div>').listView({

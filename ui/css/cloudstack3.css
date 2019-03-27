@@ -13393,12 +13393,13 @@ div.gpugroups div.list-view {
 
 ul.ui-autocomplete.ui-menu {
   width: 250px;
-  max-height: 150px;
-  background: #ddd;
+  max-height: 100px;
+  background: #eee;
   padding: 5px;
-  z-index: 100;
+  text-align: left;
   overflow-y: auto;
   overflow-x: hidden;
+  z-index: 100;
 }
 
 .ui-menu .ui-menu-item {
@@ -13406,7 +13407,7 @@ ul.ui-autocomplete.ui-menu {
 }
 
 .ui-menu .ui-menu-item .ui-state-active {
-  background: #aaa;
+  background: #CBDDF3;
 }
 
 .ui-helper-hidden-accessible {
