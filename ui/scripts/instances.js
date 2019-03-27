@@ -3212,6 +3212,7 @@
 					settings: {
 						title: 'label.settings',
 						custom: cloudStack.uiCustom.granularDetails({
+                            resourceType: 'UserVm',
 							dataProvider: function(args) {
 								$.ajax({
 									url: createURL('listVirtualMachines&id=' + args.context.instances[0].id),

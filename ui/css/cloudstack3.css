@@ -13393,9 +13393,24 @@ div.gpugroups div.list-view {
 
 ul.ui-autocomplete.ui-menu {
   width: 250px;
+  max-height: 150px;
   background: #ddd;
-  font-size: 13px;
   padding: 5px;
+  z-index: 100;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ui-menu .ui-menu-item {
+  cursor: pointer;
+}
+
+.ui-menu .ui-menu-item .ui-state-active {
+  background: #aaa;
+}
+
+.ui-helper-hidden-accessible {
+  display: none;
 }
 
 .multi-edit-add-list .ui-button.migrateok,

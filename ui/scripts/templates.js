@@ -1954,6 +1954,7 @@
 							settings: {
 								title: 'label.settings',
 								custom: cloudStack.uiCustom.granularDetails({
+                                    resourceType: 'Template',
 									dataProvider: function(args) {
 										$.ajax({
 											url: createURL('listTemplates'),
