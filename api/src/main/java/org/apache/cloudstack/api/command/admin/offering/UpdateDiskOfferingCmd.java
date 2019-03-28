@@ -16,12 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.offering;
 
-import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.cloudstack.api.response.DomainResponse;
-import org.apache.cloudstack.api.response.ZoneResponse;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -30,6 +25,9 @@ import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.DiskOfferingResponse;
+import org.apache.cloudstack.api.response.DomainResponse;
+import org.apache.cloudstack.api.response.ZoneResponse;
+import org.apache.log4j.Logger;
 
 import com.cloud.offering.DiskOffering;
 import com.cloud.user.Account;
@@ -63,12 +61,6 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
                type = CommandType.BOOLEAN,
                description = "an optional field, whether to display the offering to the end user or not.")
     private Boolean displayOffering;
-
-    @Parameter(name = ApiConstants.DOMAIN_ID,
-            type = CommandType.UUID,
-            entityType = DomainResponse.class,
-            description = "the ID of the containing domain, null for public offerings")
-    private Long domainId;
 
     @Parameter(name = ApiConstants.DOMAIN_ID_LIST,
             type = CommandType.LIST,
@@ -112,17 +104,7 @@ public class UpdateDiskOfferingCmd extends BaseCmd {
         return displayOffering;
     }
 
-    public Long getDomainId() {
-        return domainId;
-    }
-
     public List<Long> getDomainIds() {
-        if (domainId != null) {
-            if (domainIds == null) {
-                domainIds = new ArrayList<>();
-            }
-            domainIds.add(domainId);
-        }
         return domainIds;
     }
 
