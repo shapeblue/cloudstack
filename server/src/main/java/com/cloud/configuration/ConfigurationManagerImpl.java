@@ -2623,26 +2623,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         }
 
         // Filter child domains when both parent and child domains are present
-        List<Long> filteredDomainIds = new ArrayList<>();
-        if (domainIds != null) {
-            filteredDomainIds.addAll(domainIds);
-        }
-        if (filteredDomainIds.size() > 1) {
-            for (int i = filteredDomainIds.size() - 1; i >= 1; i--) {
-                long first = filteredDomainIds.get(i);
-                for (int j = i - 1; j >= 0; j--) {
-                    long second = filteredDomainIds.get(j);
-                    if (_domainDao.isChildDomain(filteredDomainIds.get(i), filteredDomainIds.get(j))) {
-                        filteredDomainIds.remove(j);
-                        i--;
-                    }
-                    if (_domainDao.isChildDomain(filteredDomainIds.get(j), filteredDomainIds.get(i))) {
-                        filteredDomainIds.remove(i);
-                        break;
-                    }
-                }
-            }
-        }
+        List<Long> filteredDomainIds = filterChildSubDomains(domainIds);
 
         // Check if user exists in the system
         final User user = _userDao.findById(userId);
@@ -2840,26 +2821,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         final List<Long> domainIds = cmd.getDomainIds();
 
         // Filter child domains when both parent and child domains are present
-        List<Long> filteredDomainIds = new ArrayList<>();
-        if (domainIds != null) {
-            filteredDomainIds.addAll(domainIds);
-        }
-        if (filteredDomainIds.size() > 1) {
-            for (int i = filteredDomainIds.size() - 1; i >= 1; i--) {
-                long first = filteredDomainIds.get(i);
-                for (int j = i - 1; j >= 0; j--) {
-                    long second = filteredDomainIds.get(j);
-                    if (_domainDao.isChildDomain(filteredDomainIds.get(i), filteredDomainIds.get(j))) {
-                        filteredDomainIds.remove(j);
-                        i--;
-                    }
-                    if (_domainDao.isChildDomain(filteredDomainIds.get(j), filteredDomainIds.get(i))) {
-                        filteredDomainIds.remove(i);
-                        break;
-                    }
-                }
-            }
-        }
+        List<Long> filteredDomainIds = filterChildSubDomains(domainIds);
 
         if (account.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
             if (filteredDomainIds.isEmpty()) {
@@ -5839,6 +5801,30 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             }
         }
         return false;
+    }
+
+    private List<Long> filterChildSubDomains(final List<Long> domainIds) {
+        List<Long> filteredDomainIds = new ArrayList<>();
+        if (domainIds != null) {
+            filteredDomainIds.addAll(domainIds);
+        }
+        if (filteredDomainIds.size() > 1) {
+            for (int i = filteredDomainIds.size() - 1; i >= 1; i--) {
+                long first = filteredDomainIds.get(i);
+                for (int j = i - 1; j >= 0; j--) {
+                    long second = filteredDomainIds.get(j);
+                    if (_domainDao.isChildDomain(filteredDomainIds.get(i), filteredDomainIds.get(j))) {
+                        filteredDomainIds.remove(j);
+                        i--;
+                    }
+                    if (_domainDao.isChildDomain(filteredDomainIds.get(j), filteredDomainIds.get(i))) {
+                        filteredDomainIds.remove(i);
+                        break;
+                    }
+                }
+            }
+        }
+        return filteredDomainIds;
     }
 
     public List<SecurityChecker> getSecChecker() {
