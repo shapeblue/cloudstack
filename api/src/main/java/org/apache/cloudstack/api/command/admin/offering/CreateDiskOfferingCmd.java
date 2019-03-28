@@ -74,7 +74,7 @@ public class CreateDiskOfferingCmd extends BaseCmd {
             required = false,
             description = "the ID of the domains offering is associated with, null for all domain offerings",
             since = "4.13")
-    protected List<Long> domainIds;
+    private List<Long> domainIds;
 
     @Parameter(name = ApiConstants.ZONE_ID_LIST,
             type = CommandType.LIST,
@@ -83,7 +83,7 @@ public class CreateDiskOfferingCmd extends BaseCmd {
             required = false,
             description = "the ID of the zones offering is associated with, null for all zone offerings",
             since = "4.13")
-    protected List<Long> zoneIds;
+    private List<Long> zoneIds;
 
     @Parameter(name = ApiConstants.STORAGE_TYPE, type = CommandType.STRING, description = "the storage type of the disk offering. Values are local and shared.")
     private String storageType = ServiceOffering.StorageType.shared.toString();
