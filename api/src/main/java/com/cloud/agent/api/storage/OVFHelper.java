@@ -115,9 +115,9 @@ public class OVFHelper {
     }
 
     /**
-     * Retrieve OVF properties from a parsed OVF file
+     * Retrieve OVF properties from a parsed OVF file, with attribute 'ovf:userConfigurable' set to true
      */
-    private List<OVFProperty> getOVFPropertiesFromDocument(Document doc) {
+    private List<OVFProperty> getConfigurableOVFPropertiesFromDocument(Document doc) {
         List<OVFProperty> props = new ArrayList<>();
         NodeList properties = doc.getElementsByTagName("Property");
         if (properties != null) {
@@ -127,7 +127,7 @@ public class OVFHelper {
                     continue;
                 }
                 OVFProperty prop = createOVFPropertyFromNode(node);
-                if (prop != null) {
+                if (prop != null && prop.isUserConfigurable()) {
                     props.add(prop);
                 }
             }
@@ -144,7 +144,7 @@ public class OVFHelper {
         }
         File ovfFile = new File(ovfFilePath);
         final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(ovfFile);
-        return getOVFPropertiesFromDocument(doc);
+        return getConfigurableOVFPropertiesFromDocument(doc);
     }
 
     /**
@@ -153,7 +153,7 @@ public class OVFHelper {
     protected List<OVFProperty> getOVFPropertiesXmlString(final String ovfFilePath) throws ParserConfigurationException, IOException, SAXException {
         InputSource is = new InputSource(new StringReader(ovfFilePath));
         final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
-        return getOVFPropertiesFromDocument(doc);
+        return getConfigurableOVFPropertiesFromDocument(doc);
     }
 
     public List<DatadiskTO> getOVFVolumeInfo(final String ovfFilePath) {

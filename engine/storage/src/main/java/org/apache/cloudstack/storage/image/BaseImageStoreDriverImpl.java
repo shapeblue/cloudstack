@@ -27,7 +27,11 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import com.cloud.agent.api.storage.OVFProperty;
 import com.cloud.storage.Upload;
+import com.cloud.storage.VMTemplateDetailVO;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
@@ -170,6 +174,7 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
         DownloadAnswer answer = callback.getResult();
         DataObject obj = context.data;
         DataStore store = obj.getDataStore();
+        List<OVFProperty> ovfProperties = answer.getOvfProperties();
 
         TemplateDataStoreVO tmpltStoreVO = _templateStoreDao.findByStoreTemplate(store.getId(), obj.getId());
         if (tmpltStoreVO != null) {
@@ -194,6 +199,15 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
             VMTemplateVO tmlptUpdater = _templateDao.createForUpdate();
             tmlptUpdater.setSize(answer.getTemplateSize());
             _templateDao.update(obj.getId(), tmlptUpdater);
+
+            if (CollectionUtils.isNotEmpty(answer.getOvfProperties())) {
+                List<OVFProperty> props = answer.getOvfProperties();
+                for (OVFProperty property : props) {
+                    VMTemplateDetailVO detail = new VMTemplateDetailVO(obj.getId(),
+                            property.getKey(), StringUtils.isNotBlank(property.getValue()) ? property.getValue() : "", true);
+                    _templateDetailsDao.persist(detail);
+                }
+            }
         }
 
         AsyncCompletionCallback<CreateCmdResult> caller = context.getParentCallback();
