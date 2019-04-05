@@ -38,7 +38,7 @@ import java.util.concurrent.Executors;
 
 import javax.naming.ConfigurationException;
 
-import com.cloud.agent.api.storage.OVFProperty;
+import com.cloud.agent.api.storage.OVFPropertyTO;
 import com.cloud.storage.template.Processor;
 import com.cloud.storage.template.S3TemplateDownloader;
 import com.cloud.storage.template.TemplateDownloader;
@@ -126,7 +126,7 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         private long templatePhysicalSize;
         private final long id;
         private final ResourceType resourceType;
-        private List<OVFProperty> ovfProperties;
+        private List<OVFPropertyTO> ovfProperties;
 
         public DownloadJob(TemplateDownloader td, String jobId, long id, String tmpltName, ImageFormat format, boolean hvm, Long accountId, String descr, String cksum,
                 String installPathPrefix, ResourceType resourceType) {
@@ -222,11 +222,11 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
             this.checksum = checksum;
         }
 
-        public List<OVFProperty> getOvfProperties() {
+        public List<OVFPropertyTO> getOvfProperties() {
             return ovfProperties;
         }
 
-        public void setOvfProperties(List<OVFProperty> ovfProperties) {
+        public void setOvfProperties(List<OVFPropertyTO> ovfProperties) {
             this.ovfProperties = ovfProperties;
         }
     }

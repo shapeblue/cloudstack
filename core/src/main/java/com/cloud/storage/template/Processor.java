@@ -23,7 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import com.cloud.agent.api.storage.OVFProperty;
+import com.cloud.agent.api.storage.OVFPropertyTO;
 import com.cloud.exception.InternalErrorException;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.utils.component.Adapter;
@@ -54,7 +54,7 @@ public interface Processor extends Adapter {
         public long virtualSize;
         public String filename;
         public boolean isCorrupted;
-        public List<OVFProperty> ovfProperties;
+        public List<OVFPropertyTO> ovfProperties;
     }
 
     long getVirtualSize(File file) throws IOException;

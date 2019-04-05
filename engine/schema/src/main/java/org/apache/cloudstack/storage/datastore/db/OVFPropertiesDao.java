@@ -1,4 +1,3 @@
-//
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -15,18 +14,16 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-//
 
-package com.cloud.agent.api.storage;
+package org.apache.cloudstack.storage.datastore.db;
 
-public interface OVFProperty {
+import com.cloud.utils.db.GenericDao;
 
-    Long getTemplateId();
-    String getKey();
-    String getType();
-    String getValue();
-    String getQualifiers();
-    Boolean isUserConfigurable();
-    String getLabel();
-    String getDescription();
+import java.util.List;
+
+public interface OVFPropertiesDao extends GenericDao<OVFPropertyVO, Long> {
+
+    boolean existsOption(long templateId, String key);
+    OVFPropertyVO findByTemplateAndKey(long templateId, String key);
+    void saveOptions(List<OVFPropertyVO> opts);
 }

@@ -19,3 +19,16 @@
 -- Schema upgrade from 4.12.0.0 to 4.13.0.0
 --;
 
+CREATE TABLE `cloud`.`ovf_properties` (
+  `id` bigint unsigned NOT NULL,
+  `template_id` bigint unsigned NOT NULL,
+  `key` VARCHAR(100) NOT NULL,
+  `type` VARCHAR(45) NULL,
+  `value` VARCHAR(100) NULL,
+  `qualifiers` TEXT NULL,
+  `user_configurable` TINYINT(1) NULL,
+  `label` TEXT NULL,
+  `description` TEXT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_ovf_vapp_options__template_id` FOREIGN KEY (`template_id`) REFERENCES `vm_template`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

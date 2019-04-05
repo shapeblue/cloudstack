@@ -96,7 +96,7 @@ public class OVFHelper {
      * Create OVFProperty class from the parsed node. Note that some fields may not be present.
      * The key attribute is required
      */
-    protected OVFProperty createOVFPropertyFromNode(Node node) {
+    protected OVFPropertyTO createOVFPropertyFromNode(Node node) {
         Element property = (Element) node;
         String key = property.getAttribute("ovf:key");
         if (StringUtils.isBlank(key)) {
@@ -111,14 +111,14 @@ public class OVFHelper {
                 userConfigurableStr.equalsIgnoreCase("true");
         String label = getChildNodeValue(node, "Label");
         String description = getChildNodeValue(node, "Description");
-        return new OVFProperty(key, type, value, qualifiers, userConfigurable, label, description);
+        return new OVFPropertyTO(key, type, value, qualifiers, userConfigurable, label, description);
     }
 
     /**
      * Retrieve OVF properties from a parsed OVF file, with attribute 'ovf:userConfigurable' set to true
      */
-    private List<OVFProperty> getConfigurableOVFPropertiesFromDocument(Document doc) {
-        List<OVFProperty> props = new ArrayList<>();
+    private List<OVFPropertyTO> getConfigurableOVFPropertiesFromDocument(Document doc) {
+        List<OVFPropertyTO> props = new ArrayList<>();
         NodeList properties = doc.getElementsByTagName("Property");
         if (properties != null) {
             for (int i = 0; i < properties.getLength(); i++) {
@@ -126,7 +126,7 @@ public class OVFHelper {
                 if (node == null) {
                     continue;
                 }
-                OVFProperty prop = createOVFPropertyFromNode(node);
+                OVFPropertyTO prop = createOVFPropertyFromNode(node);
                 if (prop != null && prop.isUserConfigurable()) {
                     props.add(prop);
                 }
@@ -138,7 +138,7 @@ public class OVFHelper {
     /**
      * Get properties from OVF file located on ovfFilePath
      */
-    public List<OVFProperty> getOVFPropertiesFromFile(String ovfFilePath) throws ParserConfigurationException, IOException, SAXException {
+    public List<OVFPropertyTO> getOVFPropertiesFromFile(String ovfFilePath) throws ParserConfigurationException, IOException, SAXException {
         if (StringUtils.isBlank(ovfFilePath)) {
             return new ArrayList<>();
         }
@@ -150,7 +150,7 @@ public class OVFHelper {
     /**
      * Get properties from OVF XML string
      */
-    protected List<OVFProperty> getOVFPropertiesXmlString(final String ovfFilePath) throws ParserConfigurationException, IOException, SAXException {
+    protected List<OVFPropertyTO> getOVFPropertiesXmlString(final String ovfFilePath) throws ParserConfigurationException, IOException, SAXException {
         InputSource is = new InputSource(new StringReader(ovfFilePath));
         final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
         return getConfigurableOVFPropertiesFromDocument(doc);

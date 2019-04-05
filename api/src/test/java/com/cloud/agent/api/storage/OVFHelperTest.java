@@ -44,7 +44,7 @@ public class OVFHelperTest {
 
     @Test
     public void testGetOVFPropertiesValidOVF() throws IOException, SAXException, ParserConfigurationException {
-        List<OVFProperty> props = ovfHelper.getOVFPropertiesXmlString(ovfFileProductSection);
+        List<OVFPropertyTO> props = ovfHelper.getOVFPropertiesXmlString(ovfFileProductSection);
         Assert.assertEquals(2, props.size());
     }
 

@@ -37,7 +37,7 @@ public class DownloadAnswer extends Answer {
     private long templateSize = 0L;
     private long templatePhySicalSize = 0L;
     private String checkSum;
-    private List<OVFProperty> ovfProperties;
+    private List<OVFPropertyTO> ovfProperties;
 
     public String getCheckSum() {
         return checkSum;
@@ -148,11 +148,11 @@ public class DownloadAnswer extends Answer {
         return templatePhySicalSize;
     }
 
-    public List<OVFProperty> getOvfProperties() {
+    public List<OVFPropertyTO> getOvfProperties() {
         return ovfProperties;
     }
 
-    public void setOvfProperties(List<OVFProperty> ovfProperties) {
+    public void setOvfProperties(List<OVFPropertyTO> ovfProperties) {
         this.ovfProperties = ovfProperties;
     }
 }

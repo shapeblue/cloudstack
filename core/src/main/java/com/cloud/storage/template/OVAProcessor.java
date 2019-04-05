@@ -26,7 +26,7 @@ import java.util.Map;
 import javax.naming.ConfigurationException;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import com.cloud.agent.api.storage.OVFProperty;
+import com.cloud.agent.api.storage.OVFPropertyTO;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.w3c.dom.Document;
@@ -108,7 +108,7 @@ public class OVAProcessor extends AdapterBase implements Processor {
         try {
             OVFHelper ovfHelper = new OVFHelper();
             List<DatadiskTO> disks = ovfHelper.getOVFVolumeInfo(ovfFile);
-            List<OVFProperty> ovfProperties = ovfHelper.getOVFPropertiesFromFile(ovfFile);
+            List<OVFPropertyTO> ovfProperties = ovfHelper.getOVFPropertiesFromFile(ovfFile);
             if (CollectionUtils.isNotEmpty(ovfProperties)) {
                 s_logger.info("Found " + ovfProperties.size() + " configurable OVF properties");
                 info.ovfProperties = ovfProperties;

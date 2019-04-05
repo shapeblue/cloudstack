@@ -27,9 +27,10 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
-import com.cloud.agent.api.storage.OVFProperty;
+import com.cloud.agent.api.storage.OVFPropertyTO;
 import com.cloud.storage.Upload;
-import com.cloud.storage.VMTemplateDetailVO;
+import org.apache.cloudstack.storage.datastore.db.OVFPropertiesDao;
+import org.apache.cloudstack.storage.datastore.db.OVFPropertyVO;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 
@@ -102,6 +103,8 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
     AccountDao _accountDao;
     @Inject
     ResourceLimitService _resourceLimitMgr;
+    @Inject
+    OVFPropertiesDao ovfPropertiesDao;
 
     protected String _proxy = null;
 
@@ -168,20 +171,19 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
     /**
      * Persist OVF properties as template details for template with id = templateId
      */
-    private void persistOVFProperties(List<OVFProperty> ovfProperties, long templateId) {
-        List<VMTemplateDetailVO> listToPersist = new ArrayList<>();
-        for (OVFProperty property : ovfProperties) {
-            if (_templateDetailsDao.findDetail(templateId, property.getKey()) == null) {
-                VMTemplateDetailVO detail = new VMTemplateDetailVO(templateId,
-                        property.getKey(),
-                        property.getValue(),
-                        true);
-                listToPersist.add(detail);
+    private void persistOVFProperties(List<OVFPropertyTO> ovfProperties, long templateId) {
+        List<OVFPropertyVO> listToPersist = new ArrayList<>();
+        for (OVFPropertyTO property : ovfProperties) {
+            if (!ovfPropertiesDao.existsOption(templateId, property.getKey())) {
+                OVFPropertyVO option = new OVFPropertyVO(templateId, property.getKey(), property.getType(),
+                        property.getValue(), property.getQualifiers(), property.isUserConfigurable(),
+                        property.getLabel(), property.getDescription());
+                listToPersist.add(option);
             }
         }
         if (CollectionUtils.isNotEmpty(listToPersist)) {
             s_logger.debug("Persisting " + listToPersist.size() + " OVF properties for template " + templateId);
-            _templateDetailsDao.saveDetails(listToPersist);
+            ovfPropertiesDao.saveOptions(listToPersist);
         }
     }
 
@@ -193,13 +195,13 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
         DownloadAnswer answer = callback.getResult();
         DataObject obj = context.data;
         DataStore store = obj.getDataStore();
-        List<OVFProperty> ovfProperties = answer.getOvfProperties();
+        List<OVFPropertyTO> ovfProperties = answer.getOvfProperties();
 
         TemplateDataStoreVO tmpltStoreVO = _templateStoreDao.findByStoreTemplate(store.getId(), obj.getId());
         if (tmpltStoreVO != null) {
             if (tmpltStoreVO.getDownloadState() == VMTemplateStorageResourceAssoc.Status.DOWNLOADED) {
-                if (CollectionUtils.isNotEmpty(answer.getOvfProperties())) {
-                    persistOVFProperties(answer.getOvfProperties(), obj.getId());
+                if (CollectionUtils.isNotEmpty(ovfProperties)) {
+                    persistOVFProperties(ovfProperties, obj.getId());
                 }
                 if (s_logger.isDebugEnabled()) {
                     s_logger.debug("Template is already in DOWNLOADED state, ignore further incoming DownloadAnswer");
@@ -240,8 +242,8 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
                 templateDaoBuilder.setChecksum(answer.getCheckSum());
                 _templateDao.update(obj.getId(), templateDaoBuilder);
             }
-            if (CollectionUtils.isNotEmpty(answer.getOvfProperties())) {
-                persistOVFProperties(answer.getOvfProperties(), obj.getId());
+            if (CollectionUtils.isNotEmpty(ovfProperties)) {
+                persistOVFProperties(ovfProperties, obj.getId());
             }
 
             CreateCmdResult result = new CreateCmdResult(null, null);
