@@ -18,6 +18,7 @@
 package org.apache.cloudstack.storage.datastore.db;
 
 import com.cloud.agent.api.storage.OVFProperty;
+import com.cloud.utils.db.GenericDao;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -25,6 +26,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import java.util.Date;
 
 @Entity
 @Table(name = "ovf_properties")
@@ -58,6 +60,9 @@ public class OVFPropertyVO implements OVFProperty {
 
     @Column(name = "description")
     private String description;
+
+    @Column(name = GenericDao.REMOVED_COLUMN)
+    private Date removed;
 
     public OVFPropertyVO() {
     }
@@ -145,6 +150,14 @@ public class OVFPropertyVO implements OVFProperty {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Date getRemoved() {
+        return removed;
+    }
+
+    public void setRemoved(Date removed) {
+        this.removed = removed;
     }
 
     @Override
