@@ -29,8 +29,10 @@ import javax.persistence.Table;
 @Entity
 @Table(name = "ovf_properties")
 public class OVFPropertyVO implements OVFProperty {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private long id;
 
     @Column(name = "template_id")
@@ -143,5 +145,11 @@ public class OVFPropertyVO implements OVFProperty {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("PROP - templateId=%s> key=%s value=%s type=%s qual=%s conf=%s label=%s desc=%s",
+                templateId, key, value, type, qualifiers, userConfigurable, label, description);
     }
 }

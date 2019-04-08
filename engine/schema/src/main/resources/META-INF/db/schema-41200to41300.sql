@@ -20,8 +20,8 @@
 --;
 
 CREATE TABLE `cloud`.`ovf_properties` (
-  `id` bigint unsigned NOT NULL,
-  `template_id` bigint unsigned NOT NULL,
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `template_id` bigint(20) unsigned NOT NULL,
   `key` VARCHAR(100) NOT NULL,
   `type` VARCHAR(45) NULL,
   `value` VARCHAR(100) NULL,

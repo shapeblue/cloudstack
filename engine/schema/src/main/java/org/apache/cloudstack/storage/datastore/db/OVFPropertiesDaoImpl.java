@@ -22,12 +22,15 @@ import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.db.TransactionLegacy;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 public class OVFPropertiesDaoImpl extends GenericDaoBase<OVFPropertyVO, Long> implements OVFPropertiesDao {
+
+    private final static Logger s_logger = Logger.getLogger(OVFPropertiesDaoImpl.class);
 
     SearchBuilder<OVFPropertyVO> OptionsSearchBuilder;
 
