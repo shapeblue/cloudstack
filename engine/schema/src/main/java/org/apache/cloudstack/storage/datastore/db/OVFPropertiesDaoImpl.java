@@ -67,4 +67,11 @@ public class OVFPropertiesDaoImpl extends GenericDaoBase<OVFPropertyVO, Long> im
         }
         txn.commit();
     }
+
+    @Override
+    public List<OVFPropertyVO> listByTemplateId(long templateId) {
+        SearchCriteria<OVFPropertyVO> sc = OptionsSearchBuilder.create();
+        sc.setParameters("templateid", templateId);
+        return listBy(sc);
+    }
 }

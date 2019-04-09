@@ -26,4 +26,5 @@ public interface OVFPropertiesDao extends GenericDao<OVFPropertyVO, Long> {
     boolean existsOption(long templateId, String key);
     OVFPropertyVO findByTemplateAndKey(long templateId, String key);
     void saveOptions(List<OVFPropertyVO> opts);
+    List<OVFPropertyVO> listByTemplateId(long templateId);
 }

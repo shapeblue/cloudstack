@@ -25,7 +25,12 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import com.cloud.agent.api.storage.OVFProperty;
+import org.apache.cloudstack.api.response.TemplateOVFPropertyResponse;
+import org.apache.cloudstack.storage.datastore.db.OVFPropertiesDao;
+import org.apache.cloudstack.storage.datastore.db.OVFPropertyVO;
 import org.apache.cloudstack.utils.security.DigestHelper;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -68,6 +73,8 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
     private AccountService _accountService;
     @Inject
     private VMTemplateDao _vmTemplateDao;
+    @Inject
+    private OVFPropertiesDao ovfPropertiesDao;
 
     private final SearchBuilder<TemplateJoinVO> tmpltIdPairSearch;
 
@@ -231,8 +238,30 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
             templateResponse.setChildTemplates(childTemplatesSet);
         }
 
+        List<OVFPropertyVO> ovfProperties = ovfPropertiesDao.listByTemplateId(template.getId());
+        addOVFPropertiesToTemplateResponse(ovfProperties, templateResponse);
+
         templateResponse.setObjectName("template");
         return templateResponse;
+    }
+
+    /**
+     * Add OVF properties to template response when available
+     */
+    private void addOVFPropertiesToTemplateResponse(List<OVFPropertyVO> ovfProperties, TemplateResponse templateResponse) {
+        if (CollectionUtils.isNotEmpty(ovfProperties)) {
+            for (OVFProperty property : ovfProperties) {
+                TemplateOVFPropertyResponse propertyResponse = new TemplateOVFPropertyResponse();
+                propertyResponse.setKey(property.getKey());
+                propertyResponse.setType(property.getType());
+                propertyResponse.setValue(property.getValue());
+                propertyResponse.setQualifiers(property.getQualifiers());
+                propertyResponse.setUserConfigurable(property.isUserConfigurable());
+                propertyResponse.setLabel(property.getLabel());
+                propertyResponse.setDescription(property.getDescription());
+                templateResponse.addOvfProperty(propertyResponse);
+            }
+        }
     }
 
     //TODO: This is to keep compatibility with 4.1 API, where updateTemplateCmd and updateIsoCmd will return a simpler TemplateResponse
