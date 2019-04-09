@@ -1069,6 +1069,28 @@
                         $step.find('[wizard-field]').each(function() {
                             var field = $(this).attr('wizard-field');
                             var fieldName;
+
+                            var $computerDialog = $wizard.find('.diagram');
+                            $computerDialog.hide();
+                            var $props = $wizard.find('.ovfProperties');
+                            var ovfPropsHtml = "<div class=\"select\">\n" +
+            "                                        <div class=\"name\">\n" +
+            "                                            <span><translate key=\"label.add.to.group\"/> (<translate key=\"label.optional\"/>)</span>\n" +
+            "                                        </div>\n" +
+            "                                        <div class=\"value\">\n" +
+            "                                            <input type=\"text\" name=\"groupname\" class=\"disallowSpecialCharacters\" />\n" +
+            "                                        </div>\n" +
+            "                                    </div>" +
+                                                "<div class=\"select\">\n" +
+            "                                        <div class=\"name\">\n" +
+            "                                            <span><translate key=\"label.add.to.group\"/> (<translate key=\"label.optional\"/>)</span>\n" +
+            "                                        </div>\n" +
+            "                                        <div class=\"value\">\n" +
+            "                                            <input type=\"text\" name=\"groupname\" class=\"disallowSpecialCharacters\" />\n" +
+            "                                        </div>\n" +
+            "                                    </div>";
+                            $props.html(ovfPropsHtml);
+
                             var $input = $wizard.find('[wizard-field=' + field + ']').filter(function() {
                                 return ($(this).is(':selected') ||
                                     $(this).is(':checked') ||
