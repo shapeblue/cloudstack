@@ -137,7 +137,7 @@
 
                         var qualifiersField;
                         if (qualifiers) {
-                            qualifiersField = $('<select id=qualifier>')
+                            qualifiersField = $('<select id=ovf-property-'+key+'>')
                             if (qualifiers.startsWith("ValueMap")) {
                                 var possibleValues = qualifiers.replace("ValueMap","").substr(1).slice(0, -1).split(",");
                                 $(possibleValues).each(function() {
@@ -160,7 +160,7 @@
                                     .addClass('select-desc')
                                     .addClass('ovf-property')
                                     .append($('<div>').addClass('name').html(_s(this[fields.label])))
-                                    .append(qualifiersField ? qualifiersField : $('<input>').addClass('name').val(_s(this[fields.value])))
+                                    .append(qualifiersField ? qualifiersField : $('<input id=ovf-property-'+key+'>').addClass('name').val(_s(this[fields.value])))
                                     .append($('<div>').addClass('desc').html(_s(this[fields.description])))
                                     .data('json-obj', this)
                             );

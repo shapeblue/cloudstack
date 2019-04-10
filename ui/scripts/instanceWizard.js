@@ -798,6 +798,23 @@
                 hypervisor : selectedHypervisor
             });
 
+            var deployOvfProperties = [];
+            if (ovfProps.length > 0) {
+                $(ovfProps).each(function(index, prop) {
+                    var selectField = args.$wizard.find('select[id=ovf-property-'+prop.key+']');
+                    var inputField = args.$wizard.find('input[id=ovf-property-'+prop.key+']');
+                    var propValue = inputField.val() ? inputField.val() : selectField.val();
+                    deployOvfProperties.push({
+                        key: prop.key,
+                        value: propValue
+                    });
+                });
+                for (var k = 0; k < deployOvfProperties.length; k++) {
+                    deployVmData["ovfproperties[" + k + "].key"] = ovfProps[k].key;
+                    deployVmData["ovfproperties[" + k + "].value"] = ovfProps[k].value;
+                }
+            }
+
             if (args.$wizard.find('input[name=rootDiskSize]').parent().css('display') != 'none')  {
                 if (args.$wizard.find('input[name=rootDiskSize]').val().length > 0) {
                     $.extend(deployVmData, {
