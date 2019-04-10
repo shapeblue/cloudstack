@@ -123,6 +123,62 @@
                     });
                 };
 
+                var makeSelectsOvfProperties = function (data, fields) {
+                    var $selects = $('<div>');
+
+                    $(data).each(function() {
+                        var item = this;
+                        var key = item[fields.key];
+                        var type = item[fields.type];
+                        var value = item[fields.value];
+                        var qualifiers = item[fields.qualifiers];
+                        var label = item[fields.label];
+                        var description = item[fields.description];
+
+                        var qualifiersField;
+                        if (qualifiers) {
+                            qualifiersField = $('<select id=qualifier>')
+                            if (qualifiers.startsWith("ValueMap")) {
+                                var possibleValues = qualifiers.replace("ValueMap","").substr(1).slice(0, -1).split(",");
+                                $(possibleValues).each(function() {
+                                    var qualifier = this.substr(1).slice(0, -1); //remove first and last quotes
+                                    var option = $('<option>')
+                                        .attr({
+                                            value: qualifier
+                                        })
+                                        .html(qualifier)
+                                    qualifiersField.append(option);
+                                });
+                            }
+                            qualifiersField.val(value);
+                        }
+
+                        var $select = $('<div>')
+                            .addClass('select')
+                            .append(
+                                $('<div>')
+                                    .addClass('select-desc')
+                                    .addClass('ovf-property')
+                                    .append($('<div>').addClass('name').html(_s(this[fields.label])))
+                                    .append(qualifiersField ? qualifiersField : $('<input>').addClass('name').val(_s(this[fields.value])))
+                                    .append($('<div>').addClass('desc').html(_s(this[fields.description])))
+                                    .data('json-obj', this)
+                            );
+                        $selects.append($select);
+                    });
+
+                    cloudStack.evenOdd($selects, 'div.select', {
+                        even: function($elem) {
+                            $elem.addClass('even');
+                        },
+                        odd: function($elem) {
+                            $elem.addClass('odd');
+                        }
+                    });
+
+                    return $selects.children();
+                };
+
                 var makeSelects = function(name, data, fields, options, selectedObj, selectedObjNonEditable) {
                     var $selects = $('<div>');
                     options = options ? options : {};
@@ -1069,34 +1125,16 @@
                         return {
                             response: {
                                 success: function(args) {
-                                    console.log(args);
-                                    $step.find('.main-desc, p.no-sshkey-pairs').remove();
-
-                                    if (args.data.sshkeyPairs && args.data.sshkeyPairs.length) {
-                                        $step.prepend(
-                                            $('<div>').addClass('main-desc').append(
-                                                $('<p>').html(_l('message.please.select.ssh.key.pair.use.with.this.vm'))
-                                            )
-                                        );
-                                        $step.find('.section.no-thanks').show();
-                                        $step.find('.select-container').append(
-                                            makeSelects(
-                                                'sshkeypair',
-                                                args.data.sshkeyPairs, {
-                                                    name: 'name',
-                                                    id: 'name'
-                                                }, {
-                                                    'wizard-field': 'sshkey-pairs'
-                                                }
-                                            )
-                                        );
-                                        originalValues(formData); // if we can select only one.
-                                    } else {
-                                        $step.find('.section.no-thanks').hide();
-                                        $step.find('.select-container').append(
-                                            $('<p>').addClass('no-sshkey-pairs').html(_l('You do not have any ssh key pairs. Please continue to the next step.'))
-                                        );
-                                    }
+                                    $step.find('.content .select-container').append(
+                                        makeSelectsOvfProperties(args.data.ovfProperties, {
+                                            key: 'key',
+                                            type: 'type',
+                                            value: 'value',
+                                            qualifiers: 'qualifiers',
+                                            label: 'label',
+                                            description : 'description'
+                                        })
+                                    );
                                 }
                             }
                         };

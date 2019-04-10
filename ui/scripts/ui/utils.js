@@ -21,7 +21,6 @@
 
         var data = {};
 
-
         $($form.serializeArray()).each(function() {
             var dataItem = data[this.name];
             var value = _s(this.value.toString());
