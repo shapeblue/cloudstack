@@ -6134,46 +6134,26 @@ label.error {
 }
 
 .multi-wizard .buttons .button.cancel {
-  border: none;
-  /*+placement:float-right -127px 0px;*/
+  background: #B6B6B6 url(../images/gradients.png) 0px -480px;
+  margin-right: 13px;
+  border: 1px solid #AAAAAA;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  -khtml-border-radius: 4px;
+  border-radius: 4px;
+  border-radius: 4px 4px 4px 4px;
   float: right;
   position: relative;
   left: -127px;
-  top: 0px;
-  color: #808080;
-  /*+border-radius:0;*/
-  -moz-border-radius: 0;
-  -webkit-border-radius: 0;
-  -khtml-border-radius: 0;
-  border-radius: 0;
-  border-radius: 0 0 0 0;
-  background: transparent;
-  /*+box-shadow:0px 0px;*/
-  -moz-box-shadow: 0px 0px;
-  -webkit-box-shadow: 0px 0px;
-  -o-box-shadow: 0px 0px;
-  box-shadow: 0px 0px;
-  -moz-box-shadow: 0px 0px inherit;
-  -webkit-box-shadow: 0px 0px inherit;
-  -o-box-shadow: 0px 0px inherit;
-  -moz-box-shadow: inherit;
-  -webkit-box-shadow: inherit;
-  -o-box-shadow: inherit;
-  /*+text-shadow:0px 1px 1px #FFFFFF;*/
-  -moz-text-shadow: 0px 1px 1px #FFFFFF;
-  -webkit-text-shadow: 0px 1px 1px #FFFFFF;
-  -o-text-shadow: 0px 1px 1px #FFFFFF;
-  text-shadow: 0px 1px 1px #FFFFFF;
-  padding: 14px 0 0px 0px;
 }
 
 .multi-wizard .buttons .button.cancel:hover {
-  color: #5E5E5E;
+  background: #B6B6B4 url(../images/gradients.png) 0px -426px;
 }
 
 .multi-wizard .buttons .button.previous {
-  background: #D6D6D6;
-  color: #62798E;
+  background: #D6D6D6 url(../images/gradients.png) 0px -480px;
+  color: #808080;
   margin-left: 27px;
 }
 
