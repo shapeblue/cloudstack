@@ -16,7 +16,7 @@
 // under the License.
 
 (function($, cloudStack) {
-    var zoneObjs, hypervisorObjs, featuredTemplateObjs, communityTemplateObjs, myTemplateObjs, sharedTemplateObjs, featuredIsoObjs, communityIsoObjs, myIsoObjs, sharedIsoObjs, serviceOfferingObjs, community, networkObjs;
+    var zoneObjs, hypervisorObjs, featuredTemplateObjs, communityTemplateObjs, myTemplateObjs, sharedTemplateObjs, featuredIsoObjs, communityIsoObjs, myIsoObjs, sharedIsoObjs, serviceOfferingObjs, community, networkObjs, ovfProps;
     var selectedZoneObj, selectedTemplateObj, selectedHypervisor, selectedDiskOfferingObj;
     var selectedTemplateOrIso; //'select-template', 'select-iso'
     var step6ContainerType = 'nothing-to-select'; //'nothing-to-select', 'select-network', 'select-security-group', 'select-advanced-sg'(advanced sg-enabled zone)
@@ -342,6 +342,7 @@
                 // if the user is leveraging a template, then we can show custom IOPS, if applicable
                 var canShowCustomIopsForServiceOffering = (args.currentData["select-template"] != "select-iso" ? true : false);
 
+                ovfProps = selectedTemplateObj.ovfproperties;
 
                 // get serviceOfferingObjs
                 $(window).removeData("cloudStack.module.instanceWizard.serviceOfferingObjs");
@@ -755,6 +756,21 @@
                                 sshkeyPairs: sshkeypair
                             }
                         });
+                    }
+                });
+                var $step = $('.step.sshkeyPairs:visible');
+                if (ovfProps.length == 0) {
+                    $step.addClass('next-skip-ovf-properties');
+                } else {
+                    $step.removeClass('next-skip-ovf-properties');
+                }
+            },
+
+            // Step PRE-8: Configure OVF Properties (if available) for the template
+            function(args) {
+                args.response.success({
+                    data: {
+                        ovfProperties: ovfProps
                     }
                 });
             },

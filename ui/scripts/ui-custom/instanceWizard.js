@@ -1065,31 +1065,47 @@
                         };
                     },
 
+                    'ovfProperties': function($step, formData) {
+                        return {
+                            response: {
+                                success: function(args) {
+                                    console.log(args);
+                                    $step.find('.main-desc, p.no-sshkey-pairs').remove();
+
+                                    if (args.data.sshkeyPairs && args.data.sshkeyPairs.length) {
+                                        $step.prepend(
+                                            $('<div>').addClass('main-desc').append(
+                                                $('<p>').html(_l('message.please.select.ssh.key.pair.use.with.this.vm'))
+                                            )
+                                        );
+                                        $step.find('.section.no-thanks').show();
+                                        $step.find('.select-container').append(
+                                            makeSelects(
+                                                'sshkeypair',
+                                                args.data.sshkeyPairs, {
+                                                    name: 'name',
+                                                    id: 'name'
+                                                }, {
+                                                    'wizard-field': 'sshkey-pairs'
+                                                }
+                                            )
+                                        );
+                                        originalValues(formData); // if we can select only one.
+                                    } else {
+                                        $step.find('.section.no-thanks').hide();
+                                        $step.find('.select-container').append(
+                                            $('<p>').addClass('no-sshkey-pairs').html(_l('You do not have any ssh key pairs. Please continue to the next step.'))
+                                        );
+                                    }
+                                }
+                            }
+                        };
+                    },
+
                     'review': function($step, formData) {
                         $step.find('[wizard-field]').each(function() {
                             var field = $(this).attr('wizard-field');
                             var fieldName;
-
-                            var $computerDialog = $wizard.find('.diagram');
-                            $computerDialog.hide();
-                            var $props = $wizard.find('.ovfProperties');
-                            var ovfPropsHtml = "<div class=\"select\">\n" +
-            "                                        <div class=\"name\">\n" +
-            "                                            <span><translate key=\"label.add.to.group\"/> (<translate key=\"label.optional\"/>)</span>\n" +
-            "                                        </div>\n" +
-            "                                        <div class=\"value\">\n" +
-            "                                            <input type=\"text\" name=\"groupname\" class=\"disallowSpecialCharacters\" />\n" +
-            "                                        </div>\n" +
-            "                                    </div>" +
-                                                "<div class=\"select\">\n" +
-            "                                        <div class=\"name\">\n" +
-            "                                            <span><translate key=\"label.add.to.group\"/> (<translate key=\"label.optional\"/>)</span>\n" +
-            "                                        </div>\n" +
-            "                                        <div class=\"value\">\n" +
-            "                                            <input type=\"text\" name=\"groupname\" class=\"disallowSpecialCharacters\" />\n" +
-            "                                        </div>\n" +
-            "                                    </div>";
-                            $props.html(ovfPropsHtml);
 
                             var $input = $wizard.find('[wizard-field=' + field + ']').filter(function() {
                                 return ($(this).is(':selected') ||
@@ -1276,6 +1292,13 @@
                                 var b = cloudStack.validate.vmHostName($activeStep.find('input[name=displayname]').val());
                                 if (b == false)
                                     return false;
+                            }
+                        }
+
+                        // Step 7 - Skip OVF properties tab if there are no OVF properties for the template
+                        if ($activeStep.hasClass('sshkeyPairs')) {
+                            if ($activeStep.hasClass('next-skip-ovf-properties')) {
+                                showStep(8);
                             }
                         }
 

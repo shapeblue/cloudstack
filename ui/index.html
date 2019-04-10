@@ -400,13 +400,23 @@
                             <div class="select-container"></div>
                           </div>
                         </div>
+
+                        <!-- PRE-8 -->
+                        <div class="step ovf-properties" style="visibility:hidden" wizard-step-id="ovfProperties">
+                            <div class="content">
+                                <div class="section no-thanks">
+                                    <button label="akaka" />
+                                    <label><translate key="label.no.thanks"/></label>
+                                </div>
+                                <!-- Existing key pairs -->
+                                <div class="select-container"></div>
+                            </div>
+                        </div>
+
                         <!-- Step 8: Review -->
                         <div class="step review" wizard-step-id="review">
-                            <div class="main-desc" style="float:left">
+                            <div class="main-desc">
                                 <translate key="message.vm.review.launch"/>
-                            </div>
-                            <div class="main-desc" style="float:right; min-height: 34px">
-                                <translate key="message.ovf.properties.available"/>
                             </div>
                             <div class="content">
                                 <div class="select-container">
@@ -561,19 +571,6 @@
                                         </div>
                                         <div class="value">
                                             <textarea name="userdata" class="disallowSpecialCharacters"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="content">
-                                <div class="select-container ovfProperties">
-                                    <!-- Add to group -->
-                                    <div class="select">
-                                        <div class="name">
-                                            <span><translate key="label.add.to.group"/> (<translate key="label.optional"/>)</span>
-                                        </div>
-                                        <div class="value">
-                                            <input type="text" name="groupname" class="disallowSpecialCharacters" />
                                         </div>
                                     </div>
                                 </div>
