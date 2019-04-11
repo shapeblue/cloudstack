@@ -19,7 +19,7 @@
 -- Schema upgrade from 4.12.0.0 to 4.13.0.0
 --;
 
-CREATE TABLE `cloud`.`ovf_properties` (
+CREATE TABLE `cloud`.`template_ovf_properties` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `template_id` bigint(20) unsigned NOT NULL,
   `key` VARCHAR(100) NOT NULL,
@@ -31,5 +31,17 @@ CREATE TABLE `cloud`.`ovf_properties` (
   `description` TEXT DEFAULT NULL,
   `removed` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  CONSTRAINT `fk_ovf_vapp_options__template_id` FOREIGN KEY (`template_id`) REFERENCES `vm_template`(`id`)
+  CONSTRAINT `fk_template_ovf_properties__template_id` FOREIGN KEY (`template_id`) REFERENCES `vm_template`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `cloud`.`user_vm_ovf_properties` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `template_id` bigint(20) unsigned NOT NULL,
+  `vm_id` bigint(20) unsigned NOT NULL,
+  `key` VARCHAR(100) NOT NULL,
+  `value` VARCHAR(100) DEFAULT NULL,
+  `removed` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_user_vm_ovf_properties__template_id` FOREIGN KEY (`template_id`) REFERENCES `vm_template`(`id`),
+  CONSTRAINT `fk_user_vm_ovf_properties__vm_id` FOREIGN KEY (`vm_id`) REFERENCES `vm_instance`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

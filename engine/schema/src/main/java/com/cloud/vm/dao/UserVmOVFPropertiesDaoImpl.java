@@ -15,63 +15,61 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.cloudstack.storage.datastore.db;
+package com.cloud.vm.dao;
 
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.db.TransactionLegacy;
+import com.cloud.vm.UserVmOVFPropertyVO;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-public class OVFPropertiesDaoImpl extends GenericDaoBase<OVFPropertyVO, Long> implements OVFPropertiesDao {
+public class UserVmOVFPropertiesDaoImpl extends GenericDaoBase<UserVmOVFPropertyVO, Long> implements UserVmOVFPropertiesDao {
 
-    private final static Logger s_logger = Logger.getLogger(OVFPropertiesDaoImpl.class);
+    SearchBuilder<UserVmOVFPropertyVO> OptionsSearchBuilder;
 
-    SearchBuilder<OVFPropertyVO> OptionsSearchBuilder;
-
-    public OVFPropertiesDaoImpl() {
+    public UserVmOVFPropertiesDaoImpl() {
         super();
         OptionsSearchBuilder = createSearchBuilder();
-        OptionsSearchBuilder.and("templateid", OptionsSearchBuilder.entity().getTemplateId(), SearchCriteria.Op.EQ);
+        OptionsSearchBuilder.and("vmid", OptionsSearchBuilder.entity().getVmId(), SearchCriteria.Op.EQ);
         OptionsSearchBuilder.and("key", OptionsSearchBuilder.entity().getKey(), SearchCriteria.Op.EQ);
         OptionsSearchBuilder.done();
     }
 
     @Override
-    public boolean existsOption(long templateId, String key) {
-        return findByTemplateAndKey(templateId, key) != null;
+    public boolean existsOption(long vmId, String key) {
+        return findByVmIdAndKey(vmId, key) != null;
     }
 
     @Override
-    public OVFPropertyVO findByTemplateAndKey(long templateId, String key) {
-        SearchCriteria<OVFPropertyVO> sc = OptionsSearchBuilder.create();
-        sc.setParameters("templateid", templateId);
+    public UserVmOVFPropertyVO findByVmIdAndKey(long vmId, String key) {
+        SearchCriteria<UserVmOVFPropertyVO> sc = OptionsSearchBuilder.create();
+        sc.setParameters("vmid", vmId);
         sc.setParameters("key", key);
         return findOneBy(sc);
     }
 
     @Override
-    public void saveOptions(List<OVFPropertyVO> opts) {
+    public void saveOptions(List<UserVmOVFPropertyVO> opts) {
         if (CollectionUtils.isEmpty(opts)) {
             return;
         }
         TransactionLegacy txn = TransactionLegacy.currentTxn();
         txn.start();
-        for (OVFPropertyVO opt : opts) {
+        for (UserVmOVFPropertyVO opt : opts) {
             persist(opt);
         }
         txn.commit();
     }
 
     @Override
-    public List<OVFPropertyVO> listByTemplateId(long templateId) {
-        SearchCriteria<OVFPropertyVO> sc = OptionsSearchBuilder.create();
-        sc.setParameters("templateid", templateId);
+    public List<UserVmOVFPropertyVO> listByVmId(long vmId) {
+        SearchCriteria<UserVmOVFPropertyVO> sc = OptionsSearchBuilder.create();
+        sc.setParameters("vmid", vmId);
         return listBy(sc);
     }
 }

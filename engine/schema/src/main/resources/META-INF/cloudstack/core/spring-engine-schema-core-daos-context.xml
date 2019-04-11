@@ -356,5 +356,6 @@
   <bean id="outOfBandManagementDaoImpl" class="org.apache.cloudstack.outofbandmanagement.dao.OutOfBandManagementDaoImpl" />
   <bean id="GuestOsDetailsDaoImpl" class="org.apache.cloudstack.resourcedetail.dao.GuestOsDetailsDaoImpl" />
   <bean id="annotationDaoImpl" class="org.apache.cloudstack.annotation.dao.AnnotationDaoImpl" />
-  <bean id="ovfPropertiesDaoImpl" class="org.apache.cloudstack.storage.datastore.db.OVFPropertiesDaoImpl" />
+  <bean id="templateOVFPropertiesDaoImpl" class="com.cloud.storage.dao.TemplateOVFPropertiesDaoImpl" />
+  <bean id="userVmOVFOVFPropertiesDaoImpl" class="com.cloud.vm.dao.UserVmOVFPropertiesDaoImpl" />
 </beans>

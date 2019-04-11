@@ -15,16 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.cloudstack.storage.datastore.db;
+package com.cloud.vm.dao;
 
 import com.cloud.utils.db.GenericDao;
+import com.cloud.vm.UserVmOVFPropertyVO;
 
 import java.util.List;
 
-public interface OVFPropertiesDao extends GenericDao<OVFPropertyVO, Long> {
+public interface UserVmOVFPropertiesDao extends GenericDao<UserVmOVFPropertyVO, Long> {
 
-    boolean existsOption(long templateId, String key);
-    OVFPropertyVO findByTemplateAndKey(long templateId, String key);
-    void saveOptions(List<OVFPropertyVO> opts);
-    List<OVFPropertyVO> listByTemplateId(long templateId);
+    boolean existsOption(long vmId, String key);
+    UserVmOVFPropertyVO findByVmIdAndKey(long vmId, String key);
+    void saveOptions(List<UserVmOVFPropertyVO> opts);
+    List<UserVmOVFPropertyVO> listByVmId(long vmId);
 }

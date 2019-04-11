@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.cloudstack.storage.datastore.db;
+package com.cloud.storage;
 
 import com.cloud.agent.api.storage.OVFProperty;
 import com.cloud.utils.db.GenericDao;
@@ -29,8 +29,8 @@ import javax.persistence.Table;
 import java.util.Date;
 
 @Entity
-@Table(name = "ovf_properties")
-public class OVFPropertyVO implements OVFProperty {
+@Table(name = "template_ovf_properties")
+public class TemplateOVFPropertyVO implements OVFProperty {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,11 +64,11 @@ public class OVFPropertyVO implements OVFProperty {
     @Column(name = GenericDao.REMOVED_COLUMN)
     private Date removed;
 
-    public OVFPropertyVO() {
+    public TemplateOVFPropertyVO() {
     }
 
-    public OVFPropertyVO(Long templateId, String key, String type, String value, String qualifiers,
-                         Boolean userConfigurable, String label, String description) {
+    public TemplateOVFPropertyVO(Long templateId, String key, String type, String value, String qualifiers,
+                                 Boolean userConfigurable, String label, String description) {
         this.templateId = templateId;
         this.key = key;
         this.type = type;

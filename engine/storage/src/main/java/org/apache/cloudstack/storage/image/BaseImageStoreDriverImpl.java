@@ -29,8 +29,8 @@ import javax.inject.Inject;
 
 import com.cloud.agent.api.storage.OVFPropertyTO;
 import com.cloud.storage.Upload;
-import org.apache.cloudstack.storage.datastore.db.OVFPropertiesDao;
-import org.apache.cloudstack.storage.datastore.db.OVFPropertyVO;
+import com.cloud.storage.dao.TemplateOVFPropertiesDao;
+import com.cloud.storage.TemplateOVFPropertyVO;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 
@@ -104,7 +104,7 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
     @Inject
     ResourceLimitService _resourceLimitMgr;
     @Inject
-    OVFPropertiesDao ovfPropertiesDao;
+    TemplateOVFPropertiesDao templateOvfPropertiesDao;
 
     protected String _proxy = null;
 
@@ -172,10 +172,10 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
      * Persist OVF properties as template details for template with id = templateId
      */
     private void persistOVFProperties(List<OVFPropertyTO> ovfProperties, long templateId) {
-        List<OVFPropertyVO> listToPersist = new ArrayList<>();
+        List<TemplateOVFPropertyVO> listToPersist = new ArrayList<>();
         for (OVFPropertyTO property : ovfProperties) {
-            if (!ovfPropertiesDao.existsOption(templateId, property.getKey())) {
-                OVFPropertyVO option = new OVFPropertyVO(templateId, property.getKey(), property.getType(),
+            if (!templateOvfPropertiesDao.existsOption(templateId, property.getKey())) {
+                TemplateOVFPropertyVO option = new TemplateOVFPropertyVO(templateId, property.getKey(), property.getType(),
                         property.getValue(), property.getQualifiers(), property.isUserConfigurable(),
                         property.getLabel(), property.getDescription());
                 listToPersist.add(option);
@@ -183,7 +183,7 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
         }
         if (CollectionUtils.isNotEmpty(listToPersist)) {
             s_logger.debug("Persisting " + listToPersist.size() + " OVF properties for template " + templateId);
-            ovfPropertiesDao.saveOptions(listToPersist);
+            templateOvfPropertiesDao.saveOptions(listToPersist);
         }
     }
 
