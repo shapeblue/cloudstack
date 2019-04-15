@@ -556,6 +556,7 @@ public class ApiConstants {
     public static final String S2S_VPN_GATEWAY_ID = "s2svpngatewayid";
     public static final String S2S_CUSTOMER_GATEWAY_ID = "s2scustomergatewayid";
     public static final String IPSEC_PSK = "ipsecpsk";
+    public static final String MIGRATE_VPN = "migratevpn";
     public static final String GUEST_IP = "guestip";
     public static final String REMOVED = "removed";
     public static final String COMPLETED = "completed";

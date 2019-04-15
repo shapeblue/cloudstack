@@ -1094,6 +1094,7 @@ var dictionary = {
     "label.migrate.to.storage": "迁移到存储",
     "label.migrate.volume": "迁移卷",
     "label.migrate.volume.to.primary.storage": "将卷迁移到其他主存储",
+    "label.migrate.vpn":"Migrate VPN",
     "label.migrate.volume.newDiskOffering": "Replace disk offering?",
     "label.migrate.volume.newDiskOffering.desc": "This option allows administrators to replace the old disk offering, using one that better suits the new placement of the volume.",
     "label.min.instances": "最小实例数",

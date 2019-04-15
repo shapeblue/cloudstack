@@ -1094,6 +1094,7 @@ var dictionary = {
     "label.migrate.to.storage": "Migreer naar opslag",
     "label.migrate.volume": "Migreer volume",
     "label.migrate.volume.to.primary.storage": "Migreer volume naar andere primaire opslag",
+    "label.migrate.vpn":"Migrate VPN",
     "label.migrate.volume.newDiskOffering": "Replace disk offering?",
     "label.migrate.volume.newDiskOffering.desc": "This option allows administrators to replace the old disk offering, using one that better suits the new placement of the volume.",
     "label.min.instances": "Min Instances",

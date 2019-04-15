@@ -1094,6 +1094,7 @@ var dictionary = {
     "label.migrate.to.storage": "Перенести на хранилище",
     "label.migrate.volume": "Перенос диска",
     "label.migrate.volume.to.primary.storage": "Перенести диск в другое основное хранилище",
+    "label.migrate.vpn":"Migrate VPN",
     "label.migrate.volume.newDiskOffering": "Replace disk offering?",
     "label.migrate.volume.newDiskOffering.desc": "This option allows administrators to replace the old disk offering, using one that better suits the new placement of the volume.",
     "label.min.instances": "Min Instances",

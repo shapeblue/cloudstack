@@ -183,6 +183,10 @@ public class RemoteAccessVpnVO implements RemoteAccessVpn {
         return display;
     }
 
+    public void setVpnType(String vpnType) {
+        this.vpnType = vpnType;
+    }
+
     @Override
     public String getVpnType() {
         return vpnType;

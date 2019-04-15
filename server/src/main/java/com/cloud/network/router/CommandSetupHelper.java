@@ -87,6 +87,8 @@ import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.NetworkDao;
 import com.cloud.network.dao.NetworkVO;
+import com.cloud.network.dao.RemoteAccessVpnDao;
+import com.cloud.network.dao.RemoteAccessVpnVO;
 import com.cloud.network.dao.Site2SiteCustomerGatewayDao;
 import com.cloud.network.dao.Site2SiteCustomerGatewayVO;
 import com.cloud.network.dao.Site2SiteVpnGatewayDao;
@@ -107,7 +109,6 @@ import com.cloud.network.vpc.StaticRouteProfile;
 import com.cloud.network.vpc.Vpc;
 import com.cloud.network.vpc.VpcGateway;
 import com.cloud.network.vpc.dao.VpcDao;
-import com.cloud.network.vpn.RemoteAccessVpnService;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.offerings.NetworkOfferingVO;
 import com.cloud.offerings.dao.NetworkOfferingDao;
@@ -178,6 +179,8 @@ public class CommandSetupHelper {
     private IPAddressDao _ipAddressDao;
     @Inject
     private RemoteAccessVpnDetailsDao remoteAccessVpnDetailsDao;
+    @Inject
+    private RemoteAccessVpnDao remoteAccessVpnDao;
 
     @Inject
     private RouterControlHelper _routerControlHelper;
@@ -206,9 +209,9 @@ public class CommandSetupHelper {
             }
         }
 
-        String vpnType = _configDao.getValue(RemoteAccessVpnService.RemoteAccessVpnTypeConfigKey);
+        RemoteAccessVpnVO vpnVO = remoteAccessVpnDao.findByAccountAndVpc(router.getAccountId(), router.getVpcId());
 
-        final VpnUsersCfgCommand cmd = new VpnUsersCfgCommand(addUsers, removeUsers, vpnType);
+        final VpnUsersCfgCommand cmd = new VpnUsersCfgCommand(addUsers, removeUsers, vpnVO.getVpnType());
         cmd.setAccessDetail(NetworkElementCommand.ACCOUNT_ID, String.valueOf(router.getAccountId()));
         cmd.setAccessDetail(NetworkElementCommand.ROUTER_IP, _routerControlHelper.getRouterControlIp(router.getId()));
         cmd.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
@@ -586,7 +589,7 @@ public class CommandSetupHelper {
 
         // read additional details from DB and fill them up in RemoteAccessVpnVO
         final Map<String, String> vpnDetials = remoteAccessVpnDetailsDao.getDetails(vpn.getId());
-        final String vpnType = _configDao.getValue(RemoteAccessVpnService.RemoteAccessVpnTypeConfigKey);
+        final String vpnType = vpn.getVpnType();
 
         final RemoteAccessVpnCfgCommand startVpnCmd = new RemoteAccessVpnCfgCommand(
                 isCreate,
