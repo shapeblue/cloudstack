@@ -64,4 +64,6 @@ public interface RemoteAccessVpnService {
 
     RemoteAccessVpn updateRemoteAccessVpn(long id, String customId, Boolean forDisplay);
 
+    boolean migrateRemoteAccessVpn(long accountId, long vpcId);
+
 }

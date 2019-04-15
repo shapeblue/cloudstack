@@ -51,6 +51,9 @@ public class RestartVPCCmd extends BaseAsyncCmd {
     @Parameter(name = ApiConstants.CLEANUP, type = CommandType.BOOLEAN, required = false, description = "If cleanup old network elements")
     private Boolean cleanup = false;
 
+    @Parameter(name = ApiConstants.MIGRATE_VPN, type = CommandType.BOOLEAN, required = false, description = "If migrate remote access VPN config")
+    private Boolean mirgateVpn;
+
     @Parameter(name = ApiConstants.MAKEREDUNDANT, type = CommandType.BOOLEAN, required = false, description = "Turn a single VPC into a redundant one.")
     private Boolean makeredundant = false;
 
@@ -64,6 +67,13 @@ public class RestartVPCCmd extends BaseAsyncCmd {
 
     public Boolean getCleanup() {
         return cleanup;
+    }
+
+    public Boolean isMigrateVpn() {
+        if (mirgateVpn != null) {
+            return mirgateVpn;
+        }
+        return true;
     }
 
     public Boolean getMakeredundant() {
@@ -91,7 +101,7 @@ public class RestartVPCCmd extends BaseAsyncCmd {
     @Override
     public void execute() {
         try {
-            final boolean result = _vpcService.restartVpc(getId(), getCleanup(), getMakeredundant());
+            final boolean result = _vpcService.restartVpc(getId(), getCleanup(), getMakeredundant(), isMigrateVpn());
             if (result) {
                 final SuccessResponse response = new SuccessResponse(getCommandName());
                 setResponseObject(response);

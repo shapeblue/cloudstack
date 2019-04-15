@@ -1094,6 +1094,7 @@ var dictionary = {
     "label.migrate.to.storage": "ストレージへ移行",
     "label.migrate.volume": "ボリュームの移行",
     "label.migrate.volume.to.primary.storage": "別のプライマリ ストレージへのボリュームの移行",
+    "label.migrate.vpn":"Migrate VPN",
     "label.migrate.volume.newDiskOffering": "Replace disk offering?",
     "label.migrate.volume.newDiskOffering.desc": "This option allows administrators to replace the old disk offering, using one that better suits the new placement of the volume.",
     "label.min.instances": "最小インスタンス数",

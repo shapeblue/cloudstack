@@ -5566,6 +5566,8 @@
 
                                         args.$form.find('.form-item[rel=cleanup]').find('input').attr('checked', 'checked'); //checked
                                         args.$form.find('.form-item[rel=cleanup]').css('display', 'inline-block'); //shown
+                                        args.$form.find('.form-item[rel=migratevpn]').find('input').attr('checked', 'checked'); //checked
+                                        args.$form.find('.form-item[rel=migratevpn]').css('display', 'inline-block'); //shown
                                         args.$form.find('.form-item[rel=makeredundant]').find('input').attr('checked', 'checked'); //checked
                                         args.$form.find('.form-item[rel=makeredundant]').css('display', 'inline-block'); //shown
 
@@ -5579,6 +5581,10 @@
                                         cleanup: {
                                             label: 'label.clean.up',
                                             isBoolean: true
+                                        },
+                                        migratevpn: {
+                                     	   label: 'label.migrate.vpn',
+                                     	   isBoolean: true
                                         },
                                         makeredundant: {
                                             label: 'label.make.redundant',
@@ -5601,6 +5607,7 @@
                                         data: {
                                             id: args.context.vpc[0].id,
                                             cleanup: (args.data.cleanup == "on"),
+                                            migratevpn: (args.data.migratevpn == "on"),
                                             makeredundant: (args.data.makeredundant == "on")
                                         },
                                         success: function(json) {

@@ -281,34 +281,7 @@ public class RemoteAccessVpnManagerImpl extends ManagerBase implements RemoteAcc
 
         if (vpnType.equalsIgnoreCase(RemoteAccessVpnService.Type.IKEV2.toString())) {
             try {
-                // issue a signed certificate for the public IP through Vault
-                final Domain domain = _domainMgr.findDomainByIdOrPath(ipAddr.getDomainId(), null);
-                final PkiDetail credential = pkiManager.issueCertificate(domain, ipAddress.getAddress());
-
-                Transaction.execute(new TransactionCallback<ResourceDetail>() {
-                    @Override
-                    public ResourceDetail doInTransaction(TransactionStatus status) throws RuntimeException {
-                        // note that all the vpn details will be encrypted and then stored in database
-                        _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_ISSUING_CA, credential.getIssuingCa(), false);
-                        _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_SERIAL_NUMBER, credential.getSerialNumber(), false);
-                        _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_CERTIFICATE, credential.getCertificate(), false);
-                        _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_PRIVATE_KEY, credential.getPrivateKey(), false);
-
-                        // no need to return anything here
-                        return null;
-                    }
-                });
-
-                Transaction.execute(new TransactionCallback<Boolean>() {
-                    @Override
-                    public Boolean doInTransaction(TransactionStatus status) {
-                        RemoteAccessVpnVO vpnVO = (RemoteAccessVpnVO)vpn;
-
-                        vpnVO.setCaCertificate(credential.getIssuingCa());
-
-                        return _remoteAccessVpnDao.update(vpnVO.getId(), vpnVO);
-                    }
-                });
+                generateIKEv2Certificates((RemoteAccessVpnVO)vpn, ipAddr, ipAddress);
             } catch (RemoteAccessVpnException | RuntimeException e) {
                 // clean up just created vpn
                 Transaction.execute(new TransactionCallback<Boolean>() {
@@ -323,6 +296,37 @@ public class RemoteAccessVpnManagerImpl extends ManagerBase implements RemoteAcc
         }
 
         return vpn;
+    }
+
+    private void generateIKEv2Certificates(final RemoteAccessVpnVO vpn, final PublicIpAddress ipAddr, final IPAddressVO ipAddress) throws RemoteAccessVpnException {
+        // issue a signed certificate for the public IP through Vault
+        final Domain domain = _domainMgr.findDomainByIdOrPath(ipAddr.getDomainId(), null);
+        final PkiDetail credential = pkiManager.issueCertificate(domain, ipAddress.getAddress());
+
+        Transaction.execute(new TransactionCallback<ResourceDetail>() {
+            @Override
+            public ResourceDetail doInTransaction(TransactionStatus status) throws RuntimeException {
+                // note that all the vpn details will be encrypted and then stored in database
+                _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_ISSUING_CA, credential.getIssuingCa(), false);
+                _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_SERIAL_NUMBER, credential.getSerialNumber(), false);
+                _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_CERTIFICATE, credential.getCertificate(), false);
+                _remoteAccessVpnDetailsDao.addDetail(vpn.getId(), PkiManager.CREDENTIAL_PRIVATE_KEY, credential.getPrivateKey(), false);
+
+                // no need to return anything here
+                return null;
+            }
+        });
+
+        Transaction.execute(new TransactionCallback<Boolean>() {
+            @Override
+            public Boolean doInTransaction(TransactionStatus status) {
+                RemoteAccessVpnVO vpnVO = (RemoteAccessVpnVO)vpn;
+
+                vpnVO.setCaCertificate(credential.getIssuingCa());
+
+                return _remoteAccessVpnDao.update(vpnVO.getId(), vpnVO);
+            }
+        });
     }
 
     private void validateRemoteAccessVpnConfiguration() throws ConfigurationException {
@@ -853,6 +857,67 @@ public class RemoteAccessVpnManagerImpl extends ManagerBase implements RemoteAcc
 
         _remoteAccessVpnDao.update(vpn.getId(), vpn);
         return _remoteAccessVpnDao.findById(id);
+    }
+
+    @Override
+    public boolean migrateRemoteAccessVpn(long accountId, long vpcId) {
+        // check if remote access VPN is enabled on this VPC
+        RemoteAccessVpnVO vpnVO = _remoteAccessVpnDao.findByAccountAndVpc(accountId, vpcId);
+
+        if (vpnVO == null) {
+            s_logger.debug("Remote access VPN is not enabled for VPC " + vpcId + ". Nothing to do.");
+            return false;
+        }
+
+        final String currentType = vpnVO.getVpnType();
+        final String globalType = RemoteAccessVpnType.value();
+
+        // check if type of remote access VPN is the same as global setting or not
+        if (currentType.equalsIgnoreCase(globalType)) {
+            s_logger.debug("Remote access VPN type of VPC " + vpcId + " is the same global setting. Nothing to do.");
+            return false;
+        }
+
+        final String sharedSecret = globalType.equalsIgnoreCase(RemoteAccessVpnService.Type.IKEV2.toString()) ? null : PasswordGenerator.generatePresharedKey(_pskLength);
+
+        // migrate to L2TP
+        if (globalType.equalsIgnoreCase(RemoteAccessVpnService.Type.L2TP.toString())) {
+            vpnVO.setVpnType(globalType);
+            vpnVO.setIpsecPresharedKey(sharedSecret);
+            vpnVO.setCaCertificate(null);
+
+            _remoteAccessVpnDao.update(vpnVO.getId(), vpnVO);
+
+            // remove details
+            _remoteAccessVpnDetailsDao.removeDetails(vpnVO.getId());
+
+            s_logger.debug("Remote access VPN for VPC " + vpcId + " migrated.");
+            return true;
+        }
+
+        // Migrate to IKEv2
+        else if (globalType.equalsIgnoreCase(RemoteAccessVpnService.Type.IKEV2.toString())) {
+            try {
+                final PublicIpAddress ipAddr = _networkMgr.getPublicIpAddress(vpnVO.getServerAddressId());
+                final IPAddressVO ipAddress = _ipAddressDao.findById(vpnVO.getServerAddressId());
+
+                generateIKEv2Certificates(vpnVO, ipAddr, ipAddress);
+
+                vpnVO.setVpnType(globalType);
+                vpnVO.setIpsecPresharedKey(null);
+
+                _remoteAccessVpnDao.update(vpnVO.getId(), vpnVO);
+
+                s_logger.debug("Remote access VPN for VPC " + vpcId + " migrated.");
+                return true;
+            } catch (RemoteAccessVpnException | RuntimeException e) {
+                s_logger.warn("Remote access VPN migration for VPC " + vpcId + " faild.", e);
+                return false;
+            }
+        }
+
+        s_logger.warn("Unknown Remote access VPN type. Nothing to do");
+        return false;
     }
 
 }

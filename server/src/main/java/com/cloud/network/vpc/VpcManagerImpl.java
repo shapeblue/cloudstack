@@ -99,6 +99,7 @@ import com.cloud.network.vpc.dao.VpcGatewayDao;
 import com.cloud.network.vpc.dao.VpcOfferingDao;
 import com.cloud.network.vpc.dao.VpcOfferingServiceMapDao;
 import com.cloud.network.vpc.dao.VpcServiceMapDao;
+import com.cloud.network.vpn.RemoteAccessVpnService;
 import com.cloud.network.vpn.Site2SiteVpnManager;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.offerings.NetworkOfferingServiceMapVO;
@@ -186,6 +187,8 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     FirewallRulesDao _firewallDao;
     @Inject
     Site2SiteVpnManager _s2sVpnMgr;
+    @Inject
+    RemoteAccessVpnService remoteVpnMgr;
     @Inject
     VlanDao _vlanDao = null;
     @Inject
@@ -1488,7 +1491,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_RESTART, eventDescription = "restarting vpc")
-    public boolean restartVpc(final long vpcId, final boolean cleanUp, final boolean makeRedundant) throws ConcurrentOperationException, ResourceUnavailableException,
+    public boolean restartVpc(final long vpcId, final boolean cleanUp, final boolean makeRedundant, final boolean migrateVpn) throws ConcurrentOperationException, ResourceUnavailableException,
     InsufficientCapacityException {
 
         final Account callerAccount = CallContext.current().getCallingAccount();
@@ -1532,6 +1535,9 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
                     s_logger.warn("Failed to execute a rolling restart as a part of VPC " + vpc + " restart process");
                     restartRequired = true;
                     return false;
+                }
+                if (migrateVpn) {
+                    remoteVpnMgr.migrateRemoteAccessVpn(vpc.getAccountId(), vpc.getId());
                 }
                 return true;
             }

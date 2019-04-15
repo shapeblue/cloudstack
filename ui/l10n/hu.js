@@ -1094,6 +1094,7 @@ var dictionary = {
     "label.migrate.to.storage": "Mozgatás tárra",
     "label.migrate.volume": "Kötet mozgatása",
     "label.migrate.volume.to.primary.storage": "Kötet mozgatása másik elsődleges tárra",
+    "label.migrate.vpn":"Migrate VPN",
     "label.migrate.volume.newDiskOffering": "Replace disk offering?",
     "label.migrate.volume.newDiskOffering.desc": "This option allows administrators to replace the old disk offering, using one that better suits the new placement of the volume.",
     "label.min.instances": "Példányok minimális száma",
