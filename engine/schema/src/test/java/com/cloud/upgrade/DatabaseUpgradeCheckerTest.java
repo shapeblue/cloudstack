@@ -104,12 +104,12 @@ public class DatabaseUpgradeCheckerTest {
         assertTrue(upgrades[2] instanceof Upgrade4100227to4100228);
         assertTrue(upgrades[3] instanceof Upgrade4100228to4100229);
         assertTrue(upgrades[4] instanceof Upgrade4100229to4100230);
-        assertTrue(upgrades[13] instanceof Upgrade41100to41110);
-        assertTrue(upgrades[14] instanceof Upgrade41110to41120);
-        assertTrue(upgrades[15] instanceof Upgrade41120to41200);
+        assertTrue(upgrades[14] instanceof Upgrade41100to41110);
+        assertTrue(upgrades[15] instanceof Upgrade41110to41120);
+        assertTrue(upgrades[16] instanceof Upgrade41120to41200);
 
-        assertTrue(Arrays.equals(new String[] {"4.11.0.0", "4.11.1.0"}, upgrades[13].getUpgradableVersionRange()));
-        assertEquals(currentVersion.toString(), upgrades[15].getUpgradedVersion());
+        assertTrue(Arrays.equals(new String[] {"4.11.0.0", "4.11.1.0"}, upgrades[14].getUpgradableVersionRange()));
+        assertEquals(currentVersion.toString(), upgrades[16].getUpgradedVersion());
 
     }
 

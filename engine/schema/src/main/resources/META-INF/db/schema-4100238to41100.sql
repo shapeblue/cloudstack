@@ -16,7 +16,7 @@
 -- under the License.
 
 --;
--- Schema upgrade from 4.10.0.237 to 4.11.0.0;
+-- Schema upgrade from 4.10.0.238 to 4.11.0.0;
 --;
 
 --;
