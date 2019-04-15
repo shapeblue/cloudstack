@@ -1925,6 +1925,17 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                     final Map<String, String> platform = vm.getPlatform(conn);
                     platform.put("cores-per-socket", coresPerSocket);
                     vm.setPlatform(conn, platform);
+                } else {
+                    int coresPerSocketCalculated;
+                    int cpus = vmSpec.getCpus();
+                    if (cpus % 2 == 1) {
+                        coresPerSocketCalculated = 1;
+                    } else {
+                        coresPerSocketCalculated = cpus / 2;
+                    }
+                    final Map<String, String> platform = vm.getPlatform(conn);
+                    platform.put("cores-per-socket", Integer.toString(coresPerSocketCalculated));
+                    vm.setPlatform(conn, platform);
                 }
                 final String nestedHvm = details.get("nested.hvm");
                 if (nestedHvm != null) {
