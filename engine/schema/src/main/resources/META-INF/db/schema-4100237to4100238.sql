@@ -18,3 +18,5 @@
 --;
 -- Schema upgrade from 4.10.0.237 to 4.10.0.238;
 --;
+
+INSERT IGNORE INTO configuration (`category`, `instance`, `component`, `name`, `value`, `description`) VALUES ('Network', 'DEFAULT', 'management-server', 'vpc.usage.whitelist.cidr', null, 'List of CIDRs to track usage separately in VPCs');

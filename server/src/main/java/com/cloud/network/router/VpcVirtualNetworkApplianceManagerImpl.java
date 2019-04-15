@@ -26,6 +26,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -120,6 +121,8 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
     private EntityManager _entityMgr;
     @Inject
     protected HypervisorGuruManager _hvGuruMgr;
+    @Inject
+    private ConfigurationDao configDao;
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
@@ -275,6 +278,10 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
                     s_logger.debug("Set privategateway field in cmd_line.json to " + ip4Address);
                 } else {
                     buf.append(" privategateway=None");
+                }
+                final String vpcWhitelistCidr = configDao.getValue("vpc.usage.whitelist.cidr");
+                if (vpcWhitelistCidr != null && vpcWhitelistCidr.length() > 0) {
+                    buf.append(" vpcusagewhitelist=").append(vpcWhitelistCidr);
                 }
             }
         }

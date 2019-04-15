@@ -1859,7 +1859,9 @@ public enum Config {
     // StatsCollector
     StatsOutPutGraphiteHost("Advanced", ManagementServer.class, String.class, "stats.output.uri", "", "URI to additionally send StatsCollector statistics to", null),
 
-    SSVMPSK("Hidden", ManagementServer.class, String.class, "upload.post.secret.key", "", "PSK with SSVM", null);
+    SSVMPSK("Hidden", ManagementServer.class, String.class, "upload.post.secret.key", "", "PSK with SSVM", null),
+
+    VPCUsageWhiteListCIDR("Network", ManagementServer.class, String.class, "vpc.usage.whitelist.cidr", null, "List of CIDRs to track usage separately in VPCs", "routes");
 
     private final String _category;
     private final Class<?> _componentClass;
