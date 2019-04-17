@@ -141,7 +141,7 @@ public class LdapListUsersCmd extends BaseListCmd {
         return listType == null ? "all" : listType;
     }
 
-    private boolean isACloudstackUser(final LdapUser ldapUser) {
+    boolean isACloudstackUser(final LdapUser ldapUser) {
         final ListResponse<UserResponse> response = _queryService.searchForUsers(new ListUsersCmd());
         final List<UserResponse> cloudstackUsers = response.getResponses();
         if (cloudstackUsers != null && cloudstackUsers.size() != 0) {
