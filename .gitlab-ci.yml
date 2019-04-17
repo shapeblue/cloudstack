@@ -54,7 +54,7 @@ variables:
   function yum_repo_path() {
     if [ "${CI_PROJECT_NAMESPACE}" = "dev" ]; then
       if [ -n "${CI_COMMIT_TAG}" ]; then
-        local version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+        local version=$(cd ${CI_PROJECT_DIR}; mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
         local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
         local os_target="centos7"
 
@@ -65,7 +65,7 @@ variables:
 
         echo "${stable_prefix}/${major_version}/${os_target}"
       elif [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_4.10" ]; then
-        local version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+        local version=$(cd ${CI_PROJECT_DIR}; mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
         local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
         local os_target="centos7"
 
@@ -87,7 +87,7 @@ variables:
   function template_path() {
     if [ "${CI_PROJECT_NAMESPACE}" = "dev" ]; then
       if [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_4.10" ]; then
-        local version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+        local version=$(cd ${CI_PROJECT_DIR}; mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
         local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
 
         case "$version" in
@@ -249,14 +249,17 @@ SysVM Template:
       md5sum=$(cd ${CI_PROJECT_DIR}/target/templates; md5sum * > ${full_name}.md5sum; cat ${full_name}.md5sum)
 
       # upload to swift
+      swift post ${namespace} -r '.r:*,.rlistings'
       swift upload ${namespace} --object-name ${swift_path} ${CI_PROJECT_DIR}/target/templates
+  after_script:
+    - git clean -fdx
   only:
     - branches
   tags:
     - systemvm
 
 # Run integration tests against live build
-integration test:
+Integration Test:
   stage: integration
   when: manual
   before_script:
