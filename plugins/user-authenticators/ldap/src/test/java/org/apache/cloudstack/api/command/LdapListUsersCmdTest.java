@@ -159,4 +159,56 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
         assertFalse(result);
 	}
+
+    /**
+     * test whether a value other than 'any' for 'listtype' leads to a good 'userfilter' value
+     */
+    @Test
+    public void getListtypeOther() {
+        when(ldapListUsersCmd.getListType()).thenReturn("otHer", "anY");
+        String userfilter = ldapListUsersCmd.getUserFilter();
+
+        assertEquals("AnyDomain", userfilter);
+
+        // Big no-no: a second test in a test-method; don't do this at home
+        userfilter = ldapListUsersCmd.getUserFilter();
+        assertEquals("AnyDomain", userfilter);
+    }
+
+    /**
+     * test whether a value of 'any' for 'listtype' leads to a good 'userfilter' value
+     */
+    @Test
+    public void getListtypeAny() {
+        when(ldapListUsersCmd.getListType()).thenReturn("any");
+        String userfilter = ldapListUsersCmd.getUserFilter();
+        assertEquals("NoFilter", userfilter);
+    }
+
+    /**
+     * test whether values for 'userfilter'
+     */
+    @Test
+    public void getUserFilter() throws NoSuchFieldException, IllegalAccessException{
+        setHiddenField(ldapListUsersCmd, "userFilter", "flase");
+
+        when(ldapListUsersCmd.getListType()).thenReturn("otHer", "anY");
+        String userfilter = ldapListUsersCmd.getUserFilter();
+
+        assertEquals("AnyDomain", userfilter);
+
+        // Big no-no: a second test in a test-method; don't do this at home
+        userfilter = ldapListUsersCmd.getUserFilter();
+        assertEquals("AnyDomain", userfilter);
+    }
+
+    @Test
+    public void getUserFilterValues() {
+        assertEquals("PotentialImport", LdapListUsersCmd.UserFilter.POTENTIAL_IMPORT.toString());
+        assertEquals(LdapListUsersCmd.UserFilter.POTENTIAL_IMPORT, LdapListUsersCmd.UserFilter.fromString("PotentialImport"));
+    }
+    @Test(expected = IllegalArgumentException.class)
+    public void getInvalidUserFilterValues() {
+        assertEquals("POTENT_IMPORT", LdapListUsersCmd.UserFilter.fromString("PotentImport"));
+    }
 }

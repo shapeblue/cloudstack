@@ -83,14 +83,15 @@ public class LdapListUsersCmd extends BaseListCmd {
     @Parameter(name = "listtype",
             type = CommandType.STRING,
             required = false,
-            description = "Determines whether all ldap users are returned or just non-cloudstack users")
+            description = "Determines whether all ldap users are returned or just non-cloudstack users. This option is deprecated in favour for the more option rich 'userfilter' parameter")
+    @Deprecated
     private String listType;
 
     @Parameter(name = ApiConstants.USER_FILTER,
             type = CommandType.STRING,
             required = false,
             since = "4.13",
-            description = "Determines what type of filter is applied on the list of users returned from LDAP")
+            description = "Determines what type of filter is applied on the list of users returned from LDAP.\n\tvalid values are 'NoFilter', 'LocalDomain', 'AnyDomain' and 'PotentialImport'")
     private String userFilter;
 
     @Parameter(name = ApiConstants.DOMAIN_ID, type = CommandType.UUID, required = false, entityType = DomainResponse.class, description = "linked domain")
@@ -150,8 +151,12 @@ public class LdapListUsersCmd extends BaseListCmd {
         return Account.ACCOUNT_ID_SYSTEM;
     }
 
-    private String getListType() {
+    String getListType() {
         return listType == null ? "all" : listType;
+    }
+
+    String getUserFilter() {
+        return userFilter == null ? getListType() == null ? "NoFilter" : getListType().equals("any") ? "NoFilter" : "AnyDomain" : userFilter;
     }
 
     boolean isACloudstackUser(final LdapUser ldapUser) {
@@ -165,5 +170,38 @@ public class LdapListUsersCmd extends BaseListCmd {
             }
         }
         return false;
+    }
+    /**
+     * typecheck for userfilter values
+     */
+    enum UserFilter {
+        NO_FILTER("NoFilter"),
+        LOCAL_DOMAIN("LocalDomain"),
+        ANY_DOMAIN("AnyDomain"),
+        POTENTIAL_IMPORT("PotentialImport");
+
+        private final String value;
+
+        UserFilter(String val) {
+            this.value = val;
+        }
+
+        static UserFilter fromString(String val) {
+            if(NO_FILTER.toString().equalsIgnoreCase(val)) {
+                return NO_FILTER;
+            } else if (LOCAL_DOMAIN.toString().equalsIgnoreCase(val)) {
+                return LOCAL_DOMAIN;
+            } else if(ANY_DOMAIN.toString().equalsIgnoreCase(val)) {
+                return ANY_DOMAIN;
+            } else if(POTENTIAL_IMPORT.toString().equalsIgnoreCase(val)) {
+                return POTENTIAL_IMPORT;
+            } else {
+                throw new IllegalArgumentException(String.format("%s is not a legal 'UserFilter' value", val));
+            }
+        }
+
+        @Override public String toString() {
+            return value;
+        }
     }
 }
