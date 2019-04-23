@@ -81,10 +81,17 @@ public class LdapListUsersCmd extends BaseListCmd {
     private QueryService _queryService;
 
     @Parameter(name = "listtype",
-               type = CommandType.STRING,
-               required = false,
-               description = "Determines whether all ldap users are returned or just non-cloudstack users")
+            type = CommandType.STRING,
+            required = false,
+            description = "Determines whether all ldap users are returned or just non-cloudstack users")
     private String listType;
+
+    @Parameter(name = ApiConstants.USER_FILTER,
+            type = CommandType.STRING,
+            required = false,
+            since = "4.13",
+            description = "Determines what type of filter is applied on the list of users returned from LDAP")
+    private String userFilter;
 
     @Parameter(name = ApiConstants.DOMAIN_ID, type = CommandType.UUID, required = false, entityType = DomainResponse.class, description = "linked domain")
     private Long domainId;
@@ -99,6 +106,11 @@ public class LdapListUsersCmd extends BaseListCmd {
         _queryService = queryService;
     }
 
+    /**
+     * (as a check for isACloudstackUser is done) only non cloudstack users should be shown
+     * @param users a list of {@code LdapUser}s
+     * @return a (filtered?) list of user response objects
+     */
     private List<LdapUserResponse> createLdapUserResponse(final List<LdapUser> users) {
         final List<LdapUserResponse> ldapResponses = new ArrayList<LdapUserResponse>();
         for (final LdapUser user : users) {
@@ -117,6 +129,7 @@ public class LdapListUsersCmd extends BaseListCmd {
         final ListResponse<LdapUserResponse> response = new ListResponse<LdapUserResponse>();
         try {
             final List<LdapUser> users = _ldapManager.getUsers(domainId);
+            // apply filter(s)
             ldapResponses = createLdapUserResponse(users);
         } catch (final NoLdapUserMatchingQueryException ex) {
             ldapResponses = new ArrayList<LdapUserResponse>();
