@@ -278,11 +278,14 @@ public class LdapListUsersCmd extends BaseListCmd {
     }
 
     /**
-     * TODO improve with annotation of source for existing ACS users
+     * no filtering but improve with annotation of source for existing ACS users
      * @param input ldap response list of users
      * @return unfiltered list of the input list of ldap users
      */
     public List<LdapUserResponse> filterNoFilter(List<LdapUserResponse> input) {
+        for (final LdapUserResponse user : input) {
+            annotateCloudstackSource(user);
+        }
         return input;
     }
 
@@ -302,6 +305,21 @@ public class LdapListUsersCmd extends BaseListCmd {
     }
 
     /**
+     * filter the list of ldap users. no users visible to the caller already in the domain specified should be in the returned list
+     * @param input ldap response list of users
+     * @return a list of ldap users not already in ACS
+     */
+    public List<LdapUserResponse> filterLocalDomain(List<LdapUserResponse> input) {
+        final List<LdapUserResponse> ldapResponses = new ArrayList<LdapUserResponse>();
+        for (final LdapUserResponse user : input) {
+            if (user.getDomain().equals(getCloudstackUser(user).getDomainName())) {
+                ldapResponses.add(user);
+            }
+        }
+        return ldapResponses;
+    }
+
+    /**
      *
      * @param input a list of ldap users
      * @return annotated list of the users of the input list, that will be automatically imported or synchronised
@@ -314,13 +332,22 @@ public class LdapListUsersCmd extends BaseListCmd {
     }
 
     private void annotateCloudstackSource(LdapUserResponse user) {
+        final UserResponse cloudstackUser = getCloudstackUser(user);
+        if (cloudstackUser != null) {
+            user.setUserSource(cloudstackUser.getUserSource());
+        }
+    }
+
+    private UserResponse getCloudstackUser(LdapUserResponse user) {
+        UserResponse returnObject = null;
         final List<UserResponse> cloudstackUsers = getCloudstackUsers();
         if (cloudstackUsers != null) {
             for (final UserResponse cloudstackUser : cloudstackUsers) {
                 if (user.getUsername().equals(cloudstackUser.getUsername())) {
-                    user.setUserSource(cloudstackUser.getUserSource());
+                    returnObject = cloudstackUser;
                 }
             }
         }
+        return returnObject;
     }
 }

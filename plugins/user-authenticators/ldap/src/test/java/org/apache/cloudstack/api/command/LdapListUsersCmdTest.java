@@ -233,6 +233,12 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         LdapListUsersCmd.UserFilter.fromString("PotentImport");
     }
 
+    /**
+     * apply no filter
+     * todo make extensive userlist and check for annotations (usersources)
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
     @Test
     public void applyNoFilter() throws NoSuchFieldException, IllegalAccessException {
         LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
@@ -242,6 +248,12 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         ldapListUsersCmd.execute();
     }
 
+    /**
+     * todo generate an extensive configuration and check with an extensive user list
+     *
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
     @Test
     public void applyPotentialImport() throws NoSuchFieldException, IllegalAccessException {
         LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
