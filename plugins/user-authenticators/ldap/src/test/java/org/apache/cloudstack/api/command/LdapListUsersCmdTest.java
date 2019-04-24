@@ -37,6 +37,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.spy;
@@ -51,10 +53,12 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     QueryService queryService;
 
     LdapListUsersCmd ldapListUsersCmd;
+    LdapListUsersCmd cmdSpy;
 
     @Before
     public void setUp() throws NoSuchFieldException, IllegalAccessException {
-        ldapListUsersCmd = spy(new LdapListUsersCmd(ldapManager, queryService));
+        ldapListUsersCmd = new LdapListUsersCmd(ldapManager, queryService);
+        cmdSpy = spy(ldapListUsersCmd);
 // no need to        setHiddenField(ldapListUsersCmd, .... );
     }
 
@@ -91,17 +95,24 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      */
     @Test
     public void successfulResponseFromExecute() throws NoLdapUserMatchingQueryException {
+        mockACSUserSearch();
+
 		List<LdapUser> users = new ArrayList();
 		LdapUser murphy = new LdapUser("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
-		users.add(murphy);
+        LdapUser bob = new LdapUser("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering", false, null);
+        users.add(murphy);
+        users.add(bob);
 
 		doReturn(users).when(ldapManager).getUsers(null);
 
-		LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
-		doReturn(response).when(ldapManager).createLdapUserResponse(murphy);
+        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
+        doReturn(response).when(ldapManager).createLdapUserResponse(murphy);
+        LdapUserResponse bobResponse = new LdapUserResponse("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering");
+        doReturn(bobResponse).when(ldapManager).createLdapUserResponse(bob);
 
 		ldapListUsersCmd.execute();
 
+		verify(queryService, times(1)).searchForUsers(any());
         assertNotEquals(0, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
     }
 
@@ -126,23 +137,27 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      */
     @Test
     public void isACloudstackUser() {
-		UserResponse userResponse = new UserResponse();
-		userResponse.setUsername("rmurphy");
+        mockACSUserSearch();
 
-		ArrayList<UserResponse> responses = new ArrayList<UserResponse>();
-		responses.add(userResponse);
-
-		ListResponse<UserResponse> queryServiceResponse = new ListResponse<UserResponse>();
-		queryServiceResponse.setResponses(responses);
-
-		doReturn(queryServiceResponse).when(queryService).searchForUsers(any());
-
-		LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
+        LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
 
 		boolean result = ldapListUsersCmd.isACloudstackUser(ldapUser);
 
 		assertTrue(result);
 	}
+
+    private void mockACSUserSearch() {
+        UserResponse userResponse = new UserResponse();
+        userResponse.setUsername("rmurphy");
+
+        ArrayList<UserResponse> responses = new ArrayList<UserResponse>();
+        responses.add(userResponse);
+
+        ListResponse<UserResponse> queryServiceResponse = new ListResponse<UserResponse>();
+        queryServiceResponse.setResponses(responses);
+
+        doReturn(queryServiceResponse).when(queryService).searchForUsers(any());
+    }
 
     /**
      * given: "We have an LdapUser and not a matching CloudstackUser"
@@ -165,13 +180,13 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      */
     @Test
     public void getListtypeOther() {
-        when(ldapListUsersCmd.getListType()).thenReturn("otHer", "anY");
-        String userfilter = ldapListUsersCmd.getUserFilter();
+        when(cmdSpy.getListTypeString()).thenReturn("otHer", "anY");
+        String userfilter = cmdSpy.getUserFilterString();
 
         assertEquals("AnyDomain", userfilter);
 
         // Big no-no: a second test in a test-method; don't do this at home
-        userfilter = ldapListUsersCmd.getUserFilter();
+        userfilter = cmdSpy.getUserFilterString();
         assertEquals("AnyDomain", userfilter);
     }
 
@@ -180,8 +195,8 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      */
     @Test
     public void getListtypeAny() {
-        when(ldapListUsersCmd.getListType()).thenReturn("any");
-        String userfilter = ldapListUsersCmd.getUserFilter();
+        when(cmdSpy.getListTypeString()).thenReturn("any");
+        String userfilter = cmdSpy.getUserFilterString();
         assertEquals("NoFilter", userfilter);
     }
 
@@ -189,17 +204,22 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      * test whether values for 'userfilter'
      */
     @Test
-    public void getUserFilter() throws NoSuchFieldException, IllegalAccessException{
+    public void getUserFilter() throws NoSuchFieldException, IllegalAccessException {
+
+        when(cmdSpy.getListTypeString()).thenReturn("otHer");
+        LdapListUsersCmd.UserFilter userfilter = cmdSpy.getUserFilter();
+
+        assertEquals(LdapListUsersCmd.UserFilter.ANY_DOMAIN, userfilter);
+
+        when(cmdSpy.getListTypeString()).thenReturn("anY");
+        userfilter = cmdSpy.getUserFilter();
+        assertEquals(LdapListUsersCmd.UserFilter.ANY_DOMAIN, userfilter);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void getInvalidUserFilterValues() throws NoSuchFieldException, IllegalAccessException{
         setHiddenField(ldapListUsersCmd, "userFilter", "flase");
-
-        when(ldapListUsersCmd.getListType()).thenReturn("otHer", "anY");
-        String userfilter = ldapListUsersCmd.getUserFilter();
-
-        assertEquals("AnyDomain", userfilter);
-
-        // Big no-no: a second test in a test-method; don't do this at home
-        userfilter = ldapListUsersCmd.getUserFilter();
-        assertEquals("AnyDomain", userfilter);
+        LdapListUsersCmd.UserFilter userfilter = ldapListUsersCmd.getUserFilter();
     }
 
     @Test
@@ -207,8 +227,27 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         assertEquals("PotentialImport", LdapListUsersCmd.UserFilter.POTENTIAL_IMPORT.toString());
         assertEquals(LdapListUsersCmd.UserFilter.POTENTIAL_IMPORT, LdapListUsersCmd.UserFilter.fromString("PotentialImport"));
     }
+
     @Test(expected = IllegalArgumentException.class)
-    public void getInvalidUserFilterValues() {
-        assertEquals("POTENT_IMPORT", LdapListUsersCmd.UserFilter.fromString("PotentImport"));
+    public void getInvalidUserFilterStringValue() {
+        LdapListUsersCmd.UserFilter.fromString("PotentImport");
+    }
+
+    @Test
+    public void applyNoFilter() throws NoSuchFieldException, IllegalAccessException {
+        LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
+        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
+
+        setHiddenField(ldapListUsersCmd, "userFilter", "NoFilter");
+        ldapListUsersCmd.execute();
+    }
+
+    @Test
+    public void applyPotentialImport() throws NoSuchFieldException, IllegalAccessException {
+        LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
+        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
+
+        setHiddenField(ldapListUsersCmd, "userFilter", "NoFilter");
+        ldapListUsersCmd.execute();
     }
 }
