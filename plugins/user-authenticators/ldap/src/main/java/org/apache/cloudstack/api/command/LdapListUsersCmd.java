@@ -99,7 +99,13 @@ public class LdapListUsersCmd extends BaseListCmd {
             type = CommandType.STRING,
             required = false,
             since = "4.13",
-            description = "Determines what type of filter is applied on the list of users returned from LDAP.\n\tvalid values are 'NoFilter', 'LocalDomain', 'AnyDomain' and 'PotentialImport'")
+            description = "Determines what type of filter is applied on the list of users returned from LDAP.\n"
+                    + "\tvalid values are\n"
+                    + "\t'NoFilter'\t no filtering is done,\n"
+                    + "\t'LocalDomain'\tusers already in the current or requested domain will be filtered out of the result list,\n"
+                    + "\t'AnyDomain'\tusers that already exist anywhere in cloudstack will be filtered out, and\n"
+                    + "\t'PotentialImport'\tall users that would be automatically imported from the listing will be shown,"
+                    + " including those that are already in cloudstack, the later will be annotated with their userSource")
     private String userFilter;
 
     @Parameter(name = ApiConstants.DOMAIN_ID, type = CommandType.UUID, required = false, entityType = DomainResponse.class, description = "linked domain")
