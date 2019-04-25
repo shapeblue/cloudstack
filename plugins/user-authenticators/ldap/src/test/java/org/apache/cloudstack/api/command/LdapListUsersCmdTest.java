@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command;
 
+import com.cloud.user.User;
 import org.apache.cloudstack.api.response.LdapUserResponse;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.api.response.UserResponse;
@@ -97,20 +98,9 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     public void successfulResponseFromExecute() throws NoLdapUserMatchingQueryException {
         mockACSUserSearch();
 
-		List<LdapUser> users = new ArrayList();
-		LdapUser murphy = new LdapUser("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
-        LdapUser bob = new LdapUser("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering", false, null);
-        users.add(murphy);
-        users.add(bob);
+        mockResponseCreation();
 
-		doReturn(users).when(ldapManager).getUsers(null);
-
-        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
-        doReturn(response).when(ldapManager).createLdapUserResponse(murphy);
-        LdapUserResponse bobResponse = new LdapUserResponse("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering");
-        doReturn(bobResponse).when(ldapManager).createLdapUserResponse(bob);
-
-		ldapListUsersCmd.execute();
+        ldapListUsersCmd.execute();
 
 		verify(queryService, times(1)).searchForUsers(any());
         assertNotEquals(0, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
@@ -145,19 +135,6 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
 		assertTrue(result);
 	}
-
-    private void mockACSUserSearch() {
-        UserResponse userResponse = new UserResponse();
-        userResponse.setUsername("rmurphy");
-
-        ArrayList<UserResponse> responses = new ArrayList<UserResponse>();
-        responses.add(userResponse);
-
-        ListResponse<UserResponse> queryServiceResponse = new ListResponse<UserResponse>();
-        queryServiceResponse.setResponses(responses);
-
-        doReturn(queryServiceResponse).when(queryService).searchForUsers(any());
-    }
 
     /**
      * given: "We have an LdapUser and not a matching CloudstackUser"
@@ -240,12 +217,32 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      * @throws IllegalAccessException
      */
     @Test
-    public void applyNoFilter() throws NoSuchFieldException, IllegalAccessException {
-        LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
-        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
+    public void applyNoFilter() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
+        mockACSUserSearch();
+        mockResponseCreation();
 
         setHiddenField(ldapListUsersCmd, "userFilter", "NoFilter");
         ldapListUsersCmd.execute();
+
+        assertEquals(2, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
+    }
+
+    /**
+     * filter all acs users
+     * todo make extensive userlist and check for annotations (usersources)
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
+    @Test
+    public void applyAnyDomain() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
+        mockACSUserSearch();
+        mockResponseCreation();
+
+        setHiddenField(ldapListUsersCmd, "userFilter", "AnyDomain");
+        ldapListUsersCmd.execute();
+
+        // 'rmurphy' filtered out 'bob' still in
+        assertEquals(1, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
     }
 
     /**
@@ -255,11 +252,56 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      * @throws IllegalAccessException
      */
     @Test
-    public void applyPotentialImport() throws NoSuchFieldException, IllegalAccessException {
-        LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
-        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
+    public void applyPotentialImport() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
+        mockACSUserSearch();
+        mockResponseCreation();
 
-        setHiddenField(ldapListUsersCmd, "userFilter", "NoFilter");
+        setHiddenField(ldapListUsersCmd, "userFilter", "PotentialImport");
         ldapListUsersCmd.execute();
+
+        assertEquals(2, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
+    }
+
+    private void mockACSUserSearch() {
+        UserResponse rmurphy = createMockUserResponse("rmurphy", User.Source.NATIVE);
+        UserResponse rohit = createMockUserResponse("rohit", User.Source.SAML2);
+        UserResponse abhi = createMockUserResponse("abhi", User.Source.LDAP);
+
+        ArrayList<UserResponse> responses = new ArrayList<>();
+        responses.add(rmurphy);
+        responses.add(rohit);
+        responses.add(abhi);
+
+        ListResponse<UserResponse> queryServiceResponse = new ListResponse<>();
+        queryServiceResponse.setResponses(responses);
+
+        doReturn(queryServiceResponse).when(queryService).searchForUsers(any());
+    }
+
+    private UserResponse createMockUserResponse(String uid, User.Source source) {
+        UserResponse userResponse = new UserResponse();
+        userResponse.setUsername(uid);
+        userResponse.setUserSource(source);
+
+        // for now:
+        userResponse.setDomainId("12345678-90ab-cdef-fedc-ba0987654321");
+        userResponse.setDomainName("engineering");
+
+        return userResponse;
+    }
+
+    private void mockResponseCreation() throws NoLdapUserMatchingQueryException {
+        List<LdapUser> users = new ArrayList();
+        LdapUser murphy = new LdapUser("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", "mythical", false, null);
+        LdapUser bob = new LdapUser("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering", false, null);
+        users.add(murphy);
+        users.add(bob);
+
+        doReturn(users).when(ldapManager).getUsers(null);
+
+        LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
+        doReturn(response).when(ldapManager).createLdapUserResponse(murphy);
+        LdapUserResponse bobResponse = new LdapUserResponse("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering");
+        doReturn(bobResponse).when(ldapManager).createLdapUserResponse(bob);
     }
 }
