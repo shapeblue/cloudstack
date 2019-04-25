@@ -16,6 +16,9 @@
 // under the License.
 package org.apache.cloudstack.api.command;
 
+import com.cloud.domain.Domain;
+import com.cloud.domain.DomainVO;
+import com.cloud.user.DomainService;
 import com.cloud.user.User;
 import org.apache.cloudstack.api.response.LdapUserResponse;
 import org.apache.cloudstack.api.response.ListResponse;
@@ -38,6 +41,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
@@ -48,13 +52,19 @@ import static org.powermock.api.mockito.PowerMockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
+    public static final String LOCAL_DOMAIN_ID = "12345678-90ab-cdef-fedc-ba0987654321";
+    public static final String LOCAL_DOMAIN_NAME = "engineering";
     @Mock
     LdapManager ldapManager;
     @Mock
     QueryService queryService;
+    @Mock
+    DomainService domainService;
 
     LdapListUsersCmd ldapListUsersCmd;
     LdapListUsersCmd cmdSpy;
+
+    Domain localDomain;
 
     @Before
     public void setUp() throws NoSuchFieldException, IllegalAccessException {
@@ -246,6 +256,35 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     }
 
     /**
+     * filter out acs users for the requested domain
+     *
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
+    @Test
+    public void applyLocalDomain() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
+        mockACSUserSearch();
+        mockResponseCreation();
+
+        setHiddenField(ldapListUsersCmd, "userFilter", "LocalDomain");
+        setHiddenField(ldapListUsersCmd, "domainId", 2l /* not root */);
+
+        DomainVO domainVO = new DomainVO();
+        domainVO.setName(LOCAL_DOMAIN_NAME);
+        domainVO.setId(2l);
+        domainVO.setUuid(LOCAL_DOMAIN_ID);
+        when(domainService.getDomain(anyLong())).thenReturn(domainVO);
+        localDomain = domainVO;
+
+        ldapListUsersCmd._domainService = domainService;
+
+        ldapListUsersCmd.execute();
+
+        // 'rmurphy' filtered out 'bob' still in
+        assertEquals(1, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
+    }
+
+    /**
      * todo generate an extensive configuration and check with an extensive user list
      *
      * @throws NoSuchFieldException
@@ -284,8 +323,8 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         userResponse.setUserSource(source);
 
         // for now:
-        userResponse.setDomainId("12345678-90ab-cdef-fedc-ba0987654321");
-        userResponse.setDomainName("engineering");
+        userResponse.setDomainId(LOCAL_DOMAIN_ID);
+        userResponse.setDomainName(LOCAL_DOMAIN_NAME);
 
         return userResponse;
     }
@@ -293,15 +332,15 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     private void mockResponseCreation() throws NoLdapUserMatchingQueryException {
         List<LdapUser> users = new ArrayList();
         LdapUser murphy = new LdapUser("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", "mythical", false, null);
-        LdapUser bob = new LdapUser("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering", false, null);
+        LdapUser bob = new LdapUser("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", LOCAL_DOMAIN_NAME, false, null);
         users.add(murphy);
         users.add(bob);
 
-        doReturn(users).when(ldapManager).getUsers(null);
+        doReturn(users).when(ldapManager).getUsers(any());
 
         LdapUserResponse response = new LdapUserResponse("rmurphy", "rmurphy@test.com", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null);
         doReturn(response).when(ldapManager).createLdapUserResponse(murphy);
-        LdapUserResponse bobResponse = new LdapUserResponse("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", "engineering");
+        LdapUserResponse bobResponse = new LdapUserResponse("bob", "bob@test.com", "Robert", "Young", "cn=bob,ou=engineering,dc=cloudstack,dc=org", LOCAL_DOMAIN_NAME);
         doReturn(bobResponse).when(ldapManager).createLdapUserResponse(bob);
     }
 }

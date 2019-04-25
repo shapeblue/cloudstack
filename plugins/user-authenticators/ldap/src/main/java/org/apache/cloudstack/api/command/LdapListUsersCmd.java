@@ -25,9 +25,11 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import com.cloud.domain.Domain;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.response.DomainResponse;
+import org.apache.cloudstack.context.CallContext;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
@@ -82,6 +84,7 @@ public class LdapListUsersCmd extends BaseListCmd {
     @Inject
     private LdapManager _ldapManager;
 
+    // TODO queryservice is already injected oin basecmd remove it here
     @Inject
     private QueryService _queryService;
 
@@ -162,7 +165,7 @@ public class LdapListUsersCmd extends BaseListCmd {
             try {
                 responseList = (List<LdapUserResponse>)filterMethod.invoke(this, ldapResponses);
             } catch (IllegalAccessException | InvocationTargetException e) {
-                throw new CloudRuntimeException("we're damned, the earth is screwed. we will now return to our maker");
+                throw new CloudRuntimeException("we're damned, the earth is screwed. we will now return to our maker",e);
             }
         }
         return responseList;
@@ -311,12 +314,26 @@ public class LdapListUsersCmd extends BaseListCmd {
      */
     public List<LdapUserResponse> filterLocalDomain(List<LdapUserResponse> input) {
         final List<LdapUserResponse> ldapResponses = new ArrayList<LdapUserResponse>();
+        String domainId = getCurrentDomainId();
         for (final LdapUserResponse user : input) {
-            if (user.getDomain().equals(getCloudstackUser(user).getDomainName())) {
+            UserResponse cloudstackUser = getCloudstackUser(user);
+            if (cloudstackUser == null || !domainId.equals(cloudstackUser.getDomainId())) {
                 ldapResponses.add(user);
             }
         }
         return ldapResponses;
+    }
+
+    private String getCurrentDomainId() {
+        String domainId = null;
+        if (this.domainId != null) {
+            Domain domain = _domainService.getDomain(this.domainId);
+            domainId = domain.getUuid();
+        } else {
+            final CallContext callContext = CallContext.current();
+            domainId = _domainService.getDomain(callContext.getCallingAccount().getDomainId()).getUuid();
+        }
+        return domainId;
     }
 
     /**
