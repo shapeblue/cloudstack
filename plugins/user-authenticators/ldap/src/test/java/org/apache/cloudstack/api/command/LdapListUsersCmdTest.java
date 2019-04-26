@@ -33,7 +33,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.internal.util.reflection.Whitebox;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +55,7 @@ import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(PowerMockRunner.class)
 public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
     public static final String LOCAL_DOMAIN_ID = "12345678-90ab-cdef-fedc-ba0987654321";
@@ -337,7 +341,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     }
 
     /**
-     * todo generate an extensive configuration and check with an extensive user list
+     * unknown filter
      *
      * @throws NoSuchFieldException
      * @throws IllegalAccessException
@@ -346,6 +350,22 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     public void applyUnknownFilter() throws NoSuchFieldException, IllegalAccessException {
         setHiddenField(ldapListUsersCmd, "userFilter", "UnknownFilter");
         ldapListUsersCmd.execute();
+    }
+
+    /**
+     * make sure there are no unimplemented filters
+     *
+     * This was created to deal with the possible {code}NoSuchMethodException{code} that won't be dealt with in regular coverage
+     *
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
+    @Test
+    public void applyUnimplementedFilter() throws NoSuchFieldException, IllegalAccessException {
+        for (LdapListUsersCmd.UserFilter UNIMPLEMENTED_FILTER : LdapListUsersCmd.UserFilter.values()) {
+            setHiddenField(ldapListUsersCmd, "userFilter", UNIMPLEMENTED_FILTER.toString());
+            ldapListUsersCmd.getFilterMethod();
+        }
     }
 
     private void mockACSUserSearch() {

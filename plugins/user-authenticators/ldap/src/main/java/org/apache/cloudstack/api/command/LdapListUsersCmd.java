@@ -177,7 +177,7 @@ public class LdapListUsersCmd extends BaseListCmd {
         return responseList;
     }
 
-    private Method getFilterMethod() {
+    Method getFilterMethod() {
         Method method = null;
         try {
             method = this.getClass().getMethod("filter" + getUserFilter().toString(), java.util.List.class);
