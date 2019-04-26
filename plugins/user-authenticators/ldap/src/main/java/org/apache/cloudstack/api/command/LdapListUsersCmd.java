@@ -182,25 +182,7 @@ public class LdapListUsersCmd extends BaseListCmd {
         try {
             method = this.getClass().getMethod("filter" + getUserFilter().toString(), java.util.List.class);
             Type returnType = method.getGenericReturnType();
-            if (returnType instanceof ParameterizedType) {
-                ParameterizedType type = (ParameterizedType) returnType;
-                if(type.getRawType().equals(List.class)) {
-                    Type[] typeArguments = type.getActualTypeArguments();
-                    if (typeArguments.length == 1) {
-                        if (typeArguments[0].equals(LdapUserResponse.class)) {
-                            // we're good'
-                        } else {
-                            throw new IllegalArgumentException("list of return type contains " + typeArguments[0].getTypeName());
-                        }
-                    } else {
-                        throw new IllegalArgumentException(String.format("type %s has to the wrong number of arguments", type.getRawType()));
-                    }
-                } else {
-                    throw new IllegalArgumentException(String.format("type %s is not a List<>", type.getTypeName()));
-                }
-            } else {
-                throw new IllegalArgumentException(String.format("can't even begin to explain; read about generics"));
-            }
+            checkFilterMethodType(returnType);
         } catch (NoSuchMethodException e) {
             throw new IllegalArgumentException(String.format("filter method filter%s not found; not filtering ldap users", getUserFilter()));
         }
@@ -230,15 +212,16 @@ public class LdapListUsersCmd extends BaseListCmd {
     }
 
     boolean isACloudstackUser(final LdapUser ldapUser) {
+        boolean rc = false;
         final List<UserResponse> cloudstackUsers = getCloudstackUsers();
-        if (cloudstackUsers != null && cloudstackUsers.size() != 0) {
+        if (cloudstackUsers != null) {
             for (final UserResponse cloudstackUser : cloudstackUsers) {
                 if (ldapUser.getUsername().equals(cloudstackUser.getUsername())) {
-                    return true;
+                    rc = true;
                 }
             }
         }
-        return false;
+        return rc;
     }
 
     boolean isACloudstackUser(final LdapUserResponse ldapUser) {
@@ -373,4 +356,31 @@ public class LdapListUsersCmd extends BaseListCmd {
         }
         return returnObject;
     }
+
+    private void checkFilterMethodType(Type returnType) {
+        String msg = null;
+        if (returnType instanceof ParameterizedType) {
+            ParameterizedType type = (ParameterizedType) returnType;
+            if(type.getRawType().equals(List.class)) {
+                Type[] typeArguments = type.getActualTypeArguments();
+                if (typeArguments.length == 1) {
+                    if (typeArguments[0].equals(LdapUserResponse.class)) {
+                        // we're good'
+                    } else {
+                        msg = new String("list of return type contains " + typeArguments[0].getTypeName());
+                    }
+                } else {
+                    msg = String.format("type %s has to the wrong number of arguments", type.getRawType());
+                }
+            } else {
+                msg = String.format("type %s is not a List<>", type.getTypeName());
+            }
+        } else {
+            msg = new String("can't even begin to explain; review your method signature");
+        }
+        if(msg != null) {
+            throw new IllegalArgumentException(msg);
+        }
+    }
+
 }

@@ -18,11 +18,13 @@ package org.apache.cloudstack.api.command;
 
 import com.cloud.domain.Domain;
 import com.cloud.domain.DomainVO;
+import com.cloud.user.AccountVO;
 import com.cloud.user.DomainService;
 import com.cloud.user.User;
 import org.apache.cloudstack.api.response.LdapUserResponse;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.api.response.UserResponse;
+import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.ldap.LdapManager;
 import org.apache.cloudstack.ldap.LdapUser;
 import org.apache.cloudstack.ldap.NoLdapUserMatchingQueryException;
@@ -262,7 +264,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      * @throws IllegalAccessException
      */
     @Test
-    public void applyLocalDomain() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
+    public void applyLocalDomainForASubDomain() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
         mockACSUserSearch();
         mockResponseCreation();
 
@@ -272,6 +274,39 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         DomainVO domainVO = new DomainVO();
         domainVO.setName(LOCAL_DOMAIN_NAME);
         domainVO.setId(2l);
+        domainVO.setUuid(LOCAL_DOMAIN_ID);
+        when(domainService.getDomain(anyLong())).thenReturn(domainVO);
+        localDomain = domainVO;
+
+        ldapListUsersCmd._domainService = domainService;
+
+        ldapListUsersCmd.execute();
+
+        // 'rmurphy' filtered out 'bob' still in
+        assertEquals(1, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
+    }
+
+    /**
+     * filter out acs users for the default domain
+     *
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
+    @Test
+    public void applyLocalDomainForTheCallersDomain() throws NoSuchFieldException, IllegalAccessException, NoLdapUserMatchingQueryException {
+        mockACSUserSearch();
+        mockResponseCreation();
+
+        setHiddenField(ldapListUsersCmd, "userFilter", "LocalDomain");
+
+        AccountVO account = new AccountVO();
+        setHiddenField(account, "accountName", "admin");
+        setHiddenField(account, "domainId", 1l);
+        final CallContext callContext = CallContext.current();
+        setHiddenField(callContext, "account", account);
+        DomainVO domainVO = new DomainVO();
+        domainVO.setName("ROOT");
+        domainVO.setId(1l);
         domainVO.setUuid(LOCAL_DOMAIN_ID);
         when(domainService.getDomain(anyLong())).thenReturn(domainVO);
         localDomain = domainVO;
@@ -299,6 +334,18 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         ldapListUsersCmd.execute();
 
         assertEquals(2, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
+    }
+
+    /**
+     * todo generate an extensive configuration and check with an extensive user list
+     *
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void applyUnknownFilter() throws NoSuchFieldException, IllegalAccessException {
+        setHiddenField(ldapListUsersCmd, "userFilter", "UnknownFilter");
+        ldapListUsersCmd.execute();
     }
 
     private void mockACSUserSearch() {
