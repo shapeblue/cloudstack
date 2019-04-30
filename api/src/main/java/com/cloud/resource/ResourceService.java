@@ -27,6 +27,7 @@ import org.apache.cloudstack.api.command.admin.host.PrepareForMaintenanceCmd;
 import org.apache.cloudstack.api.command.admin.host.ReconnectHostCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostPasswordCmd;
+import org.apache.cloudstack.api.command.admin.management.StartRollingMaintenanceCmd;
 
 import com.cloud.dc.DataCenter;
 import com.cloud.exception.AgentUnavailableException;
@@ -49,6 +50,8 @@ public interface ResourceService {
     Host cancelMaintenance(CancelMaintenanceCmd cmd);
 
     Host reconnectHost(ReconnectHostCmd cmd) throws AgentUnavailableException;
+
+    boolean rollingMaintenance(StartRollingMaintenanceCmd cmd);
 
     /**
      * We will automatically create an Apache CloudStack cluster to attach to the external cluster and return a hyper host to perform

@@ -46,7 +46,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import com.cloud.resource.RequestWrapper;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
@@ -147,6 +146,7 @@ import com.cloud.hypervisor.kvm.storage.KVMStorageProcessor;
 import com.cloud.network.Networks.BroadcastDomainType;
 import com.cloud.network.Networks.RouterPrivateIpStrategy;
 import com.cloud.network.Networks.TrafficType;
+import com.cloud.resource.RequestWrapper;
 import com.cloud.resource.ServerResource;
 import com.cloud.resource.ServerResourceBase;
 import com.cloud.storage.JavaStorageLayer;
@@ -321,8 +321,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     public ExecutionResult executeInVR(final String routerIp, final String script, final String args, final Duration timeout) {
         final Script command = new Script(_routerProxyPath, timeout, s_logger);
         final AllLinesParser parser = new AllLinesParser();
-        command.add(script);
-        command.add(routerIp);
+        command.add("noop");
+        command.add("begin");
         if (args != null) {
             command.add(args);
         }

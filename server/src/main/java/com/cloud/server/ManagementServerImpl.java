@@ -37,7 +37,6 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.storage.ScopeType;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.affinity.AffinityGroupProcessor;
 import org.apache.cloudstack.affinity.dao.AffinityGroupVMMapDao;
@@ -106,6 +105,7 @@ import org.apache.cloudstack.api.command.admin.iso.ListIsosCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.iso.RegisterIsoCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.loadbalancer.ListLoadBalancerRuleInstancesCmdByAdmin;
 import org.apache.cloudstack.api.command.admin.management.ListMgmtsCmd;
+import org.apache.cloudstack.api.command.admin.management.StartRollingMaintenanceCmd;
 import org.apache.cloudstack.api.command.admin.network.AddNetworkDeviceCmd;
 import org.apache.cloudstack.api.command.admin.network.AddNetworkServiceProviderCmd;
 import org.apache.cloudstack.api.command.admin.network.CreateManagementNetworkIpRangeCmd;
@@ -217,10 +217,10 @@ import org.apache.cloudstack.api.command.admin.usage.AddTrafficTypeCmd;
 import org.apache.cloudstack.api.command.admin.usage.DeleteTrafficMonitorCmd;
 import org.apache.cloudstack.api.command.admin.usage.DeleteTrafficTypeCmd;
 import org.apache.cloudstack.api.command.admin.usage.GenerateUsageRecordsCmd;
-import org.apache.cloudstack.api.command.admin.usage.ListUsageRecordsCmd;
 import org.apache.cloudstack.api.command.admin.usage.ListTrafficMonitorsCmd;
 import org.apache.cloudstack.api.command.admin.usage.ListTrafficTypeImplementorsCmd;
 import org.apache.cloudstack.api.command.admin.usage.ListTrafficTypesCmd;
+import org.apache.cloudstack.api.command.admin.usage.ListUsageRecordsCmd;
 import org.apache.cloudstack.api.command.admin.usage.ListUsageTypesCmd;
 import org.apache.cloudstack.api.command.admin.usage.RemoveRawUsageRecordsCmd;
 import org.apache.cloudstack.api.command.admin.usage.UpdateTrafficTypeCmd;
@@ -634,6 +634,7 @@ import com.cloud.storage.GuestOSHypervisor;
 import com.cloud.storage.GuestOSHypervisorVO;
 import com.cloud.storage.GuestOSVO;
 import com.cloud.storage.GuestOsCategory;
+import com.cloud.storage.ScopeType;
 import com.cloud.storage.StorageManager;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.Volume;
@@ -3070,6 +3071,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         cmdList.add(DeleteManagementNetworkIpRangeCmd.class);
         cmdList.add(UploadTemplateDirectDownloadCertificate.class);
         cmdList.add(ListMgmtsCmd.class);
+        cmdList.add(StartRollingMaintenanceCmd.class);
 
         // Out-of-band management APIs for admins
         cmdList.add(EnableOutOfBandManagementForHostCmd.class);

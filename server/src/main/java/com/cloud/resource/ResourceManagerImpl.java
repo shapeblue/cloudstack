@@ -31,12 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.vm.dao.UserVmDetailsDao;
-import org.apache.cloudstack.framework.config.ConfigKey;
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.log4j.Logger;
-import org.springframework.stereotype.Component;
-
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.cluster.AddClusterCmd;
 import org.apache.cloudstack.api.command.admin.cluster.DeleteClusterCmd;
@@ -47,22 +41,27 @@ import org.apache.cloudstack.api.command.admin.host.PrepareForMaintenanceCmd;
 import org.apache.cloudstack.api.command.admin.host.ReconnectHostCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostPasswordCmd;
+import org.apache.cloudstack.api.command.admin.management.StartRollingMaintenanceCmd;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.ObjectUtils;
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
-import com.cloud.agent.api.GetVncPortCommand;
-import com.cloud.agent.api.GetVncPortAnswer;
 import com.cloud.agent.api.GetGPUStatsAnswer;
 import com.cloud.agent.api.GetGPUStatsCommand;
 import com.cloud.agent.api.GetHostStatsAnswer;
 import com.cloud.agent.api.GetHostStatsCommand;
+import com.cloud.agent.api.GetVncPortAnswer;
+import com.cloud.agent.api.GetVncPortCommand;
 import com.cloud.agent.api.MaintainAnswer;
 import com.cloud.agent.api.MaintainCommand;
 import com.cloud.agent.api.PropagateResourceEventCommand;
@@ -106,6 +105,7 @@ import com.cloud.event.EventVO;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.DiscoveryException;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.OperationTimedoutException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.exception.ResourceInUseException;
 import com.cloud.gpu.GPU;
@@ -120,6 +120,7 @@ import com.cloud.host.Host;
 import com.cloud.host.Host.Type;
 import com.cloud.host.HostStats;
 import com.cloud.host.HostVO;
+import com.cloud.host.RollingMaintenanceCommand;
 import com.cloud.host.Status;
 import com.cloud.host.Status.Event;
 import com.cloud.host.dao.HostDao;
@@ -176,6 +177,7 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.VirtualMachineManager;
+import com.cloud.vm.dao.UserVmDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.google.gson.Gson;
 
@@ -1183,6 +1185,32 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         }
         _agentMgr.reconnect(hostId);
         return host;
+    }
+
+    @Override
+    public boolean rollingMaintenance(StartRollingMaintenanceCmd cmd) {
+        // POC code
+        final Cluster cluster = _clusterDao.findById(cmd.getId());
+        final boolean forced = cmd.getForced();
+        final boolean maintenance = cmd.getMaintenance();
+        final String command = cmd.getCommand();
+        for (final Host host : _hostDao.findByClusterId(cmd.getId())) {
+            // Begin
+            RollingMaintenanceCommand c = new RollingMaintenanceCommand();
+            c.setCommand(command);
+            c.setType("begin");
+            try {
+                _agentMgr.send(host.getId(), c);
+            } catch (AgentUnavailableException | OperationTimedoutException e) {
+                s_logger.error("Caught error while trying to perform rolling maintenance on host: " + host.getUuid(), e);
+                if (!forced) {
+                    return false;
+                }
+            }
+            // End
+            // On Error?
+        }
+        return true;
     }
 
     @Override

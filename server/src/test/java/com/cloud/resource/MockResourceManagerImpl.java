@@ -32,6 +32,8 @@ import org.apache.cloudstack.api.command.admin.host.PrepareForMaintenanceCmd;
 import org.apache.cloudstack.api.command.admin.host.ReconnectHostCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostPasswordCmd;
+import org.apache.cloudstack.api.command.admin.management.StartRollingMaintenanceCmd;
+import org.apache.cloudstack.framework.config.ConfigKey;
 
 import com.cloud.agent.api.StartupCommand;
 import com.cloud.agent.api.StartupRoutingCommand;
@@ -56,7 +58,6 @@ import com.cloud.org.Cluster;
 import com.cloud.resource.ResourceState.Event;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.fsm.NoTransitionException;
-import org.apache.cloudstack.framework.config.ConfigKey;
 
 public class MockResourceManagerImpl extends ManagerBase implements ResourceManager {
 
@@ -85,6 +86,11 @@ public class MockResourceManagerImpl extends ManagerBase implements ResourceMana
     public Host reconnectHost(final ReconnectHostCmd cmd) {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    @Override
+    public boolean rollingMaintenance(StartRollingMaintenanceCmd cmd) {
+        return false;
     }
 
     /* (non-Javadoc)
