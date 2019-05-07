@@ -459,6 +459,10 @@
                                                 id: 'Group of NVIDIA Corporation GK104GL [GRID K2] GPUs',
                                                 description: 'NVIDIA GRID K2'
                                             });
+                                            items.push({
+                                                id: 'Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs',
+                                                description: 'NVIDIA TESLA V100'
+                                            });
                                             args.response.success({
                                                 data: items
                                             });
@@ -466,6 +470,7 @@
                                             var vGpuMap = {};
                                             vGpuMap['Group of NVIDIA Corporation GK107GL [GRID K1] GPUs'] = ['passthrough', 'GRID K100', 'GRID K120Q', 'GRID K140Q', 'GRID K160Q', 'GRID K180Q'];
                                             vGpuMap['Group of NVIDIA Corporation GK104GL [GRID K2] GPUs'] = ['passthrough', 'GRID K200', 'GRID K220Q', 'GRID K240Q', 'GRID K260Q', 'GRID K280Q'];
+                                            vGpuMap['Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs'] = ['passthrough', 'GRID V100D-32A', 'GRID V100D-8Q', 'GRID V100D-4A', 'GRID V100D-1B', 'GRID V100D-2Q', 'GRID V100D-4Q', 'GRID V100D-2A', 'GRID V100D-2B', 'GRID V100D-32Q', 'GRID V100D-16A', 'GRID V100D-1Q', 'GRID V100D-2B4', 'GRID V100D-16Q', 'GRID V100D-8A', 'GRID V100D-1A'];
 
                                             args.$select.change(function() {
                                                 var gpu = $(this).val();
@@ -548,6 +553,66 @@
                                             items.push({
                                                 id: 'GRID K280Q',
                                                 description: 'GRID K280Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-32A',
+                                                description: 'GRID V100D-32A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-8Q',
+                                                description: 'GRID V100D-8Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-4A',
+                                                description: 'GRID V100D-4A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-1B',
+                                                description: 'GRID V100D-1B'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2Q',
+                                                description: 'GRID V100D-2Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-4Q',
+                                                description: 'GRID V100D-4Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2A',
+                                                description: 'GRID V100D-2A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2B',
+                                                description: 'GRID V100D-2B'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-32Q',
+                                                description: 'GRID V100D-32Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-16A',
+                                                description: 'GRID V100D-16A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-1Q',
+                                                description: 'GRID V100D-1Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2B4',
+                                                description: 'GRID V100D-2B4'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-16Q',
+                                                description: 'GRID V100D-16Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-8A',
+                                                description: 'GRID V100D-8A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-1A',
+                                                description: 'GRID V100D-1A'
                                             });
                                             args.response.success({
                                                 data: items

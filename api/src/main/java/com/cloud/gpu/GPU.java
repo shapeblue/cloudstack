@@ -32,6 +32,21 @@ public class GPU {
         GRID_K220Q("GRID K220Q"),
         GRID_K240Q("GRID K240Q"),
         GRID_K260("GRID K260Q"),
+        GRID_V100D_32A("GRID V100D-32A"),
+        GRID_V100D_8Q("GRID V100D-8Q"),
+        GRID_V100D_4A("GRID V100D-4A"),
+        GRID_V100D_1B("GRID V100D-1B"),
+        GRID_V100D_2Q("GRID V100D-2Q"),
+        GRID_V100D_4Q("GRID V100D-4Q"),
+        GRID_V100D_2A("GRID V100D-2A"),
+        GRID_V100D_2B("GRID V100D-2B"),
+        GRID_V100D_32Q("GRID V100D-32Q"),
+        GRID_V100D_16A("GRID V100D-16A"),
+        GRID_V100D_1Q("GRID V100D-1Q"),
+        GRID_V100D_2B4("GRID V100D-2B4"),
+        GRID_V100D_16Q("GRID V100D-16Q"),
+        GRID_V100D_8A("GRID V100D-8A"),
+        GRID_V100D_1A("GRID V100D-1A"),
         passthrough("passthrough");
 
         private String type;
