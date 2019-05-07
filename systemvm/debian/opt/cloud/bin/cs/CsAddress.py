@@ -483,9 +483,9 @@ class CsIP:
             # Add rules for network traffic we want to track separately
             vpccidr = self.config.cmdline().get_vpccidr()
             for whitelistcidr in self.config.cmdline().get_vpcusagewhitelist():
-                self.fw.append(["", "", "-A NETWORK_STATS_%s -o %s -d %s -s %s -m comment --comment \"whitelist\"" %
+                self.fw.append(["", "", "-A NETWORK_STATS_%s -o %s -d %s -s %s -m comment --comment whitelist" %
                             ("eth1", "eth1", whitelistcidr, vpccidr)])
-                self.fw.append(["", "", "-A NETWORK_STATS_%s -i %s -s %s -d %s -m comment --comment \"whitelist\"" %
+                self.fw.append(["", "", "-A NETWORK_STATS_%s -i %s -s %s -d %s -m comment --comment whitelist" %
                             ("eth1", "eth1", whitelistcidr, vpccidr)])
 
             if self.address["source_nat"]:
