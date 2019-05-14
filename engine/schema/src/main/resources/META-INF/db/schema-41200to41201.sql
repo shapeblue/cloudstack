@@ -67,3 +67,87 @@ ALTER VIEW `cloud`.`disk_offering_view` AS
         LEFT JOIN `domain` ON ((`disk_offering`.`domain_id` = `domain`.`id`)))
     WHERE
         (`disk_offering`.`state` = 'ACTIVE');
+
+-- Add Ubuntu 18.04 LTS as support guest os
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name, created) VALUES (277, UUID(), 10, 'Ubuntu 18.04 (32-bit)', utc_timestamp());
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name, created) VALUES (278, UUID(), 10, 'Ubuntu 18.04 (64-bit)', utc_timestamp());
+-- Ubuntu 18.04 KVM guest os mapping
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'KVM', 'default', 'Ubuntu 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'KVM', 'default', 'Ubuntu 18.04', 278, utc_timestamp(), 0);
+-- Ubuntu 18.04 XenServer guest os mapping
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '6.5.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '6.5.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.0.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.0.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.1', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.1', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.2', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.2', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.2.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.2.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.3.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.3.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.4.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.4.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.5.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.5.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.6.0', 'Ubuntu Bionic Beaver 18.04', 277, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.6.0', 'Ubuntu Bionic Beaver 18.04', 278, utc_timestamp(), 0);
+
+-- Add Ubuntu 18.10 as support guest os
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name, created) VALUES (279, UUID(), 10, 'Ubuntu 18.10 (32-bit)', utc_timestamp());
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name, created) VALUES (280, UUID(), 10, 'Ubuntu 18.10 (64-bit)', utc_timestamp());
+-- Ubuntu 18.10 KVM guest os mapping
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'KVM', 'default', 'Ubuntu 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'KVM', 'default', 'Ubuntu 18.10', 280, utc_timestamp(), 0);
+-- Ubuntu 18.10 XenServer guest os mapping
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '6.5.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '6.5.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.0.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.0.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.1', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.1', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.2', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.2', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.2.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.2.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.3.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.3.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.4.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.4.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.5.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.5.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.6.0', 'Ubuntu Cosmic Cuttlefish 18.10', 279, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.6.0', 'Ubuntu Cosmic Cuttlefish 18.10', 280, utc_timestamp(), 0);
+
+-- Add Ubuntu 19.04 as support guest os
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name, created) VALUES (281, UUID(), 10, 'Ubuntu 19.04 (32-bit)', utc_timestamp());
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name, created) VALUES (282, UUID(), 10, 'Ubuntu 19.04 (64-bit)', utc_timestamp());
+-- Ubuntu 19.04 KVM guest os mapping
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'KVM', 'default', 'Ubuntu 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'KVM', 'default', 'Ubuntu 19.04', 282, utc_timestamp(), 0);
+-- Ubuntu 19.04 XenServer guest os mapping
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '6.5.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '6.5.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.0.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.0.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.1', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.1', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.2', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.1.2', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.2.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.2.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.3.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.3.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.4.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.4.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.5.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.5.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.6.0', 'Ubuntu Disco Dingo 19.04', 281, utc_timestamp(), 0);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(),'Xenserver', '7.6.0', 'Ubuntu Disco Dingo 19.04', 282, utc_timestamp(), 0);
