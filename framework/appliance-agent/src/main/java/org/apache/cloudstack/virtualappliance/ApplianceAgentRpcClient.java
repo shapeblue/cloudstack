@@ -17,28 +17,29 @@
 
 package org.apache.cloudstack.virtualappliance;
 
+import org.apache.cloudstack.virtualappliance.protobuf.ApplianceAgentGrpc;
 import org.apache.cloudstack.virtualappliance.protobuf.PingRequest;
 import org.apache.cloudstack.virtualappliance.protobuf.PingResponse;
 
-public class VirtualApplianceManager implements VirtualApplianceService {
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 
-    VirtualApplianceClient client;
+public class ApplianceAgentRpcClient {
+    ApplianceAgentGrpc.ApplianceAgentBlockingStub blockingStub;
 
-    public VirtualApplianceManager() {
+    public ApplianceAgentRpcClient() {
+        ManagedChannel managedChannel = ManagedChannelBuilder
+                .forAddress("localhost", 8200).usePlaintext().build();
+        blockingStub = ApplianceAgentGrpc.newBlockingStub(managedChannel);
     }
 
-    @Override
-    public VirtualApplianceService newService(String address, Integer port) {
-        client = new VirtualApplianceClient(address, port);
-        return this;
+    public ApplianceAgentRpcClient(String host, Integer port) {
+        ManagedChannel managedChannel = ManagedChannelBuilder
+                .forAddress(host, port).usePlaintext().build();
+        blockingStub = ApplianceAgentGrpc.newBlockingStub(managedChannel);
     }
 
-    @Override
-    public String ping(String message) {
-        PingRequest request = PingRequest.newBuilder()
-                .setMessage(message)
-                .build();
-        PingResponse response = client.ping(request);
-        return response.getMessage();
+    public PingResponse ping(final PingRequest request) {
+        return blockingStub.ping(request);
     }
 }

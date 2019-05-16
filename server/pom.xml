@@ -66,7 +66,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.cloudstack</groupId>
-            <artifactId>cloud-framework-virtual-appliance</artifactId>
+            <artifactId>cloud-framework-appliance-agent</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

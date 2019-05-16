@@ -14,32 +14,23 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
 package org.apache.cloudstack.virtualappliance;
 
-import org.apache.cloudstack.virtualappliance.protobuf.ApplianceAgentGrpc;
 import org.apache.cloudstack.virtualappliance.protobuf.PingRequest;
 import org.apache.cloudstack.virtualappliance.protobuf.PingResponse;
+import org.junit.Assert;
+import org.junit.Test;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+public class ApplianceAgentRpcClientTest {
 
-public class VirtualApplianceClient {
-    ApplianceAgentGrpc.ApplianceAgentBlockingStub blockingStub;
-
-    public VirtualApplianceClient() {
-        ManagedChannel managedChannel = ManagedChannelBuilder
-                .forAddress("localhost", 8200).usePlaintext().build();
-        blockingStub = ApplianceAgentGrpc.newBlockingStub(managedChannel);
-    }
-
-    public VirtualApplianceClient(String host, Integer port) {
-        ManagedChannel managedChannel = ManagedChannelBuilder
-                .forAddress(host, port).usePlaintext().build();
-        blockingStub = ApplianceAgentGrpc.newBlockingStub(managedChannel);
-    }
-
-    PingResponse ping(final PingRequest request) {
-        return blockingStub.ping(request);
+    @Test
+    public void ping() {
+        ApplianceAgentRpcClient client = new ApplianceAgentRpcClient();
+        String message = "GRPC based Agent Works!";
+        PingRequest request = PingRequest.newBuilder()
+                .setMessage(message)
+                .build();
+        PingResponse response = client.ping(request);
+        Assert.assertEquals("Pong " + message, response.getMessage());
     }
 }

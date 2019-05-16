@@ -15,9 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.cloudstack.virtualappliance;
+package org.apache.cloudstack.agent;
 
-public interface VirtualApplianceService {
-    VirtualApplianceService newService(String address, Integer port);
-    String ping(String message);
+import org.apache.cloudstack.api.command.admin.agent.LivePatchCmd;
+
+public interface ApplianceAgentService {
+    String livePatch(LivePatchCmd cmd);
 }
