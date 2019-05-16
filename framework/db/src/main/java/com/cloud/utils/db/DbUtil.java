@@ -45,10 +45,14 @@ import org.apache.log4j.Logger;
 
 import static com.cloud.utils.AutoCloseableUtil.closeAutoCloseable;
 
+import com.cloud.utils.db.locking.DBLockingManager;
+
 public class DbUtil {
     protected final static Logger s_logger = Logger.getLogger(DbUtil.class);
 
     private static Map<String, Connection> s_connectionForGlobalLocks = new HashMap<String, Connection>();
+
+    private static DBLockingManager s_dbLockingManager;
 
     public static Connection getConnectionForGlobalLocks(String name, boolean forLock) {
         synchronized (s_connectionForGlobalLocks) {
@@ -196,6 +200,8 @@ public class DbUtil {
     }
 
     public static boolean getGlobalLock(String name, int timeoutSeconds) {
+        if (s_dbLockingManager != null && s_dbLockingManager.getLockingServiceName().equals("zooKeeper"))
+            return s_dbLockingManager.getGlobalLock(name, timeoutSeconds);
         Connection conn = getConnectionForGlobalLocks(name, true);
         if (conn == null) {
             s_logger.error("Unable to acquire DB connection for global lock system");
@@ -232,6 +238,8 @@ public class DbUtil {
     }
 
     public static boolean releaseGlobalLock(String name) {
+        if (s_dbLockingManager != null && s_dbLockingManager.getLockingServiceName().equals("zooKeeper"))
+            return s_dbLockingManager.releaseGlobalLock(name);
         try (Connection conn = getConnectionForGlobalLocks(name, false);) {
             if (conn == null) {
                 s_logger.error("Unable to acquire DB connection for global lock system");
@@ -280,6 +288,10 @@ public class DbUtil {
 
     public static void closeConnection(final Connection connection) {
         closeAutoCloseable(connection, "exception while close connection.");
+    }
+
+    public static void setDBLockingManager(DBLockingManager dbLockingManager) {
+        s_dbLockingManager = dbLockingManager;
     }
 
 }
