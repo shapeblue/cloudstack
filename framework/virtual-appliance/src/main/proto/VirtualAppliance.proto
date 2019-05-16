@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.apache.cloudstack.virtualappliance.protobuf";
+option java_outer_classname = "VirtualAppliancePB";
+
+package virtualappliance;
+
+service ApplianceAgent {
+  rpc Ping (PingRequest) returns (PingResponse) {}
+}
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingResponse {
+  string message = 1;
+}
