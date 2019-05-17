@@ -29,6 +29,7 @@ COMMIT
 -A INPUT -p icmp -j ACCEPT
 -A INPUT -i lo -j ACCEPT
 -A INPUT -i eth0 -p tcp -m tcp -m state --state NEW,ESTABLISHED --dport 3922 -j ACCEPT
+-A INPUT -p tcp -m tcp -m state --state NEW,ESTABLISHED --dport 8200 -j ACCEPT
 -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 COMMIT

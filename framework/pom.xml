@@ -45,6 +45,7 @@
     <modules>
         <!-- keep in alphabetic order -->
         <module>agent-lb</module>
+        <module>appliance-agent</module>
         <module>ca</module>
         <module>cluster</module>
         <module>config</module>
