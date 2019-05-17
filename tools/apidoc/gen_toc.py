@@ -192,6 +192,7 @@ known_categories = {
     'Sioc' : 'Sioc',
     'Diagnostics': 'Diagnostics',
     'Management': 'Management',
+    'livePatch': 'Router',
     }
 
 

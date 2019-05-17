@@ -19,13 +19,12 @@ package org.apache.cloudstack.virtualappliance;
 import org.apache.cloudstack.virtualappliance.protobuf.PingRequest;
 import org.apache.cloudstack.virtualappliance.protobuf.PingResponse;
 import org.junit.Assert;
-import org.junit.Test;
 
 public class ApplianceAgentRpcClientTest {
 
-    @Test
+    //@Test
     public void ping() {
-        ApplianceAgentRpcClient client = new ApplianceAgentRpcClient();
+        ApplianceAgentRpcClient client = new ApplianceAgentRpcClient("172.20.20.12", 8200);
         String message = "GRPC based Agent Works!";
         PingRequest request = PingRequest.newBuilder()
                 .setMessage(message)
