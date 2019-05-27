@@ -77,7 +77,7 @@ set -e
  fi
 
  cat generatetoc_include.xsl >> generatetoc.xsl
- cat "$thisdir/generatetoc_footer.xsl" >>generatetoc.xsl
+# added by sphinx cat "$thisdir/generatetoc_footer.xsl" >>generatetoc.xsl
 
  mkdir -p html/apis
  cp -r "$thisdir/includes" html
@@ -85,4 +85,9 @@ set -e
 
  javac -cp . *.java
  java -cp . XmlToHtmlConverter
+ cd html/apis
+ for f in *.html; do mv $f `basename $f `.markdown; done;
+ cd ../..
+
+
 )

@@ -1,35 +1,3 @@
-<?xml version="1.0"?>
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-version="1.0">
-<xsl:output method="html" doctype-public="-//W3C//DTD HTML 1.0 Transitional//EN"/>
-<xsl:template match="/">
-<html xmlns="http://www.w3.org/1999/xhtml"><head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<link rel= "stylesheet" href="../includes/main.css" type="text/css" />
-<link rel="shortcut icon" href="../favicon.ico" type="image/x-icon" />
-
-<title>Apache CloudStack | The Power Behind Your Cloud</title>
-</head>
-
-<body>
 <div id="insidetopbg">
 <div id="inside_wrapper">
 	<div class="uppermenu_panel">
@@ -147,16 +115,7 @@ version="1.0">
     <iframe width="930" height="500" src="https://comments.apache.org/iframe.lua?site=test&amp;page=4.2.0/rootadmin"></iframe>
     </noscript>
   </div>
-
-		<div id="footer_mainmaster">
-                <p>Copyright © 2015 The Apache Software Foundation, Licensed under the
-                   <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0.</a> <br />
-                Apache, CloudStack, Apache CloudStack, the Apache CloudStack logo, the CloudMonkey logo  and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
-           </div>
-        </div>
+  </div>
   </div>
  </div>
-</body>
-</html>
-</xsl:template>
-</xsl:stylesheet>
+
