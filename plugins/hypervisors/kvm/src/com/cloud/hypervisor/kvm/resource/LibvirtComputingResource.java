@@ -2909,6 +2909,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             cap = cap + ",snapshot";
         }
 
+        if (dpdkSupport) {
+            cap += ",dpdk";
+        }
+
         info.add((int)cpus);
         info.add(speed);
         // Report system's RAM as actual RAM minus host OS reserved RAM
