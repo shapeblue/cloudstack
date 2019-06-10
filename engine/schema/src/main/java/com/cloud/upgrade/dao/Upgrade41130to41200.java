@@ -25,13 +25,13 @@ import java.sql.SQLException;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.log4j.Logger;
 
-public class Upgrade41120to41200 implements DbUpgrade {
+public class Upgrade41130to41200 implements DbUpgrade {
 
-    final static Logger LOG = Logger.getLogger(Upgrade41120to41200.class);
+    final static Logger LOG = Logger.getLogger(Upgrade41130to41200.class);
 
     @Override
     public String[] getUpgradableVersionRange() {
-        return new String[] {"4.11.2.0", "4.12.0.0"};
+        return new String[] {"4.11.3.0", "4.12.0.0"};
     }
 
     @Override
