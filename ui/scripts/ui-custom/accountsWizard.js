@@ -111,6 +111,14 @@
                 });
 
                 if (ldapStatus) {
+                    var userFilter = $wizard.find('#label_filterBy').val();
+                    if (userFilter == null) {
+                        userFilter = 'AnyDomain';
+                    }
+                    var domainId = $wizard.find('#label_domain').val();
+                    if (domainId == null) {
+                        domainId = $.cookie('domainid');
+                    }
                     var $table = $wizard.find('.ldap-account-choice tbody');
                     $("#label_ldap_group_name").on("keypress", function(event) {
                         if ($table.find("#tr-groupname-message").length === 0) {
@@ -126,7 +134,7 @@
                         }
                     });
                     $.ajax({
-                        url: createURL("listLdapUsers&listtype=new&domainid=" + args.currentData.domainid),
+                        url: createURL("listLdapUsers&listtype=new&domainid=" + domainId + "&userfilter=" + userFilter),
                         dataType: "json",
                         async: false,
                         success: function(json) {
