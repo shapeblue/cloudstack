@@ -315,9 +315,13 @@ public class LdapManagerImpl implements LdapManager, LdapValidator {
 
     @Override
     public LinkDomainToLdapResponse linkDomainToLdap(LinkDomainToLdapCmd cmd) {
-        Validate.isTrue(_ldapConfiguration.getBaseDn(cmd.getDomainId()) == null, "can not link a domain unless a basedn is configured for it.");
-        Validate.notEmpty(cmd.getLdapDomain(), "ldapDomain cannot be empty, please supply a GROUP or OU name");
-        return linkDomainToLdap(cmd.getDomainId(),cmd.getType(),cmd.getLdapDomain(),cmd.getAccountType());
+        final Long domainId = cmd.getDomainId();
+        final String baseDn = _ldapConfiguration.getBaseDn(domainId);
+        final String ldapDomain = cmd.getLdapDomain();
+
+        Validate.isTrue(baseDn != null, String.format("can not link a domain (with id = %d) unless a basedn (%s) is configured for it.", domainId, baseDn));
+        Validate.notEmpty(ldapDomain, "ldapDomain cannot be empty, please supply a GROUP or OU name");
+        return linkDomainToLdap(cmd.getDomainId(),cmd.getType(), ldapDomain,cmd.getAccountType());
     }
 
     private LinkDomainToLdapResponse linkDomainToLdap(Long domainId, String type, String name, short accountType) {
