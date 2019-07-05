@@ -78,7 +78,7 @@
                 select: function(args) {
                     var items = [];
                     items.push({
-                        id: "NoFiltering",
+                        id: "NoFilter",
                         description: "no filtering is done"
                     });
                     items.push({
