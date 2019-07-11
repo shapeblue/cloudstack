@@ -14,29 +14,24 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.resource;
+package org.apache.cloudstack.api.response;
 
-import com.cloud.utils.Pair;
-import org.apache.cloudstack.api.command.admin.resource.StartRollingMaintenanceCmd;
+import com.cloud.serializer.Param;
+import com.google.gson.annotations.SerializedName;
+import org.apache.cloudstack.api.BaseResponse;
 
-public interface RollingMaintenanceService {
+public class RollingMaintenanceResponse extends BaseResponse {
 
-    enum Stage {
-        PreFlight, PreMaintenance, Maintenance, Finished;
+    @SerializedName("success")
+    @Param(description = "success")
+    private Boolean success;
 
-        public Stage next() {
-            switch (this) {
-                case PreFlight:
-                    return PreMaintenance;
-                case PreMaintenance:
-                    return Maintenance;
-                case Maintenance:
-                    return Finished;
-                default:
-                    return null;
-            }
-        }
+    @SerializedName("details")
+    @Param(description = "details")
+    private String details;
+
+    public RollingMaintenanceResponse(Boolean success, String details) {
+        this.success = success;
+        this.details = details;
     }
-
-    Pair<Boolean, String> startRollingMaintenance(StartRollingMaintenanceCmd cmd);
 }

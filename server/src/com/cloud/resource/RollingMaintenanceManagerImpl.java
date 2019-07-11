@@ -17,7 +17,9 @@
 package com.cloud.resource;
 
 import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.RollingMaintenanceCommand;
+import com.cloud.agent.manager.Commands;
 import com.cloud.dc.ClusterVO;
 import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.HostPodVO;
@@ -31,6 +33,7 @@ import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.org.Cluster;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.api.command.admin.resource.StartRollingMaintenanceCmd;
@@ -53,6 +56,8 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
     private HostDao hostDao;
     @Inject
     private AgentManager agentManager;
+    @Inject
+    private ResourceManager resourceManager;
 
     public static final Logger s_logger = Logger.getLogger(RollingMaintenanceManagerImpl.class.getName());
 
@@ -72,7 +77,7 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
     }
 
     @Override
-    public boolean startRollingMaintenance(StartRollingMaintenanceCmd cmd) {
+    public Pair<Boolean, String> startRollingMaintenance(StartRollingMaintenanceCmd cmd) {
         Long podId = cmd.getPodId();
         Long clusterId = cmd.getClusterId();
         Long zoneId = cmd.getZoneId();
@@ -94,34 +99,76 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
                 break;
             case Host:
                 HostVO hostVO = hostDao.findById(hostId);
-                break;
+                return rollingMaintenanceHost(hostVO);
             default:
                 throw new CloudRuntimeException("Unknown resource type: " + type);
         }
-        return false;
+        return new Pair<>(false, "Error");
     }
 
-    protected boolean rollingMaintenanceCluster(Cluster cluster) {
+    protected Pair<Boolean, String> rollingMaintenanceCluster(Cluster cluster) {
         if (cluster.getHypervisorType() != Hypervisor.HypervisorType.KVM) {
             throw new CloudRuntimeException(unsopportedHypervisorErrorMsg);
         }
         List<HostVO> clusterHosts = hostDao.listByClusterAndHypervisorType(cluster.getId(), cluster.getHypervisorType());
         for (HostVO host: clusterHosts) {
-            rollingMaintenanceHost(host);
+            Pair<Boolean, String> result = rollingMaintenanceHost(host);
+            if (!result.first()) {
+                return result;
+            }
         }
-        return true;
+        return new Pair<> (true, "OK");
     }
 
-    protected boolean rollingMaintenanceHost(Host host) {
-        s_logger.debug("Rolling maintenance for host " + host.getId());
-        RollingMaintenanceCommand cmd = new RollingMaintenanceCommand();
+    protected Pair<Boolean, String> rollingMaintenanceHostStage(Host host, Stage stage) throws AgentUnavailableException {
+        if (stage == Stage.Maintenance) {
+            s_logger.debug("Trying to set the host " + host.getId() + " into maintenance");
+            resourceManager.maintain(host.getId());
+        }
+        RollingMaintenanceCommand cmd = new RollingMaintenanceCommand(stage);
+        //TODO: create global setting for timeout
+        int timeout = 120;
         try {
-            agentManager.send(host.getId(), cmd);
+            Answer[] answers = agentManager.send(host.getId(), new Commands(cmd), timeout);
+            if (answers == null || answers.length != 1) {
+                return new Pair<>(false, "No response from the agent or too many responses");
+            }
+            Answer answer = answers[0];
+            return new Pair<>(answer.getResult(), answer.getDetails());
         } catch (AgentUnavailableException | OperationTimedoutException e) {
             String msg = "Error while starting rolling maintenance on host " + host.getId() + ":" + e.getMessage();
             s_logger.error(msg, e);
             throw new CloudRuntimeException(msg);
         }
-        return true;
+    }
+
+    /**
+     * Rolling maintenance is perform in 3 stages:
+     * - Pre-flight
+     * - Pre-maintenance
+     * - Maintenance
+     */
+    protected Pair<Boolean, String> rollingMaintenanceHost(Host host) {
+        s_logger.debug("Rolling maintenance for host " + host.getId());
+
+        Stage stage = Stage.PreFlight;
+        try {
+            while (stage != null) {
+                Pair<Boolean, String> result = rollingMaintenanceHostStage(host, stage);
+                if (!result.first()) {
+                    String msg = "Error on rolling maintenance for host: " + host.getId() + ", stage: " + stage
+                            + ", details: " + result.second();
+                    s_logger.error(msg);
+                    return new Pair<>(false, msg);
+                }
+                stage = stage.next();
+            }
+        } catch (AgentUnavailableException e) {
+            String msg = "Unable to perform rolling maintenance stage " + stage + " on host " + host.getId()
+                    + ": " + e.getMessage();
+            s_logger.error(msg, e);
+            return new Pair<>(false, msg);
+        }
+        return new Pair<>(true, "OK");
     }
 }

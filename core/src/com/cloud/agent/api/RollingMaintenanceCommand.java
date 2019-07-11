@@ -18,12 +18,16 @@
 //
 package com.cloud.agent.api;
 
+import static com.cloud.resource.RollingMaintenanceService.Stage;
+
 public class RollingMaintenanceCommand extends Command {
 
+    private Stage stage;
     private String command;
     private String type;
 
-    public RollingMaintenanceCommand() {
+    public RollingMaintenanceCommand(Stage stage) {
+        this.stage = stage;
     }
 
     public RollingMaintenanceCommand(String command, String type) {
@@ -33,6 +37,10 @@ public class RollingMaintenanceCommand extends Command {
 
     public String getCommand() {
         return command;
+    }
+
+    public Stage getStage() {
+        return this.stage;
     }
 
     public void setCommand(String command) {

@@ -22,6 +22,7 @@ import com.cloud.exception.NetworkRuleConflictException;
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.resource.RollingMaintenanceService;
+import com.cloud.utils.Pair;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -31,7 +32,7 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ClusterResponse;
 import org.apache.cloudstack.api.response.HostResponse;
 import org.apache.cloudstack.api.response.PodResponse;
-import org.apache.cloudstack.api.response.SuccessResponse;
+import org.apache.cloudstack.api.response.RollingMaintenanceResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.log4j.Logger;
@@ -39,7 +40,7 @@ import org.apache.log4j.Logger;
 import javax.inject.Inject;
 
 @APICommand(name = StartRollingMaintenanceCmd.APINAME, description = "Start rolling maintenance",
-        responseObject = SuccessResponse.class,
+        responseObject = RollingMaintenanceResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin})
 public class StartRollingMaintenanceCmd extends BaseCmd {
@@ -76,7 +77,7 @@ public class StartRollingMaintenanceCmd extends BaseCmd {
     private Boolean forced;
 
     @Parameter(name = "payload", type = CommandType.STRING,
-            required = true, description = "the command to execute while hosts are on maintenance")
+            description = "the command to execute while hosts are on maintenance")
     private String command;
 
     /////////////////////////////////////////////////////
@@ -113,9 +114,10 @@ public class StartRollingMaintenanceCmd extends BaseCmd {
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
-        SuccessResponse response = new SuccessResponse();
-        response.setSuccess(rollingMaintenanceService.startRollingMaintenance(this));
+        Pair<Boolean, String> result = rollingMaintenanceService.startRollingMaintenance(this);
+        RollingMaintenanceResponse response = new RollingMaintenanceResponse(result.first(), result.second());
         response.setResponseName(getCommandName());
+        response.setObjectName("rollingmaintenance");
         this.setResponseObject(response);
     }
 
