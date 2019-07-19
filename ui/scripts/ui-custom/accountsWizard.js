@@ -220,6 +220,9 @@
                     loadList();
                 });
                 informationNotInLdapForm.find('.value #label_domain').addClass('required');
+                informationNotInLdapForm.find('.value #label_domain').change(function() {
+                    loadList();
+                });
                 informationNotInLdapForm.find('.value #label_type').addClass('required');
                 if (!ldapStatus) {
                     informationNotInLdapForm.css('background', 'none');
