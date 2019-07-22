@@ -40,8 +40,10 @@ import org.apache.cloudstack.api.command.admin.resource.StartRollingMaintenanceC
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
+import javax.naming.ConfigurationException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class RollingMaintenanceManagerImpl extends ManagerBase implements RollingMaintenanceManager {
@@ -58,6 +60,10 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
     private AgentManager agentManager;
     @Inject
     private ResourceManager resourceManager;
+    @Inject
+    private RollingMaintenanceMonitor monitor;
+
+    private RollingMaintenanceListener listener;
 
     public static final Logger s_logger = Logger.getLogger(RollingMaintenanceManagerImpl.class.getName());
 
@@ -74,6 +80,13 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
         return podId != null ? ResourceType.Pod :
                clusterId != null ? ResourceType.Cluster :
                zoneId != null ? ResourceType.Zone : ResourceType.Host;
+    }
+
+    @Override
+    public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
+        listener = new RollingMaintenanceListener(this, agentManager);
+        agentManager.registerForHostEvents(listener, true, true, true);
+        return true;
     }
 
     @Override
@@ -154,7 +167,14 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
         Stage stage = Stage.PreFlight;
         try {
             while (stage != null) {
-                Pair<Boolean, String> result = rollingMaintenanceHostStage(host, stage);
+                Pair<Boolean, String> result = null;
+                try {
+                    result = monitor.startRollingMaintenance(host, 10000L);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    return new Pair<>(false, "");
+                }
+                //Pair<Boolean, String> result = rollingMaintenanceHostStage(host, stage);
                 if (!result.first()) {
                     String msg = "Error on rolling maintenance for host: " + host.getId() + ", stage: " + stage
                             + ", details: " + result.second();
