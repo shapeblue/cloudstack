@@ -47,6 +47,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -118,7 +119,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
         ldapListUsersCmd.execute();
 
-        verify(queryService, times(1)).searchForUsers(any());
+        verify(queryService, times(1)).searchForUsers(anyLong(), anyBoolean());
         assertNotEquals(0, ((ListResponse)ldapListUsersCmd.getResponseObject()).getResponses().size());
     }
 
@@ -159,7 +160,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
      */
     @Test
     public void isNotACloudstackUser() {
-        doReturn(new ListResponse<UserResponse>()).when(queryService).searchForUsers(any());
+        doReturn(new ListResponse<UserResponse>()).when(queryService).searchForUsers(anyLong(), anyBoolean());
 
         LdapUser ldapUser = new LdapUser("rmurphy", "rmurphy@cloudstack.org", "Ryan", "Murphy", "cn=rmurphy,dc=cloudstack,dc=org", null, false, null);
 
@@ -382,7 +383,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         ListResponse<UserResponse> queryServiceResponse = new ListResponse<>();
         queryServiceResponse.setResponses(responses);
 
-        doReturn(queryServiceResponse).when(queryService).searchForUsers(any());
+        doReturn(queryServiceResponse).when(queryService).searchForUsers(anyLong(), anyBoolean());
     }
 
     private UserResponse createMockUserResponse(String uid, User.Source source) {

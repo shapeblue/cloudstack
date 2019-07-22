@@ -161,19 +161,27 @@ public class LdapListUsersCmd extends BaseListCmd {
         // get a list of relevant cloudstack users, meaning
         // if we are filtering for local domain, only get users for the current domain
         // if we are filtering for any domain, get recursive all users for the root domain
-        // in case of no filter we should not be in this method
-        // in case of potential imports we are only looking for users in the linked domains/accounts
-        ListUsersCmd listUsersCmd = new ListUsersCmd();
-        switch (getUserFilter()) {
-        case ANY_DOMAIN:
-//            listUsersCmd.recusive = true;
-        case POTENTIAL_IMPORT:
-        case LOCAL_DOMAIN:
-        case NO_FILTER:
-            break;
-        }
+        // if we are filtering for potential imports,
+        //    we are only looking for users in the linked domains/accounts,
+        //    which is only relevant if we ask ldap users for this domain.
+        //    So we are asking for all users in the current domain as well
+        // in case of no filter we should find all users in the current domain for annotation.
         if (cloudstackUsers == null) {
-            final ListResponse<UserResponse> cloudstackUsersresponse = _queryService.searchForUsers(listUsersCmd);
+            ListResponse<UserResponse> cloudstackUsersresponse;
+            switch (getUserFilter()) {
+            case ANY_DOMAIN:
+                cloudstackUsersresponse = _queryService.searchForUsers(1l,true);
+                break;
+            case NO_FILTER:
+                cloudstackUsersresponse = _queryService.searchForUsers(this.domainId,true);
+                break;
+            case POTENTIAL_IMPORT:
+            case LOCAL_DOMAIN:
+                cloudstackUsersresponse = _queryService.searchForUsers(this.domainId,false);
+                break;
+            default:
+                throw new CloudRuntimeException("error in program login; we are not filtering but still querying users to filter???");
+            }
             cloudstackUsers = cloudstackUsersresponse.getResponses();
             if(s_logger.isTraceEnabled()) {
                 StringBuilder users = new StringBuilder();
