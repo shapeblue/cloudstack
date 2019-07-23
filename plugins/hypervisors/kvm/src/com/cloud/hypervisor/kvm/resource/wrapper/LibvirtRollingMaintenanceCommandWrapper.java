@@ -25,14 +25,10 @@ import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
 import com.cloud.resource.RollingMaintenanceService;
+import org.apache.cloudstack.rolling.maintenance.RollingMaintenanceHelper;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import javax.inject.Inject;
 
 @ResourceWrapper(handles =  RollingMaintenanceCommand.class)
 public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<RollingMaintenanceCommand, Answer, LibvirtComputingResource> {
@@ -44,7 +40,8 @@ public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<Roll
     private static final String EXEC_FILE = ROLLING_MAINTENANCE_HOOKS_DIR + "/exec";
     private static final String DETAILS_FILE = ROLLING_MAINTENANCE_HOOKS_DIR + "/details";
 
-    private static final int PORT = 1234;
+    @Inject
+    RollingMaintenanceHelper helper;
 
     private String getParameter(RollingMaintenanceService.Stage stage) {
         if (stage == RollingMaintenanceService.Stage.PreFlight) {
@@ -64,24 +61,8 @@ public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<Roll
         String type = command.getType();
         RollingMaintenanceService.Stage stage = command.getStage();
 
-        try {
-            DatagramSocket socket = new DatagramSocket();
-            InetAddress address = InetAddress.getByName("localhost");
-            String message = String.format("%s %s %s", stage, "test1", "1");
-            DatagramPacket packet = new DatagramPacket(message.getBytes(), message.getBytes().length,
-                    address, PORT);
-            socket.send(packet);
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (SocketException e) {
-            String msg = "Cannot connect to executor server on port " + PORT;
-            s_logger.error(msg);
-            return new RollingMaintenanceAnswer(msg);
-        } catch (IOException e) {
-            String msg = "Cannot send message to executor server on port " + PORT;
-            s_logger.error(msg);
-            return new RollingMaintenanceAnswer(msg);
-        }
+        helper.startStage(getParameter(stage));
+
         return new RollingMaintenanceAnswer();
     }
 }

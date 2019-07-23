@@ -25,6 +25,19 @@ public class RollingMaintenanceCommand extends Command {
     private Stage stage;
     private String command;
     private String type;
+    private boolean terminate;
+
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
+    public boolean isTerminate() {
+        return terminate;
+    }
+
+    public void setTerminate(boolean terminate) {
+        this.terminate = terminate;
+    }
 
     public RollingMaintenanceCommand(Stage stage) {
         this.stage = stage;

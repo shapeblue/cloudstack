@@ -14,13 +14,15 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.resource;
+package org.apache.cloudstack.rolling.maintenance;
 
-import com.cloud.exception.AgentUnavailableException;
-import com.cloud.host.Host;
-import com.cloud.utils.Pair;
+import com.cloud.utils.component.Adapter;
+import com.cloud.utils.exception.CloudRuntimeException;
 
-public interface RollingMaintenanceMonitor {
+public interface RollingMaintenanceHelper extends Adapter {
 
-    Pair<Boolean, String> startRollingMaintenance(Host host, long timeout) throws InterruptedException, AgentUnavailableException;
+    void startStage(String stage) throws CloudRuntimeException;
+    boolean isStageCompleted(String stage);
+    boolean getCompletedStageResults();
+
 }
