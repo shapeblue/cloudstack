@@ -19,6 +19,8 @@ package com.cloud.resource;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.RollingMaintenanceCommand;
+import com.cloud.agent.manager.Commands;
+import com.cloud.exception.AgentUnavailableException;
 import com.cloud.host.Host;
 import com.cloud.utils.Pair;
 import org.apache.log4j.Logger;
@@ -27,7 +29,7 @@ import javax.inject.Inject;
 
 public class RollingMaintenanceMonitorImpl implements RollingMaintenanceMonitor {
 
-    private static long SLEEP_STEP = 100L;
+    private static final long SLEEP_STEP = 100L;
     private RollingMaintenanceListener listener;
 
     public static final Logger s_logger = Logger.getLogger(RollingMaintenanceMonitorImpl.class.getName());
@@ -36,10 +38,11 @@ public class RollingMaintenanceMonitorImpl implements RollingMaintenanceMonitor 
     private AgentManager agentManager;
 
     @Override
-    public Pair<Boolean, String> startRollingMaintenance(Host host, long timeout) throws InterruptedException {
+    public Pair<Boolean, String> startRollingMaintenance(Host host, long timeout) throws InterruptedException, AgentUnavailableException {
         listener = new RollingMaintenanceListener(null, null, host.getId());
-        Command[] cmds = new Command[1];
-        cmds[0] = new RollingMaintenanceCommand("cmd", "stage");
+        agentManager.registerForHostEvents(listener, true, true, true);
+        Command cmd = new RollingMaintenanceCommand("cmd", "stage");
+        Commands cmds = new Commands(cmd);
         agentManager.send(host.getId(), cmds, listener);
         long sleepTime = 0;
         while (!listener.isTerminated()) {

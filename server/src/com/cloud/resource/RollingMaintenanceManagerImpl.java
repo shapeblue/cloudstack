@@ -84,8 +84,6 @@ public class RollingMaintenanceManagerImpl extends ManagerBase implements Rollin
 
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
-        listener = new RollingMaintenanceListener(this, agentManager);
-        agentManager.registerForHostEvents(listener, true, true, true);
         return true;
     }
 

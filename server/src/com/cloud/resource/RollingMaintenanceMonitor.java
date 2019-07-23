@@ -16,10 +16,11 @@
 // under the License.
 package com.cloud.resource;
 
+import com.cloud.exception.AgentUnavailableException;
 import com.cloud.host.Host;
 import com.cloud.utils.Pair;
 
 public interface RollingMaintenanceMonitor {
 
-    Pair<Boolean, String> startRollingMaintenance(Host host, long timeout) throws InterruptedException;
+    Pair<Boolean, String> startRollingMaintenance(Host host, long timeout) throws InterruptedException, AgentUnavailableException;
 }

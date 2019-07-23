@@ -299,5 +299,7 @@
 
     <bean id="directDownloadManager" class="org.apache.cloudstack.direct.download.DirectDownloadManagerImpl" />
 
-    <bean id="rollingMaintenanceManagerImpl" class="com.cloud.resource.RollingMaintenanceManagerImpl" />
+    <bean id="rollingMaintenanceMonitor" class="com.cloud.resource.RollingMaintenanceMonitorImpl" />
+
+    <bean id="rollingMaintenanceManager" class="com.cloud.resource.RollingMaintenanceManagerImpl" />
 </beans>

@@ -19,19 +19,20 @@
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
 import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.RollingMaintenanceAnswer;
 import com.cloud.agent.api.RollingMaintenanceCommand;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
 import com.cloud.resource.RollingMaintenanceService;
-import com.cloud.utils.script.Script;
-import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 
 @ResourceWrapper(handles =  RollingMaintenanceCommand.class)
 public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<RollingMaintenanceCommand, Answer, LibvirtComputingResource> {
@@ -42,6 +43,8 @@ public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<Roll
     private static final String EXECUTOR = ROLLING_MAINTENANCE_HOOKS_DIR + "/rolling-maintenance.py";
     private static final String EXEC_FILE = ROLLING_MAINTENANCE_HOOKS_DIR + "/exec";
     private static final String DETAILS_FILE = ROLLING_MAINTENANCE_HOOKS_DIR + "/details";
+
+    private static final int PORT = 1234;
 
     private String getParameter(RollingMaintenanceService.Stage stage) {
         if (stage == RollingMaintenanceService.Stage.PreFlight) {
@@ -62,42 +65,23 @@ public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<Roll
         RollingMaintenanceService.Stage stage = command.getStage();
 
         try {
-            s_logger.debug("Performing rolling maintenance stage: " + stage);
-            File folder = new File(ROLLING_MAINTENANCE_HOOKS_DIR);
-            if (!folder.exists()) {
-                return new Answer(command, false, "Cannot find the hooks directory");
-            }
-            File executor = new File(EXECUTOR);
-            if (!executor.exists()) {
-                return new Answer(command, false, "No executor found");
-            }
-            final Script script = new Script("./" + executor.getAbsolutePath(), 100L, s_logger);
-            String parameter = getParameter(stage);
-            if (StringUtils.isBlank(parameter)) {
-                return new Answer(command, false, "Unknown stage received");
-            }
-            script.add(parameter);
-            s_logger.debug("Invoking scripts executor for stage: " + stage);
-            String output = script.execute();
-
-            String execContent = null;
-            try {
-                execContent = new String(Files.readAllBytes(Paths.get(EXEC_FILE)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            if (StringUtils.isBlank(execContent)) {
-                return new Answer(command, false, "Blank exec file");
-            }
-            String[] execParts = execContent.split(",");
-            String finished = execParts[0];
-            String success = execParts[1];
-            boolean result = Boolean.valueOf(finished) && Boolean.valueOf(success);
-
-            String detailsContent = new String(Files.readAllBytes(Paths.get(DETAILS_FILE)));
-            return new Answer(command, result, detailsContent);
+            DatagramSocket socket = new DatagramSocket();
+            InetAddress address = InetAddress.getByName("localhost");
+            String message = String.format("%s %s %s", stage, "test1", "1");
+            DatagramPacket packet = new DatagramPacket(message.getBytes(), message.getBytes().length,
+                    address, PORT);
+            socket.send(packet);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (SocketException e) {
+            String msg = "Cannot connect to executor server on port " + PORT;
+            s_logger.error(msg);
+            return new RollingMaintenanceAnswer(msg);
         } catch (IOException e) {
-            return new Answer(command, false, e.getMessage());
+            String msg = "Cannot send message to executor server on port " + PORT;
+            s_logger.error(msg);
+            return new RollingMaintenanceAnswer(msg);
         }
+        return new RollingMaintenanceAnswer();
     }
 }

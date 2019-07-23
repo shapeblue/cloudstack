@@ -26,6 +26,10 @@ public class RollingMaintenanceAnswer extends Answer {
     public RollingMaintenanceAnswer() {
     }
 
+    public RollingMaintenanceAnswer(String msg) {
+        super(null, false, msg);
+    }
+
     public long getHostId() {
         return hostId;
     }
