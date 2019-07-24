@@ -38,7 +38,4 @@
         <property name="name" value="KVMHAProvider" />
     </bean>
 
-    <bean id="RollingMaintenanceHelper" class="org.apache.cloudstack.rolling.maintenance.RollingMaintenanceHelperImpl">
-    </bean>
-
 </beans>

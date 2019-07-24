@@ -221,6 +221,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     private static final int NUMMEMSTATS =2;
 
     private KVMHAMonitor _monitor;
+    private RollingMaintenanceHelper rollingMaintenanceHelper;
+
     public static final String SSHKEYSPATH = "/root/.ssh";
     public static final String SSHPRVKEYPATH = SSHKEYSPATH + File.separator + "id_rsa.cloud";
     public static final String SSHPUBKEYPATH = SSHKEYSPATH + File.separator + "id_rsa.pub.cloud";
@@ -441,6 +443,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
     public KVMHAMonitor getMonitor() {
         return _monitor;
+    }
+
+    public RollingMaintenanceHelper getRollingMaintenanceHelper() {
+        return rollingMaintenanceHelper;
     }
 
     public StorageLayer getStorage() {
@@ -961,6 +967,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         _monitor = new KVMHAMonitor(null, info[0], _heartBeatPath);
         final Thread ha = new Thread(_monitor);
         ha.start();
+
+        rollingMaintenanceHelper = RollingMaintenanceHelper.getInstance();
 
         _storagePoolMgr = new KVMStoragePoolManager(_storage, _monitor);
 

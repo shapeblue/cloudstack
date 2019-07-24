@@ -22,13 +22,11 @@ import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.RollingMaintenanceAnswer;
 import com.cloud.agent.api.RollingMaintenanceCommand;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
+import com.cloud.hypervisor.kvm.resource.RollingMaintenanceHelper;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
 import com.cloud.resource.RollingMaintenanceService;
-import org.apache.cloudstack.rolling.maintenance.RollingMaintenanceHelper;
 import org.apache.log4j.Logger;
-
-import javax.inject.Inject;
 
 @ResourceWrapper(handles =  RollingMaintenanceCommand.class)
 public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<RollingMaintenanceCommand, Answer, LibvirtComputingResource> {
@@ -39,9 +37,6 @@ public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<Roll
     private static final String EXECUTOR = ROLLING_MAINTENANCE_HOOKS_DIR + "/rolling-maintenance.py";
     private static final String EXEC_FILE = ROLLING_MAINTENANCE_HOOKS_DIR + "/exec";
     private static final String DETAILS_FILE = ROLLING_MAINTENANCE_HOOKS_DIR + "/details";
-
-    @Inject
-    RollingMaintenanceHelper helper;
 
     private String getParameter(RollingMaintenanceService.Stage stage) {
         if (stage == RollingMaintenanceService.Stage.PreFlight) {
@@ -61,6 +56,7 @@ public class LibvirtRollingMaintenanceCommandWrapper extends CommandWrapper<Roll
         String type = command.getType();
         RollingMaintenanceService.Stage stage = command.getStage();
 
+        RollingMaintenanceHelper helper = serverResource.getRollingMaintenanceHelper();
         helper.startStage(getParameter(stage));
 
         return new RollingMaintenanceAnswer();

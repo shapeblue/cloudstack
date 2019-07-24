@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.cloudstack.rolling.maintenance;
+package com.cloud.hypervisor.kvm.resource;
 
-import com.cloud.utils.component.AdapterBase;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.log4j.Logger;
@@ -32,7 +31,10 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RollingMaintenanceHelperImpl extends AdapterBase implements RollingMaintenanceHelper {
+/*
+    Singleton helper class for rolling maintenance
+ */
+public class RollingMaintenanceHelper {
 
     private DatagramSocket serverSocket;
     private DatagramSocket clientSocket;
@@ -41,12 +43,30 @@ public class RollingMaintenanceHelperImpl extends AdapterBase implements Rolling
 
     private byte[] receiveData = new byte[1024];
 
-    private static final Logger s_logger = Logger.getLogger(RollingMaintenanceHelperImpl.class);
+    private static final Logger s_logger = Logger.getLogger(RollingMaintenanceHelper.class);
     private Map<String, Boolean> stageResults = new HashMap<>();
 
     private boolean running;
     private boolean complete;
     private boolean success;
+
+    private static RollingMaintenanceHelper instance;
+
+    private RollingMaintenanceHelper() {
+        Thread thread = new Thread(new Monitor());
+        thread.start();
+    }
+
+    private synchronized static void createInstance() {
+        if (instance == null) {
+            instance = new RollingMaintenanceHelper();
+        }
+    }
+
+    public static RollingMaintenanceHelper getInstance() {
+        createInstance();
+        return instance;
+    }
 
     private String getErrorMessage(Exception e) {
         if (e instanceof SocketException) {
@@ -60,7 +80,6 @@ public class RollingMaintenanceHelperImpl extends AdapterBase implements Rolling
         }
     }
 
-    @Override
     public void startStage(String stage) throws CloudRuntimeException {
         try {
             clientSocket = new DatagramSocket();
@@ -78,12 +97,10 @@ public class RollingMaintenanceHelperImpl extends AdapterBase implements Rolling
         }
     }
 
-    @Override
     public boolean isStageCompleted(String stage) {
         return !running && complete;
     }
 
-    @Override
     public boolean getCompletedStageResults() {
         return false;
     }
@@ -110,12 +127,5 @@ public class RollingMaintenanceHelperImpl extends AdapterBase implements Rolling
                 }
             }
         }
-    }
-
-    @Override
-    public boolean configure(String name, Map<String, Object> params) {
-        Thread thread = new Thread(new Monitor());
-        thread.start();
-        return true;
     }
 }
