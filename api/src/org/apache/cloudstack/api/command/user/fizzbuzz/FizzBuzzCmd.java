@@ -46,6 +46,7 @@ public class FizzBuzzCmd extends BaseCmd {
         final FizzBuzzResponse response = new FizzBuzzResponse();
         response.setAnswer(fizzBuzzService.fizzBuzz(number));
         response.setObjectName("fizzbuzz");
+        response.setResponseName(getCommandName());
         setResponseObject(response);
     }
 
