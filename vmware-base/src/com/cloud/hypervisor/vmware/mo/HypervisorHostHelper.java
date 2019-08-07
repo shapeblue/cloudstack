@@ -18,6 +18,7 @@ package com.cloud.hypervisor.vmware.mo;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -63,12 +65,9 @@ import com.cloud.utils.cisco.n1kv.vsm.VsmCommand.BindingType;
 import com.cloud.utils.cisco.n1kv.vsm.VsmCommand.OperationType;
 import com.cloud.utils.cisco.n1kv.vsm.VsmCommand.PortProfileType;
 import com.cloud.utils.cisco.n1kv.vsm.VsmCommand.SwitchPortMode;
-import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.net.NetUtils;
 import com.cloud.utils.nicira.nvp.plugin.NiciraNvpApiVersion;
-import com.vmware.vim25.OvfCreateDescriptorParams;
-import com.vmware.vim25.OvfCreateDescriptorResult;
 import com.vmware.vim25.AlreadyExistsFaultMsg;
 import com.vmware.vim25.BoolPolicy;
 import com.vmware.vim25.CustomFieldStringValue;
@@ -93,10 +92,12 @@ import com.vmware.vim25.MethodFault;
 import com.vmware.vim25.NumericRange;
 import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.OptionValue;
+import com.vmware.vim25.OvfCreateDescriptorParams;
+import com.vmware.vim25.OvfCreateDescriptorResult;
 import com.vmware.vim25.OvfCreateImportSpecParams;
 import com.vmware.vim25.OvfCreateImportSpecResult;
-import com.vmware.vim25.OvfFileItem;
 import com.vmware.vim25.OvfFile;
+import com.vmware.vim25.OvfFileItem;
 import com.vmware.vim25.ParaVirtualSCSIController;
 import com.vmware.vim25.VMwareDVSConfigSpec;
 import com.vmware.vim25.VMwareDVSPortSetting;
@@ -106,25 +107,23 @@ import com.vmware.vim25.VMwareDVSPvlanMapEntry;
 import com.vmware.vim25.VirtualBusLogicController;
 import com.vmware.vim25.VirtualController;
 import com.vmware.vim25.VirtualDevice;
-import com.vmware.vim25.VirtualDisk;
 import com.vmware.vim25.VirtualDeviceConfigSpec;
 import com.vmware.vim25.VirtualDeviceConfigSpecOperation;
+import com.vmware.vim25.VirtualDisk;
 import com.vmware.vim25.VirtualIDEController;
 import com.vmware.vim25.VirtualLsiLogicController;
 import com.vmware.vim25.VirtualLsiLogicSASController;
 import com.vmware.vim25.VirtualMachineConfigSpec;
 import com.vmware.vim25.VirtualMachineFileInfo;
 import com.vmware.vim25.VirtualMachineGuestOsIdentifier;
+import com.vmware.vim25.VirtualMachineImportSpec;
 import com.vmware.vim25.VirtualMachineVideoCard;
 import com.vmware.vim25.VirtualSCSIController;
 import com.vmware.vim25.VirtualSCSISharing;
-import com.vmware.vim25.VirtualMachineImportSpec;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchPvlanSpec;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchTrunkVlanSpec;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchVlanIdSpec;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchVlanSpec;
-import java.io.FileWriter;
-import java.util.UUID;
 
 public class HypervisorHostHelper {
     private static final Logger s_logger = Logger.getLogger(HypervisorHostHelper.class);
@@ -1293,35 +1292,21 @@ public class HypervisorHostHelper {
         if (syncPeerHosts) {
             ManagedObjectReference morParent = hostMo.getParentMor();
             if (morParent != null && morParent.getType().equals("ClusterComputeResource")) {
-                // to be conservative, lock cluster
-                GlobalLock lock = GlobalLock.getInternLock("ClusterLock." + morParent.getValue());
-                try {
-                    if (lock.lock(DEFAULT_LOCK_TIMEOUT_SECONDS)) {
-                        try {
-                            List<ManagedObjectReference> hosts = hostMo.getContext().getVimClient().getDynamicProperty(morParent, "host");
-                            if (hosts != null) {
-                                for (ManagedObjectReference otherHost : hosts) {
-                                    if (!otherHost.getValue().equals(hostMo.getMor().getValue())) {
-                                        HostMO otherHostMo = new HostMO(hostMo.getContext(), otherHost);
-                                        try {
-                                            if (s_logger.isDebugEnabled())
-                                                s_logger.debug("Prepare network on other host, vlan: " + vlanId + ", host: " + otherHostMo.getHostName());
-                                            prepareNetwork(vSwitchName, namePrefix, otherHostMo, vlanId, networkRateMbps, networkRateMulticastMbps, timeOutMs, false,
-                                                    broadcastDomainType, nicUuid, nicDetails);
-                                        } catch (Exception e) {
-                                            s_logger.warn("Unable to prepare network on other host, vlan: " + vlanId + ", host: " + otherHostMo.getHostName());
-                                        }
-                                    }
-                                }
+                List<ManagedObjectReference> hosts = hostMo.getContext().getVimClient().getDynamicProperty(morParent, "host");
+                if (hosts != null) {
+                    for (ManagedObjectReference otherHost : hosts) {
+                        if (!otherHost.getValue().equals(hostMo.getMor().getValue())) {
+                            HostMO otherHostMo = new HostMO(hostMo.getContext(), otherHost);
+                            try {
+                                if (s_logger.isDebugEnabled())
+                                    s_logger.debug("Prepare network on other host, vlan: " + vlanId + ", host: " + otherHostMo.getHostName());
+                                prepareNetwork(vSwitchName, namePrefix, otherHostMo, vlanId, networkRateMbps, networkRateMulticastMbps, timeOutMs, false,
+                                        broadcastDomainType, nicUuid, nicDetails);
+                            } catch (Exception e) {
+                                s_logger.warn("Unable to prepare network on other host, vlan: " + vlanId + ", host: " + otherHostMo.getHostName());
                             }
-                        } finally {
-                            lock.unlock();
                         }
-                    } else {
-                        s_logger.warn("Unable to lock cluster to prepare guest network, vlan: " + vlanId);
                     }
-                } finally {
-                    lock.releaseRef();
                 }
             }
         }
