@@ -250,7 +250,7 @@ SysVM Template:
 
       # upload to swift
       swift post ${namespace} -r '.r:*,.rlistings'
-      swift upload ${namespace} --object-name ${swift_path} ${CI_PROJECT_DIR}/target/templates
+      swift upload ${namespace} --object-name ${swift_path} ${CI_PROJECT_DIR}/target/templates | xargs -n1 swift stat -v ${namespace} | grep URL | sort | sed 's/URL\://g' | tr -d ' '
   after_script:
     - git clean -fdx
   only:
