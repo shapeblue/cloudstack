@@ -1563,9 +1563,8 @@ upload [options] container file_or_directory [file_or_directory] [...]
     Uploads to the given container the files and directories specified by the
     remaining args. -c or --changed is an option that will only upload files
     that have changed since the last upload. -S <size> or --segment-size <size>
-==== BASE ====
-    and --leave-segments are options as well (see --help for more).
-==== BASE ====
+    and --leave-segments are options as well (see --help for more). --storage-policy
+     Sets a storage policy to the container if the container does not exist.
 '''.strip('\n')
 
 
