@@ -57,7 +57,7 @@ public class Upgrade41120to41130 implements DbUpgrade {
 
     @Override
     public void performDataMigration(Connection conn) {
-        updateSystemVmTemplates(conn);
+        // updateSystemVmTemplates(conn);
     }
 
     @SuppressWarnings("serial")
