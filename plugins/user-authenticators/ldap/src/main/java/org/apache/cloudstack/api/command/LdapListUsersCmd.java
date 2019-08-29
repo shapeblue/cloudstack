@@ -75,7 +75,7 @@ import com.cloud.user.Account;
  * stop
  * @enduml
  */
-@APICommand(name = "listLdapUsers", responseObject = LdapUserResponse.class, description = "Lists all LDAP Users", since = "4.2.0",
+@APICommand(name = "listLdapUsers", responseObject = LdapUserResponse.class, description = "Lists LDAP Users according to the specifications from the user request.", since = "4.2.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class LdapListUsersCmd extends BaseListCmd {
 
