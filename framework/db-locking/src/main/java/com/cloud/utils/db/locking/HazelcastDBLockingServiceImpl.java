@@ -45,8 +45,6 @@ public class HazelcastDBLockingServiceImpl extends AdapterBase implements DBLock
         hazelcastInstance = Hazelcast.newHazelcastInstance(config);
         HazelcastInstance hz2 = Hazelcast.newHazelcastInstance(config);
         HazelcastInstance hz3 = Hazelcast.newHazelcastInstance(config);
-
-        hazelcastInstance = Hazelcast.newHazelcastInstance(config);
     }
 
     @Override
