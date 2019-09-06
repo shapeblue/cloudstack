@@ -25,53 +25,44 @@ import org.apache.log4j.Logger;
 
 import com.cloud.utils.component.AdapterBase;
 import com.hazelcast.config.Config;
-import com.hazelcast.config.JoinConfig;
-import com.hazelcast.config.NetworkConfig;
+import com.hazelcast.config.cp.CPSubsystemConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
 
 public class HazelcastDBLockingServiceImpl extends AdapterBase implements DBLockingService {
     private static final Logger LOG = Logger.getLogger(DBLockingManagerImpl.class);
-    private final static int NETWORK_PORT = 22818; // non-standard
-    private final static int PORT_COUNT = 50;
-    private int tickTime = 2000;
-    private String tempDirectory = System.getProperty("java.io.tmpdir");
     private HashMap<String, FencedLock> locks;
 
     private static HazelcastInstance hazelcastInstance = null;
 
     @Override
     public void init() throws IOException {
+        locks = new HashMap<>();
         Config config = new Config();
-        config.getNetworkConfig().setPort(29101);
-        config.getNetworkConfig().setPortAutoIncrement(true);
-        config.getNetworkConfig().setPortCount(50);
-
-        NetworkConfig networkConfig = config.getNetworkConfig();
-        JoinConfig joinConfig = networkConfig.getJoin();
-        networkConfig.getInterfaces().setEnabled(true);
-        joinConfig.getMulticastConfig().setEnabled(false);
-        joinConfig.getTcpIpConfig().setEnabled(true);
-
-        joinConfig.getTcpIpConfig().addMember("127.0.0.1");
-        networkConfig.getInterfaces().addInterface("127.0.0.1");
+        CPSubsystemConfig cpSubsystemConfig = config.getCPSubsystemConfig();
+        cpSubsystemConfig.setCPMemberCount(3);
+        hazelcastInstance = Hazelcast.newHazelcastInstance(config);
+        HazelcastInstance hz2 = Hazelcast.newHazelcastInstance(config);
+        HazelcastInstance hz3 = Hazelcast.newHazelcastInstance(config);
 
         hazelcastInstance = Hazelcast.newHazelcastInstance(config);
     }
 
     @Override
     public boolean lock(String name, int timeoutSeconds) {
-        FencedLock lock = hazelcastInstance.getCPSubsystem().getLock("name");
+        boolean locked = false;
         try {
-            if (lock.tryLock(timeoutSeconds, TimeUnit.SECONDS)) {
+            FencedLock lock = hazelcastInstance.getCPSubsystem().getLock(name);
+            locked = lock.tryLock(timeoutSeconds, TimeUnit.SECONDS);
+            if (locked) {
                 locks.put(name, lock);
-                return true;
             }
         } catch (Exception e) {
             LOG.debug(String.format("Unable to acquire Hazelcast lock, %s!\n", name) + e);
         }
-        return false;
+        LOG.debug(String.format("Lock %s: %s", name, locked));
+        return locked;
     }
 
     @Override
