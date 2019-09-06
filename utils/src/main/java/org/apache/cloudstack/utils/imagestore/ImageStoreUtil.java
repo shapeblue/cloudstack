@@ -18,9 +18,10 @@
  */
 package org.apache.cloudstack.utils.imagestore;
 
-import com.cloud.utils.script.Script;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+
+import com.cloud.utils.script.Script;
 
 public class ImageStoreUtil {
     public static final Logger s_logger = Logger.getLogger(ImageStoreUtil.class.getName());
@@ -49,7 +50,7 @@ public class ImageStoreUtil {
         if (isCompressedExtension(uripath)) {
             command = "file -z ";
         }
-        String output = Script.runSimpleBashScript(command + path + " | cut -d: -f2", 60000);
+        String output = Script.runSimpleBashScript(command + "'" + path + "' exit" + "  | cut -d: -f2", 60000);
 
         // vmdk
         if ((output.contains("VMware") || output.contains("data")) && isCorrectExtension(uripath, "vmdk")) {
