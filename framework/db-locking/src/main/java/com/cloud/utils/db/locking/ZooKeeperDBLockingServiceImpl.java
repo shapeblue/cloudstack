@@ -34,18 +34,20 @@ import org.apache.zookeeper.server.ZooKeeperServer;
 
 import com.cloud.utils.component.AdapterBase;
 
-public class ZooKeeperDBLockingService extends AdapterBase implements DBLockingService {
+public class ZooKeeperDBLockingServiceImpl extends AdapterBase implements DBLockingService {
     private static final Logger LOG = Logger.getLogger(DBLockingManagerImpl.class);
-    private int clientPort = 21818; // none-standard
-    private int numConnections = 5000;
-    private int tickTime = 2000;
+    private final static int CLIENT_PORT = 21818; // non-standard
+    private final static int MAX_CONNECTIONS = 5000;
+    private final static int TICK_TIME = 2000;
+    private final static int RETRY_SLEEP_TIME = 1000;
+    private final static int MAX_RETRIES = 3;
     private String tempDirectory = System.getProperty("java.io.tmpdir");
     private ZooKeeperServer zooKeeperServer;
     private NIOServerCnxnFactory serverFactory;
     private CuratorFramework curatorClient;
     private HashMap<String, InterProcessMutex> locks;
 
-    ZooKeeperDBLockingService() {
+    ZooKeeperDBLockingServiceImpl() {
         locks = new HashMap<>();
     }
 
@@ -54,16 +56,16 @@ public class ZooKeeperDBLockingService extends AdapterBase implements DBLockingS
 
         File dir = new File(tempDirectory, "zookeeper").getAbsoluteFile();
         try {
-            zooKeeperServer = new ZooKeeperServer(dir, dir, tickTime);
+            zooKeeperServer = new ZooKeeperServer(dir, dir, TICK_TIME);
             serverFactory = new NIOServerCnxnFactory();
-            serverFactory.configure(new InetSocketAddress(clientPort), numConnections);
+            serverFactory.configure(new InetSocketAddress(CLIENT_PORT), MAX_CONNECTIONS);
 
             serverFactory.startup(zooKeeperServer);
         } catch (InterruptedException e) {
             throw new IOException(e);
         }
-        RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
-        curatorClient = CuratorFrameworkFactory.newClient(String.format("127.0.0.1:%d", clientPort), retryPolicy);
+        RetryPolicy retryPolicy = new ExponentialBackoffRetry(RETRY_SLEEP_TIME, MAX_RETRIES);
+        curatorClient = CuratorFrameworkFactory.newClient(String.format("127.0.0.1:%d", CLIENT_PORT), retryPolicy);
         curatorClient.start();
     }
 

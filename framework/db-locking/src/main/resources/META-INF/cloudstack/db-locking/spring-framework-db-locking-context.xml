@@ -34,7 +34,10 @@
         <property name="typeClass" value="com.cloud.utils.db.locking.DBLockingService" />
     </bean>
 
-    <bean id="zooKeeperLockingService" class="com.cloud.utils.db.locking.ZooKeeperDBLockingService" >
+    <bean id="zooKeeperLockingService" class="com.cloud.utils.db.locking.ZooKeeperDBLockingServiceImpl" >
+    </bean>
+
+    <bean id="hazelcastLockingService" class="com.cloud.utils.db.locking.HazelcastDBLockingServiceImpl" >
     </bean>
 
     <bean id="defaultLockingService" class="com.cloud.utils.db.locking.DefaultDBLockingService">
