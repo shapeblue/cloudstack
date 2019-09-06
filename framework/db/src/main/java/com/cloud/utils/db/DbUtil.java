@@ -16,6 +16,8 @@
 // under the License.
 package com.cloud.utils.db;
 
+import static com.cloud.utils.AutoCloseableUtil.closeAutoCloseable;
+
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -42,8 +44,6 @@ import javax.persistence.Table;
 import javax.persistence.Transient;
 
 import org.apache.log4j.Logger;
-
-import static com.cloud.utils.AutoCloseableUtil.closeAutoCloseable;
 
 import com.cloud.utils.db.locking.DBLockingManager;
 
@@ -200,8 +200,22 @@ public class DbUtil {
     }
 
     public static boolean getGlobalLock(String name, int timeoutSeconds) {
-        if (s_dbLockingManager != null && s_dbLockingManager.getLockingServiceName().equals("zooKeeper"))
-            return s_dbLockingManager.getGlobalLock(name, timeoutSeconds);
+        boolean locked = false;
+        long startTime = System.nanoTime();
+        String locking = "default";
+        if (s_dbLockingManager != null &&
+                (s_dbLockingManager.getLockingServiceName().equals("hazelcast") ||
+                        s_dbLockingManager.getLockingServiceName().equals("zooKeeper"))) {
+            locking = s_dbLockingManager.getLockingServiceName();
+            locked = s_dbLockingManager.getGlobalLock(name, timeoutSeconds);
+        } else {
+            locked = getGlobalLockInternal(name, timeoutSeconds);
+        }
+        s_logger.debug(String.format("%s - getGlobalLock time for %s: %d", locking, name, (System.nanoTime()-startTime)/1000000));
+        return locked;
+    }
+
+    private static boolean getGlobalLockInternal(String name, int timeoutSeconds) {
         Connection conn = getConnectionForGlobalLocks(name, true);
         if (conn == null) {
             s_logger.error("Unable to acquire DB connection for global lock system");
@@ -238,8 +252,22 @@ public class DbUtil {
     }
 
     public static boolean releaseGlobalLock(String name) {
-        if (s_dbLockingManager != null && s_dbLockingManager.getLockingServiceName().equals("zooKeeper"))
-            return s_dbLockingManager.releaseGlobalLock(name);
+        boolean released = false;
+        long startTime = System.nanoTime();
+        String locking = "default";
+        if (s_dbLockingManager != null &&
+                (s_dbLockingManager.getLockingServiceName().equals("hazelcast") ||
+                        s_dbLockingManager.getLockingServiceName().equals("zooKeeper"))) {
+            locking = s_dbLockingManager.getLockingServiceName();
+            released = s_dbLockingManager.releaseGlobalLock(name);
+        } else {
+            released = releaseGlobalLockInternal(name);
+        }
+        s_logger.debug(String.format("%s - releaseGlobalLock time for %s: %d", locking, name, (System.nanoTime()-startTime)/1000000));
+        return released;
+    }
+
+    private static boolean releaseGlobalLockInternal(String name) {
         try (Connection conn = getConnectionForGlobalLocks(name, false);) {
             if (conn == null) {
                 s_logger.error("Unable to acquire DB connection for global lock system");
