@@ -51,7 +51,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Build properties -->
-        <cs.jdk.version>1.8</cs.jdk.version>
+        <cs.jdk.version>11</cs.jdk.version>
         <cs.target.dir>target</cs.target.dir>
         <cs.replace.properties>build/replace.properties</cs.replace.properties>
 
@@ -136,6 +136,7 @@
         <cs.java-ipv6.version>0.16</cs.java-ipv6.version>
         <cs.javassist.version>3.22.0-GA</cs.javassist.version>
         <cs.javadoc.version>2.10.3</cs.javadoc.version>
+        <cs.javax.annotation.version>1.3.2</cs.javax.annotation.version>
         <cs.jersey-bundle.version>1.19.4</cs.jersey-bundle.version>
         <cs.jetty.version>9.4.8.v20171121</cs.jetty.version>
         <cs.jetty-maven-plugin.version>9.2.22.v20170606</cs.jetty-maven-plugin.version>

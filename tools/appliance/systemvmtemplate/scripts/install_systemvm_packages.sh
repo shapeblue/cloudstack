@@ -61,7 +61,7 @@ function install_packages() {
     ipvsadm conntrackd libnetfilter-conntrack3 \
     keepalived irqbalance \
     ipcalc \
-    openjdk-8-jre-headless \
+    openjdk-11-jre-headless \
     ipset \
     iptables-persistent \
     libtcnative-1 libssl-dev libapr1-dev \

@@ -20,7 +20,7 @@ group: edge
 
 language: java
 jdk:
-  - openjdk8
+  - openjdk11
 python:
   - "2.7"
 

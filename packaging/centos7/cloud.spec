@@ -38,7 +38,7 @@ Group:     System Environment/Libraries
 Source0:   %{name}-%{_maventag}.tgz
 BuildRoot: %{_tmppath}/%{name}-%{_maventag}-%{release}-build
 
-BuildRequires: java-1.8.0-openjdk-devel
+BuildRequires: java-11-openjdk-devel
 BuildRequires: ws-commons-util
 BuildRequires: jpackage-utils
 BuildRequires: gcc
@@ -53,7 +53,7 @@ intelligent IaaS cloud implementation.
 
 %package management
 Summary:   CloudStack management server UI
-Requires: java-1.8.0-openjdk
+Requires: java-11-openjdk
 Requires: python
 Requires: bash
 Requires: bzip2
@@ -92,7 +92,7 @@ The Apache CloudStack files shared between agent and management server
 %package agent
 Summary: CloudStack Agent for KVM hypervisors
 Requires: openssh-clients
-Requires: java-1.8.0-openjdk
+Requires: java-11-openjdk
 Requires: %{name}-common = %{_ver}
 Requires: libvirt
 Requires: bridge-utils
@@ -125,7 +125,7 @@ The CloudStack baremetal agent
 
 %package usage
 Summary: CloudStack Usage calculation server
-Requires: java-1.8.0-openjdk
+Requires: java-11-openjdk
 Requires: mysql-connector-java
 Group: System Environment/Libraries
 %description usage
