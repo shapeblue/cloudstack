@@ -1614,4 +1614,7 @@ public class DateraPrimaryDataStoreDriver implements PrimaryDataStoreDriver, Con
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey<?>[] {MaxIopsScalingFactor};
     }
+
+    @Override
+    public void handleQualityOfServiceForVolumeMigration(VolumeInfo volumeInfo, QualityOfServiceState qualityOfServiceState) {}
 }
