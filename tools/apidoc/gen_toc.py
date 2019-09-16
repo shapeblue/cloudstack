@@ -46,7 +46,6 @@ dirname_to_dirname = {
 
 
 known_categories = {
-    'Cisco' : 'External Device',
     'SystemVm': 'System VM',
     'VirtualMachine': 'Virtual Machine',
     'VM': 'Virtual Machine',
@@ -83,12 +82,18 @@ known_categories = {
     'NetworkOffering': 'Network Offering',
     'NetworkACL': 'Network ACL',
     'Network': 'Network',
-    'CiscoNexus': 'Network',
-    'OpenDaylight': 'Network',
+    'Cisco' : 'Network Appliances',
+    'OpenDaylight': 'Network Providers',
     'createServiceInstance': 'Network',
-    'addGloboDnsHost': 'Network',
-    'listnuagevspdomaintemplates': 'Network',
-    'listnuagevspglobaldomaintemplate': 'Network',
+    'addGloboDnsHost': 'Network Providers',
+    'InternalLoadBalancer': 'Network Providers'
+    'listnuagevspdomaintemplates': 'Network Appliances',
+    'listnuagevspglobaldomaintemplate': 'Network Appliances',
+    'BigSwitch': 'Network Appliances',
+    'Brocade': 'Network Appliances',
+    'ExternalLoadBalancer': 'Network Providers',
+    'Stratosphere': 'Network Appliances',
+    'Nicira': 'Network Appliances',
     'Vpn': 'VPN',
     'Limit': 'Limit',
     'ResourceCount': 'Limit',
@@ -253,7 +258,7 @@ def write_xml(out, user):
     with open(out, 'w') as f:
         cat_strings = []
 
-        for category in categories.keys():
+        for category in sorted(categories.keys()):
             strings = []
             for command in categories[category]:
                 if command['user'] == user:
