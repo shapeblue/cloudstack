@@ -86,7 +86,7 @@ known_categories = {
     'OpenDaylight': 'Network Providers',
     'createServiceInstance': 'Network',
     'addGloboDnsHost': 'Network Providers',
-    'InternalLoadBalancer': 'Network Providers'
+    'InternalLoadBalancer': 'Network Providers',
     'listnuagevspdomaintemplates': 'Network Appliances',
     'listnuagevspglobaldomaintemplate': 'Network Appliances',
     'BigSwitch': 'Network Appliances',
