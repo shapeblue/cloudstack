@@ -34,9 +34,9 @@ variables:
 
 .load_rpm_swift_function: &LOAD_REPO_SWIFT |
   function load_swift() {
-    export OS_USERNAME=cloudops-ccontini
+    export OS_USERNAME=cloudops-kmoossavi
     export OS_TENANT_NAME=cloudops-jenkins-swift
-    export OS_PASSWORD=ubTQGjjPqEFOl9T4
+    export OS_PASSWORD=EwPjJ9AhRkLatbRt
     export OS_AUTH_URL=https://auth-qc.cloud.ca/v2.0
     export OS_REGION_NAME=east
   }
