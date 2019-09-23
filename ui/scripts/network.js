@@ -4398,6 +4398,7 @@
                                                 .append($('<strong>').html(ipAddress))
                                                 .append('&nbsp;')
                                             )
+                                            .append($pskOrCert)
                                     );
                                 }
                             }
