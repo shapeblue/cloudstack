@@ -141,14 +141,14 @@ public class LdapUserResponse extends BaseResponse {
             selfRepresentation.append(this.getUsername());
             hascontent = true;
         }
-        if(this.getFirstname() != null) {
+        if (this.getFirstname() != null) {
             if(hascontent) selfRepresentation.append(COMMA);
             selfRepresentation.append(ApiConstants.FIRSTNAME);
             selfRepresentation.append(COLUMN);
             selfRepresentation.append(this.getFirstname());
             hascontent = true;
         }
-        if(this.getLastname() != null) {
+        if (this.getLastname() != null) {
             if(hascontent) selfRepresentation.append(COMMA);
             selfRepresentation.append(ApiConstants.LASTNAME);
             selfRepresentation.append(COLUMN);
@@ -162,22 +162,22 @@ public class LdapUserResponse extends BaseResponse {
             selfRepresentation.append(this.getDomain());
             hascontent = true;
         }
-        if(this.getEmail() != null) {
+        if (this.getEmail() != null) {
             if(hascontent) selfRepresentation.append(COMMA);
             selfRepresentation.append(ApiConstants.EMAIL);
             selfRepresentation.append(COLUMN);
             selfRepresentation.append(this.getEmail());
             hascontent = true;
         }
-        if(this.getPrincipal() != null) {
+        if (this.getPrincipal() != null) {
             if(hascontent) selfRepresentation.append(COMMA);
             selfRepresentation.append(LdapConstants.PRINCIPAL);
             selfRepresentation.append(COLUMN);
             selfRepresentation.append(this.getPrincipal());
             hascontent = true;
         }
-        if(this.getUserSource() != null) {
-            if(hascontent) selfRepresentation.append(COMMA);
+        if (this.getUserSource() != null) {
+            if (hascontent) selfRepresentation.append(COMMA);
             selfRepresentation.append(ApiConstants.USER_SOURCE);
             selfRepresentation.append(COLUMN);
             selfRepresentation.append(this.getUserSource());
