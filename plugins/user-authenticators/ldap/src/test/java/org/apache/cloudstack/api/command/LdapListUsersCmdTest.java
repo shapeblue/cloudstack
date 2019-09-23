@@ -33,10 +33,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-//import org.mockito.internal.util.reflection.Whitebox;
-//import org.mockito.runners.MockitoJUnitRunner;
-//import org.powermock.api.mockito.PowerMockito;
-//import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
@@ -175,11 +171,10 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     @Test
     public void getListtypeOther() {
         when(cmdSpy.getListTypeString()).thenReturn("otHer", "anY");
-        String userfilter = cmdSpy.getUserFilterString();
 
+        String userfilter = cmdSpy.getUserFilterString();
         assertEquals("AnyDomain", userfilter);
 
-        // Big no-no: a second test in a test-method; don't do this at home
         userfilter = cmdSpy.getUserFilterString();
         assertEquals("AnyDomain", userfilter);
     }
@@ -195,11 +190,10 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
     }
 
     /**
-     * test whether values for 'userfilter'
+     * test whether values for 'userfilter' yield the right filter
      */
     @Test
     public void getUserFilter() throws NoSuchFieldException, IllegalAccessException {
-
         when(cmdSpy.getListTypeString()).thenReturn("otHer");
         LdapListUsersCmd.UserFilter userfilter = cmdSpy.getUserFilter();
 
@@ -210,10 +204,13 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
         assertEquals(LdapListUsersCmd.UserFilter.ANY_DOMAIN, userfilter);
     }
 
+    /**
+     * test if the right exception is thrown on invalid input.
+     */
     @Test(expected = IllegalArgumentException.class)
-    public void getInvalidUserFilterValues() throws NoSuchFieldException, IllegalAccessException{
+    public void getInvalidUserFilterValues() throws NoSuchFieldException, IllegalAccessException {
         setHiddenField(ldapListUsersCmd, "userFilter", "flase");
-//        LdapListUsersCmd.UserFilter userfilter =
+// unused output:       LdapListUsersCmd.UserFilter userfilter =
                 ldapListUsersCmd.getUserFilter();
     }
 
@@ -230,7 +227,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
     /**
      * apply no filter
-     * todo make extensive userlist and check for annotations (usersources)
+     *
      * @throws NoSuchFieldException
      * @throws IllegalAccessException
      */
@@ -247,7 +244,7 @@ public class LdapListUsersCmdTest implements LdapConfigurationChanger {
 
     /**
      * filter all acs users
-     * todo make extensive userlist and check for annotations (usersources)
+     *
      * @throws NoSuchFieldException
      * @throws IllegalAccessException
      */
