@@ -553,8 +553,8 @@
                     <webAppSourceDirectory>${project.build.directory}/classes/META-INF/webapp/</webAppSourceDirectory>
                     <webApp>
                         <contextPath>/client</contextPath>
-                        <extraClasspath>${project.build.directory}/conf/;${project.build.directory}/common;${project.build.directory}/utilities/scripts/db/;${project.build.directory}/utilities/scripts/db/db/</extraClasspath>
-                        <webInfIncludeJarPattern>${project.build.directory}/cloud.*jar$|.*/cloud.*jar$|.*/classes/.*</webInfIncludeJarPattern>
+                        <extraClasspath>${project.build.directory}/conf/;${project.build.directory}/common;${project.build.directory}/utilities/scripts/db/;${project.build.directory}/utilities/scripts/db/db/;${project.build.directory}/cloud-client-ui-${project.version}.jar</extraClasspath>
+                        <webInfIncludeJarPattern>.*/cloud.*jar$|.*/classes/.*</webInfIncludeJarPattern>
                     </webApp>
                     <systemProperties>
                         <systemProperty>

@@ -120,7 +120,7 @@
         <cs.axis2.version>1.5.6</cs.axis2.version>
         <cs.batik.version>1.9.1</cs.batik.version>
         <cs.bcprov.version>1.59</cs.bcprov.version>
-        <cs.cglib.version>3.2.5</cs.cglib.version>
+        <cs.cglib.version>3.2.12</cs.cglib.version>
         <cs.checkstyle-lib.version>8.7</cs.checkstyle-lib.version>
         <cs.cxf.version>3.2.0</cs.cxf.version>
         <cs.ehcache.version>2.6.11</cs.ehcache.version>
