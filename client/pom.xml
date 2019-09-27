@@ -537,6 +537,9 @@
                     </dependency>
                 </dependencies>
                 <configuration>
+                    <supportedPackagings>
+                      <supportedPackaging>jar</supportedPackaging>
+                    </supportedPackagings>
                     <scanIntervalSeconds>0</scanIntervalSeconds>
                     <stopPort>9966</stopPort>
                     <stopKey>stop-jetty</stopKey>
@@ -548,11 +551,11 @@
                     </connectors>
                     <webXml>${project.build.directory}/classes/META-INF/webapp/WEB-INF/web.xml</webXml>
                     <webAppSourceDirectory>${project.build.directory}/classes/META-INF/webapp/</webAppSourceDirectory>
-                    <webAppConfig>
+                    <webApp>
                         <contextPath>/client</contextPath>
                         <extraClasspath>${project.build.directory}/conf/;${project.build.directory}/common;${project.build.directory}/utilities/scripts/db/;${project.build.directory}/utilities/scripts/db/db/</extraClasspath>
-                        <webInfIncludeJarPattern>.*/cloud.*jar$|.*/classes/.*</webInfIncludeJarPattern>
-                    </webAppConfig>
+                        <webInfIncludeJarPattern>${project.build.directory}/cloud.*jar$|.*/cloud.*jar$|.*/classes/.*</webInfIncludeJarPattern>
+                    </webApp>
                     <systemProperties>
                         <systemProperty>
                             <name>log4j.configuration</name>
