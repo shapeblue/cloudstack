@@ -102,8 +102,8 @@
         <cs.junit.version>4.12</cs.junit.version>
         <cs.junit.dataprovider.version>1.13.1</cs.junit.dataprovider.version>
         <cs.guava-testlib.version>18.0</cs.guava-testlib.version>
-        <cs.mockito.version>2.18.3</cs.mockito.version>
-        <cs.powermock.version>2.0.2</cs.powermock.version>
+        <cs.mockito.version>1.10.19</cs.mockito.version>
+        <cs.powermock.version>1.6.4</cs.powermock.version>
         <cs.selenium.server.version>1.0-20081010.060147</cs.selenium.server.version>
         <cs.selenium-java-client-driver.version>1.0.1</cs.selenium-java-client-driver.version>
         <cs.testng.version>6.1.1</cs.testng.version>
@@ -648,7 +648,7 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
+            <artifactId>mockito-all</artifactId>
             <version>${cs.mockito.version}</version>
             <scope>test</scope>
             <exclusions>
@@ -683,7 +683,7 @@
         </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
-            <artifactId>powermock-api-mockito2</artifactId>
+            <artifactId>powermock-api-mockito</artifactId>
             <version>${cs.powermock.version}</version>
             <scope>test</scope>
         </dependency>
