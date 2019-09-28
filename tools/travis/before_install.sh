@@ -72,8 +72,6 @@ sudo service mysql restart
 echo -e "\nInstalling Development tools: "
 RETRY_COUNT=3
 
-rm -fr /usr/local/lib/jvm/openjdk11
-
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
 sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu bionic-updates main" >> /etc/apt/sources.list'
 sudo apt-get update -q -y > /dev/null
@@ -84,6 +82,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo -e "\nJDK version"
+sudo update-java-alternatives -s java-1.11.0-openjdk-amd64
 mvn -v
 javac -version
 ls /usr/lib/jvm/*
