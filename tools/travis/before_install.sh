@@ -73,9 +73,10 @@ echo -e "\nInstalling Development tools: "
 RETRY_COUNT=3
 
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
-sudo sh -c 'echo "deb http://security.ubuntu.com/ubuntu bionic-security main" >> /etc/apt/sources.list'
+sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu bionic-updates main" >> /etc/apt/sources.list'
 sudo apt-get update -q -y > /dev/null
-sudo apt-get -q -y install uuid-runtime genisoimage netcat openjdk-11-jdk --no-install-recommends > /dev/null
+sudo apt-get -q -y -t bionic-updates install openjdk-11-jdk
+sudo apt-get -q -y install uuid-runtime genisoimage netcat > /dev/null
 if [[ $? -ne 0 ]]; then
   echo -e "\napt-get packages failed to install"
 fi
@@ -83,7 +84,6 @@ fi
 echo -e "\nJDK version"
 mvn -v
 javac -version
-ls /usr/lib/jvm/
 
 sudo apt-get -q -y -V install freeipmi-common libfreeipmi16 libgcrypt20 libgpg-error-dev libgpg-error0 libopenipmi0 ipmitool libpython-dev libssl-dev libffi-dev python-openssl build-essential --no-install-recommends > /dev/null
 
