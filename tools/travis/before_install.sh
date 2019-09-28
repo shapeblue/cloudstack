@@ -72,6 +72,8 @@ sudo service mysql restart
 echo -e "\nInstalling Development tools: "
 RETRY_COUNT=3
 
+rm -fr /usr/local/lib/jvm/openjdk11
+
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
 sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu bionic-updates main" >> /etc/apt/sources.list'
 sudo apt-get update -q -y > /dev/null
@@ -81,12 +83,10 @@ if [[ $? -ne 0 ]]; then
   echo -e "\napt-get packages failed to install"
 fi
 
-sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
-
 echo -e "\nJDK version"
 mvn -v
 javac -version
+ls /usr/lib/jvm/*
 
 sudo apt-get -q -y -V install freeipmi-common libfreeipmi16 libgcrypt20 libgpg-error-dev libgpg-error0 libopenipmi0 ipmitool libpython-dev libssl-dev libffi-dev python-openssl build-essential --no-install-recommends > /dev/null
 

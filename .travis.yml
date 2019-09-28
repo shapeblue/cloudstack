@@ -16,9 +16,11 @@
 # under the License.
 sudo: required
 dist: bionic
-group: edge
+group: stable
 
-language: python
+language: java
+jdk:
+  - openjdk11
 python:
   - "2.7"
 
