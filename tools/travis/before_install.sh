@@ -82,7 +82,9 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo -e "\nJDK version"
-cp -rf /usr/lib/jvm/java-11-openjdk-amd64/* /usr/local/lib/jvm/openjdk11/
+sudo  update-java-alternatives --list
+sudo  update-java-alternatives --set /usr/lib/jvm/java-11-openjdk-amd64
+export JAVA_HOME=$(readlink -f /usr/lib/jvm/java-11-openjdk-amd64/bin/java | sed "s:bin/java::")
 mvn -v
 javac -version
 
