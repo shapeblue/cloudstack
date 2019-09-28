@@ -83,7 +83,7 @@ fi
 
 echo -e "\nJDK version"
 sudo  update-java-alternatives --list
-sudo  update-java-alternatives --set /usr/lib/jvm/java-11-openjdk-amd64
+sudo  update-java-alternatives --set java-1.11.0-openjdk-amd64
 export JAVA_HOME=$(readlink -f /usr/lib/jvm/java-11-openjdk-amd64/bin/java | sed "s:bin/java::")
 mvn -v
 javac -version

@@ -4,7 +4,7 @@
   "provisioners": [
     {
       "type": "shell",
-      "execute_command": "echo 'cloud'|sudo -S bash '{{.Path}}'",
+      "execute_command": "echo 'cloud'|sudo -u root -S bash '{{.Path}}'",
       "scripts": [
         "scripts/apt_upgrade.sh",
         "scripts/configure_grub.sh",
@@ -52,12 +52,12 @@
       "ssh_host_port_min": 2222,
       "ssh_host_port_max": 2229,
 
-      "ssh_username": "cloud",
-      "ssh_password": "cloud",
+      "ssh_username": "root",
+      "ssh_password": "password",
       "ssh_port": 22,
       "ssh_wait_timeout": "30m",
 
-      "boot_wait": "10s",
+      "boot_wait": "5s",
       "boot_command": [
         "<esc><wait>",
         "install <wait>",
