@@ -75,7 +75,7 @@ RETRY_COUNT=3
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
 sudo sh -c 'echo "deb http://security.ubuntu.com/ubuntu bionic-security main" >> /etc/apt/sources.list'
 sudo apt-get update -q -y > /dev/null
-sudo apt-get -q -y install uuid-runtime genisoimage netcat openjdk-11-jre-headless > /dev/null
+sudo apt-get -q -y install uuid-runtime genisoimage netcat openjdk-11-jdk-headless > /dev/null
 if [[ $? -ne 0 ]]; then
   echo -e "\napt-get packages failed to install"
 fi
