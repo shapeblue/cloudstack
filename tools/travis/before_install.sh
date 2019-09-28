@@ -82,10 +82,9 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo -e "\nJDK version"
-sudo update-java-alternatives -s java-1.11.0-openjdk-amd64
+cp -rf /usr/lib/jvm/java-11-openjdk-amd64/* /usr/local/lib/jvm/openjdk11/
 mvn -v
 javac -version
-ls /usr/lib/jvm/*
 
 sudo apt-get -q -y -V install freeipmi-common libfreeipmi16 libgcrypt20 libgpg-error-dev libgpg-error0 libopenipmi0 ipmitool libpython-dev libssl-dev libffi-dev python-openssl build-essential --no-install-recommends > /dev/null
 
