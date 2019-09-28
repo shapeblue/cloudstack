@@ -18,9 +18,7 @@ sudo: required
 dist: bionic
 group: edge
 
-language: java
-jdk:
-  - openjdk11
+language: python
 python:
   - "2.7"
 
