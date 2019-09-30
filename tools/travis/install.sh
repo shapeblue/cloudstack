@@ -36,7 +36,7 @@ if [ $TEST_SEQUENCE_NUMBER -eq 1 ]; then
    mvn -P developer,systemvm -Dsimulator -Dnoredist -pl . org.apache.rat:apache-rat-plugin:0.12:check
    mvn -q -B -P developer,systemvm -Dsimulator -Dnoredist clean install
 else
-   mvn -Pdeveloper -Dsimulator clean install -Dmaven.test.skip=true -T4 | egrep "Building|Tests|SUCCESS|FAILURE"
+   mvn -Pdeveloper -Dsimulator clean install -Dmaven.test.skip=true -T4
 fi
 
 # Install mysql-connector-python
