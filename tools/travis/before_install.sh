@@ -81,12 +81,15 @@ if [[ $? -ne 0 ]]; then
   echo -e "\napt-get packages failed to install"
 fi
 
+wget http://apachemirror.wuchna.com/maven/maven-3/3.6.2/binaries/apache-maven-3.6.2-bin.tar.gz
+tar zxvf apache-maven-3.6.2-bin.tar.gz
+export PATH=`pwd`/apache-maven-3.6.2/bin:$PATH
+
 echo -e "\nJDK version"
 sudo  update-java-alternatives --list
 sudo  update-java-alternatives --set java-1.11.0-openjdk-amd64
 export JAVA_HOME=$(readlink -f /usr/lib/jvm/java-11-openjdk-amd64/bin/java | sed "s:bin/java::")
 mvn -v
-javac -version
 
 sudo apt-get -q -y -V install freeipmi-common libfreeipmi16 libgcrypt20 libgpg-error-dev libgpg-error0 libopenipmi0 ipmitool libpython-dev libssl-dev libffi-dev python-openssl build-essential --no-install-recommends > /dev/null
 
