@@ -194,6 +194,7 @@ import org.apache.cloudstack.api.command.admin.storage.ListStoragePoolsCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListStorageProvidersCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListStorageTagsCmd;
 import org.apache.cloudstack.api.command.admin.storage.PreparePrimaryStorageForMaintenanceCmd;
+import org.apache.cloudstack.api.command.admin.storage.SeedOfficialSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.storage.SeedSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.storage.UpdateCloudToUseObjectStoreCmd;
 import org.apache.cloudstack.api.command.admin.storage.UpdateStoragePoolCmd;
@@ -3121,6 +3122,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         cmdList.add(GetUploadParamsForIsoCmd.class);
         cmdList.add(ListTemplateOVFProperties.class);
         cmdList.add(SeedSystemVMTemplateCmd.class);
+        cmdList.add(SeedOfficialSystemVMTemplateCmd.class);
 
         // Out-of-band management APIs for admins
         cmdList.add(EnableOutOfBandManagementForHostCmd.class);
@@ -4153,6 +4155,28 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         }
 
         _dpMgr.cleanupVMReservations();
+    }
+
+    @Override
+    public Pair<List<? extends Cluster>, Integer> searchForClusters(SeedOfficialSystemVMTemplateCmd cmd) {
+        Long zoneId = cmd.getId();
+
+        zoneId = _accountMgr.checkAccessAndSpecifyAuthority(CallContext.current().getCallingAccount(), zoneId);
+
+        final Filter searchFilter =  new Filter(ClusterVO.class, "id", true, 0L, 1000L); //new Filter(ClusterVO.class, "id", true);
+
+        final SearchBuilder<ClusterVO> sb = _clusterDao.createSearchBuilder();
+        sb.and("id", sb.entity().getId(), SearchCriteria.Op.EQ);
+        //sb.and("allocationState", sb.entity().getAllocationState(), SearchCriteria.Op.EQ);
+
+        final SearchCriteria<ClusterVO> sc = sb.create();
+
+        if (zoneId != null) {
+            sc.setParameters("dataCenterId", zoneId);
+        }
+
+        final Pair<List<ClusterVO>, Integer> result = _clusterDao.searchAndCount(sc, searchFilter);
+        return new Pair<List<? extends Cluster>, Integer>(result.first(), result.second());
     }
 
     public List<StoragePoolAllocator> getStoragePoolAllocators() {
