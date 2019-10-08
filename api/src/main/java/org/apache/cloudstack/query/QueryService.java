@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.query;
 
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.cloudstack.affinity.AffinityGroupResponse;
@@ -29,6 +30,7 @@ import org.apache.cloudstack.api.command.admin.storage.ListImageStoresCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListSecondaryStagingStoresCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListStoragePoolsCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListStorageTagsCmd;
+import org.apache.cloudstack.api.command.admin.storage.SeedOfficialSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.user.ListUsersCmd;
 import org.apache.cloudstack.api.command.user.account.ListAccountsCmd;
 import org.apache.cloudstack.api.command.user.account.ListProjectAccountsCmd;
@@ -170,4 +172,8 @@ public interface QueryService {
     ListResponse<ManagementServerResponse> listManagementServers(ListMgmtsCmd cmd);
 
     ListResponse<TemplateOVFPropertyResponse> listTemplateOVFProperties(ListTemplateOVFProperties cmd);
+
+    HashSet<String> searchForImageStores(SeedOfficialSystemVMTemplateCmd seedOfficialSystemVMTemplateCmd);
+
+    Long getSystemVMTemplateId(SeedOfficialSystemVMTemplateCmd seedOfficialSystemVMTemplateCmd);
 }
