@@ -33,6 +33,7 @@ import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ResponseObject.ResponseView;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.command.user.UserCmd;
 import org.apache.cloudstack.api.response.DomainResponse;
 import org.apache.cloudstack.api.response.GuestOSResponse;
 import org.apache.cloudstack.api.response.ListResponse;
@@ -47,7 +48,7 @@ import com.cloud.template.VirtualMachineTemplate;
 
 @APICommand(name = "registerTemplate", description = "Registers an existing template into the CloudStack cloud. ", responseObject = TemplateResponse.class, responseView = ResponseView.Restricted,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
-public class RegisterTemplateCmd extends BaseCmd {
+public class RegisterTemplateCmd extends BaseCmd implements UserCmd {
     public static final Logger s_logger = Logger.getLogger(RegisterTemplateCmd.class.getName());
 
     private static final String s_name = "registertemplateresponse";
@@ -327,7 +328,7 @@ public class RegisterTemplateCmd extends BaseCmd {
             VirtualMachineTemplate template = _templateService.registerTemplate(this);
             if (template != null) {
                 ListResponse<TemplateResponse> response = new ListResponse<TemplateResponse>();
-                List<TemplateResponse> templateResponses = _responseGenerator.createTemplateResponses(ResponseView.Restricted,
+                List<TemplateResponse> templateResponses = _responseGenerator.createTemplateResponses(getResponseView(),
                         template, getZoneIds(), false);
                 response.setResponses(templateResponses);
                 response.setResponseName(getCommandName());
