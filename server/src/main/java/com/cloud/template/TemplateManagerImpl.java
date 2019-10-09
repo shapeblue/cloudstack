@@ -126,7 +126,6 @@ import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.api.ApiDBUtils;
 import com.cloud.api.ApiResponseHelper;
-import com.cloud.api.query.dao.TemplateJoinDao;
 import com.cloud.api.query.dao.UserVmJoinDao;
 import com.cloud.api.query.vo.UserVmJoinVO;
 import com.cloud.configuration.Config;
@@ -300,8 +299,6 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
     private VMTemplateDetailsDao _tmpltDetailsDao;
     @Inject
     private VersionDao versionDao;
-    @Inject
-    TemplateJoinDao _templateJoinVO;
 
     private boolean _disableExtraction = false;
     private List<TemplateAdapter> _adapters;
