@@ -4319,6 +4319,19 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     @Override
     public void finalizeExpunge(VirtualMachine vm) {
+        final VirtualMachineProfile profile = new VirtualMachineProfileImpl(vm);
+        final List<NicVO> nics = _nicDao.listByVmId(vm.getId());
+        for (final NicVO nic : nics) {
+            final NetworkVO network = _networkDao.findById(nic.getNetworkId());
+            if (network != null && network.getTrafficType() == TrafficType.Guest) {
+                final String nicIp = Strings.isNullOrEmpty(nic.getIPv4Address()) ? nic.getIPv6Address() : nic.getIPv4Address();
+                if (!Strings.isNullOrEmpty(nicIp)) {
+                    NicProfile nicProfile = new NicProfile(nic.getIPv4Address(), nic.getIPv6Address(), nic.getMacAddress());
+                    nicProfile.setId(nic.getId());
+                    _networkMgr.cleanupNicDhcpDnsEntry(network, profile, nicProfile);
+                }
+            }
+        }
     }
 
     @Override
@@ -4382,12 +4395,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         for (final NicVO nic : nics) {
             final NetworkVO network = _networkDao.findById(nic.getNetworkId());
             if (network != null && network.getTrafficType() == TrafficType.Guest) {
-                final String nicIp = Strings.isNullOrEmpty(nic.getIPv4Address()) ? nic.getIPv6Address() : nic.getIPv4Address();
-                if (!Strings.isNullOrEmpty(nicIp)) {
-                    NicProfile nicProfile = new NicProfile(nic.getIPv4Address(), nic.getIPv6Address(), nic.getMacAddress());
-                    nicProfile.setId(nic.getId());
-                    _networkMgr.cleanupNicDhcpDnsEntry(network, profile, nicProfile);
-                }
                 if (nic.getBroadcastUri() != null && nic.getBroadcastUri().getScheme().equals("pvlan")) {
                     NicProfile nicProfile = new NicProfile(nic, network, nic.getBroadcastUri(), nic.getIsolationUri(), 0, false, "pvlan-nic");
                     setupVmForPvlan(false, vm.getHostId(), nicProfile);
