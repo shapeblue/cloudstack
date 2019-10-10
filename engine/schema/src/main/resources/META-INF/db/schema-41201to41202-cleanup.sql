@@ -18,3 +18,65 @@
 --;
 -- Schema upgrade cleanup from 4.12.0.1 to 4.12.0.2
 --;
+
+-- Ubuntu 18.04 fixes
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '6.5.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '6.5.0' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.0.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.0.0' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.0' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.1' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.1' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.2.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.2.0' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.3.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.3.0' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.4.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.4.0' AND `guest_os_id` = 278;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.5.0' AND `guest_os_id` = 277;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.5.0' AND `guest_os_id` = 278;
+
+-- Ubuntu 18.10 fixes
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '6.5.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '6.5.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.0.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.0.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.1' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.1' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.2' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.2' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.2.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.2.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.3.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.3.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.4.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.4.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.5.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.5.0' AND `guest_os_id` = 280;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.6.0' AND `guest_os_id` = 279;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.6.0' AND `guest_os_id` = 280;
+
+-- Ubuntu 19.04 fixes
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '6.5.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '6.5.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.0.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.0.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.1' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.1' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.2' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.1.2' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.2.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.2.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.3.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.3.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.4.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.4.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.5.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.5.0' AND `guest_os_id` = 282;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.6.0' AND `guest_os_id` = 281;
+UPDATE `cloud`.`guest_os_hypervisor` SET `guest_os_name` = 'Other install media' WHERE `hypervisor_type` = 'Xenserver' AND `hypervisor_version` = '7.6.0' AND `guest_os_id` = 282;
