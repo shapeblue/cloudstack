@@ -61,6 +61,8 @@ public interface LdapManager extends PluggableService {
 
     boolean isLdapEnabled();
 
+    boolean isLdapEnabled(long domainId);
+
     Pair<List<? extends LdapConfigurationVO>, Integer> listConfigurations(LdapListConfigurationCmd cmd);
 
     List<LdapUser> searchUsers(String query) throws NoLdapUserMatchingQueryException;
