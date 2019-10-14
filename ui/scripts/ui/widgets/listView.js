@@ -544,7 +544,9 @@
         remove: function($instanceRow, args) {
             uiActions.standard($instanceRow, args, {
                 complete: function(args, $newRow) {
-                    $newRow.remove();
+                    if ($newRow != undefined){
+                        $newRow.remove();
+                    }
                 }
             });
         },
