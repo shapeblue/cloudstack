@@ -1187,6 +1187,24 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             throw new InvalidParameterValueException("Unable to find an ISO with id " + isoId);
         }
 
+        // Check if this iso is cross zone
+        if (!iso.isCrossZones()){
+            //if not cross zone - Check if vm belongs to a zone that the iso belongs to.
+            boolean zoneMatch = false;
+            // get the store ref records
+            List<TemplateDataStoreVO> stores = _tmplStoreDao.listByTemplate(iso.getId());
+            for (TemplateDataStoreVO store: stores){
+                // get the image stores referenced by the store ref records
+                ImageStoreVO imageStore = _imgStoreDao.findById(store.getDataStoreId());
+                if (imageStore.getDataCenterId() == vm.getDataCenterId()){
+                    zoneMatch = true;
+                }
+            }
+            if (!zoneMatch) {
+                throw new InvalidParameterValueException("VM instance and ISO do not belong to the same zone.");
+            }
+        }
+
         // check permissions
         // check if caller has access to VM and ISO
         // and also check if the VM's owner has access to the ISO.
@@ -1200,6 +1218,8 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         if (vmState != State.Running && vmState != State.Stopped) {
             throw new InvalidParameterValueException("Please specify a VM that is either Stopped or Running.");
         }
+
+
 
         if ("xen-pv-drv-iso".equals(iso.getDisplayText()) && vm.getHypervisorType() != Hypervisor.HypervisorType.XenServer) {
             throw new InvalidParameterValueException("Cannot attach Xenserver PV drivers to incompatible hypervisor " + vm.getHypervisorType());
