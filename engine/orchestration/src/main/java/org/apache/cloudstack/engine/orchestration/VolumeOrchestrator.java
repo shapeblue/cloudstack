@@ -30,7 +30,6 @@ import java.util.concurrent.ExecutionException;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.storage.VolumeApiService;
 import org.apache.cloudstack.api.command.admin.vm.MigrateVMCmd;
 import org.apache.cloudstack.api.command.admin.volume.MigrateVolumeCmdByAdmin;
 import org.apache.cloudstack.api.command.user.volume.MigrateVolumeCmd;
@@ -106,6 +105,7 @@ import com.cloud.storage.StoragePool;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.Volume;
 import com.cloud.storage.Volume.Type;
+import com.cloud.storage.VolumeApiService;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.SnapshotDao;
 import com.cloud.storage.dao.VolumeDao;
@@ -1005,10 +1005,12 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
         }
     }
 
+    @Override
     @DB
-    protected Volume liveMigrateVolume(Volume volume, StoragePool destPool) {
+    public Volume liveMigrateVolume(Volume volume, StoragePool destPool) {
         VolumeInfo vol = volFactory.getVolume(volume.getId());
-        AsyncCallFuture<VolumeApiResult> future = volService.migrateVolume(vol, (DataStore)destPool);
+        DataStore dataStoreTarget = dataStoreMgr.getDataStore(destPool.getId(), DataStoreRole.Primary);
+        AsyncCallFuture<VolumeApiResult> future = volService.migrateVolume(vol, dataStoreTarget);
         try {
             VolumeApiResult result = future.get();
             if (result.isFailed()) {
@@ -1625,5 +1627,55 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
             vol.setChainInfo(chainInfo);
             _volsDao.update(volumeId, vol);
         }
+    }
+
+    @Override
+    public DiskProfile importVolume(Type type, String name, DiskOffering offering, Long size, Long minIops, Long maxIops,
+                                    VirtualMachine vm, VirtualMachineTemplate template, Account owner,
+                                    Long deviceId, Long poolId, String path, String chainInfo) {
+        if (size == null) {
+            size = offering.getDiskSize();
+        } else {
+            size = (size * 1024 * 1024 * 1024);
+        }
+
+        minIops = minIops != null ? minIops : offering.getMinIops();
+        maxIops = maxIops != null ? maxIops : offering.getMaxIops();
+
+        VolumeVO vol = new VolumeVO(type, name, vm.getDataCenterId(), owner.getDomainId(), owner.getId(), offering.getId(), offering.getProvisioningType(), size, minIops, maxIops, null);
+        if (vm != null) {
+            vol.setInstanceId(vm.getId());
+        }
+
+        if (deviceId != null) {
+            vol.setDeviceId(deviceId);
+        } else if (type.equals(Type.ROOT)) {
+            vol.setDeviceId(0l);
+        } else {
+            vol.setDeviceId(1l);
+        }
+        if (template.getFormat() == ImageFormat.ISO) {
+            vol.setIsoId(template.getId());
+        } else if (template.getTemplateType().equals(Storage.TemplateType.DATADISK)) {
+            vol.setTemplateId(template.getId());
+        }
+
+        if (type == Type.ROOT) {
+            vol.setTemplateId(template.getId());
+        }
+
+        // display flag matters only for the User vms
+        if (vm.getType() == VirtualMachine.Type.User) {
+            UserVmVO userVm = _userVmDao.findById(vm.getId());
+            vol.setDisplayVolume(userVm.isDisplayVm());
+        }
+
+        vol.setFormat(getSupportedImageFormatForCluster(vm.getHypervisorType()));
+        vol.setPoolId(poolId);
+        vol.setPath(path);
+        vol.setChainInfo(chainInfo);
+        vol.setState(Volume.State.Ready);
+        vol = _volsDao.persist(vol);
+        return toDiskProfile(vol, offering);
     }
 }
