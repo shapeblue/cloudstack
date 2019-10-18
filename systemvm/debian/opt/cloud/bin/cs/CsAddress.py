@@ -21,7 +21,7 @@ import subprocess
 import time
 import CsHelper
 from CsDatabag import CsDataBag
-from CsApp import CsApache, CsDnsmasq, CsPasswdSvc
+from CsApp import CsApache, CsPasswdSvc
 from CsRoute import CsRoute
 from CsRule import CsRule
 
@@ -565,10 +565,6 @@ class CsIP:
 
                 logging.error(
                     "Not able to setup source-nat for a regular router yet")
-
-            if self.config.has_dns() or self.config.is_dhcp():
-                dns = CsDnsmasq(self)
-                dns.add_firewall_rules()
 
             if self.config.has_metadata():
                 app = CsApache(self)
