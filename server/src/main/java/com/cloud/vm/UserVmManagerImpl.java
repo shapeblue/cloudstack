@@ -313,7 +313,6 @@ import com.cloud.vm.snapshot.VMSnapshotManager;
 import com.cloud.vm.snapshot.VMSnapshotVO;
 import com.cloud.vm.snapshot.dao.VMSnapshotDao;
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
 
 public class UserVmManagerImpl extends ManagerBase implements UserVmManager, VirtualMachineGuru, UserVmService, Configurable {
     private static final Logger s_logger = Logger.getLogger(UserVmManagerImpl.class);
@@ -489,8 +488,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     private ResourceTagDao resourceTagDao;
     @Inject
     private TemplateOVFPropertiesDao templateOVFPropertiesDao;
-
-    protected Gson gson;
 
     private ScheduledExecutorService _executor = null;
     private ScheduledExecutorService _vmIpFetchExecutor = null;

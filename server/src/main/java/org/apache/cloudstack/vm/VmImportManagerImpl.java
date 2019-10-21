@@ -725,7 +725,14 @@ public class VmImportManagerImpl implements VmImportService {
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("VM import failed for unmanaged vm: %s during vm migration, no deployment destination found", vm.getInstanceName()));
             }
             try {
-                virtualMachineManager.migrate(vm.getUuid(), sourceHost.getId(), dest);
+                if (vm.getState().equals(VirtualMachine.State.Stopped)) {
+                    VMInstanceVO vmInstanceVO = vmDao.findById(userVm.getId());
+                    vmInstanceVO.setHostId(dest.getHost().getId());
+                    vmInstanceVO.setLastHostId(dest.getHost().getId());
+                    vmDao.update(vmInstanceVO.getId(), vmInstanceVO);
+                } else {
+                    virtualMachineManager.migrate(vm.getUuid(), sourceHost.getId(), dest);
+                }
                 vm = userVmManager.getUserVm(vm.getId());
             } catch (Exception e) {
                 LOGGER.error(String.format("VM import failed for unmanaged vm: %s during vm migration", vm.getInstanceName()), e);
@@ -788,6 +795,7 @@ public class VmImportManagerImpl implements VmImportService {
                 }
             }
             if (storagePool == null) {
+                cleanupFailedImportVM(vm);
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("VM import failed for unmanaged vm: %s during volume ID: %s migration as no suitable pool found", userVm.getInstanceName(), volumeVO.getUuid()));
             } else {
                 LOGGER.debug(String.format("Found storage pool %s(%s) for migrating the volume %s to", storagePool.getName(), storagePool.getUuid(), volumeVO.getUuid()));
@@ -1134,18 +1142,24 @@ public class VmImportManagerImpl implements VmImportService {
                     }
                     if (template.getName().equals(VM_IMPORT_DEFAULT_TEMPLATE_NAME)) {
                         String osName = unmanagedInstance.getOperatingSystem();
-                        if (Strings.isNullOrEmpty(osName)) {
-                            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Unable to retrieve guest OS details for unmanaged VM: %s with OS name: %s. templateid parameter can be used to assign template for VM", name, unmanagedInstance.getOperatingSystem()));
+                        GuestOS guestOS = null;
+                        if (!Strings.isNullOrEmpty(osName)) {
+                            guestOS = guestOSDao.listByDisplayName(osName);
                         }
-                        GuestOS guestOS = guestOSDao.listByDisplayName(osName);
-                        if (guestOS == null) {
-                            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Unable to retrieve guest OS details for unmanaged VM: %s with OS ID: %s, OS name: %s. templateid parameter can be used to assign template for VM", name, unmanagedInstance.getOperatingSystemId(), unmanagedInstance.getOperatingSystem()));
+                        GuestOSHypervisor guestOSHypervisor = null;
+                        if (guestOS != null) {
+                            guestOSHypervisor = guestOSHypervisorDao.findByOsIdAndHypervisor(guestOS.getId(), host.getHypervisorType().toString(), host.getHypervisorVersion());
                         }
-                        GuestOSHypervisor guestOSHypervisor = guestOSHypervisorDao.findByOsIdAndHypervisor(guestOS.getId(), host.getHypervisorType().toString(), host.getHypervisorVersion());
+                        if (guestOSHypervisor == null && !Strings.isNullOrEmpty(unmanagedInstance.getOperatingSystemId())) {
+                            guestOSHypervisor = guestOSHypervisorDao.findByOsNameAndHypervisor(unmanagedInstance.getOperatingSystemId(), host.getHypervisorType().toString(), host.getHypervisorVersion());
+                        }
                         if (guestOSHypervisor == null) {
-                            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Unable to find hypervisor guest OS ID: %s details for unmanaged VM:%s for hypervisor: %s version: %s. templateid parameter can be used to assign template for VM", guestOS.getUuid(), name, host.getHypervisorType().toString(), host.getHypervisorVersion()));
+                            if (guestOS != null) {
+                                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Unable to find hypervisor guest OS ID: %s details for unmanaged VM: %s for hypervisor: %s version: %s. templateid parameter can be used to assign template for VM", guestOS.getUuid(), name, host.getHypervisorType().toString(), host.getHypervisorVersion()));
+                            }
+                            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Unable to retrieve guest OS details for unmanaged VM: %s with OS name: %s, OS ID: %s for hypervisor: %s version: %s. templateid parameter can be used to assign template for VM", name, osName, unmanagedInstance.getOperatingSystemId(), host.getHypervisorType().toString(), host.getHypervisorVersion()));
                         }
-                        template.setGuestOSId(guestOS.getId());
+                        template.setGuestOSId(guestOSHypervisor.getGuestOsId());
                     }
                     userVm = importVirtualMachineInternal(unmanagedInstance, instanceName, zone, cluster, host,
                             template, displayName, hostName, caller, owner, userId,
@@ -1160,7 +1174,7 @@ public class VmImportManagerImpl implements VmImportService {
             }
         }
         if (userVm == null) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Failed to find unmanaged vm with name: %s", instanceName));
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Failed to find unmanaged vm with name: %s in cluster: %s", instanceName, cluster.getUuid()));
         }
         return responseGenerator.createUserVmResponse(ResponseObject.ResponseView.Full, "virtualmachine", userVm).get(0);
     }
