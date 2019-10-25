@@ -157,36 +157,51 @@ then
     fi
 fi
 
-if [ "$templateId" == "" ]
-then
-   if [ "$hyper" == "kvm" ]
-   then
-      ext="qcow2"
-      templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"KVM\" and removed is null"`)
-   elif [ "$hyper" == "xenserver" ]
-   then
-      ext="vhd"
-      templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"XenServer\" and removed is null"`)
-   elif [ "$hyper" == "vmware" ]
+if [ "$hyper" == "kvm" ]
+  then
+    ext="qcow2"
+    if [ "$templateId" == "" ]
+      then
+        templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"KVM\" and removed is null"`)
+    fi
+elif [ "$hyper" == "xenserver" ]
+  then
+    ext="vhd"
+    if [ "$templateId" == "" ]
+      then
+        templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"XenServer\" and removed is null"`)
+    fi
+elif [ "$hyper" == "vmware" ]
    then
       ext="ova"
-      templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"VMware\" and removed is null"`)
-   elif [ "$hyper" == "lxc" ]
+      if [ "$templateId" == "" ]
+        then
+          templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"VMware\" and removed is null"`)
+      fi
+elif [ "$hyper" == "lxc" ]
    then
       ext="qcow2"
-      templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"LXC\" and removed is null"`)
-   elif [ "$hyper" == "hyperv" ]
+      if [ "$templateId" == "" ]
+        then
+          templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"LXC\" and removed is null"`)
+      fi
+elif [ "$hyper" == "hyperv" ]
    then
       ext="vhd"
-      templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"Hyperv\" and removed is null"`)
-   elif [ "$hyper" == "ovm3" ]
+      if [ "$templateId" == "" ]
+        then
+          templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"Hyperv\" and removed is null"`)
+      fi
+elif [ "$hyper" == "ovm3" ]
    then
       ext="raw"
-      templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"Ovm3\" and removed is null"`)
-   else
-      usage
-      failed 2
-   fi
+      if [ "$templateId" == "" ]
+        then
+          templateId=(`mysql -P $dbPort -h $dbHost --user=$dbUser --password=$dbPassword --skip-column-names -U cloud -e "select max(id) from cloud.vm_template where type = \"SYSTEM\" and hypervisor_type = \"Ovm3\" and removed is null"`)
+      fi
+else
+  usage
+    failed 2
 fi
 
 if [ ! $templateId ]

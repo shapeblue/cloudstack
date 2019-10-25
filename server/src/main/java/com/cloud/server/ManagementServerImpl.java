@@ -194,7 +194,6 @@ import org.apache.cloudstack.api.command.admin.storage.ListStoragePoolsCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListStorageProvidersCmd;
 import org.apache.cloudstack.api.command.admin.storage.ListStorageTagsCmd;
 import org.apache.cloudstack.api.command.admin.storage.PreparePrimaryStorageForMaintenanceCmd;
-import org.apache.cloudstack.api.command.admin.storage.SeedOfficialSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.storage.SeedSystemVMTemplateCmd;
 import org.apache.cloudstack.api.command.admin.storage.UpdateCloudToUseObjectStoreCmd;
 import org.apache.cloudstack.api.command.admin.storage.UpdateStoragePoolCmd;
@@ -3117,7 +3116,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         cmdList.add(GetUploadParamsForIsoCmd.class);
         cmdList.add(ListTemplateOVFProperties.class);
         cmdList.add(SeedSystemVMTemplateCmd.class);
-        cmdList.add(SeedOfficialSystemVMTemplateCmd.class);
+        cmdList.add(SeedSystemVMTemplateCmd.class);
 
         // Out-of-band management APIs for admins
         cmdList.add(EnableOutOfBandManagementForHostCmd.class);
@@ -4153,7 +4152,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     }
 
     @Override
-    public Pair<List<? extends Cluster>, Integer> searchForClusters(SeedOfficialSystemVMTemplateCmd cmd) {
+    public Pair<List<? extends Cluster>, Integer> searchForClusters(SeedSystemVMTemplateCmd cmd) {
         Long zoneId = cmd.getId();
 
         zoneId = _accountMgr.checkAccessAndSpecifyAuthority(CallContext.current().getCallingAccount(), zoneId);
