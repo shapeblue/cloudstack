@@ -250,12 +250,12 @@ then
   failed 5
 fi
 
-tmpfile=$(dirname $0)/$localfile
+tmpfile=/tmp/$localfile
 
 touch $tmpfile
 if [ $? -ne 0 ]
 then
-  printf "Failed to create temporary file in directory $(dirname $0) -- is it read-only or full?\n"
+  printf "Failed to create temporary file in directory /tmp -- is it read-only or full?\n"
   failed 4
 fi
 
