@@ -48,32 +48,33 @@ function install_packages() {
   ${apt_get} install grub-legacy \
     rsyslog logrotate cron net-tools ifupdown tmux vim-tiny htop netbase iptables \
     openssh-server e2fsprogs tcpdump iftop socat wget \
-    python bzip2 sed gawk diffutils grep gzip less tar telnet ftp rsync traceroute psmisc lsof procps \
+    python3 bzip2 sed gawk diffutils grep gzip less tar telnet ftp rsync traceroute psmisc lsof procps \
     inetutils-ping iputils-arping httping curl \
-    dnsutils zip unzip ethtool uuid file iproute acpid sudo \
-    sysstat python-netaddr \
+    dnsutils zip unzip ethtool uuid file iproute2 acpid sudo \
+    sysstat python3-netaddr \
     apache2 ssl-cert \
     dnsmasq dnsmasq-utils \
     nfs-common \
     samba-common cifs-utils \
-    xl2tpd bcrelay ppp ipsec-tools tdb-tools \
+    xl2tpd bcrelay ppp libreswan tdb-tools \
     xenstore-utils libxenstore3.0 \
     ipvsadm conntrackd libnetfilter-conntrack3 \
     keepalived irqbalance \
     ipcalc \
-    openjdk-8-jre-headless \
+    openjdk-11-jre-headless \
     ipset \
     iptables-persistent \
     libtcnative-1 libssl-dev libapr1-dev \
-    python-flask \
+    python3-flask \
     haproxy \
     haveged \
     radvd \
-    sharutils genisoimage aria2 \
+    sharutils genisoimage \
     strongswan libcharon-extra-plugins libstrongswan-extra-plugins \
     virt-what open-vm-tools qemu-guest-agent hyperv-daemons
 
-  apt-get -q -y -t stretch-backports install nftables
+#  apt-get -q -y -t buster-backports install nftables  --- are the additional parameters really required?
+  apt-get install nftables
 
   apt-get -y autoremove --purge
   apt-get clean
@@ -89,9 +90,9 @@ function install_packages() {
   fi
 
   # Install xenserver guest utilities as debian repos don't have it
-  wget https://mirrors.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
-  dpkg -i xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
-  rm -f xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
+  wget https://mirrors.edge.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu2_amd64.deb
+  dpkg -i xe-guest-utilities_7.10.0-0ubuntu2_amd64.deb
+  rm -f xe-guest-utilities_7.10.0-0ubuntu2_amd64.deb
 }
 
 return 2>/dev/null || install_packages
