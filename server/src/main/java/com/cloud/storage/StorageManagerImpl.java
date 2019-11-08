@@ -866,6 +866,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
 
         cmd.setDetails(details);
         cmd.setRemoveDatastore(true);
+        cmd.setPool(storagePool);
 
         final Answer answer = _agentMgr.easySend(hostId, cmd);
 
