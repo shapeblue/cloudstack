@@ -2,10 +2,17 @@
   "_license": "Apache License 2.0",
   "description": "CloudStack SystemVM template",
   "provisioners": [
+  {
+  "type": "file",
+  "source": "./http/cloud-scripts.tar",
+  "destination": "./cloud-scripts.tar"
+},
+  
     {
       "type": "shell",
       "execute_command": "echo 'cloud'|sudo -S bash '{{.Path}}'",
       "scripts": [
+        "scripts/sethostname.sh",
         "scripts/apt_upgrade.sh",
         "scripts/configure_grub.sh",
         "scripts/configure_locale.sh",
@@ -13,7 +20,7 @@
         "scripts/configure_acpid.sh",
         "scripts/install_systemvm_packages.sh",
         "scripts/configure_conntrack.sh",
-        "../cloud_scripts_shar_archive.sh",
+        "scripts/extractfiles.sh",
         "scripts/configure_systemvm_services.sh",
         "scripts/authorized_keys.sh",
         "scripts/configure_persistent_config.sh",
@@ -27,19 +34,19 @@
     {
       "type": "qemu",
       "accelerator": "kvm",
-      "headless": true,
+      "headless": false,
       "qemuargs": [
-        [ "-m", "512M" ],
+        [ "-m", "1024M" ],
         [ "-smp", "cpus=1,maxcpus=1,cores=1" ]
       ],
-      "disk_size": 2000,
+      "disk_size": 2500,
       "format": "qcow2",
 
       "disk_interface": "virtio",
       "net_device": "virtio-net",
 
-      "iso_url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-10.1.0-amd64-xfce-CD-1.iso",
-      "iso_checksum": "54d96ab30e3cff36678f6e74e7b852f12f64e14ae9ceb36ba29f5773d4e5e7b07e81cc7f804953da6f0a0a60a38b4d0a7b3a8234a8ed39042fbc6cc8401a0475",
+      "iso_url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-10.1.0-amd64-netinst.iso",
+      "iso_checksum": "23237b0a100a860b3dc7ffcfb5baae4bed5460ac5f3f2b929df3154f3319b9809055b695264586f60289cc6cb25077c12938cc612fee01756bfa779c87d5a315",
       "iso_checksum_type": "sha512",
 
       "vm_name": "systemvmtemplate",
@@ -57,22 +64,19 @@
       "ssh_port": 22,
       "ssh_wait_timeout": "30m",
 
-      "boot_wait": "10s",
+      "boot_wait": "5s",
       "boot_command": [
         "<esc><wait>",
         "install <wait>",
-        " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg <wait>",
-        " debian-installer=en_US <wait>",
-        " auto <wait>",
-        " locale=en_US <wait>",
-        " kbd-chooser/method=us <wait>",
-        " netcfg/get_hostname=systemvm <wait>",
-        " netcfg/get_domain=apache.org <wait>",
-        " fb=false <wait>",
-        " debconf/frontend=noninteractive <wait>",
-        " console-setup/ask_detect=false <wait>",
-        " console-keymaps-at/keymap=us <wait>",
-        " keyboard-configuration/xkb-keymap=us <wait>",
+        "/install/vmlinuz<wait>",
+        " initrd=/install/initrd.gz",
+        " auto-install/enable=true",
+        " debconf/priority=critical",
+        " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<wait>",
+        " lowmem",
+        " netcfg/get_hostname string systemvm",
+        " netcfg/get_domain string apache.org",
+        " -- <wait>",
         "<enter><wait>"
       ],
 

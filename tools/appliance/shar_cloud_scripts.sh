@@ -43,10 +43,4 @@ mkdir -p cloud_scripts/usr/share/cloud
 cd ${CLOUDSTACK_DIR}/systemvm/debian
 tar -cf ${TEMP_DIR}/cloud_scripts/usr/share/cloud/cloud-scripts.tar *
 
-cd ${TEMP_DIR}
-shar `find . -print` > "${CURR_DIR}"/cloud_scripts_shar_archive.sh
-
-cd ${CURR_DIR}
-rm -rf ${TEMP_DIR}
-chmod +x cloud_scripts_shar_archive.sh
-echo cloud_scripts are in cloud_scripts_shar_archive.sh
+mv ${TEMP_DIR}/cloud_scripts/usr/share/cloud/cloud-scripts.tar ${CLOUDSTACK_DIR}/tools/appliance/systemvmtemplate/http/

@@ -43,7 +43,14 @@ function configure_cacerts() {
 
 function install_cloud_scripts() {
   # ./cloud_scripts/ has been put there by ../../cloud_scripts_shar_archive.sh
-  rsync -av ./cloud_scripts/ /
+#  rsync -av ./cloud_scripts/ /
+  scripts=`find ./cloud_scripts/* -type f`
+  for file in $scripts; do
+    newfile=`echo $file | tail -c +16`
+    mkdir -p $(dirname "${newfile}")
+    cp -f  $file $newfile
+    ls > /dev/null
+  done
   chmod +x /opt/cloud/bin/* /opt/cloud/bin/setup/* \
     /root/{clearUsageRules.sh,reconfigLB.sh,monitorServices.py} \
     /etc/profile.d/cloud.sh /etc/cron.daily/* /etc/cron.hourly/*

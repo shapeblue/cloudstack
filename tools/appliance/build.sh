@@ -218,7 +218,7 @@ function prepare() {
 
 function packer_build() {
   log INFO "building new image with packer"
-  cd ${appliance_build_name} && packer build template.json && cd ..
+  cd ${appliance_build_name} && packer build -on-error=ask template.json && cd ..
 }
 
 function stage_vmx() {
