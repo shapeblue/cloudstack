@@ -38,6 +38,7 @@ import java.util.UUID;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.network.Network.PVlanType;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ApiConstants;
@@ -196,6 +197,9 @@ import com.cloud.vm.dao.NicSecondaryIpDao;
 import com.cloud.vm.dao.NicSecondaryIpVO;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
+
+import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang.StringUtils.isNotBlank;
 
 /**
  * NetworkServiceImpl implements NetworkService.
@@ -1052,6 +1056,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
         Long aclId = cmd.getAclId();
         String isolatedPvlan = cmd.getIsolatedPvlan();
         String externalId = cmd.getExternalId();
+        String isolatedPvlanType = cmd.getIsolatedPvlanType();
 
         // Validate network offering
         NetworkOfferingVO ntwkOff = _networkOfferingDao.findById(networkOfferingId);
@@ -1239,13 +1244,23 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
             }
         }
 
-        if (isolatedPvlan != null && (zone.getNetworkType() != NetworkType.Advanced || ntwkOff.getGuestType() != Network.GuestType.Shared)) {
-            throw new InvalidParameterValueException("Can only support create Private VLAN network with advance shared network!");
+        if (isNotBlank(isolatedPvlan) && (zone.getNetworkType() != NetworkType.Advanced || ntwkOff.getGuestType() == GuestType.Isolated)) {
+            throw new InvalidParameterValueException("Can only support create Private VLAN network with advance shared or L2 network!");
         }
 
-        if (isolatedPvlan != null && ipv6) {
+        if (isNotBlank(isolatedPvlan) && ipv6) {
             throw new InvalidParameterValueException("Can only support create Private VLAN network with IPv4!");
         }
+
+        Pair<String, PVlanType> pvlanPair = getPrivateVlanPair(isolatedPvlan, isolatedPvlanType, vlanId);
+        String secondaryVlanId = pvlanPair.first();
+        PVlanType privateVlanType = pvlanPair.second();
+
+        if ((isNotBlank(secondaryVlanId) || privateVlanType != null) && isBlank(vlanId)) {
+            throw new InvalidParameterValueException("VLAN ID has to be set in order to configure a Private VLAN");
+        }
+
+        performBasicPrivateVlanChecks(vlanId, secondaryVlanId, privateVlanType);
 
         // Regular user can create Guest Isolated Source Nat enabled network only
         if (_accountMgr.isNormalUser(caller.getId()) && (ntwkOff.getTrafficType() != TrafficType.Guest
@@ -1278,7 +1293,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
             throw new InvalidParameterValueException("Cannot support IPv6 on network offering with external devices!");
         }
 
-        if (isolatedPvlan != null && providersConfiguredForExternalNetworking(ntwkProviders)) {
+        if (isNotBlank(secondaryVlanId) && providersConfiguredForExternalNetworking(ntwkProviders)) {
             throw new InvalidParameterValueException("Cannot support private vlan on network offering with external devices!");
         }
 
@@ -1314,7 +1329,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
         }
 
         Network network = commitNetwork(networkOfferingId, gateway, startIP, endIP, netmask, networkDomain, vlanId, bypassVlanOverlapCheck, name, displayText, caller, physicalNetworkId, zoneId,
-                domainId, isDomainSpecific, subdomainAccess, vpcId, startIPv6, endIPv6, ip6Gateway, ip6Cidr, displayNetwork, aclId, isolatedPvlan, ntwkOff, pNtwk, aclType, owner, cidr, createVlan,
+                domainId, isDomainSpecific, subdomainAccess, vpcId, startIPv6, endIPv6, ip6Gateway, ip6Cidr, displayNetwork, aclId, secondaryVlanId, privateVlanType, ntwkOff, pNtwk, aclType, owner, cidr, createVlan,
                 externalId);
 
         if (hideIpAddressUsage) {
@@ -1348,11 +1363,54 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
         return network;
     }
 
+    /**
+     * Retrieve information (if set) for private VLAN when creating the network
+     */
+    protected Pair<String, PVlanType> getPrivateVlanPair(String pvlanId, String pvlanTypeStr, String vlanId) {
+        String secondaryVlanId = pvlanId;
+        PVlanType type = null;
+
+        if (isNotBlank(secondaryVlanId) && (secondaryVlanId.startsWith("i") || secondaryVlanId.startsWith("c") || secondaryVlanId.startsWith("p"))) {
+            String[] parts = secondaryVlanId.split("-");
+            if (parts.length < 2) {
+                throw new CloudRuntimeException("Could not properly parse the secondary VLAN ID to format TYPE-SVLANID: " + secondaryVlanId);
+            }
+            secondaryVlanId = parts[1];
+            type = PVlanType.fromValue(parts[0]);
+        }
+
+        if (isNotBlank(pvlanTypeStr)) {
+            PVlanType providedType = PVlanType.fromValue(pvlanTypeStr);
+            if (type != null && type != providedType) {
+                throw new CloudRuntimeException("The type set in the secondary VLAN ID: " + secondaryVlanId + " does not match the provided Private VLAN type: " + providedType);
+            }
+            type = providedType;
+        }
+
+        if (isBlank(secondaryVlanId) && type != null && type == PVlanType.Promiscuous) {
+            secondaryVlanId = vlanId;
+        }
+        return new Pair<>(secondaryVlanId, type);
+    }
+
+    /**
+     * Basic checks for setting up private VLANs, considering the VLAN ID, secondary VLAN ID and private VLAN type
+     */
+    protected void performBasicPrivateVlanChecks(String vlanId, String secondaryVlanId, PVlanType privateVlanType) {
+        if (isNotBlank(vlanId) && isBlank(secondaryVlanId) && privateVlanType != null && privateVlanType != PVlanType.Promiscuous) {
+            throw new InvalidParameterValueException("Private VLAN ID has not been set, therefore Promiscuous type is expected");
+        } else if (isNotBlank(vlanId) && isNotBlank(secondaryVlanId) && !vlanId.equalsIgnoreCase(secondaryVlanId) && privateVlanType == PVlanType.Promiscuous) {
+            throw new InvalidParameterValueException("Private VLAN type is set to Promiscouos, but VLAN ID and Secondary VLAN ID differ");
+        } else if (isNotBlank(vlanId) && isNotBlank(secondaryVlanId) && privateVlanType != null && privateVlanType != PVlanType.Promiscuous && vlanId.equalsIgnoreCase(secondaryVlanId)) {
+            throw new InvalidParameterValueException("Private VLAN type is set to " + privateVlanType + ", but VLAN ID and Secondary VLAN ID are equal");
+        }
+    }
+
     private Network commitNetwork(final Long networkOfferingId, final String gateway, final String startIP, final String endIP, final String netmask, final String networkDomain, final String vlanId,
-            final Boolean bypassVlanOverlapCheck, final String name, final String displayText, final Account caller, final Long physicalNetworkId, final Long zoneId, final Long domainId,
-            final boolean isDomainSpecific, final Boolean subdomainAccessFinal, final Long vpcId, final String startIPv6, final String endIPv6, final String ip6Gateway, final String ip6Cidr,
-            final Boolean displayNetwork, final Long aclId, final String isolatedPvlan, final NetworkOfferingVO ntwkOff, final PhysicalNetwork pNtwk, final ACLType aclType, final Account ownerFinal,
-            final String cidr, final boolean createVlan, final String externalId) throws InsufficientCapacityException, ResourceAllocationException {
+                                  final Boolean bypassVlanOverlapCheck, final String name, final String displayText, final Account caller, final Long physicalNetworkId, final Long zoneId, final Long domainId,
+                                  final boolean isDomainSpecific, final Boolean subdomainAccessFinal, final Long vpcId, final String startIPv6, final String endIPv6, final String ip6Gateway, final String ip6Cidr,
+                                  final Boolean displayNetwork, final Long aclId, final String isolatedPvlan, final PVlanType isolatedPvlanType, final NetworkOfferingVO ntwkOff, final PhysicalNetwork pNtwk, final ACLType aclType, final Account ownerFinal,
+                                  final String cidr, final boolean createVlan, final String externalId) throws InsufficientCapacityException, ResourceAllocationException {
         try {
             Network network = Transaction.execute(new TransactionCallbackWithException<Network, Exception>() {
                 @Override
@@ -1407,7 +1465,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
                         }
 
                         network = _networkMgr.createGuestNetwork(networkOfferingId, name, displayText, gateway, cidr, vlanId, bypassVlanOverlapCheck, networkDomain, owner, sharedDomainId, pNtwk,
-                                zoneId, aclType, subdomainAccess, vpcId, ip6Gateway, ip6Cidr, displayNetwork, isolatedPvlan, externalId);
+                                zoneId, aclType, subdomainAccess, vpcId, ip6Gateway, ip6Cidr, displayNetwork, isolatedPvlan, isolatedPvlanType, externalId);
                     }
 
                     if (_accountMgr.isRootAdmin(caller.getId()) && createVlan && network != null) {
@@ -4381,7 +4439,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
                     if (privateNetwork == null) {
                         //create Guest network
                         privateNetwork = _networkMgr.createGuestNetwork(ntwkOffFinal.getId(), networkName, displayText, gateway, cidr, uriString, false, null, owner, null, pNtwk,
-                                pNtwk.getDataCenterId(), ACLType.Account, null, vpcId, null, null, true, null, null);
+                                pNtwk.getDataCenterId(), ACLType.Account, null, vpcId, null, null, true, null, null,null);
                         if (privateNetwork != null) {
                             s_logger.debug("Successfully created guest network " + privateNetwork);
                         } else {
