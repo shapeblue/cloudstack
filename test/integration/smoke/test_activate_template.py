@@ -62,39 +62,22 @@ class TestActivateTemplate(cloudstackTestCase):
         )
         cls._cleanup.append(cls.user)
 
-        cls.listTemplatesCmd = listTemplates.listTemplatesCmd()
-        cls.listTemplatesCmd.templatefilter= 'system'
-        # Save the current system template
-        cls.templates = cls.apiclient.listTemplates(cls.listTemplatesCmd)
+        
         cls.firstRun = True
+        cls.testTemplateId = ""
     
     @classmethod
     def tearDownClass(cls):
         try:
-            if cls.firstRun:
-                # Save currently active template
-                activeTemplate = cls.apiclient.listTemplates(cls.listTemplatesCmd)[0]
-                deleteCmd = deleteTemplate.deleteTemplateCmd()
-                deleteCmd.id = activeTemplate.id
-                deleteCmd.zoneid = cls.zone.id
-
-                # Activate initial system template
-                for temp in cls.templates:
-                    cmd = activateSystemVMTemplate.activateSystemVMTemplateCmd()
-                    cmd.id = temp.id
-                    cls.debug(cmd.id)
-                    cls.apiclient.activateSystemVMTemplate(cmd)
-
-                # Remove test template
-                cls.apiclient.deleteTemplate(deleteCmd)
-                cls.firstRun = False
-
+            # Activate initial system template
+            
             cleanup_resources(cls.apiclient, cls._cleanup)
         except Exception as e:
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
     def setUp(self):
+        self.cleanup = []
         # Default URL
         self.getDefaultURLCmd = getSystemVMTemplateDefaultUrl.getSystemVMTemplateDefaultUrlCmd()
         self.getDefaultURLCmd.hypervisor = self.hypervisor
@@ -115,6 +98,29 @@ class TestActivateTemplate(cloudstackTestCase):
         self.activateTemplateCmd = activateSystemVMTemplate.activateSystemVMTemplateCmd()
         self.listConfigurationsCmd = listConfigurations.listConfigurationsCmd()
         self.listConfigurationsCmd.name = 'router.template.' + self.hypervisor
+
+        self.listTemplatesCmd = listTemplates.listTemplatesCmd()
+        self.listTemplatesCmd.templatefilter= 'system'
+        # Save the current system template
+        self.templates = self.apiclient.listTemplates(self.listTemplatesCmd)
+
+        return
+
+    def tearDown(self):
+        try:
+            # Clean up the created templates
+            for temp in self.cleanup:
+                cmd = deleteTemplate.deleteTemplateCmd()
+                cmd.id = temp.id
+                cmd.zoneid = self.zone.id
+                self.apiclient.deleteTemplate(cmd)
+
+            for temp in self.templates: 
+                cmd = self.activateTemplateCmd
+                cmd.id = temp.id
+                self.apiclient.activateSystemVMTemplate(cmd)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
     @attr(tags=["advanced", "smoke"], required_hardware="true")
@@ -123,6 +129,8 @@ class TestActivateTemplate(cloudstackTestCase):
         Test activating registered template
         """
         template = self.registerTemplate(self.test_template)
+        self.cleanup.append(template)
+        self.testTemplateId = template.id
         # Registering and Downloading System VM Template
         self.download(self.apiclient, template.id)
         self.activateTemplateCmd.id = template.id
@@ -155,7 +163,6 @@ class TestActivateTemplate(cloudstackTestCase):
         self.assertEqual(response.seedsystemvmtemplateresponse.result, "Done")
         systemTemplateUuid = self.dbclient.execute("SELECT uuid FROM cloud.vm_template WHERE id = '%s';" % systemTemplateId[0])
         installPath = self.dbclient.execute("SELECT install_path FROM cloud.template_store_ref WHERE template_id = '%s';" % systemTemplateId[0])
-        self.debug("template/tmpl/1/%s/%s.%s" % (systemTemplateId[0][0], systemTemplateUuid[0][0], self.urlResponse.url.type))
         self.assertEqual(installPath[0][0], "template/tmpl/1/%s/%s.%s" % (systemTemplateId[0][0], systemTemplateUuid[0][0], self.urlResponse.url.type), "Unexpected install path for system vm template.")
 
     def registerTemplate(self, cmd):
