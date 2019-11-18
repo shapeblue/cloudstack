@@ -2211,6 +2211,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         templateStore.setInstallPath("template/tmpl/1/" + templateId + "/" + template.getUuid() + "." + fileExtension);
         templateStore.setErrorString(null);
         templateStore.setSize(size);
+        templateStore.setSize(0L);
         _tmplStoreDao.update(templateStore.getId(), templateStore);
         _tmpltDao.update(template.getId(), template);
     }
