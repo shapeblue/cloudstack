@@ -24,6 +24,8 @@ export MAVEN_OPTS="-Xmx4096m -XX:MaxPermSize=800m -Djava.security.egd=file:/dev/
 
 set -e
 
+mvn -v
+
 if [ $TEST_SEQUENCE_NUMBER -eq 1 ]; then
    DIR=$(pwd)
    # Pylint/pep8 systemvm python codebase
