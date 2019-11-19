@@ -134,8 +134,12 @@ public class LdapAuthenticator extends AdapterBase implements UserAuthenticator 
                 // a valid ldap configured user exists
                 LdapTrustMapVO mapping = _ldapManager.getLinkedLdapGroup(domainId,mappedGroups.get(0));
                 // we could now assert that ldapTrustMapVOs.contains(mapping);
-                // createUser in Account can only be done by account name not by account id
-                String accountName = _accountManager.getAccount(mapping.getAccountId()).getAccountName();
+                // createUser in Account can only be done by account name not by account id;
+                Account account = _accountManager.getAccount(mapping.getAccountId());
+                if(null == account) {
+                    throw new CloudRuntimeException(String.format("account for user (%s) not found by id %l", username, mapping.getAccountId()));
+                }
+                String accountName = account.getAccountName();
                 rc.first(_ldapManager.canAuthenticate(ldapUser.getPrincipal(), password, domainId));
                 // for security reasons we keep processing on faulty login attempt to not give a way information on userid existence
                 if (userAccount == null) {
