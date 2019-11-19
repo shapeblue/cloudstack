@@ -20,7 +20,7 @@ group: stable
 
 language: java
 jdk:
-  - openjdk11
+  - oraclejdk11
 python:
   - "2.7"
 
