@@ -537,7 +537,7 @@ pip install --upgrade /usr/share/cloudstack-marvin/Marvin-*.tar.gz
 %attr(0644,root,root) %{python_sitearch}/cloud_utils.py
 %attr(0644,root,root) %{python_sitearch}/cloud_utils.pyc
 %attr(0644,root,root) %{python_sitearch}/cloudutils/*
-%attr(0644, root, root) %{_datadir}/%{name}-common/lib/jasypt-1.9.2.jar
+%attr(0644, root, root) %{_datadir}/%{name}-common/lib/jasypt-*.jar
 %{_defaultdocdir}/%{name}-common-%{version}/LICENSE
 %{_defaultdocdir}/%{name}-common-%{version}/NOTICE
 
