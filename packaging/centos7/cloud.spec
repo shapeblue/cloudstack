@@ -266,7 +266,7 @@ done
 ln -sf log4j-cloud.xml  ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/management/log4j.xml
 
 install python/bindir/cloud-external-ipallocator.py ${RPM_BUILD_ROOT}%{_bindir}/%{name}-external-ipallocator.py
-install -D client/target/pythonlibs/jasypt-1.9.2.jar ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/lib/jasypt-1.9.2.jar
+install -D client/target/pythonlibs/jasypt-*.jar ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/lib/
 
 install -D packaging/centos7/cloud-ipallocator.rc ${RPM_BUILD_ROOT}%{_initrddir}/%{name}-ipallocator
 install -D packaging/centos7/cloud.limits ${RPM_BUILD_ROOT}%{_sysconfdir}/security/limits.d/cloud
