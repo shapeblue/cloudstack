@@ -24,16 +24,19 @@ export MAVEN_OPTS="-Xmx4096m -XX:MaxPermSize=800m -Djava.security.egd=file:/dev/
 
 set -e
 
+DIR=$(pwd)
+
+cd ~
 wget http://apachemirror.wuchna.com/maven/maven-3/3.6.2/binaries/apache-maven-3.6.2-bin.tar.gz
 tar zxvf apache-maven-3.6.2-bin.tar.gz
 export PATH=`pwd`/apache-maven-3.6.2/bin:$PATH
+cd $DIR
 
 echo -e "\nJDK version"
 export JAVA_HOME=$(readlink -f /usr/lib/jvm/java-11-openjdk-amd64/bin/java | sed "s:bin/java::")
 mvn -v
 
 if [ $TEST_SEQUENCE_NUMBER -eq 1 ]; then
-   DIR=$(pwd)
    # Pylint/pep8 systemvm python codebase
    cd systemvm/test && bash -x runtests.sh
    # Build noredist
