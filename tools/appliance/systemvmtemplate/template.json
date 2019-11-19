@@ -4,7 +4,7 @@
   "provisioners": [
     {
       "type": "shell",
-      "execute_command": "echo 'cloud'|sudo -u root -S bash '{{.Path}}'",
+      "execute_command": "echo 'cloud' | sudo -u root -S bash {{.Path}}",
       "scripts": [
         "scripts/apt_upgrade.sh",
         "scripts/configure_grub.sh",
@@ -13,11 +13,11 @@
         "scripts/configure_acpid.sh",
         "scripts/install_systemvm_packages.sh",
         "scripts/configure_conntrack.sh",
-        "../cloud_scripts_shar_archive.sh",
-        "scripts/configure_systemvm_services.sh",
         "scripts/authorized_keys.sh",
         "scripts/configure_persistent_config.sh",
         "scripts/configure_login.sh",
+        "../cloud_scripts_shar_archive.sh",
+        "scripts/configure_systemvm_services.sh",
         "scripts/cleanup.sh",
         "scripts/finalize.sh"
       ]
@@ -29,8 +29,8 @@
       "accelerator": "kvm",
       "headless": true,
       "qemuargs": [
-        [ "-m", "1000M" ],
-        [ "-smp", "cpus=1,maxcpus=1,cores=1" ]
+        [ "-m", "500M" ],
+        [ "-smp", "1" ]
       ],
       "format": "qcow2",
       "disk_size": 2500,
@@ -42,8 +42,8 @@
       "output_directory": "../dist",
       "http_directory": "http",
       "vm_name": "systemvmtemplate",
-      "ssh_username": "root",
-      "ssh_password": "password",
+      "ssh_username": "cloud",
+      "ssh_password": "cloud",
       "ssh_wait_timeout": "30m",
       "boot_wait": "5s",
       "boot_command": [
@@ -65,7 +65,7 @@
         "<enter><wait>"
       ],
 
-      "shutdown_command": "poweroff"
+      "shutdown_command": "sudo halt -p"
     }
   ]
 }
