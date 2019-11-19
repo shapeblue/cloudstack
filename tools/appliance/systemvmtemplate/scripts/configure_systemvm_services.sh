@@ -58,7 +58,14 @@ function configure_cacerts() {
 
 function install_cloud_scripts() {
   # ./cloud_scripts/ has been put there by ../../cloud_scripts_shar_archive.sh
-  cp -rv ./cloud_scripts/* /
+  rsync -av ./cloud_scripts/ /
+
+  chmod +x /opt/cloud/bin/* /opt/cloud/bin/setup/* \
+    /root/{clearUsageRules.sh,reconfigLB.sh,monitorServices.py} \
+    /etc/profile.d/cloud.sh /etc/cron.daily/* /etc/cron.hourly/*
+
+  chmod -x /etc/systemd/system/*
+
   systemctl daemon-reload
   systemctl enable cloud-early-config
   systemctl enable cloud-postinit
@@ -83,6 +90,9 @@ function configure_services() {
 
   # Fix haproxy directory issue
   mkdir -p /var/lib/haproxy
+
+  install_cloud_scripts
+  do_signature
 
   systemctl daemon-reload
   systemctl disable apt-daily.service
@@ -117,9 +127,6 @@ function configure_services() {
   configure_strongswan
   configure_issue
   configure_cacerts
-
-  install_cloud_scripts
-  do_signature
 }
 
 return 2>/dev/null || configure_services
