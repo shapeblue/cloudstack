@@ -41,8 +41,8 @@
       "output_directory": "../dist",
       "http_directory": "http",
       "vm_name": "systemvmtemplate",
-      "ssh_username": "cloud",
-      "ssh_password": "cloud",
+      "ssh_username": "root",
+      "ssh_password": "password",
       "ssh_wait_timeout": "30m",
       "boot_wait": "5s",
       "boot_command": [
@@ -65,7 +65,7 @@
         "<enter><wait>"
       ],
 
-      "shutdown_command": "echo vagrant | sudo -S poweroff"
+      "shutdown_command": "poweroff"
     }
   ]
 }

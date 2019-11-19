@@ -69,7 +69,7 @@ function install_packages() {
     haveged \
     radvd \
     sharutils genisoimage aria2 \
-    strongswan libcharon-extra-plugins libstrongswan-extra-plugins \
+    strongswan libcharon-extra-plugins libstrongswan-extra-plugins strongswan-charon strongswan-starter \
     virt-what open-vm-tools qemu-guest-agent hyperv-daemons
 
   apt-get -y autoremove --purge
