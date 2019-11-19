@@ -61,7 +61,6 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.cloudstack</groupId>
@@ -700,6 +699,12 @@
                                     <version>${cs.jasypt.version}</version>
                                     <overWrite>false</overWrite>
                                     <outputDirectory>${project.build.directory}/pythonlibs</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>mysql</groupId>
+                                    <artifactId>mysql-connector-java</artifactId>
+                                    <overWrite>false</overWrite>
+                                    <outputDirectory>${project.build.directory}/lib</outputDirectory>
                                 </artifactItem>
                                 <artifactItem>
                                     <groupId>org.bouncycastle</groupId>

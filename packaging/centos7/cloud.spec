@@ -65,7 +65,6 @@ Requires: openssh-clients
 Requires: nfs-utils
 Requires: wget
 Requires: mysql
-Requires: mysql-connector-java
 Requires: sudo
 Requires: /sbin/service
 Requires: /sbin/chkconfig
@@ -128,7 +127,6 @@ The CloudStack baremetal agent
 %package usage
 Summary: CloudStack Usage calculation server
 Requires: java-11-openjdk
-Requires: mysql-connector-java
 Group: System Environment/Libraries
 %description usage
 The CloudStack usage calculation service
@@ -161,7 +159,6 @@ Apache CloudStack Marvin integration tests
 %if "%{_ossnoss}" == "noredist"
 %package mysql-ha
 Summary: Apache CloudStack Balancing Strategy for MySQL
-Requires: mysql-connector-java
 Group: System Environmnet/Libraries
 %description mysql-ha
 Apache CloudStack Balancing Strategy for MySQL
@@ -311,6 +308,7 @@ install -D usage/target/cloud-usage-%{_maventag}.jar ${RPM_BUILD_ROOT}%{_datadir
 install -D usage/target/transformed/db.properties ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/usage/db.properties
 install -D usage/target/transformed/log4j-cloud_usage.xml ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/usage/log4j-cloud.xml
 cp usage/target/dependencies/* ${RPM_BUILD_ROOT}%{_datadir}/%{name}-usage/lib/
+cp client/target/lib/mysql*jar ${RPM_BUILD_ROOT}%{_datadir}/%{name}-usage/lib/
 install -D packaging/systemd/cloudstack-usage.service ${RPM_BUILD_ROOT}%{_unitdir}/%{name}-usage.service
 install -D packaging/systemd/cloudstack-usage.default ${RPM_BUILD_ROOT}%{_sysconfdir}/default/%{name}-usage
 mkdir -p ${RPM_BUILD_ROOT}%{_localstatedir}/log/%{name}/usage/
