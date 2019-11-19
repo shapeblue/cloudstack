@@ -118,8 +118,11 @@ public class LdapAuthenticator extends AdapterBase implements UserAuthenticator 
         try {
             LdapUser ldapUser = _ldapManager.getUser(username, domainId);
             List<String> memberships = ldapUser.getMemberships();
+            tracelist("memberships for " + username, memberships);
             List<String> mappedGroups = getMappedGroups(ldapTrustMapVOs);
+            tracelist("mappedgroups for " + username, mappedGroups);
             mappedGroups.retainAll(memberships);
+            tracelist("actual groups for " + username, mappedGroups);
             // check membership, there must be only one match in this domain
             if(ldapUser.isDisabled()) {
                 logAndDisable(userAccount, "attempt to log on using disabled ldap user " + userAccount.getUsername(), false);
@@ -167,6 +170,19 @@ public class LdapAuthenticator extends AdapterBase implements UserAuthenticator 
         }
 
         return rc;
+    }
+
+    private void tracelist(String msg, List<String> listToTrace) {
+        if (LOGGER.isTraceEnabled()) {
+            StringBuilder logMsg = new StringBuilder();
+            logMsg.append(msg);
+            logMsg.append(':');
+            for (String listMember : listToTrace) {
+                logMsg.append(' ');
+                logMsg.append(listMember);
+            }
+            LOGGER.trace(logMsg.toString());
+        }
     }
 
     private void logAndDisable(UserAccount userAccount, String msg, boolean remove) {
