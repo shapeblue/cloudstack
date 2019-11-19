@@ -24,6 +24,14 @@ export MAVEN_OPTS="-Xmx4096m -XX:MaxPermSize=800m -Djava.security.egd=file:/dev/
 
 set -e
 
+wget http://apachemirror.wuchna.com/maven/maven-3/3.6.2/binaries/apache-maven-3.6.2-bin.tar.gz
+tar zxvf apache-maven-3.6.2-bin.tar.gz
+export PATH=`pwd`/apache-maven-3.6.2/bin:$PATH
+
+echo -e "\nJDK version"
+sudo update-java-alternatives --list
+sudo update-java-alternatives --set java-1.11.0-openjdk-amd64
+export JAVA_HOME=$(readlink -f /usr/lib/jvm/java-11-openjdk-amd64/bin/java | sed "s:bin/java::")
 mvn -v
 
 if [ $TEST_SEQUENCE_NUMBER -eq 1 ]; then
@@ -38,7 +46,7 @@ if [ $TEST_SEQUENCE_NUMBER -eq 1 ]; then
    mvn -P developer,systemvm -Dsimulator -Dnoredist -pl . org.apache.rat:apache-rat-plugin:0.12:check
    mvn -q -B -P developer,systemvm -Dsimulator -Dnoredist clean install
 else
-   mvn -Pdeveloper -Dsimulator clean install -DskipTests -T4
+   mvn -Pdeveloper -Dsimulator clean install -DskipTests=true -T4
 fi
 
 # Install mysql-connector-python
