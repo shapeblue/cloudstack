@@ -58,6 +58,7 @@ import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -104,6 +105,7 @@ public class CreatePrivateNetworkTest {
         NetworkOfferingVO ntwkOff =
             new NetworkOfferingVO("offer", "fakeOffer", TrafficType.Guest, true, true, null, null, false, null, null, GuestType.Isolated, false, false, false, false,
                 false, false, false, false, false, false, false, false, false, false, false, false);
+        //when(networkService._networkOfferingDao.findById(anyLong())).thenReturn(ntwkOff);
         when(networkService._networkOfferingDao.findById(anyLong())).thenReturn(ntwkOff);
         List<NetworkOfferingVO> netofferlist = new ArrayList<NetworkOfferingVO>();
         netofferlist.add(ntwkOff);

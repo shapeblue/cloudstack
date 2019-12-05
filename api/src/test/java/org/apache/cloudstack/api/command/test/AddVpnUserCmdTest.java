@@ -33,7 +33,7 @@ import com.cloud.network.VpnUser;
 import com.cloud.network.vpn.RemoteAccessVpnService;
 import com.cloud.user.Account;
 import com.cloud.user.AccountService;
-
+import static org.mockito.ArgumentMatchers.*;
 public class AddVpnUserCmdTest extends TestCase {
 
     private AddVpnUserCmd addVpnUserCmd;
@@ -83,7 +83,8 @@ public class AddVpnUserCmdTest extends TestCase {
         RemoteAccessVpnService ravService = Mockito.mock(RemoteAccessVpnService.class);
 
         VpnUser vpnUser = Mockito.mock(VpnUser.class);
-        Mockito.when(ravService.addVpnUser(Matchers.anyLong(), Matchers.anyString(), Matchers.anyString())).thenReturn(vpnUser);
+        //Mockito.when(ravService.addVpnUser(anyLong(), anyString(), anyString())).thenReturn(vpnUser);
+        Mockito.when(ravService.addVpnUser(anyLong(), isNull(), isNull())).thenReturn(vpnUser);
 
         addVpnUserCmd._ravService = ravService;
 
@@ -101,7 +102,8 @@ public class AddVpnUserCmdTest extends TestCase {
         addVpnUserCmd._accountService = accountService;
 
         RemoteAccessVpnService ravService = Mockito.mock(RemoteAccessVpnService.class);
-        Mockito.when(ravService.addVpnUser(Matchers.anyLong(), Matchers.anyString(), Matchers.anyString())).thenReturn(null);
+        //Mockito.when(ravService.addVpnUser(Matchers.anyLong(), Matchers.anyString(), Matchers.anyString())).thenReturn(null);
+        Mockito.when(ravService.addVpnUser(anyLong(), isNull(), isNull())).thenReturn(null);
 
         addVpnUserCmd._ravService = ravService;
 

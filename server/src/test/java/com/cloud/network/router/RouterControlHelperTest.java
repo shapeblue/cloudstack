@@ -17,6 +17,7 @@
 package com.cloud.network.router;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -68,8 +69,8 @@ public class RouterControlHelperTest {
         NicVO nic3 = mock(NicVO.class);
         when(nic1.getNetworkId()).thenReturn(NW_ID_1);
         when(nic2.getNetworkId()).thenReturn(NW_ID_2);
-        when(nic2.getIPv4Address()).thenReturn(IP4_ADDRES1);
-        when(nic3.getNetworkId()).thenReturn(NW_ID_3);
+        lenient().when(nic2.getIPv4Address()).thenReturn(IP4_ADDRES1);
+        lenient().when(nic3.getNetworkId()).thenReturn(NW_ID_3);
         when(nic3.getIPv4Address()).thenReturn(IP4_ADDRES2);
         nics.add(nic1);
         nics.add(nic2);
@@ -99,7 +100,7 @@ public class RouterControlHelperTest {
         List<NicVO> nics = new ArrayList<>();
         NicVO nic1 = mock(NicVO.class);
         when(nic1.getNetworkId()).thenReturn(NW_ID_1);
-        when(nic1.getIPv4Address()).thenReturn(null);
+        lenient().when(nic1.getIPv4Address()).thenReturn(null);
         nics.add(nic1);
         when(this.nicDao.listByVmId(ROUTER_ID)).thenReturn(nics);
 

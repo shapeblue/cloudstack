@@ -22,7 +22,7 @@
 
   <context:annotation-config />
 
-    <!-- @DB support -->
+      <!-- @DB support -->
   <bean id="componentContext" class="com.cloud.utils.component.ComponentContext" />
 
   <bean id="transactionContextBuilder" class="com.cloud.utils.db.TransactionContextBuilder" />

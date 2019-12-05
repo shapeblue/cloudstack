@@ -99,7 +99,7 @@ public class SecurityGroupJoinDaoImplTest extends TestCase {
         securityGroupVmMap_two.add(securityGroupVMMapVOtwo);
 
         // Mock the resource tags to return an empty list.
-        when(_resourceTagJoinDao.listBy(anyString(), any(ResourceObjectType.class))).thenReturn(new ArrayList<ResourceTagJoinVO>());
+        //when(_resourceTagJoinDao.listBy(anyString(), any(ResourceObjectType.class))).thenReturn(new ArrayList<ResourceTagJoinVO>());
 
         // Mock the listBySecurityGroup method to return a specified list when being called.
         when(_securityGroupVMMapDao.listBySecurityGroup(1L)).thenReturn(securityGroupVmMap_empty);

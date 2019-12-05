@@ -17,6 +17,8 @@
 
 package org.apache.cloudstack.storage.configdrive;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 
 import java.io.File;
@@ -131,11 +133,12 @@ public class ConfigDriveBuilderTest {
         PowerMockito.mockStatic(ConfigDriveBuilder.class);
 
         Method method = ReflectionUtils.getMethods(ConfigDriveBuilder.class, ReflectionUtils.withName("writeVendorAndNetworkEmptyJsonFile")).iterator().next();
-        PowerMockito.when(ConfigDriveBuilder.class, method).withArguments(Mockito.any(File.class)).thenThrow(IOException.class);
+        PowerMockito.when(ConfigDriveBuilder.class, method).withArguments(Mockito.any(File.class)).thenThrow(IOException.class, CloudRuntimeException.class );
 
         //This is odd, but it was necessary to allow us to check if we catch the IOexception and re-throw as a CloudRuntimeException
         //We are mocking the class being tested; therefore, we needed to force the execution of the real method we want to test.
         PowerMockito.when(ConfigDriveBuilder.class, new ArrayList<>(), "teste", "C:").thenCallRealMethod();
+        //PowerMockito.doCallRealMethod().when(ConfigDriveBuilder.class, new ArrayList<>(), "teste", "C:" );
 
         ConfigDriveBuilder.buildConfigDrive(new ArrayList<>(), "teste", "C:");
     }
@@ -228,15 +231,26 @@ public class ConfigDriveBuilderTest {
         PowerMockito.mockStatic(ConfigDriveBuilder.class);
 
         Method method = getWriteVmMetadataMethod();
-        PowerMockito.when(ConfigDriveBuilder.class, method).withArguments(new ArrayList<>(), "metadataFile", new File("folder")).thenCallRealMethod();
+        //PowerMockito.when(ConfigDriveBuilder.class, method).withArguments(new ArrayList<>(), "metadataFile", new File("folder")).thenCallRealMethod();
+        PowerMockito.when(ConfigDriveBuilder.class, method).withArguments(Mockito.anyListOf(String[].class), anyString(), any(File.class)).thenCallRealMethod();
 
         Method createJsonObjectWithVmDataMethod = ReflectionUtils.getMethods(ConfigDriveBuilder.class, ReflectionUtils.withName("createJsonObjectWithVmData")).iterator().next();
-        PowerMockito.when(ConfigDriveBuilder.class, createJsonObjectWithVmDataMethod).withArguments(Mockito.anyListOf(String[].class), Mockito.any(File.class)).thenReturn(new JsonObject());
+        //PowerMockito.when(ConfigDriveBuilder.class, createJsonObjectWithVmDataMethod).withArguments(Mockito.anyListOf(String[].class), Mockito.any(File.class)).thenReturn(new JsonObject());
+        PowerMockito.when(ConfigDriveBuilder.class, createJsonObjectWithVmDataMethod).withArguments(Mockito.anyListOf(String[].class), Mockito.anyString()).thenReturn(new JsonObject());
+        //PowerMockito.doReturn(new JsonObject()).when(ConfigDriveBuilder.class, createJsonObjectWithVmDataMethod).withArguments(Mockito.anyListOf(String[].class), Mockito.any(String.class));
 
-        ConfigDriveBuilder.writeVmMetadata(new ArrayList<>(), "metadataFile", new File("folder"));
+
+        List<String[]> vmData = new ArrayList<>();
+        vmData.add(new String[] {"dataType", "fileName", "content"});
+        vmData.add(new String[] {"dataType2", "fileName2", "content2"});
+
+
+
+        ConfigDriveBuilder.writeVmMetadata(vmData, "metadataFile", new File("folder"));
 
         PowerMockito.verifyStatic(ConfigDriveBuilder.class);
-        ConfigDriveBuilder.createJsonObjectWithVmData(Mockito.anyListOf(String[].class), Mockito.anyString());
+        //ConfigDriveBuilder.createJsonObjectWithVmData(Mockito.anyListOf(String[].class), Mockito.anyString());
+        ConfigDriveBuilder.createJsonObjectWithVmData(vmData, "metadataFile");
         ConfigDriveBuilder.writeFile(Mockito.any(File.class), Mockito.eq("meta_data.json"), Mockito.eq("{}"));
     }
 

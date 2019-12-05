@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command.test;
 
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
@@ -92,8 +93,10 @@ public class CreateSnapshotCmdTest extends TestCase {
         VolumeApiService volumeApiService = Mockito.mock(VolumeApiService.class);
         Snapshot snapshot = Mockito.mock(Snapshot.class);
         try {
-            Mockito.when(volumeApiService.takeSnapshot(anyLong(), anyLong(), anyLong(),
-                    any(Account.class), anyBoolean(), isNull(Snapshot.LocationType.class), anyBoolean(), anyObject())).thenReturn(snapshot);
+            //Mockito.when(volumeApiService.takeSnapshot(anyLong(), anyLong(), anyLong(),
+            //        any(Account.class), anyBoolean(), isNull(Snapshot.LocationType.class), anyBoolean(), anyObject())).thenReturn(snapshot);
+            Mockito.when(volumeApiService.takeSnapshot(anyLong(), anyLong(), isNull(),
+                    any(Account.class), anyBoolean(), isNull(Snapshot.LocationType.class), anyBoolean(), anyMap())).thenReturn(snapshot);
 
         } catch (Exception e) {
             Assert.fail("Received exception when success expected " + e.getMessage());

@@ -32,6 +32,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Spy;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.cloud.storage.ScopeType;
@@ -41,6 +42,7 @@ import com.cloud.storage.dao.StoragePoolTagsDao;
 import junit.framework.TestCase;
 
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore("javax.management.*")
 public class PrimaryDataStoreDaoImplTest extends TestCase {
 
     @Mock

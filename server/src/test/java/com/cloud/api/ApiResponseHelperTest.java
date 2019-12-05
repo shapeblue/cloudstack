@@ -85,8 +85,10 @@ public class ApiResponseHelperTest {
     public void testUsageRecordResponse(){
         //Creating the usageVO object to be passed to the createUsageResponse.
         Long zoneId = null;
-        Long accountId = null;
-        Long domainId = null;
+        //Long accountId = null;
+        Long accountId = 1L;
+        //Long domainId = null;
+        Long domainId = 1L;
         String Description = "Test Object";
         String usageDisplay = " ";
         int usageType = -1;
