@@ -16,8 +16,6 @@
 // under the License.
 package com.cloud.api.query.dao;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
@@ -32,13 +30,11 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import com.cloud.api.query.vo.ResourceTagJoinVO;
 import com.cloud.api.query.vo.SecurityGroupJoinVO;
 import com.cloud.network.security.SecurityGroupVMMapVO;
 import com.cloud.network.security.dao.SecurityGroupVMMapDao;
-import com.cloud.server.ResourceTag.ResourceObjectType;
 import com.cloud.user.Account;
 import com.cloud.vm.UserVmVO;
 import com.cloud.vm.dao.UserVmDao;

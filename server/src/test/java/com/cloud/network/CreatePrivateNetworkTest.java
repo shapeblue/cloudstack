@@ -17,20 +17,24 @@
 
 package com.cloud.network;
 
-import junit.framework.Assert;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.apache.cloudstack.acl.ControlledEntity.ACLType;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import org.apache.cloudstack.acl.ControlledEntity.ACLType;
-import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 
 import com.cloud.dc.DataCenter.NetworkType;
 import com.cloud.dc.DataCenterVO;
@@ -57,13 +61,7 @@ import com.cloud.utils.db.DB;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.when;
+import junit.framework.Assert;
 
 //@Ignore("Requires database to be set up")
 public class CreatePrivateNetworkTest {
@@ -105,7 +103,7 @@ public class CreatePrivateNetworkTest {
         NetworkOfferingVO ntwkOff =
             new NetworkOfferingVO("offer", "fakeOffer", TrafficType.Guest, true, true, null, null, false, null, null, GuestType.Isolated, false, false, false, false,
                 false, false, false, false, false, false, false, false, false, false, false, false);
-        //when(networkService._networkOfferingDao.findById(anyLong())).thenReturn(ntwkOff);
+
         when(networkService._networkOfferingDao.findById(anyLong())).thenReturn(ntwkOff);
         List<NetworkOfferingVO> netofferlist = new ArrayList<NetworkOfferingVO>();
         netofferlist.add(ntwkOff);
