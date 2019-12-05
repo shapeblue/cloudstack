@@ -21,3 +21,4 @@
 
 -- KVM: enable storage data motion on KVM hypervisor_capabilities
 UPDATE `cloud`.`hypervisor_capabilities` SET `storage_motion_supported` = 1 WHERE `hypervisor_capabilities`.`hypervisor_type` = 'KVM';
+ALTER TABLE `cloud`.`vm_template` ADD COLUMN `activate_after_upload` TINYINT(1) NULL DEFAULT '0' AFTER `direct_download`;
