@@ -34,3 +34,4 @@ UPDATE `cloud`.`guest_os` SET `category_id`='4' WHERE `id`=284 AND display_name=
 UPDATE `cloud`.`guest_os` SET `category_id`='4' WHERE `id`=285 AND display_name="Red Hat Enterprise Linux 7.6";
 UPDATE `cloud`.`guest_os` SET `category_id`='4' WHERE `id`=286 AND display_name="Red Hat Enterprise Linux 8.0";
 
+ALTER TABLE `cloud`.`vm_template` ADD COLUMN `activate_after_upload` TINYINT(1) NULL DEFAULT '0' AFTER `direct_download`;
