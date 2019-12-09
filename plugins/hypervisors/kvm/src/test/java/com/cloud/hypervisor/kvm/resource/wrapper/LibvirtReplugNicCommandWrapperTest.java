@@ -44,6 +44,7 @@ import org.mockito.BDDMockito;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -60,6 +61,7 @@ import com.cloud.vm.VirtualMachine;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(value = {Script.class, MemStat.class})
+@PowerMockIgnore({"javax.xml.*", "org.w3c.dom.*", "org.apache.xerces.*", "org.xml.*"})
 public class LibvirtReplugNicCommandWrapperTest {
 
     @Mock
@@ -204,8 +206,9 @@ public class LibvirtReplugNicCommandWrapperTest {
 
     @Before
     public void setUp() throws Exception {
-        Scanner scanner = new Scanner(memInfo);
-        PowerMockito.whenNew(Scanner.class).withAnyArguments().thenReturn(scanner);
+        //Scanner scanner = new Scanner(memInfo);
+        PowerMockito.mockStatic(Scanner.class);
+        //PowerMockito.whenNew(Scanner.class).withAnyArguments().thenReturn(scanner);
 
         // Use a spy because we only want to override getVifDriverClass
         LibvirtComputingResource resReal = new LibvirtComputingResource();

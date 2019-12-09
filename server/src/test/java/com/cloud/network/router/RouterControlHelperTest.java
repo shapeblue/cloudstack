@@ -71,7 +71,7 @@ public class RouterControlHelperTest {
         when(nic2.getNetworkId()).thenReturn(NW_ID_2);
         lenient().when(nic2.getIPv4Address()).thenReturn(IP4_ADDRES1);
         lenient().when(nic3.getNetworkId()).thenReturn(NW_ID_3);
-        when(nic3.getIPv4Address()).thenReturn(IP4_ADDRES2);
+        lenient().when(nic3.getIPv4Address()).thenReturn(IP4_ADDRES2);
         nics.add(nic1);
         nics.add(nic2);
         nics.add(nic3);
@@ -82,10 +82,10 @@ public class RouterControlHelperTest {
         NetworkVO nw2 = mock(NetworkVO.class);
         when(nw2.getTrafficType()).thenReturn(TrafficType.Control);
         NetworkVO nw3 = mock(NetworkVO.class);
-        when(nw3.getTrafficType()).thenReturn(TrafficType.Control);
+        lenient().when(nw3.getTrafficType()).thenReturn(TrafficType.Control);
         when(this.nwDao.findById(NW_ID_1)).thenReturn(nw1);
         when(this.nwDao.findById(NW_ID_2)).thenReturn(nw2);
-        when(this.nwDao.findById(NW_ID_3)).thenReturn(nw3);
+        lenient().when(this.nwDao.findById(NW_ID_3)).thenReturn(nw3);
 
         // Execute
         final String ip4address = this.routerControlHelper.getRouterControlIp(ROUTER_ID);

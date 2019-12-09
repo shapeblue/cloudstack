@@ -32,7 +32,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.cloud.storage.ScopeType;
@@ -42,7 +41,6 @@ import com.cloud.storage.dao.StoragePoolTagsDao;
 import junit.framework.TestCase;
 
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore("javax.management.*")
 public class PrimaryDataStoreDaoImplTest extends TestCase {
 
     @Mock
@@ -83,8 +81,8 @@ public class PrimaryDataStoreDaoImplTest extends TestCase {
     public void setup() {
         STORAGE_POOL_DETAILS.put(DETAIL_KEY, DETAIL_VALUE);
         doReturn(Arrays.asList(storagePoolVO)).when(primaryDataStoreDao).
-        searchStoragePoolsPreparedStatement(Matchers.anyString(), Matchers.anyLong(), Matchers.anyLong(), Matchers.anyLong(),
-                Matchers.any(ScopeType.class), Matchers.anyInt());
+                searchStoragePoolsPreparedStatement(Matchers.anyString(), Matchers.anyLong(), Matchers.anyLong(), Matchers.anyLong(),
+                        Matchers.any(ScopeType.class), Matchers.anyInt());
     }
 
     @Test

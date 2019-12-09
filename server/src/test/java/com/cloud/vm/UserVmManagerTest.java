@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyFloat;
@@ -713,7 +714,7 @@ public class UserVmManagerTest {
 
         when(_accountService.getActiveAccountById(anyLong())).thenReturn(oldAccount);
 
-        when(_accountMgr.finalizeOwner(any(Account.class), anyString(), anyLong(), anyLong())).thenReturn(newAccount);
+        when(_accountMgr.finalizeOwner(nullable(Account.class), nullable(String.class), nullable(Long.class), nullable(Long.class))).thenReturn(newAccount);
 
         doThrow(new PermissionDeniedException("Access check failed")).when(_accountMgr).checkAccess(any(Account.class), any(AccessType.class), any(Boolean.class), any(ControlledEntity.class));
 
@@ -817,7 +818,7 @@ public class UserVmManagerTest {
         when(vlan.getVlanGateway()).thenReturn("10.10.10.1");
         when(vlan.getVlanNetmask()).thenReturn("255.255.255.0");
 
-        when(_ipAddrMgr.allocatePublicIpForGuestNic(Mockito.eq(_networkMock), anyLong(), Mockito.eq(_accountMock), anyString())).thenReturn("10.10.10.10");
+        when(_ipAddrMgr.allocatePublicIpForGuestNic(Mockito.eq(_networkMock), nullable(Long.class), Mockito.eq(_accountMock), anyString())).thenReturn("10.10.10.10");
         when(_ipAddressDao.findByIpAndSourceNetworkId(anyLong(), anyString())).thenReturn(null);
         when(_nicDao.persist(any(NicVO.class))).thenReturn(nic);
         when(_ipAddressDao.findByIpAndDcId(anyLong(), anyString())).thenReturn(newIp);

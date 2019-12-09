@@ -16,6 +16,7 @@
 // under the License.
 package com.cloud.user;
 
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
@@ -144,7 +145,7 @@ public class AccountManagerImplVolumeDeleteEventTest extends AccountManagetImplT
         when(_serviceOfferingDao.findByIdIncludingRemoved(anyLong(), anyLong())).thenReturn(offering);
 
         when(_domainMgr.getDomain(anyLong())).thenReturn(domain);
-        //Mockito.doReturn(vm).when(_vmMgr).destroyVm(anyLong(), anyBoolean());
+        Mockito.doReturn(vm).when(_vmMgr).destroyVm(nullable(Long.class), nullable(Boolean.class));
         Mockito.doReturn(true).when(_vmMgr).expunge(any(UserVmVO.class), anyLong(), any(Account.class));
 
     }
@@ -176,7 +177,8 @@ public class AccountManagerImplVolumeDeleteEventTest extends AccountManagetImplT
 
         when(vm.getState()).thenReturn(vmDestroyedPrior ? VirtualMachine.State.Destroyed : VirtualMachine.State.Running);
         when(vm.getRemoved()).thenReturn(vmDestroyedPrior ? new Date() : null);
-        Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.any(Account.class), Mockito.isNull(), Mockito.anyBoolean(), Mockito.any(Account.class));
+        //Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.any(Account.class), Mockito.isNull(), Mockito.anyBoolean(), Mockito.any(Account.class));
+        Mockito.doNothing().when(accountManagerImpl).checkAccess(nullable(Account.class), Mockito.isNull(), nullable(Boolean.class), nullable(Account.class));
         accountManagerImpl.deleteUserAccount(ACCOUNT_ID);
 
         return _usageEventDao.listAll();

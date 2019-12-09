@@ -76,10 +76,12 @@ import org.libvirt.MemoryStatistic;
 import org.libvirt.NodeInfo;
 import org.libvirt.StorageVol;
 import org.libvirt.jna.virDomainMemoryStats;
+import org.mockito.BDDMockito;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.w3c.dom.Document;
@@ -190,6 +192,7 @@ import com.cloud.vm.VirtualMachine.Type;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(value = {MemStat.class})
+@PowerMockIgnore({"javax.xml.*", "org.w3c.dom.*", "org.apache.xerces.*"})
 public class LibvirtComputingResourceTest {
 
     @Mock
@@ -1248,7 +1251,8 @@ public class LibvirtComputingResourceTest {
         when(vm.getNics()).thenReturn(new NicTO[]{nicTO});
         when(nicTO.getType()).thenReturn(TrafficType.Guest);
 
-        when(libvirtComputingResource.getVifDriver(nicTO.getType(), nicTO.getName())).thenThrow(InternalErrorException.class);
+        //when(libvirtComputingResource.getVifDriver(nicTO.getType(), nicTO.getName())).thenThrow(InternalErrorException.class);
+        BDDMockito.given(libvirtComputingResource.getVifDriver(nicTO.getType(), nicTO.getName())).willAnswer(invocationOnMock -> {throw new InternalErrorException("Exception Occurred");});
         when(libvirtComputingResource.getStoragePoolMgr()).thenReturn(storagePoolManager);
         try {
             when(libvirtComputingResource.getVolumePath(conn, volume)).thenReturn("/path");
@@ -1527,7 +1531,7 @@ public class LibvirtComputingResourceTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test(expected = URISyntaxException.class)
+    @Test
     public void testAttachIsoCommandURISyntaxException() {
         final LibvirtUtilitiesHelper libvirtUtilitiesHelper = Mockito.mock(LibvirtUtilitiesHelper.class);
 
@@ -1536,7 +1540,7 @@ public class LibvirtComputingResourceTest {
 
         when(libvirtComputingResource.getLibvirtUtilitiesHelper()).thenReturn(libvirtUtilitiesHelper);
         try {
-            when(libvirtUtilitiesHelper.getConnectionByVmName(vmName)).thenThrow(URISyntaxException.class);
+            BDDMockito.given(libvirtUtilitiesHelper.getConnectionByVmName(vmName)).willAnswer(invocationOnMock -> {throw new URISyntaxException("Exception trying to get connection by VM name", vmName);});
         } catch (final LibvirtException e) {
             fail(e.getMessage());
         }
@@ -1556,7 +1560,7 @@ public class LibvirtComputingResourceTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test(expected = InternalErrorException.class)
+    @Test
     public void testAttachIsoCommandInternalErrorException() {
         final LibvirtUtilitiesHelper libvirtUtilitiesHelper = Mockito.mock(LibvirtUtilitiesHelper.class);
 
@@ -1565,7 +1569,7 @@ public class LibvirtComputingResourceTest {
 
         when(libvirtComputingResource.getLibvirtUtilitiesHelper()).thenReturn(libvirtUtilitiesHelper);
         try {
-            when(libvirtUtilitiesHelper.getConnectionByVmName(vmName)).thenThrow(InternalErrorException.class);
+            BDDMockito.given(libvirtUtilitiesHelper.getConnectionByVmName(vmName)).willAnswer(invocationOnMock -> {throw new InternalErrorException("Exception Occurred");});
         } catch (final LibvirtException e) {
             fail(e.getMessage());
         }

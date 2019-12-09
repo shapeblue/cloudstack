@@ -18,6 +18,7 @@
 package com.cloud.network;
 
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -121,9 +122,9 @@ public class CreatePrivateNetworkTest {
             new NetworkVO(1L, TrafficType.Guest, Mode.None, BroadcastDomainType.Vlan, 1L, 1L, 1L, 1L, "bla", "fake", "eet.net", GuestType.Isolated, 1L, 1L,
                 ACLType.Account, false, 1L, false);
         when(
-            networkService._networkMgr.createGuestNetwork(eq(ntwkOff.getId()), eq("bla"), eq("fake"), eq("10.1.1.1"), eq("10.1.1.0/24"), anyString(), anyBoolean(), anyString(),
-                                                          eq(account), anyLong(), eq(physicalNetwork), eq(physicalNetwork.getDataCenterId()), eq(ACLType.Account), anyBoolean(), eq(1L), anyString(), anyString(),
-                                                          anyBoolean(), anyString(), anyString())).thenReturn(net);
+                networkService._networkMgr.createGuestNetwork(eq(ntwkOff.getId()), eq("bla"), eq("fake"), eq("10.1.1.1"), eq("10.1.1.0/24"), nullable(String.class), nullable(Boolean.class), nullable(String.class),
+                        eq(account), nullable(Long.class), eq(physicalNetwork), eq(physicalNetwork.getDataCenterId()), eq(ACLType.Account), nullable(Boolean.class), eq(1L), nullable(String.class), nullable(String.class),
+                        nullable(Boolean.class), nullable(String.class), nullable(String.class))).thenReturn(net);
 
         when(networkService._privateIpDao.findByIpAndSourceNetworkId(net.getId(), "10.1.1.2")).thenReturn(null);
         when(networkService._privateIpDao.findByIpAndSourceNetworkIdAndVpcId(eq(1L), anyString(), eq(1L))).thenReturn(null);
