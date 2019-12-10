@@ -200,11 +200,10 @@ public class AccountManagerImplTest extends AccountManagetImplTestBase {
     public void testgetUserCmd() {
         CallContext.register(callingUser, callingAccount); // Calling account is user account i.e normal account
         Mockito.when(_listkeyscmd.getID()).thenReturn(1L);
-        //Mockito.when(accountManagerImpl.getActiveUser(1L)).thenReturn(_user);
         Mockito.when(accountManagerImpl.getActiveUser(1L)).thenReturn(userVoMock);
         Mockito.when(accountManagerImpl.getUserAccountById(1L)).thenReturn(userAccountVO);
         Mockito.when(userAccountVO.getAccountId()).thenReturn(1L);
-        Mockito.when(accountManagerImpl.getAccount(Mockito.anyLong())).thenReturn(accountMock); // Queried account - admin account
+        Mockito.lenient().when(accountManagerImpl.getAccount(Mockito.anyLong())).thenReturn(accountMock); // Queried account - admin account
 
         Mockito.lenient().when(callingUser.getAccountId()).thenReturn(1L);
         Mockito.lenient().when(_accountDao.findById(1L)).thenReturn(callingAccount);

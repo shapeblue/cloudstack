@@ -1251,7 +1251,6 @@ public class LibvirtComputingResourceTest {
         when(vm.getNics()).thenReturn(new NicTO[]{nicTO});
         when(nicTO.getType()).thenReturn(TrafficType.Guest);
 
-        //when(libvirtComputingResource.getVifDriver(nicTO.getType(), nicTO.getName())).thenThrow(InternalErrorException.class);
         BDDMockito.given(libvirtComputingResource.getVifDriver(nicTO.getType(), nicTO.getName())).willAnswer(invocationOnMock -> {throw new InternalErrorException("Exception Occurred");});
         when(libvirtComputingResource.getStoragePoolMgr()).thenReturn(storagePoolManager);
         try {
