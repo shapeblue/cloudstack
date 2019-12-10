@@ -71,7 +71,7 @@ public class StoragePoolMonitorTest {
         Mockito.verify(storageManager, Mockito.times(1)).createCapacityEntry(Mockito.eq(pool.getId()));
     }
 
-    @Test//(expected = ConnectionException.class)
+    @Test
     public void testProcessConnectStoragePoolFailureOnHost() throws Exception {
         Mockito.when(poolDao.listBy(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong(), Mockito.any(ScopeType.class))).thenReturn(Collections.singletonList(pool));
         Mockito.when(poolDao.findZoneWideStoragePoolsByTags(Mockito.anyLong(), Mockito.any(String[].class))).thenReturn(Collections.<StoragePoolVO>emptyList());

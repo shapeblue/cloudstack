@@ -181,7 +181,6 @@ public class AccountManagerImplVolumeDeleteEventTest extends AccountManagetImplT
 
         when(vm.getState()).thenReturn(vmDestroyedPrior ? VirtualMachine.State.Destroyed : VirtualMachine.State.Running);
         lenient().when(vm.getRemoved()).thenReturn(vmDestroyedPrior ? new Date() : null);
-        //Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.any(Account.class), Mockito.isNull(), Mockito.anyBoolean(), Mockito.any(Account.class));
         Mockito.doNothing().when(accountManagerImpl).checkAccess(nullable(Account.class), Mockito.isNull(), nullable(Boolean.class), nullable(Account.class));
         accountManagerImpl.deleteUserAccount(ACCOUNT_ID);
 

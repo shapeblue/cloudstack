@@ -284,7 +284,6 @@ public class SAML2LoginAPIAuthenticatorCmdTest {
 
     private void verifyTestWhenFailToAuthenticateThrowExceptionOrRedirectToUrl(boolean expectServerApiException, boolean hasThrownServerApiException, int timesOfSendRedirect,
             int timesOfConfigDao) throws IOException {
-        //Mockito.doNothing().when(resp).sendRedirect(nullable(String.class));
         Mockito.verify(resp, Mockito.times(timesOfSendRedirect)).sendRedirect(Mockito.anyString());
         Assert.assertEquals(expectServerApiException, hasThrownServerApiException);
     }

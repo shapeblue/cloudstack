@@ -494,7 +494,7 @@ public class LibvirtComputingResourceTest {
         nodeInfo.model = "Foo processor";
         Mockito.when(connect.nodeInfo()).thenReturn(nodeInfo);
         // this is testing the interface stats, returns an increasing number of sent and received bytes
-        //Mockito.when(domain.interfaceStats(Matchers.anyString())).thenAnswer(new org.mockito.stubbing.Answer<DomainInterfaceStats>() {
+
         Mockito.when(domain.interfaceStats(nullable(String.class))).thenAnswer(new org.mockito.stubbing.Answer<DomainInterfaceStats>() {
             // increment with less than a KB, so this should be less than 1 KB
             final static int increment = 1000;
@@ -512,7 +512,7 @@ public class LibvirtComputingResourceTest {
 
         });
 
-        //Mockito.when(domain.blockStats(Matchers.anyString())).thenAnswer(new org.mockito.stubbing.Answer<DomainBlockStats>() {
+
         Mockito.when(domain.blockStats(nullable(String.class))).thenAnswer(new org.mockito.stubbing.Answer<DomainBlockStats>() {
             // a little less than a KB
             final static int increment = 1000;

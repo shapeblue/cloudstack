@@ -174,7 +174,6 @@ public class AffinityGroupServiceImplTest {
 
     @Test
     public void createAffinityGroupFromCmdTest() {
-        //when(_acctMgr.finalizeOwner((Account)anyObject(), anyString(), anyLong(), anyLong())).thenReturn(acct);
         when(_acctMgr.finalizeOwner(any(Account.class), nullable(String.class), anyLong(), nullable(Long.class))).thenReturn(acct);
         when(_groupDao.isNameInUse(anyLong(), anyLong(), eq(AFFINITY_GROUP_NAME))).thenReturn(false);
         CreateAffinityGroupCmd mockCreateAffinityGroupCmd = Mockito.mock(CreateAffinityGroupCmd.class);

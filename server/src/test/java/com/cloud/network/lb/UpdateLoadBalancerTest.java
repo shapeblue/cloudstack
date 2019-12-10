@@ -95,19 +95,16 @@ public class UpdateLoadBalancerTest {
 
         LoadBalancerVO lb = new LoadBalancerVO(null, null, null, 0L, 0, 0, null, 0L, 0L, domainId, null);
 
-        //when(lbDao.findById(anyLong())).thenReturn(lb);
         when(lbDao.findById(isNull())).thenReturn(lb);
         when(netModel.getPublicIpAddress(anyLong())).thenReturn(Mockito.mock(PublicIpAddress.class));
         when(netDao.findById(anyLong())).thenReturn(Mockito.mock(NetworkVO.class));
         when(lbServiceProvider.validateLBRule(any(Network.class), any(LoadBalancingRule.class))).thenReturn(true);
-        //when(lbDao.update(anyLong(), eq(lb))).thenReturn(true);
         when(lbDao.update(isNull(), eq(lb))).thenReturn(true);
 
         _lbMgr.updateLoadBalancerRule(updateLbRuleCmd);
 
         InOrder inOrder = Mockito.inOrder(lbServiceProvider, lbDao);
         inOrder.verify(lbServiceProvider).validateLBRule(any(Network.class), any(LoadBalancingRule.class));
-        //inOrder.verify(lbDao).update(anyLong(), eq(lb));
         inOrder.verify(lbDao).update(isNull(),eq(lb));
     }
 

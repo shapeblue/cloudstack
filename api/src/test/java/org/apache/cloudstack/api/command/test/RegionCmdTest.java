@@ -32,7 +32,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
-import junit.framework.Assert;
 import junit.framework.TestCase;
 
 public class RegionCmdTest extends TestCase {
@@ -68,7 +67,7 @@ public class RegionCmdTest extends TestCase {
         RegionService regionService = Mockito.mock(RegionService.class);
 
         Region region = Mockito.mock(Region.class);
-        //Mockito.when(regionService.addRegion(Matchers.anyInt(), Matchers.anyString(), Matchers.anyString())).thenReturn(region);
+
         Mockito.when(regionService.addRegion(anyInt(), anyString(), isNull())).thenReturn(region);
 
         addRegionCmd._regionService = regionService;
@@ -89,7 +88,7 @@ public class RegionCmdTest extends TestCase {
         RegionService regionService = Mockito.mock(RegionService.class);
 
         Region region = Mockito.mock(Region.class);
-        //Mockito.when(regionService.addRegion(anyInt(), anyString(), anyString())).thenReturn(null);
+
         Mockito.when(regionService.addRegion(anyInt(), anyString(), isNull())).thenReturn(null);
 
         addRegionCmd._regionService = regionService;
@@ -97,7 +96,7 @@ public class RegionCmdTest extends TestCase {
         try {
             addRegionCmd.execute();
         } catch (ServerApiException exception) {
-            Assert.assertEquals("Failed to add Region", exception.getDescription());
+            assertEquals("Failed to add Region", exception.getDescription());
         }
 
     }

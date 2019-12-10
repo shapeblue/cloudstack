@@ -16,9 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.test;
 
-//import static org.mockito.Matchers.anyLong;
-//import static org.mockito.Matchers.anyObject;
-//import static org.mockito.Matchers.anyString;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyObject;
@@ -40,7 +37,6 @@ import org.mockito.Mockito;
 import com.cloud.storage.ImageStore;
 import com.cloud.storage.StorageService;
 
-import junit.framework.Assert;
 import junit.framework.TestCase;
 
 public class AddSecondaryStorageCmdTest extends TestCase {
@@ -66,9 +62,6 @@ public class AddSecondaryStorageCmdTest extends TestCase {
 
         ImageStore store = Mockito.mock(ImageStore.class);
 
-//        Mockito.when(resourceService.discoverImageStore(anyString(), anyString(), anyString(), anyLong(), (Map)anyObject()))
-//                .thenReturn(store);
-
         Mockito.when(resourceService.discoverImageStore(isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(store);
         ResponseGenerator responseGenerator = Mockito.mock(ResponseGenerator.class);
         addImageStoreCmd._responseGenerator = responseGenerator;
@@ -76,7 +69,6 @@ public class AddSecondaryStorageCmdTest extends TestCase {
         ImageStoreResponse responseHost = new ImageStoreResponse();
         responseHost.setName("Test");
 
-        //Mockito.when(responseGenerator.createImageStoreResponse(store)).thenReturn(responseHost);
         Mockito.doReturn(responseHost).when(responseGenerator).createImageStoreResponse(store);
 
         addImageStoreCmd.execute();
@@ -84,9 +76,8 @@ public class AddSecondaryStorageCmdTest extends TestCase {
         Mockito.verify(responseGenerator).createImageStoreResponse(store);
 
         ImageStoreResponse actualResponse = (ImageStoreResponse)addImageStoreCmd.getResponseObject();
-
-        Assert.assertEquals(responseHost, actualResponse);
-        Assert.assertEquals("addimagestoreresponse", actualResponse.getResponseName());
+        assertEquals(responseHost, actualResponse);
+        assertEquals("addimagestoreresponse", actualResponse.getResponseName());
 
     }
 
@@ -102,7 +93,7 @@ public class AddSecondaryStorageCmdTest extends TestCase {
         try {
             addImageStoreCmd.execute();
         } catch (ServerApiException exception) {
-            Assert.assertEquals("Failed to add secondary storage", exception.getDescription());
+            assertEquals("Failed to add secondary storage", exception.getDescription());
         }
 
     }

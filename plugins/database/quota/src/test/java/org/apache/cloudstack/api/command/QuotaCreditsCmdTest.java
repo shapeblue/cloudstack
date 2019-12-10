@@ -58,12 +58,10 @@ public class QuotaCreditsCmdTest extends TestCase {
 
         cmd = new QuotaCreditsCmd();
 
-
     }
 
     @Test
     public void testQuotaCreditsCmd() throws NoSuchFieldException, IllegalAccessException {
-        //QuotaCreditsCmd cmd = new QuotaCreditsCmd();
         cmd.setAccountName("admin");
         cmd.setMinBalance(200.0);
 
@@ -82,9 +80,9 @@ public class QuotaCreditsCmdTest extends TestCase {
 
         AccountVO acc = new AccountVO();
         acc.setId(2L);
-        //Mockito.when(accountService.getActiveAccountByName(anyString(), anyLong())).thenReturn(acc);
+
         Mockito.when(accountService.getActiveAccountByName(nullable(String.class), nullable(Long.class))).thenReturn(acc);
-        //Mockito.when(responseBuilder.addQuotaCredits(anyLong(), anyLong(), anyDouble(), anyLong(), anyBoolean())).thenReturn(new QuotaCreditsResponse());
+
         Mockito.when(responseBuilder.addQuotaCredits(nullable(Long.class), nullable(Long.class), nullable(Double.class), nullable(Long.class), nullable(Boolean.class))).thenReturn(new QuotaCreditsResponse());
 
         // No value provided test

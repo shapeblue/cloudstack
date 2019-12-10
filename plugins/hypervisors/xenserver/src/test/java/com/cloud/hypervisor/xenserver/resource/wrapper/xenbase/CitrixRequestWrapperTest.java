@@ -145,7 +145,6 @@ import com.xensource.xenapi.Types.XenAPIException;
 import com.xensource.xenapi.VM;
 import com.xensource.xenapi.VMGuestMetrics;
 
-//@RunWith(MockitoJUnitRunner.class)
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(value = {Pool.Record.class})
 public class CitrixRequestWrapperTest {

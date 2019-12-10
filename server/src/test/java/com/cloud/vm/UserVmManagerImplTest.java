@@ -16,7 +16,6 @@
 // under the License.
 package com.cloud.vm;
 
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -28,6 +27,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.cloudstack.api.BaseCmd.HTTPMethod;
 import org.apache.cloudstack.api.command.user.vm.UpdateVMCmd;
@@ -69,7 +69,6 @@ import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.UserVmDetailsDao;
 
-//@RunWith(PowerMockRunner.class)
 @RunWith(MockitoJUnitRunner.class)
 public class UserVmManagerImplTest {
 
@@ -183,7 +182,6 @@ public class UserVmManagerImplTest {
         String name = "name";
         String displayText = "displayText";
         int cpu = 1;
-        //int ramSize = 256;
         int speed = 128;
 
         boolean ha = false;
@@ -196,16 +194,11 @@ public class UserVmManagerImplTest {
 
     @Test
     @PrepareForTest(CallContext.class)
-    //@PowerMockIgnore({"org.mockito.*"})
     public void validateInputsAndPermissionForUpdateVirtualMachineCommandTest() {
         Mockito.doNothing().when(userVmManagerImpl).validateGuestOsIdForUpdateVirtualMachineCommand(updateVmCommand);
 
         CallContext callContextMock = Mockito.mock(CallContext.class);
 
-        //PowerMockito.mockStatic(CallContext.class);
-        //PowerMockito.mock(CallContext.class);
-        //BDDMockito.given(CallContext.current()).willReturn(callContextMock);
-        //Mockito.when(callContextMock.getCallingAccount()).thenReturn(accountMock);
         Mockito.lenient().doReturn(accountMock).when(callContextMock).getCallingAccount();
 
         ServiceOffering offering = getSvcoffering(512);
@@ -310,14 +303,11 @@ public class UserVmManagerImplTest {
     private void verifyMethodsThatAreAlwaysExecuted() throws ResourceUnavailableException, InsufficientCapacityException {
         Mockito.verify(userVmManagerImpl).validateInputsAndPermissionForUpdateVirtualMachineCommand(updateVmCommand);
         Mockito.verify(userVmManagerImpl).getSecurityGroupIdList(updateVmCommand);
-        //Mockito.verify(userVmManagerImpl).updateVirtualMachine(Mockito.anyLong(), Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyLong(),
-                //Mockito.anyString(), Mockito.anyBoolean(), Mockito.any(HTTPMethod.class), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyListOf(Long.class),
-                //Mockito.anyMap());
 
-        Mockito.verify(userVmManagerImpl).updateVirtualMachine(Mockito.anyLong(), nullable(String.class), nullable(String.class), Mockito.anyBoolean(),
-                Mockito.anyBoolean(), Mockito.anyLong(),
-                nullable(String.class), Mockito.anyBoolean(), nullable(HTTPMethod.class), nullable(String.class), nullable(String.class), nullable(String.class), anyList(),
-                Mockito.anyMap());
+        Mockito.verify(userVmManagerImpl).updateVirtualMachine(nullable(Long.class), nullable(String.class), nullable(String.class), nullable(Boolean.class),
+                nullable(Boolean.class), nullable(Long.class),
+                nullable(String.class), nullable(Boolean.class), nullable(HTTPMethod.class), nullable(String.class), nullable(String.class), nullable(String.class), nullable(List.class),
+                nullable(Map.class));
 
     }
 

@@ -206,9 +206,7 @@ public class LibvirtReplugNicCommandWrapperTest {
 
     @Before
     public void setUp() throws Exception {
-        //Scanner scanner = new Scanner(memInfo);
         PowerMockito.mockStatic(Scanner.class);
-        //PowerMockito.whenNew(Scanner.class).withAnyArguments().thenReturn(scanner);
 
         // Use a spy because we only want to override getVifDriverClass
         LibvirtComputingResource resReal = new LibvirtComputingResource();
