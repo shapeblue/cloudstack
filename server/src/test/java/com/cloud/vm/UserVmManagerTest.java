@@ -230,7 +230,6 @@ public class UserVmManagerTest {
     @Mock
     private NetworkOrchestrationService _networkMgr;
 
-
     @Before
     public void setup() {
         doReturn(3L).when(_account).getId();

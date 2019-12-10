@@ -112,8 +112,6 @@ public class NetworkACLManagerTest extends TestCase {
     @Inject
     VpcGatewayDao _vpcGatewayDao;
 
-
-
     private NetworkACLVO acl;
     private NetworkACLItemVO aclItem;
 

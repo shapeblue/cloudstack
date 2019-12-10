@@ -55,16 +55,13 @@ public class QuotaCreditsCmdTest extends TestCase {
     @Override
     @Before
     public void setUp() {
-
         cmd = new QuotaCreditsCmd();
-
     }
 
     @Test
     public void testQuotaCreditsCmd() throws NoSuchFieldException, IllegalAccessException {
         cmd.setAccountName("admin");
         cmd.setMinBalance(200.0);
-
 
         Field rbField = QuotaCreditsCmd.class.getDeclaredField("_responseBuilder");
         rbField.setAccessible(true);
@@ -98,8 +95,6 @@ public class QuotaCreditsCmdTest extends TestCase {
         Mockito.verify(quotaService, Mockito.times(0)).setLockAccount(anyLong(), anyBoolean());
         Mockito.verify(quotaService, Mockito.times(1)).setMinBalance(anyLong(), anyDouble());
         Mockito.verify(responseBuilder, Mockito.times(1)).addQuotaCredits(nullable(Long.class), nullable(Long.class), nullable(Double.class), nullable(Long.class), nullable(Boolean.class));
-
-
     }
 
 }

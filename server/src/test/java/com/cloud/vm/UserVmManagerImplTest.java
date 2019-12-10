@@ -129,7 +129,6 @@ public class UserVmManagerImplTest {
     @Mock
     private UserVO callerUser;
 
-
     private long vmId = 1l;
 
     @Before
@@ -209,8 +208,6 @@ public class UserVmManagerImplTest {
         Mockito.verify(userVmManagerImpl).validateGuestOsIdForUpdateVirtualMachineCommand(updateVmCommand);
         Mockito.verify(accountManager).checkAccess(callerAccount, null, true, userVmVoMock);
     }
-
-
 
     @Test
     public void updateVirtualMachineTestDisplayChanged() throws ResourceUnavailableException, InsufficientCapacityException {

@@ -13,8 +13,6 @@
 
     <vm_instance type="User" id="8" account_id="1" domain_id="1" name="test" instance_name="test" state="destoyed" guest_os_id="1" service_offering_id="1" data_center_id="1" vnc_password="xyz"  vm_type="User" created="2019-01-01 00:00:01" removed="2018-01-01 00:00:01" />
 
-<!--<volumes id="16" removed="0"/>-->
-<!--<volumes id="17" removed="0"/>-->
     <volumes id="16" account_id="1" domain_id="1" size="1" data_center_id="1" volume_type="root" disk_offering_id="1" removed="2018-01-01 00:00:01"/>
     <volumes id="17" account_id="1" domain_id="1" size="1" data_center_id="1" volume_type="root" disk_offering_id="1" removed="2018-01-01 00:00:01"/>
 

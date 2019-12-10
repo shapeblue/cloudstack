@@ -243,8 +243,6 @@ public class ConfigDriveBuilderTest {
         vmData.add(new String[] {"dataType", "fileName", "content"});
         vmData.add(new String[] {"dataType2", "fileName2", "content2"});
 
-
-
         ConfigDriveBuilder.writeVmMetadata(vmData, "metadataFile", new File("folder"));
 
         PowerMockito.verifyStatic(ConfigDriveBuilder.class);

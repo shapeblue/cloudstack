@@ -124,7 +124,6 @@ public class AccountManagerImplTest extends AccountManagetImplTestBase {
         account.setId(42l);
         DomainVO domain = new DomainVO();
         Mockito.when(_accountDao.findById(42l)).thenReturn(account);
-        //Mockito.when(securityChecker.checkAccess(Mockito.any(Account.class), Mockito.any(ControlledEntity.class), Mockito.any(AccessType.class), Mockito.anyString())).thenReturn(true);
         Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.any(Account.class), Mockito.isNull(), Mockito.anyBoolean(), Mockito.any(Account.class));
         Mockito.when(_accountDao.remove(42l)).thenReturn(true);
         Mockito.when(_configMgr.releaseAccountSpecificVirtualRanges(42l)).thenReturn(true);
@@ -150,7 +149,6 @@ public class AccountManagerImplTest extends AccountManagetImplTestBase {
         account.setId(42l);
         DomainVO domain = new DomainVO();
         Mockito.when(_accountDao.findById(42l)).thenReturn(account);
-        //Mockito.when(securityChecker.checkAccess(Mockito.any(Account.class), Mockito.any(ControlledEntity.class), Mockito.any(AccessType.class), Mockito.anyString())).thenReturn(true);
         Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.any(Account.class), Mockito.isNull(), Mockito.anyBoolean(), Mockito.any(Account.class));
         Mockito.when(_accountDao.remove(42l)).thenReturn(true);
         Mockito.when(_configMgr.releaseAccountSpecificVirtualRanges(42l)).thenReturn(true);
@@ -253,7 +251,6 @@ public class AccountManagerImplTest extends AccountManagetImplTestBase {
         inOrder.verify(accountManagerImpl).validateAndUpdateLastNameIfNeeded(UpdateUserCmdMock, userVoMock);
         inOrder.verify(accountManagerImpl).validateAndUpdateUsernameIfNeeded(UpdateUserCmdMock, userVoMock, accountMock);
         inOrder.verify(accountManagerImpl).validateUserPasswordAndUpdateIfNeeded(UpdateUserCmdMock.getPassword(), userVoMock, UpdateUserCmdMock.getCurrentPassword());
-        //inOrder.verify(accountManagerImpl).validateUserPasswordAndUpdateIfNeeded(Mockito.anyString(), Mockito.eq(userVoMock), Mockito.anyString());
 
         inOrder.verify(userVoMock, Mockito.times(numberOfExpectedCallsForSetEmailAndSetTimeZone)).setEmail(Mockito.anyString());
         inOrder.verify(userVoMock, Mockito.times(numberOfExpectedCallsForSetEmailAndSetTimeZone)).setTimezone(Mockito.anyString());
@@ -348,23 +345,20 @@ public class AccountManagerImplTest extends AccountManagetImplTestBase {
         accountManagerImpl.retrieveAndValidateAccount(userVoMock);
     }
 
-    @Test//(expected = InvalidParameterValueException.class)
+    @Test
     public void retrieveAndValidateAccountTestAccountTypeEqualsProjectType() {
         Mockito.doReturn(accountMockId).when(userVoMock).getAccountId();
         Mockito.lenient().doReturn(Account.ACCOUNT_TYPE_PROJECT).when(accountMock).getType();
-        //Mockito.doReturn(accountMock).when(_accountDao).findById(accountMockId);
         Mockito.doReturn(callingAccount).when(_accountDao).findById(accountMockId);
         Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.any(Account.class), Mockito.any(AccessType.class), Mockito.anyBoolean(), Mockito.any(Account.class));
-
 
         accountManagerImpl.retrieveAndValidateAccount(userVoMock);
     }
 
-    @Test//(expected = PermissionDeniedException.class)
+    @Test
     public void retrieveAndValidateAccountTestAccountTypeEqualsSystemType() {
         Mockito.doReturn(Account.ACCOUNT_ID_SYSTEM).when(userVoMock).getAccountId();
         Mockito.doReturn(Account.ACCOUNT_ID_SYSTEM).when(accountMock).getId();
-        //Mockito.doReturn(accountMock).when(_accountDao).findById(Account.ACCOUNT_ID_SYSTEM);
         Mockito.doReturn(callingAccount).when(_accountDao).findById(Account.ACCOUNT_ID_SYSTEM);
 
         accountManagerImpl.retrieveAndValidateAccount(userVoMock);
@@ -373,7 +367,6 @@ public class AccountManagerImplTest extends AccountManagetImplTestBase {
     @Test
     public void retrieveAndValidateAccountTest() {
         Mockito.doReturn(accountMockId).when(userVoMock).getAccountId();
-        //Mockito.doReturn(accountMock).when(_accountDao).findById(accountMockId);
         Mockito.doReturn(callingAccount).when(_accountDao).findById(accountMockId);
 
         Mockito.doNothing().when(accountManagerImpl).checkAccess(Mockito.eq(accountMock), Mockito.eq(AccessType.OperateEntry), Mockito.anyBoolean(), Mockito.any(Account.class));
