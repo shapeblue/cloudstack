@@ -29,7 +29,6 @@ import com.cloud.agent.api.CheckNetworkCommand;
 import com.cloud.agent.api.CheckVirtualMachineAnswer;
 import com.cloud.agent.api.CheckVirtualMachineCommand;
 import com.cloud.agent.api.Command;
-import com.cloud.agent.api.HostVmStateReportEntry;
 import com.cloud.agent.api.MaintainAnswer;
 import com.cloud.agent.api.MaintainCommand;
 import com.cloud.agent.api.MigrateAnswer;
@@ -47,8 +46,6 @@ import com.cloud.agent.api.RebootCommand;
 import com.cloud.agent.api.SecurityGroupRulesCmd;
 import com.cloud.agent.api.StartAnswer;
 import com.cloud.agent.api.StartCommand;
-import com.cloud.agent.api.StartupCommand;
-import com.cloud.agent.api.StartupRoutingCommand;
 import com.cloud.agent.api.StopAnswer;
 import com.cloud.agent.api.StopCommand;
 import com.cloud.agent.api.UnPlugNicAnswer;
@@ -61,7 +58,6 @@ import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.baremetal.manager.BaremetalManager;
 import com.cloud.configuration.Config;
 import com.cloud.host.Host.Type;
-import com.cloud.hypervisor.Hypervisor;
 import com.cloud.resource.ServerResource;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.QueryBuilder;
@@ -75,17 +71,16 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.dao.VMInstanceDao;
+
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 
 import javax.naming.ConfigurationException;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class BareMetalResourceBase extends ManagerBase implements ServerResource {
+public abstract class BareMetalResourceBase extends ManagerBase implements ServerResource {
     private static final Logger s_logger = Logger.getLogger(BareMetalResourceBase.class);
     protected String _uuid;
     protected String _zone;
@@ -111,26 +106,47 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
     protected Script2 _forcePowerOffCommand;
     protected Script2 _bootOrRebootCommand;
     protected String _vmName;
+    protected String ipmiIface;
     protected int ipmiRetryTimes = 5;
     protected boolean provisionDoneNotificationOn = false;
     protected int isProvisionDoneNotificationTimeout = 1800;
 
-    protected ConfigurationDao configDao;
-    protected VMInstanceDao vmDao;
+    public long getMemCapacity() {
+        return _memCapacity;
+    }
 
+    public long getCpuCapacity() {
+        return _cpuCapacity;
+    }
 
-    @Override
-    public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
+    public long getCpuNum() {
+        return _cpuNum;
+    }
+
+    public String getMac() {
+        return _mac;
+    }
+
+    public boolean configure(String name, Map<String, Object> params, ConfigurationDao configDao, VMInstanceDao vmDao) throws ConfigurationException {
         setName(name);
+
+        if (params.keySet().size() == 0) {
+            return true;
+        }
+
         _uuid = (String) params.get("guid");
-        try {
-            _memCapacity = Long.parseLong((String) params.get(ApiConstants.MEMORY)) * 1024L * 1024L;
-            _cpuCapacity = Long.parseLong((String) params.get(ApiConstants.CPU_SPEED));
-            _cpuNum = Long.parseLong((String) params.get(ApiConstants.CPU_NUMBER));
-        } catch (NumberFormatException e) {
-            throw new ConfigurationException(String.format("Unable to parse number of CPU or memory capacity "
-                    + "or cpu capacity(cpu number = %1$s memCapacity=%2$s, cpuCapacity=%3$s", params.get(ApiConstants.CPU_NUMBER),
-                    params.get(ApiConstants.MEMORY), params.get(ApiConstants.CPU_SPEED)));
+
+        // MaaS Create Node
+        if (ApiConstants.BAREMETAL_MAAS_ACTION_CREATE.equals((String) params.get(ApiConstants.BAREMETAL_MAAS_ACTION))) {
+            try {
+                _memCapacity = Long.parseLong((String) params.get(ApiConstants.MEMORY)) * 1024L * 1024L;
+                _cpuCapacity = Long.parseLong((String) params.get(ApiConstants.CPU_SPEED));
+                _cpuNum = Long.parseLong((String) params.get(ApiConstants.CPU_NUMBER));
+            } catch (NumberFormatException e) {
+                throw new ConfigurationException(String.format("Unable to parse number of CPU or memory capacity "
+                        + "or cpu capacity(cpu number = %1$s memCapacity=%2$s, cpuCapacity=%3$s", params.get(ApiConstants.CPU_NUMBER),
+                        params.get(ApiConstants.MEMORY), params.get(ApiConstants.CPU_SPEED)));
+            }
         }
 
         _zone = (String) params.get("zone");
@@ -143,8 +159,6 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
         _password = (String) params.get(ApiConstants.PASSWORD);
         _vmName = (String) params.get("vmName");
         String echoScAgent = (String) params.get(BaremetalManager.EchoSecurityGroupAgent);
-        vmDao = (VMInstanceDao) params.get("vmDao");
-        configDao = (ConfigurationDao) params.get("configDao");
 
         if (_pod == null) {
             throw new ConfigurationException("Unable to get the pod");
@@ -158,13 +172,16 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
             throw new ConfigurationException("Unable to get the host address");
         }
 
-        if (_mac.equalsIgnoreCase("unknown")) {
-            throw new ConfigurationException("Unable to get the host mac address");
-        }
+        // MaaS Create Node
+        if (ApiConstants.BAREMETAL_MAAS_ACTION_CREATE.equals((String) params.get(ApiConstants.BAREMETAL_MAAS_ACTION))) {
+            if (_mac.equalsIgnoreCase("unknown")) {
+                throw new ConfigurationException("Unable to get the host mac address");
+            }
 
-        if (_mac.split(":").length != 6) {
-            throw new ConfigurationException("Wrong MAC format(" + _mac
-                    + "). It must be in format of for example 00:11:ba:33:aa:dd which is not case sensitive");
+            if (_mac.split(":").length != 6) {
+                throw new ConfigurationException("Wrong MAC format(" + _mac
+                        + "). It must be in format of for example 00:11:ba:33:aa:dd which is not case sensitive");
+            }
         }
 
         if (_uuid == null) {
@@ -175,24 +192,25 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
             _isEchoScAgent = Boolean.valueOf(echoScAgent);
         }
 
-        String ipmiIface = "default";
-        try {
-            ipmiIface = configDao.getValue(Config.BaremetalIpmiLanInterface.key());
-        } catch (Exception e) {
-            s_logger.debug(e.getMessage(), e);
-        }
+        if (configDao != null) {
+            try {
+                ipmiIface = configDao.getValue(Config.BaremetalIpmiLanInterface.key());
+            } catch (Exception e) {
+                s_logger.debug(e.getMessage(), e);
+            }
 
-        try {
-            ipmiRetryTimes = Integer.parseInt(configDao.getValue(Config.BaremetalIpmiRetryTimes.key()));
-        } catch (Exception e) {
-            s_logger.debug(e.getMessage(), e);
-        }
+            try {
+                ipmiRetryTimes = Integer.parseInt(configDao.getValue(Config.BaremetalIpmiRetryTimes.key()));
+            } catch (Exception e) {
+                s_logger.debug(e.getMessage(), e);
+            }
 
-        try {
-            provisionDoneNotificationOn = Boolean.valueOf(configDao.getValue(Config.BaremetalProvisionDoneNotificationEnabled.key()));
-            isProvisionDoneNotificationTimeout = Integer.parseInt(configDao.getValue(Config.BaremetalProvisionDoneNotificationTimeout.key()));
-        } catch (Exception e) {
-            s_logger.debug(e.getMessage(), e);
+            try {
+                provisionDoneNotificationOn = Boolean.valueOf(configDao.getValue(Config.BaremetalProvisionDoneNotificationEnabled.key()));
+                isProvisionDoneNotificationTimeout = Integer.parseInt(configDao.getValue(Config.BaremetalProvisionDoneNotificationTimeout.key()));
+            } catch (Exception e) {
+                s_logger.debug(e.getMessage(), e);
+            }
         }
 
         String injectScript = "scripts/util/ipmi.py";
@@ -281,6 +299,16 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
         return true;
     }
 
+    @Override
+    public Type getType() {
+        return com.cloud.host.Host.Type.Routing;
+    }
+
+    @Override
+    public void disconnected() {
+
+    }
+
     protected boolean doScript(Script cmd) {
         return doScript(cmd, null);
     }
@@ -320,94 +348,8 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
         return false;
     }
 
-    @Override
-    public boolean start() {
-        return true;
-    }
-
-    @Override
-    public boolean stop() {
-        return true;
-    }
-
-    @Override
-    public Type getType() {
-        return com.cloud.host.Host.Type.Routing;
-    }
-
-    protected Map<String, HostVmStateReportEntry> getHostVmStateReport() {
-        Map<String, HostVmStateReportEntry> states = new HashMap<String, HostVmStateReportEntry>();
-        if (hostId != null) {
-            final List<? extends VMInstanceVO> vms = vmDao.listByHostId(hostId);
-            for (VMInstanceVO vm : vms) {
-                states.put(
-                    vm.getInstanceName(),
-                    new HostVmStateReportEntry(
-                        vm.getPowerState(), "host-" + hostId
-                    )
-                );
-            }
-        }
-        return states;
-    }
-
-    @Override
-    public StartupCommand[] initialize() {
-        StartupRoutingCommand cmd = new StartupRoutingCommand(0, 0, 0, 0, null, Hypervisor.HypervisorType.BareMetal,
-            new HashMap<String, String>());
-
-        cmd.setDataCenter(_zone);
-        cmd.setPod(_pod);
-        cmd.setCluster(_cluster);
-        cmd.setGuid(_uuid);
-        cmd.setName(_ip);
-        cmd.setPrivateIpAddress(_ip);
-        cmd.setStorageIpAddress(_ip);
-        cmd.setVersion(BareMetalResourceBase.class.getPackage().getImplementationVersion());
-        cmd.setCpus((int) _cpuNum);
-        cmd.setSpeed(_cpuCapacity);
-        cmd.setMemory(_memCapacity);
-        cmd.setPrivateMacAddress(_mac);
-        cmd.setPublicMacAddress(_mac);
-        return new StartupCommand[] { cmd };
-    }
-
-    private boolean ipmiPing() {
+    protected boolean ipmiPing() {
         return doScript(_pingCommand);
-    }
-
-    @Override
-    public PingCommand getCurrentStatus(long id) {
-        try {
-            if (!ipmiPing()) {
-                Thread.sleep(1000);
-                if (!ipmiPing()) {
-                    s_logger.warn("Cannot ping ipmi nic " + _ip);
-                    return null;
-                }
-            }
-        } catch (Exception e) {
-            s_logger.debug("Cannot ping ipmi nic " + _ip, e);
-            return null;
-        }
-
-        return new PingRoutingCommand(getType(), id, null);
-
-            /*
-        if (hostId != null) {
-            final List<? extends VMInstanceVO> vms = vmDao.listByHostId(hostId);
-            if (vms.isEmpty()) {
-                return new PingRoutingCommand(getType(), id, null);
-            } else {
-                VMInstanceVO vm = vms.get(0);
-                SecurityGroupHttpClient client = new SecurityGroupHttpClient();
-                HashMap<String, Pair<Long, Long>> nwGrpStates = client.sync(vm.getInstanceName(), vm.getId(), vm.getPrivateIpAddress());
-                return new PingRoutingWithNwGroupsCommand(getType(), id, null, nwGrpStates);
-            }
-        } else {
-            return new PingRoutingCommand(getType(), id, null);
-        }
-            */
     }
 
     protected Answer execute(IpmISetBootDevCommand cmd) {
@@ -476,48 +418,6 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
 
     protected UnPlugNicAnswer execute(UnPlugNicCommand cmd) {
         return new UnPlugNicAnswer(cmd, false, "Adding NIC not suppored");
-    }
-
-    @Override
-    public Answer executeRequest(Command cmd) {
-        try {
-            if (cmd instanceof ReadyCommand) {
-                return execute((ReadyCommand) cmd);
-            } else if (cmd instanceof StartCommand) {
-                return execute((StartCommand) cmd);
-            } else if (cmd instanceof StopCommand) {
-                return execute((StopCommand) cmd);
-            } else if (cmd instanceof RebootCommand) {
-                return execute((RebootCommand) cmd);
-            } else if (cmd instanceof IpmISetBootDevCommand) {
-                return execute((IpmISetBootDevCommand) cmd);
-            } else if (cmd instanceof MaintainCommand) {
-                return execute((MaintainCommand) cmd);
-            } else if (cmd instanceof PrepareForMigrationCommand) {
-                return execute((PrepareForMigrationCommand) cmd);
-            } else if (cmd instanceof MigrateCommand) {
-                return execute((MigrateCommand) cmd);
-            } else if (cmd instanceof CheckVirtualMachineCommand) {
-                return execute((CheckVirtualMachineCommand) cmd);
-            } else if (cmd instanceof IpmiBootorResetCommand) {
-                return execute((IpmiBootorResetCommand) cmd);
-            } else if (cmd instanceof SecurityGroupRulesCmd) {
-                return execute((SecurityGroupRulesCmd) cmd);
-            } else if (cmd instanceof CheckNetworkCommand) {
-                return execute((CheckNetworkCommand) cmd);
-            } else if (cmd instanceof DestroyCommand) {
-                return execute((DestroyCommand) cmd);
-            } else if (cmd instanceof PlugNicCommand) {
-                return execute((PlugNicCommand) cmd);
-            } else if (cmd instanceof UnPlugNicCommand) {
-                return execute((UnPlugNicCommand) cmd);
-            } else {
-                return Answer.createUnsupportedCommandAnswer(cmd);
-            }
-        } catch (Throwable t) {
-            s_logger.debug(t.getMessage(), t);
-            return new Answer(cmd, false, t.getMessage());
-        }
     }
 
     protected boolean isPowerOn(String str) {
@@ -654,11 +554,6 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
     }
 
     @Override
-    public void disconnected() {
-
-    }
-
-    @Override
     public IAgentControl getAgentControl() {
         return _agentControl;
     }
@@ -668,4 +563,79 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
         _agentControl = agentControl;
     }
 
+    @Override
+    public Answer executeRequest(Command cmd) {
+        try {
+            if (cmd instanceof ReadyCommand) {
+                return execute((ReadyCommand) cmd);
+            } else if (cmd instanceof StartCommand) {
+                return execute((StartCommand) cmd);
+            } else if (cmd instanceof StopCommand) {
+                return execute((StopCommand) cmd);
+            } else if (cmd instanceof RebootCommand) {
+                return execute((RebootCommand) cmd);
+            } else if (cmd instanceof IpmISetBootDevCommand) {
+                return execute((IpmISetBootDevCommand) cmd);
+            } else if (cmd instanceof MaintainCommand) {
+                return execute((MaintainCommand) cmd);
+            } else if (cmd instanceof PrepareForMigrationCommand) {
+                return execute((PrepareForMigrationCommand) cmd);
+            } else if (cmd instanceof MigrateCommand) {
+                return execute((MigrateCommand) cmd);
+            } else if (cmd instanceof CheckVirtualMachineCommand) {
+                return execute((CheckVirtualMachineCommand) cmd);
+            } else if (cmd instanceof IpmiBootorResetCommand) {
+                return execute((IpmiBootorResetCommand) cmd);
+            } else if (cmd instanceof SecurityGroupRulesCmd) {
+                return execute((SecurityGroupRulesCmd) cmd);
+            } else if (cmd instanceof CheckNetworkCommand) {
+                return execute((CheckNetworkCommand) cmd);
+            } else if (cmd instanceof DestroyCommand) {
+                return execute((DestroyCommand) cmd);
+            } else if (cmd instanceof PlugNicCommand) {
+                return execute((PlugNicCommand) cmd);
+            } else if (cmd instanceof UnPlugNicCommand) {
+                return execute((UnPlugNicCommand) cmd);
+            } else {
+                return Answer.createUnsupportedCommandAnswer(cmd);
+            }
+        } catch (Throwable t) {
+            s_logger.debug(t.getMessage(), t);
+            return new Answer(cmd, false, t.getMessage());
+        }
+    }
+
+    @Override
+    public PingCommand getCurrentStatus(long id) {
+        try {
+            if (!ipmiPing()) {
+                Thread.sleep(1000);
+                if (!ipmiPing()) {
+                    s_logger.warn("Cannot ping ipmi nic " + _ip);
+                    return null;
+                }
+            }
+        } catch (Exception e) {
+            s_logger.debug("Cannot ping ipmi nic " + _ip, e);
+            return null;
+        }
+
+        return new PingRoutingCommand(getType(), id, null);
+
+            /*
+        if (hostId != null) {
+            final List<? extends VMInstanceVO> vms = vmDao.listByHostId(hostId);
+            if (vms.isEmpty()) {
+                return new PingRoutingCommand(getType(), id, null);
+            } else {
+                VMInstanceVO vm = vms.get(0);
+                SecurityGroupHttpClient client = new SecurityGroupHttpClient();
+                HashMap<String, Pair<Long, Long>> nwGrpStates = client.sync(vm.getInstanceName(), vm.getId(), vm.getPrivateIpAddress());
+                return new PingRoutingWithNwGroupsCommand(getType(), id, null, nwGrpStates);
+            }
+        } else {
+            return new PingRoutingCommand(getType(), id, null);
+        }
+            */
+    }
 }

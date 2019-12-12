@@ -195,7 +195,7 @@ public class BrocadeFastIronBaremetalSwitchBackend implements BaremetalSwitchBac
 
                 curCmd++;
                 curIdx = 0;
-                System.out.println("Sending " + cmd);
+                s_logger.info("[BrocadeSwitchCmd] " + cmd);
             }
 
             return (int)ch;

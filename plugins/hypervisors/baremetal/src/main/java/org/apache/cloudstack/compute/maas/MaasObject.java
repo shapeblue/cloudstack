@@ -37,20 +37,32 @@ public class MaasObject {
 
     public static class MaasConnection {
 
+        public String scheme;
         public String ip;
+        public int port;
         public String key;
         public String secret;
         public String consumerKey;
 
-        public MaasConnection(String ip, String key, String secret, String consumerKey) {
+        public MaasConnection(String scheme, String ip, int port, String key, String secret, String consumerKey) {
+            this.scheme = scheme;
             this.ip = ip;
+            this.port = port;
             this.key = key;
             this.secret = secret;
             this.consumerKey = consumerKey;
         }
 
+        public String getScheme() {
+            return scheme;
+        }
+
         public String getIp() {
             return ip;
+        }
+
+        public int getPort() {
+            return port;
         }
 
         public String getKey() {
@@ -82,11 +94,55 @@ public class MaasObject {
         @SerializedName("status_name")
         public String statusName;
 
+        @SerializedName("cpu_count")
+        public Integer cpuCount;
+
+        @SerializedName("cpu_speed")
+        public Long cpuSpeed;
+
+        @SerializedName("memory")
+        public Long memory;
+
+        @SerializedName("storage")
+        public Double storage;
+
         @SerializedName("boot_interface")
         public MaasInterface bootInterface;
 
         @SerializedName("interface_set")
         public MaasInterface[] interfaceSet;
+
+        public String getSystemId() {
+            return systemId;
+        }
+
+        public String getStatusName() {
+            return statusName;
+        }
+
+        public Integer getCpuCount() {
+            return cpuCount;
+        }
+
+        public Long getCpuSpeed() {
+            return cpuSpeed;
+        }
+
+        public Long getMemory() {
+            return memory;
+        }
+
+        public Double getStorage() {
+            return storage;
+        }
+
+        public MaasInterface getBootInterface() {
+            return bootInterface;
+        }
+
+        public MaasInterface[] getInterfaceSet() {
+            return interfaceSet;
+        }
     }
 
     public class MaasInterface {
@@ -269,5 +325,18 @@ public class MaasObject {
             this.parents = parents;
             this.systemId = systemId;
         }
+    }
+
+        public static class RackController {
+        @SerializedName("system_id")
+        String systemId;
+    }
+
+    public static class BootImage {
+        String name;
+    }
+
+    public static class ListImagesResponse {
+        List<BootImage> images;
     }
 }

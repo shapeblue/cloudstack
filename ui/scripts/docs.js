@@ -228,6 +228,14 @@ cloudStack.docs = {
         desc: 'The vCenter datacenter that the cluster is in. For example, cloud.dc.VM',
         externalLink: ''
     },
+    helpClusterBaremetalMaaSHost: {
+    	desc: 'The hostname or IP address of the MaaS server',
+    	externalLink: ''
+    },
+    helpClusterBaremetalMaaSKey: {
+    	desc: 'Administrator API key to access MaaS server',
+    	externalLink: ''
+    },
     // Add compute offering
     helpComputeOfferingName: {
         desc: 'Any desired name for the offering',
