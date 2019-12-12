@@ -14719,7 +14719,29 @@
                                                 $nexusDvsOptFields.hide();
                                                 $nexusDvsReqFields.hide();
                                             }
-                                        } else {
+                                        } else if ($form.find('.form-item[rel=hypervisor] select').val() == 'BareMetal') {
+                                            //Baremetal (MaaS)
+                                            var isMaas = false;
+                                            $.ajax({
+                                                url: createURL('listConfigurations'),
+                                                data: {
+                                                    name: 'external.baremetal.resource.classname'
+                                                },
+                                                async: false,
+                                                success: function(json) {
+                                                    if (json.listconfigurationsresponse.configuration[0].value == 'org.apache.cloudstack.compute.maas.MaasResourceProvider') {
+                                                        isMaas = true;
+                                                    }
+                                                }
+                                            });
+
+                                            if (isMaas) {
+                                                $form.find('.form-item[rel=baremetalMaasHost]').css('display', 'inline-block');
+                                                $form.find('.form-item[rel=baremetalMaasKey]').css('display', 'inline-block');
+                                            }
+                                        }
+                                        
+                                        if ($form.find('.form-item[rel=hypervisor] select').val() != 'VMware') {
                                             //XenServer, KVM, etc (non-VMware)
                                             $form.find('.form-item[rel=vCenterHost]').css('display', 'none');
                                             $form.find('.form-item[rel=vCenterUsername]').css('display', 'none');
@@ -14729,8 +14751,13 @@
 
                                             $form.find('.form-item[rel=overridepublictraffic]').css('display', 'none');
                                             $form.find('.form-item[rel=overrideguesttraffic]').css('display', 'none');
+
                                             $nexusDvsOptFields.hide();
                                             $nexusDvsReqFields.hide();
+                                        }
+                                        if ($form.find('.form-item[rel=hypervisor] select').val() != 'BareMetal') {
+                                            $form.find('.form-item[rel=baremetalMaasHost]').css('display', 'none');
+                                            $form.find('.form-item[rel=baremetalMaasKey]').css('display', 'none');
                                         }
 
                                         if ($form.find('.form-item[rel=overridepublictraffic]').css('display') != 'none' && $overridePublicTraffic.is(':checked')) {
@@ -15133,8 +15160,28 @@
                                         },
                                         isPassword: true,
                                         isHidden: true
-                                    }
+                                    },
                                     //hypervisor==VMWare ends here
+
+                                    //hypervisor==Baremetal begins here
+                                    baremetalMaasHost: {
+                                        label: 'label.baremetal.cluster.maas.host',
+                                        validation: {
+                                            required: true
+                                        },
+                                        isHidden: true,
+                                        docID: 'helpClusterBaremetalMaaSHost'
+                                    },
+                                    baremetalMaasKey: {
+                                    	label: 'label.baremetal.cluster.maas.key',
+                                        validation: {
+                                            required: true
+                                        },
+                                        isHidden: true,
+                                        docID: 'helpClusterBaremetalMaaSKey',
+                                        isPassword: true
+                                    },
+                                    //hypervisor==Baremetal ends here
                                 }
                             },
 
@@ -15229,6 +15276,15 @@
 
                                     clusterName = hostname + "/" + dcName + "/" + clusterName; //override clusterName
                                 }
+                                if (args.data.hypervisor == "BareMetal") {
+                                    if (args.$form.find('.form-item[rel=baremetalMaasHost]').css('display') != 'none' && args.data.baremetalMaasHost != "") {
+                                        array1.push("&baremetalmaashost=" + args.data.baremetalMaasHost);
+                                    }
+                                    if (args.$form.find('.form-item[rel=baremetalMaasKey]').css('display') != 'none' && args.data.baremetalMaasKey != "") {
+                                        array1.push("&baremetalmaaskey=" + args.data.baremetalMaasKey);
+                                    }
+                                }
+                                
                                 array1.push("&clustername=" + encodeURIComponent(clusterName));
                                 var clusterId = null;
                                 $.ajax({
@@ -15784,12 +15840,24 @@
                         tabs: {
                             details: {
                                 title: 'label.details',
-                                fields:[ {
+                                preFilter: function(args) {
+                                    // don't show baremetal related fields on other hypervisor types
+                                    if (args.context.clusters[0].hypervisortype != 'BareMetal') {
+                                        return ['baremetaltype', 'baremetalmaashost'];
+                                    }
+
+                                    // Baremetal - MaaS (do not filter required fileds)
+                                    if ( typeof args.context.clusters[0].resourcedetails.baremetalMaasHost !== 'undefined') {
+                                        return [];
+                                    }
+
+                                    return ['baremetaltype', 'baremetalmaashost'];
+                                },
+                                fields:[{
                                     name: {
                                         label: 'label.name'
                                     }
-                                },
-                                {
+                                }, {
                                     id: {
                                         label: 'label.id'
                                     },
@@ -15809,6 +15877,13 @@
                                     //managedstate: { label: 'Managed State' },
                                     state: {
                                         label: 'label.state'
+                                    }
+                                }, {
+                                    baremetaltype: {
+                                        label: 'label.baremetal.cluster.type'
+                                    },
+                                    baremetalmaashost: {
+                                        label: 'label.baremetal.cluster.maas.host'
                                     }
                                 }, {
                                     isdedicated: {
@@ -15837,15 +15912,24 @@
                                                                 isdedicated: _l('label.yes')
                                                             });
                                                         }
-                                                    } else
+                                                    }
                                                     $.extend(item, {
                                                         isdedicated: _l('label.no')
-                                                    })
+                                                    });
                                                 },
                                                 error: function (json) {
                                                     args.response.error(parseXMLHttpResponse(XMLHttpResponse));
                                                 }
                                             });
+
+                                            // Bartemetal - MaaS
+                                            if (typeof item.resourcedetails.baremetalMaasHost !== 'undefined') {
+                                                $.extend(item, {
+                                                    baremetaltype: 'MaaS',
+                                                    baremetalmaashost: item.resourcedetails.baremetalMaasHost
+                                                });
+                                            }
+
                                             args.response.success({
                                                 actionFilter: clusterActionfilter,
                                                 data: item
@@ -16340,6 +16424,8 @@
                                                     $form.find('.form-item[rel=vcenterHost]').css('display', 'inline-block');
 
                                                     //$('li[input_group="baremetal"]', $dialogAddHost).hide();
+                                                    $form.find('.form-item[rel=baremetalActionType]').hide();
+                                                    $form.find('.form-item[rel=baremetalUniqueId]').hide();
                                                     $form.find('.form-item[rel=baremetalCpuCores]').hide();
                                                     $form.find('.form-item[rel=baremetalCpu]').hide();
                                                     $form.find('.form-item[rel=baremetalMemory]').hide();
@@ -16363,10 +16449,40 @@
                                                     $form.find('.form-item[rel=password]').css('display', 'inline-block');
 
                                                     //$('li[input_group="baremetal"]', $dialogAddHost).show();
-                                                    $form.find('.form-item[rel=baremetalCpuCores]').css('display', 'inline-block');
-                                                    $form.find('.form-item[rel=baremetalCpu]').css('display', 'inline-block');
-                                                    $form.find('.form-item[rel=baremetalMemory]').css('display', 'inline-block');
-                                                    $form.find('.form-item[rel=baremetalMAC]').css('display', 'inline-block');
+                                                    if (typeof selectedClusterObj.resourcedetails.baremetalMaasHost !== 'undefined') {
+                                                        $form.find('.form-item[rel=baremetalActionType]').css('display', 'inline-block');
+                                                        $form.find('.form-item[rel=baremetalActionType] select').change(function () {
+                                                            var actionType = $(this).val();
+                                                            if (actionType == null) {
+                                                                return;
+                                                            }
+
+                                                            if (actionType == 'baremetalmaasimport') {
+                                                                $form.find('.form-item[rel=baremetalUniqueId]').css('display', 'inline-block');
+
+                                                                $form.find('.form-item[rel=baremetalCpuCores]').css('display', 'none');
+                                                                $form.find('.form-item[rel=baremetalCpu]').css('display', 'none');
+                                                                $form.find('.form-item[rel=baremetalMemory]').css('display', 'none');
+                                                                $form.find('.form-item[rel=baremetalMAC]').css('display', 'none');
+                                                            } else if (actionType == 'baremetalmaascreate') {
+                                                                $form.find('.form-item[rel=baremetalUniqueId]').css('display', 'none');
+
+                                                                $form.find('.form-item[rel=baremetalCpuCores]').css('display', 'inline-block');
+                                                                $form.find('.form-item[rel=baremetalCpu]').css('display', 'inline-block');
+                                                                $form.find('.form-item[rel=baremetalMemory]').css('display', 'inline-block');
+                                                                $form.find('.form-item[rel=baremetalMAC]').css('display', 'inline-block');
+                                                            }
+                                                        });
+
+                                                        $form.find('.form-item[rel=baremetalActionType] select').trigger('change');
+                                                    } else {
+                                                        $form.find('.form-item[rel=baremetalActionType]').css('display', 'none');
+                                                        $form.find('.form-item[rel=baremetalUniqueId]').css('display', 'none');
+                                                        $form.find('.form-item[rel=baremetalCpuCores]').css('display', 'inline-block');
+                                                        $form.find('.form-item[rel=baremetalCpu]').css('display', 'inline-block');
+                                                        $form.find('.form-item[rel=baremetalMemory]').css('display', 'inline-block');
+                                                        $form.find('.form-item[rel=baremetalMAC]').css('display', 'inline-block');
+                                                    }
 
                                                     //$('li[input_group="vmware"]', $dialogAddHost).hide();
                                                     $form.find('.form-item[rel=vcenterHost]').hide();
@@ -16392,6 +16508,8 @@
                                                     $form.find('.form-item[rel=vcenterHost]').hide();
 
                                                     //$('li[input_group="baremetal"]', $dialogAddHost).hide();
+                                                    $form.find('.form-item[rel=baremetalActionType]').hide();
+                                                    $form.find('.form-item[rel=baremetalUniqueId]').hide();
                                                     $form.find('.form-item[rel=baremetalCpuCores]').hide();
                                                     $form.find('.form-item[rel=baremetalCpu]').hide();
                                                     $form.find('.form-item[rel=baremetalMemory]').hide();
@@ -16419,6 +16537,8 @@
                                                     $form.find('.form-item[rel=vcenterHost]').hide();
 
                                                     //$('li[input_group="baremetal"]', $dialogAddHost).hide();
+                                                    $form.find('.form-item[rel=baremetalActionType]').hide();
+                                                    $form.find('.form-item[rel=baremetalUniqueId]').hide();
                                                     $form.find('.form-item[rel=baremetalCpuCores]').hide();
                                                     $form.find('.form-item[rel=baremetalCpu]').hide();
                                                     $form.find('.form-item[rel=baremetalMemory]').hide();
@@ -16443,6 +16563,8 @@
                                                     $form.find('.form-item[rel=vcenterHost]').hide();
 
                                                     //$('li[input_group="baremetal"]', $dialogAddHost).hide();
+                                                    $form.find('.form-item[rel=baremetalActionType]').hide();
+                                                    $form.find('.form-item[rel=baremetalUniqueId]').hide();
                                                     $form.find('.form-item[rel=baremetalCpuCores]').hide();
                                                     $form.find('.form-item[rel=baremetalCpu]').hide();
                                                     $form.find('.form-item[rel=baremetalMemory]').hide();
@@ -16563,6 +16685,31 @@
                                     //input_group="VMWare" ends here
 
                                     //input_group="BareMetal" starts here
+                                    baremetalActionType: {
+                                        label: 'label.baremetal.maas.host.action.type',
+                                        validation: {
+                                            required: true
+                                        },
+                                        select: function(args) {
+                                            args.response.success({
+                                                data: [{
+                                                    id: "baremetalmaasimport",
+                                                    description: "label.baremetal.maas.host.action.import"
+                                                }, {
+                                                    id: "baremetalmaascreate",
+                                                    description: "label.baremetal.maas.host.action.create"
+                                                }]
+                                            });
+                                        },
+                                        isHidden: true
+                                    },
+                                    baremetalUniqueId: {
+                                        label: 'label.baremetal.host.unique.id',
+                                        validation: {
+                                            required: true
+                                        },
+                                        isHidden: true
+                                    },
                                     baremetalCpuCores: {
                                         label: 'label.num.cpu.cores',
                                         validation: {
@@ -16666,6 +16813,7 @@
                             },
 
                             action: function (args) {
+                                var apiEndpoint = "addHost";
                                 var data = {
                                     zoneid: args.data.zoneid,
                                     podid: args.data.podId,
@@ -16683,9 +16831,11 @@
 
                                     var hostname = args.data.vcenterHost;
                                     var url;
-                                    if (hostname.indexOf("http://") == -1)
-                                    url = "http://" + hostname; else
-                                    url = hostname;
+                                    if (hostname.indexOf("http://") == -1) {
+                                        url = "http://" + hostname;
+                                    } else {
+                                        url = hostname;
+                                    }
 
                                     $.extend(data, {
                                         url: url
@@ -16698,21 +16848,42 @@
 
                                     var hostname = args.data.hostname;
                                     var url;
-                                    if (hostname.indexOf("http://") == -1)
-                                    url = "http://" + hostname; else
-                                    url = hostname;
+                                    if (hostname.indexOf("http://") == -1) {
+                                        url = "http://" + hostname;
+                                    } else {
+                                        url = hostname;
+                                    }
 
                                     $.extend(data, {
                                         url: url
                                     });
 
                                     if (selectedClusterObj.hypervisortype == "BareMetal") {
-                                        $.extend(data, {
-                                            cpunumber: args.data.baremetalCpuCores,
-                                            cpuspeed: args.data.baremetalCpu,
-                                            memory: args.data.baremetalMemory,
-                                            hostmac: args.data.baremetalMAC
-                                        });
+                                        apiEndpoint = "addBaremetalHost";
+                                        // MaaS-only Action
+                                        if (typeof args.data.baremetalActionType !== 'undefined') {
+                                            $.extend(data, {
+                                                baremetalmaasaction: args.data.baremetalActionType
+                                            });
+                                        }
+
+                                        // MaaS-only import
+                                        if (typeof args.data.baremetalActionType !== 'undefined' && args.data.baremetalActionType == 'baremetalmaasimport') {
+                                            $.extend(data, {
+                                                baremetalmaas: true,
+                                                baremetalmaasnodeid: args.data.baremetalUniqueId
+                                            });
+                                        }
+
+                                        // Maas Create OR Generic Baremetal
+                                        else {
+                                            $.extend(data, {
+                                                cpunumber: args.data.baremetalCpuCores,
+                                                cpuspeed: args.data.baremetalCpu,
+                                                memory: args.data.baremetalMemory,
+                                                hostmac: args.data.baremetalMAC
+                                            });
+                                        }
                                     } else if (selectedClusterObj.hypervisortype == "Ovm") {
                                         $.extend(data, {
                                             agentusername: args.data.agentUsername,
@@ -16729,7 +16900,7 @@
 
                                 var hostId = null;
                                 $.ajax({
-                                    url: createURL("addHost"),
+                                    url: createURL(apiEndpoint),
                                     type: "POST",
                                     data: data,
                                     success: function (json) {

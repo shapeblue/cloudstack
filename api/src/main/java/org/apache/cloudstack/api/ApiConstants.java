@@ -618,6 +618,17 @@ public class ApiConstants {
     public static final String AUTOSCALE_USER_ID = "autoscaleuserid";
     public static final String BAREMETAL_DISCOVER_NAME = "baremetaldiscovername";
     public static final String BAREMETAL_RCT_URL = "baremetalrcturl";
+    public static final String BAREMETAL_MAAS = "baremetalmaas";
+    public static final String BAREMETAL_MAAS_ACTION = "baremetalmaasaction";
+    public static final String BAREMETAL_MAAS_ACTION_CREATE = "baremetalmaascreate";
+    public static final String BAREMETAL_MAAS_ACTION_IMPORT = "baremetalmaasimport";
+    public static final String BAREMETAL_MAAS_HOST = "baremetalmaashost";
+    public static final String BAREMETAL_MAAS_KEY = "baremetalmaaskey";
+    public static final String BAREMETAL_MAAS_NODE_ID = "baremetalmaasnodeid";
+    public static final String BAREMETAL_MAAS_CPU_COUNT = "baremetalmaascpucount";
+    public static final String BAREMETAL_MAAS_CPU_SPEED = "baremetalmaascpuspeed";
+    public static final String BAREMETAL_MAAS_MEMORY = "baremetalmaasmemory";
+    public static final String BAREMETAL_MAAS_STORAGE = "baremetalmaasstorage";
     public static final String UCS_DN = "ucsdn";
     public static final String GSLB_PROVIDER = "gslbprovider";
     public static final String EXCLUSIVE_GSLB_PROVIDER = "isexclusivegslbprovider";

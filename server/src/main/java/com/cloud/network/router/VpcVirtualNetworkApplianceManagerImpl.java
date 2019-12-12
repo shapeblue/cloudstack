@@ -211,7 +211,7 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
     protected boolean setupVpcGuestNetwork(final Network network, final VirtualRouter router, final boolean add, final NicProfile guestNic) throws ConcurrentOperationException,
     ResourceUnavailableException {
 
-        boolean result = true;
+       boolean result = true;
         if (router.getState() == State.Running) {
             final SetupGuestNetworkCommand setupCmd = _commandSetupHelper.createSetupGuestNetworkCommand((DomainRouterVO) router, add, guestNic);
 

@@ -62,7 +62,7 @@ public class MaasApiClient {
     private static final String HEADER_ACCEPT = "Accept";
     private static final String HEADER_VALUE_JSON = "application/json";
     private static final String HEADER_VALUE_FORM = "application/x-www-form-urlencoded";
-    private static final int DEFAULT_HTTP_PORT = 80;
+    private static final int DEFAULT_HTTP_PORT = -1;
     private static final String HTTP_HEADER_AUTHORIZATION = "Authorization";
     private static final int DEFAULT_TIMEOUT_SEC = 600;
     private static final int POLL_TIMEOUT_SEC = 2; //2s single pool timeout
@@ -70,16 +70,17 @@ public class MaasApiClient {
     private static final String API_PREFIX = "/MAAS/api/2.0";
     private static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     private static final String HEADER_VALUE_TEXT_PLAIN = "text/plain";
-    private static final String MODE_DHCP = "dhcp";
+    private static final String MODE_DHCP = "DHCP";
+    private static final String MODE_LINK_UP = "LINK_UP";
     private static final String ENCODING_UTF8 = "UTF-8";
 
 
     private final int timeout;
     private final MaasObject.MaasConnection conn;
 
-    public MaasApiClient(String ip, String key, String secret, String consumerKey, int timeoutSec) {
+    public MaasApiClient(String scheme, String ip, Integer port, String key, String secret, String consumerKey, int timeoutSec) {
 
-        this.conn = new MaasObject.MaasConnection(ip, key, secret, consumerKey);
+        this.conn = new MaasObject.MaasConnection((scheme != null ? scheme : SCHEME_HTTP), ip, (port != null ? port : DEFAULT_HTTP_PORT), key, secret, consumerKey);
         this.timeout = timeoutSec > DEFAULT_TIMEOUT_SEC ? timeoutSec : DEFAULT_TIMEOUT_SEC;
 
     }
@@ -102,26 +103,26 @@ public class MaasApiClient {
         String signature = "";
         try {
             signature = "&" + URLEncoder.encode(conn.getSecret(), ENCODING_UTF8);
+
+            oauthParams.put("oauth_signature", signature);
+
+            String oauthHeaderValue = buildOauthHeader(oauthParams);
+
+            request.setHeader(HTTP_HEADER_AUTHORIZATION, oauthHeaderValue);
         } catch (UnsupportedEncodingException e) {
             s_logger.warn(e.getMessage());
             throw new CloudRuntimeException("Unable to sign request " + e.getMessage());
         }
-
-        oauthParams.put("oauth_signature", signature);
-
-        String oauthHeaderValue = buildOauthHeader(oauthParams);
-
-        request.setHeader(HTTP_HEADER_AUTHORIZATION, oauthHeaderValue);
     }
 
-    private static String buildOauthHeader(Map<String, String> oauthParams) {
+    private static String buildOauthHeader(Map<String, String> oauthParams) throws UnsupportedEncodingException {
 
         StringBuilder header = new StringBuilder();
         header.append("OAuth ");
         header.append(" realm=\"\", ");
 
         for (Map.Entry<String, String> entry : oauthParams.entrySet()) {
-            header.append(String.format("%s=\"%s\", ", entry.getKey(), URLEncoder.encode(entry.getValue())));
+            header.append(String.format("%s=\"%s\", ", entry.getKey(), URLEncoder.encode(entry.getValue(), ENCODING_UTF8)));
         }
 
         int len = header.length();
@@ -140,7 +141,6 @@ public class MaasApiClient {
         }
 
         try {
-
             if (request.getFirstHeader(HEADER_CONTENT_TYPE) == null) {
                 request.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_JSON);
             }
@@ -149,22 +149,24 @@ public class MaasApiClient {
 
             signRequest(request);
 
-            HttpHost target = new HttpHost(conn.getIp(), DEFAULT_HTTP_PORT, SCHEME_HTTP);
+            HttpHost target = new HttpHost(conn.getIp(), conn.getPort(), conn.getScheme());
 
             HttpResponse httpResponse = httpclient.execute(target, request);
 
             HttpEntity entity = httpResponse.getEntity();
             StatusLine status = httpResponse.getStatusLine();
-            response = EntityUtils.toString(entity);
 
-            assert response != null;
+            if (status.getStatusCode() != HttpStatus.SC_NO_CONTENT) {
+                response = EntityUtils.toString(entity);
 
-            if (status.getStatusCode() >= HttpStatus.SC_BAD_REQUEST) {
-                // check if this is an error
-                String errMesg = "Error: Non successful response: " + request.getRequestLine();
-                s_logger.warn(errMesg);
-                s_logger.warn(response);
-                throw new CloudRuntimeException(errMesg);
+                assert response != null;
+
+                if (status.getStatusCode() >= HttpStatus.SC_BAD_REQUEST) {
+                    // check if this is an error
+                    String errMesg = "Error: Non successful response: " + request.getRequestLine() + response;
+                    s_logger.warn(errMesg);
+                    throw new CloudRuntimeException(errMesg);
+                }
             }
         } catch (IOException e) {
             String errMesg = "Error while trying to get HTTP object: " + request.getRequestLine();
@@ -222,6 +224,71 @@ public class MaasApiClient {
         s_logger.debug(resp);
     }
 
+    public void addTagToMachine(String systemId, String tagName) throws IOException {
+        createTagIfNotExist(tagName);
+        modifyTagsOnMachine(systemId, "add", tagName);
+    }
+
+    public void removeTagFromMachine(String systemId, String tagName) throws IOException {
+        modifyTagsOnMachine(systemId, "remove", tagName);
+        deleteTagIfNotUsed(tagName, "machines");
+    }
+
+    private void createTagIfNotExist(String tagName) throws IOException {
+        try {
+            // trying to see if tag exists or not
+            HttpGet req = new HttpGet(getApiUrl("tags", tagName));
+            executeApiRequest(req);
+        } catch (Exception e) {
+            // tag does not exist on MaaS server, create it now
+            HttpPost req = new HttpPost(getApiUrl("tags"));
+
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("name", tagName));
+            req.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
+            req.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
+
+            String resp = executeApiRequest(req);
+            s_logger.debug(resp);
+        }
+    }
+
+    private void deleteTagIfNotUsed(String tagName, String target) throws IOException {
+        // trying to see if tag is being used on any target
+        String response = executeApiRequest(new HttpGet(addOperationToApiUrl(getApiUrl("tags", tagName), target)));
+
+        List<MaasObject.MaasNode> nodes = gson.fromJson(response, new TypeToken<ArrayList<MaasObject.MaasNode>>(){}.getType());
+
+        if (nodes.size() == 0) {
+            // delete tag
+            executeApiRequest(new HttpDelete(getApiUrl("tags", tagName)));
+        }
+    }
+
+    private void modifyTagsOnMachine(String systemId, String action, String tagName) throws UnsupportedEncodingException, IOException {
+        if (action.equals("remove")) {
+            try {
+                // trying to see if tag exists or not
+                HttpGet req = new HttpGet(getApiUrl("tags", tagName));
+                executeApiRequest(req);
+            } catch (Exception e) {
+                // do not try to delete a tag from a machine if the tag doesn't exist!
+                return;
+            }
+        }
+
+        String url = addOperationToApiUrl(getApiUrl("tags", tagName), "update_nodes");
+        HttpPost req = new HttpPost(url);
+
+        List<NameValuePair> params = new ArrayList<>();
+        params.add(new BasicNameValuePair(action, systemId));
+        req.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
+        req.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
+
+        String resp = executeApiRequest(req);
+        s_logger.debug(resp);
+    }
+
     public MaasObject.MaasNode deployMachine(String systemId, MaasObject.DeployMachineParameters deployMachineParameters) throws IOException {
 
         String url = addOperationToApiUrl(getApiUrl("machines", systemId), "deploy");
@@ -275,8 +342,9 @@ public class MaasApiClient {
     }
 
     public List<MaasObject.MaasNode> getMaasNodes() throws IOException {
+        String url = getApiUrl("machines");
 
-        HttpGet maasNodeReq = new HttpGet(getApiUrl("machines"));
+        HttpGet maasNodeReq = new HttpGet(url);
 
         String response = executeApiRequest(maasNodeReq);
 
@@ -326,19 +394,23 @@ public class MaasApiClient {
         return maasNode;
     }
 
-    public void setDhcpInterface(String systemId, int interfaceId, int linkId, int subnetId) throws IOException {
+    public void setInterface(String systemId, int interfaceId, Integer linkId, Integer subnetId, boolean enableDhcp) throws IOException {
+        String url;
+        List<NameValuePair> params;
 
-        String url = addOperationToApiUrl(
-                getApiUrl("nodes", systemId, "interfaces", Integer.toString(interfaceId)),
-                "unlink_subnet"
-        );
+        if (linkId != null) {
+            url = addOperationToApiUrl(
+                    getApiUrl("nodes", systemId, "interfaces", Integer.toString(interfaceId)),
+                    "unlink_subnet"
+            );
 
-        HttpPost unlinkReq = new HttpPost(url);
-        List<NameValuePair> params = new ArrayList<>();
-        params.add(new BasicNameValuePair("id", Integer.toString(linkId)));
-        unlinkReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
-        unlinkReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
-        executeApiRequest(unlinkReq);
+            HttpPost unlinkReq = new HttpPost(url);
+            params = new ArrayList<>();
+            params.add(new BasicNameValuePair("id", Integer.toString(linkId)));
+            unlinkReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
+            unlinkReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
+            executeApiRequest(unlinkReq);
+        }
 
         url = addOperationToApiUrl(
                 getApiUrl("nodes", systemId, "interfaces", Integer.toString(interfaceId)),
@@ -347,8 +419,9 @@ public class MaasApiClient {
 
         HttpPost linkReq = new HttpPost(url);
         params = new ArrayList<>();
-        params.add(new BasicNameValuePair("mode", MODE_DHCP));
         params.add(new BasicNameValuePair("subnet", Integer.toString(subnetId)));
+        params.add(new BasicNameValuePair("mode", enableDhcp ? MODE_DHCP : MODE_LINK_UP));
+        params.add(new BasicNameValuePair("force", "True"));
         linkReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
         linkReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
         executeApiRequest(linkReq);
@@ -409,6 +482,30 @@ public class MaasApiClient {
 
         executeApiRequest(updateHostnameReq);
 
+    }
+
+    private List<MaasObject.RackController> getRackControllers() throws IOException {
+        String url = getApiUrl("rackcontrollers");
+        HttpGet req = new HttpGet(url);
+        String resp = executeApiRequest(req);
+
+        Type listType = new TypeToken<ArrayList<MaasObject.RackController>>(){}.getType();
+        return gson.fromJson(resp, listType);
+    }
+
+    public List<MaasObject.BootImage> listImages() throws IOException {
+        List<MaasObject.RackController> rc = getRackControllers();
+        if (rc != null && rc.size() > 0) {
+           //pick the first Rack Controller for now
+            String rcSystemId = rc.get(0).systemId;
+            String url = addOperationToApiUrl(getApiUrl("rackcontrollers", rcSystemId), "list_boot_images");
+            HttpGet listImgReq = new HttpGet(url);
+
+            String resp = executeApiRequest(listImgReq);
+            MaasObject.ListImagesResponse imgResp = gson.fromJson(resp, MaasObject.ListImagesResponse.class);
+            return imgResp.images;
+        }
+        return null;
     }
 
     private String getApiUrl(String... args) {

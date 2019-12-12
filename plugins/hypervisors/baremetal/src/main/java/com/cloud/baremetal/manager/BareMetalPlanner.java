@@ -22,6 +22,8 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 
@@ -67,6 +69,8 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
     protected ResourceManager _resourceMgr;
     @Inject
     protected ClusterDetailsDao _clusterDetailsDao;
+    @Inject
+    protected VMInstanceDao _vmDao;
 
     @Override
     public DeployDestination plan(VirtualMachineProfile vmProfile, DeploymentPlan plan, ExcludeList avoid) throws InsufficientServerCapacityException {
@@ -136,7 +140,9 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
                 Float cpuOvercommitRatio = Float.parseFloat(cluster_detail_cpu.getValue());
                 Float memoryOvercommitRatio = Float.parseFloat(cluster_detail_ram.getValue());
 
-                if (_capacityMgr.checkIfHostHasCapacity(h.getId(), cpu_requested, ram_requested, false, cpuOvercommitRatio, memoryOvercommitRatio, true)) {
+                if (_capacityMgr.checkIfHostHasCapacity(h.getId(),
+                        cpu_requested, ram_requested, false,
+                        cpuOvercommitRatio, memoryOvercommitRatio, true) && isHostAvailable(h)) {
                     s_logger.debug("Find host " + h.getId() + " has enough capacity");
                     DataCenter dc = _dcDao.findById(h.getDataCenterId());
                     Pod pod = _podDao.findById(h.getPodId());
@@ -147,6 +153,12 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
 
         s_logger.warn(String.format("Cannot find enough capacity(requested cpu=%1$s memory=%2$s)", cpu_requested, ram_requested));
         return null;
+    }
+
+    private boolean isHostAvailable(HostVO h) {
+        List<VMInstanceVO> vmsRunningOnHost = _vmDao.listByHostId(h.getId());
+        List<VMInstanceVO> vmsStoppedOnHost = _vmDao.listByLastHostId(h.getId());
+        return vmsRunningOnHost.isEmpty() && vmsStoppedOnHost.isEmpty();
     }
 
     @Override

@@ -27,6 +27,12 @@
                       http://www.springframework.org/schema/context/spring-context.xsd"
                       >
 
+    <bean id="BareMetalResourceProvider" class="com.cloud.baremetal.manager.BareMetalResourceProvider">
+        <property name="name" value="Bare Metal Resource Provider" />
+    </bean>
+    <bean id="MaasResourceProvider" class="org.apache.cloudstack.compute.maas.MaasResourceProvider">
+        <property name="name" value="Maas Resource Provider" />
+    </bean>
     <bean id="BareMetalDiscoverer" class="com.cloud.baremetal.manager.BareMetalDiscoverer">
         <property name="name" value="Bare Metal Agent" />
     </bean>
