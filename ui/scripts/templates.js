@@ -465,7 +465,7 @@
                                                     $form.find('.form-item[rel=rootDiskControllerTypeKVM]').css('display', 'inline-block');
                                                     $('#label_root_disk_controller').prop('selectedIndex', 2);
                                                     $form.find('.form-item[rel=requireshvm]').css('display', 'inline-block');
-                                                    if (isAdmin() && !($form.find('#label_action_create_template_type').val() == "system") ) {
+                                                    if (isAdmin()) {
                                                       $form.find('.form-item[rel=directdownload]').show();
                                                     }
                                                 } else {

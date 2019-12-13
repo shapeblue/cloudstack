@@ -2246,12 +2246,35 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         _tmpltDao.update(template.getId(), template);
     }
 
+    private void updateDirectDownloadTemplate(long templateId, long zoneId) {
+        TemplateDataStoreVO templateStore = _tmplStoreDao.findByTemplateZone(templateId, zoneId, DataStoreRole.Image);
+        VMTemplateVO template = _tmpltDao.findById(templateId);
+        templateStore.setDownloadState(Status.BYPASSED);
+        templateStore.setState(ObjectInDataStoreStateMachine.State.Ready);
+        templateStore.setErrorString(null);
+        if (template.isActivateAfterUpload()){
+            template.setState(VirtualMachineTemplate.State.Active);
+        } else {
+            template.setState(VirtualMachineTemplate.State.Inactive);
+        }
+        _tmplStoreDao.update(templateStore.getId(), templateStore);
+        _tmpltDao.update(template.getId(), template);
+    }
+
     @Override
     public SeedSystemVMTemplateResponse seedSystemVMTemplate(HashSet<String> imageStores, SeedSystemVMTemplateCmd cmd) {
         VMTemplateVO template = _tmpltDao.findByUuid(cmd.getTemplateId());
+        final boolean isDirectDownload = cmd.isDirectDownload();
 
         if (template == null){
             throw new CloudRuntimeException("Unable to find template for seeding.");
+        }
+
+        if (isDirectDownload) {
+            if (!HypervisorType.KVM.equals(HypervisorType.getType(cmd.getHypervisor()))) {
+                throw new CloudRuntimeException(String.format("Seeding direct download templates is not supported for hypervisor: %s", cmd.getHypervisor()));
+            }
+            updateDirectDownloadTemplate(template.getId(), cmd.getId());
         }
 
         // mount locally
