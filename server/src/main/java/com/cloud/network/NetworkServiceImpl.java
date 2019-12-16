@@ -1246,7 +1246,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
         }
 
         if (isNotBlank(isolatedPvlan) && (zone.getNetworkType() != NetworkType.Advanced || ntwkOff.getGuestType() == GuestType.Isolated)) {
-            throw new InvalidParameterValueException("Can only support create Private VLAN network with advance shared or L2 network!");
+            throw new InvalidParameterValueException("Can only support create Private VLAN network with advanced shared or L2 network!");
         }
 
         if (isNotBlank(isolatedPvlan) && ipv6) {
@@ -1391,6 +1391,15 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
         if (isBlank(secondaryVlanId) && type != null && type == PVlanType.Promiscuous) {
             secondaryVlanId = vlanId;
         }
+
+        if (isNotBlank(secondaryVlanId)) {
+            try {
+                Integer.parseInt(secondaryVlanId);
+            } catch (NumberFormatException e) {
+                throw new CloudRuntimeException("The secondary VLAN ID: " + secondaryVlanId + " is not in numeric format", e);
+            }
+        }
+
         return new Pair<>(secondaryVlanId, type);
     }
 
