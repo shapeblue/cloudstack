@@ -250,7 +250,7 @@ then
   failed 5
 fi
 
-tmpfile=/tmp/$localfile
+tmpfile=${TMPDIR-/tmp}/$localfile
 
 touch $tmpfile
 if [ $? -ne 0 ]
