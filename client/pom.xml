@@ -256,7 +256,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.cloudstack</groupId>
-            <artifactId>cloud-plugin-hypervisor-hyperv</artifactId>
+            <artifactId>cloud-plugin-hypervisor-hyperv2019</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

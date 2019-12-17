@@ -77,7 +77,7 @@
         <module>host-allocators/random</module>
 
         <module>hypervisors/baremetal</module>
-        <module>hypervisors/hyperv</module>
+        <module>hypervisors/hyperv2019</module>
         <module>hypervisors/kvm</module>
         <module>hypervisors/ovm3</module>
         <module>hypervisors/ovm</module>
