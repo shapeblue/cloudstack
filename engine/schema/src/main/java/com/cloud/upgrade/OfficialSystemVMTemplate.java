@@ -26,12 +26,12 @@ public class OfficialSystemVMTemplate {
 
     final static Map<Hypervisor.HypervisorType, String> NewTemplateNameList = new HashMap<Hypervisor.HypervisorType, String>() {
         {
-            put(Hypervisor.HypervisorType.KVM, "systemvm-kvm-4.11.3");
-            put(Hypervisor.HypervisorType.VMware, "systemvm-vmware-4.11.3");
-            put(Hypervisor.HypervisorType.XenServer, "systemvm-xenserver-4.11.3");
-            put(Hypervisor.HypervisorType.Hyperv, "systemvm-hyperv-4.11.3");
-            put(Hypervisor.HypervisorType.LXC, "systemvm-lxc-4.11.3");
-            put(Hypervisor.HypervisorType.Ovm3, "systemvm-ovm3-4.11.3");
+            put(Hypervisor.HypervisorType.KVM, "systemvm-kvm-4.11.5");
+            put(Hypervisor.HypervisorType.VMware, "systemvm-vmware-4.11.5");
+            put(Hypervisor.HypervisorType.XenServer, "systemvm-xenserver-4.11.5");
+            put(Hypervisor.HypervisorType.Hyperv, "systemvm-hyperv-4.11.5");
+            put(Hypervisor.HypervisorType.LXC, "systemvm-lxc-4.11.5");
+            put(Hypervisor.HypervisorType.Ovm3, "systemvm-ovm3-4.11.5");
         }
     };
 
