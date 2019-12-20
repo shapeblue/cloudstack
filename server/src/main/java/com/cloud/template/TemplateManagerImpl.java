@@ -1056,6 +1056,14 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                 }
             }
         } else {
+            //For KVM, system VM templates handle direct download
+            if (HypervisorType.KVM.equals(template.getHypervisorType()) &&
+                    TemplateType.SYSTEM.equals(template.getTemplateType()) &&
+                    template.isDirectDownload()) {
+                updateDirectDownloadTemplate(template.getId());
+                s_logger.debug(String.format("Template ID: %s is marked for direct download, no need to copy", template.getUuid()));
+                return template;
+            }
             DataStore srcSecStore = null;
             if (sourceZoneId != null) {
                 // template is on zone-wide secondary storage
@@ -1093,8 +1101,6 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                     }
                 }
             }
-
-
         }
 
         if ((destZoneIds != null) && (destZoneIds.size() > failedZones.size())){
@@ -2246,7 +2252,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         _tmpltDao.update(template.getId(), template);
     }
 
-    private void updateDirectDownloadTemplate(long templateId, long zoneId) {
+    private void updateDirectDownloadTemplate(long templateId) {
         TemplateDataStoreVO templateStore = _tmplStoreDao.findByTemplate(templateId, DataStoreRole.Image);
         VMTemplateVO template = _tmpltDao.findById(templateId);
         templateStore.setDownloadState(Status.BYPASSED);
@@ -2275,7 +2281,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             if (!HypervisorType.KVM.equals(HypervisorType.getType(cmd.getHypervisor()))) {
                 throw new CloudRuntimeException(String.format("Seeding direct download templates is not supported for hypervisor: %s", cmd.getHypervisor()));
             }
-            updateDirectDownloadTemplate(template.getId(), cmd.getId());
+            updateDirectDownloadTemplate(template.getId());
             return new SeedSystemVMTemplateResponse();
         }
 
