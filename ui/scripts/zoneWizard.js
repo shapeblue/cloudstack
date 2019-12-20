@@ -402,7 +402,7 @@
                         label: "label.action.create.template.source.type",
                         select: function(args){
                             // hide some fields
-                            args.$select.change(function(){
+                            args.$select.change(function() {
 
                                 var $form = $(this).closest('form');
                                 $.ajax({
@@ -415,6 +415,8 @@
                                     }
                                 });
 
+                                $form.find(".field[rel='directdownload']").hide();
+                                $form.find(".field[rel='checksum']").hide();
                                 // Empty value
                                 if ($(this).val() == undefined || $(this).val() == null || $(this).val() == '') {
                                     $form.find(".field[rel='url']").hide();
@@ -442,7 +444,7 @@
                                     $form.find(".field[rel='file']").hide();
                                 }
                                 // Copy from Zone
-                                if ($(this).val() == "copy"){
+                                if ($(this).val() == "copy") {
                                     $form.find(".field[rel='url']").hide();
                                     $form.find(".field[rel='name']").hide();
                                     $form.find(".field[rel='description']").hide();
@@ -453,13 +455,13 @@
                                     $form.find(".field[rel='activate']").hide();
                                 } 
                                 // Official cloudstack system vm
-                                if ($(this).val() == "official" || $(this).val() == "url" ){
+                                if ($(this).val() == "official" || $(this).val() == "url") {
                                     $form.find(".field[rel='sourceZone']").hide();
                                     $form.find(".field[rel='templates']").hide();
                                     $form.find(".field[rel='file']").hide();
                                 } 
                                 // Upload from local
-                                if ($(this).val() == "upload" ){
+                                if ($(this).val() == "upload") {
                                     $form.find(".field[rel='sourceZone']").hide();
                                     $form.find(".field[rel='templates']").hide();
                                     $form.find(".field[rel='url']").hide();
@@ -541,7 +543,12 @@
                                 if (hypervisor == null){
                                     return;
                                 }
-                                if ($form.find('#selectSystemVm_label_action_create_template_source_type').val() != "copy"){
+                                if (hypervisor == "KVM" &&
+                                    ($form.find('#selectSystemVm_label_action_create_template_source_type').val() == "official" ||
+                                        $form.find('#selectSystemVm_label_action_create_template_source_type').val() == "url")) {
+                                    $form.find(".field[rel='directdownload']").show();
+                                }
+                                if ($form.find('#selectSystemVm_label_action_create_template_source_type').val() != "copy") {
                                     $.ajax({ 
                                         url: createURL("getSystemVMTemplateDefaultUrl"), 
                                         data: {
@@ -629,6 +636,17 @@
                         validation: {
                             required: true
                         },
+                    },
+                    // For KVM only: Direct Download
+                    directdownload : {
+                        label: 'label.direct.download',
+                        docID: 'helpRegisterTemplateDirectDownload',
+                        isBoolean: true
+                    },
+                    checksum: {
+                        label: 'label.checksum',
+                        dependsOn: 'directdownload',
+                        isHidden: true
                     },
                     file:{
                         label: 'label.local.file',
@@ -5102,7 +5120,7 @@
                     }
                     message(_l('message.registering.systemVM'));
 
-                    if (templateType == 'url' || templateType == 'official'){
+                    if (templateType == 'url' || templateType == 'official') {
                         var data = {
                             name: args.data.selectSystemVm.name,
                             displayText: args.data.selectSystemVm.description,
@@ -5117,6 +5135,16 @@
                             system: true,
                             activate: true,
                         };
+                        // for hypervisor == KVM (starts here)
+                        if (templateType == 'url') {
+                            if (args.$form.find('.field[rel=directdownload]').css("display") != "none" && args.data.directdownload != "") {
+                                $.extend(data, {
+                                    'directdownload': (args.data.directdownload == "on") ? "true" : "false",
+                                    'checksum': args.data.checksum
+                                });
+                            }
+                        }
+                        // for hypervisor == KVM (ends here)
 
                         newTemplateId = "";
                         $.ajax({
