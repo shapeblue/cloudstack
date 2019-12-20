@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutionException;
 
 import javax.inject.Inject;
 
-import com.cloud.storage.copy.ManagementServerCopier;
 import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
 import org.apache.cloudstack.engine.subsystem.api.storage.CreateCmdResult;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataMotionService;
@@ -97,6 +96,7 @@ import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.VMTemplateStorageResourceAssoc.Status;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.VMTemplateZoneVO;
+import com.cloud.storage.copy.ManagementServerCopier;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VMTemplateZoneDao;
 import com.cloud.storage.template.TemplateConstants;
@@ -267,7 +267,7 @@ public class TemplateServiceImpl implements TemplateService {
             List<VMTemplateVO> defaultBuiltin = _templateDao.listDefaultBuiltinTemplates();
 
             for (VMTemplateVO rtngTmplt : rtngTmplts) {
-                if (rtngTmplt.getHypervisorType() == hostHyper) {
+                if (rtngTmplt.getHypervisorType() == hostHyper && !rtngTmplt.isDirectDownload()) {
                     toBeDownloaded.add(rtngTmplt);
                 }
             }

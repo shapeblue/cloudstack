@@ -828,12 +828,14 @@ public class SecondaryStorageManagerImpl extends ManagerBase implements Secondar
                 return false;
             }
 
-            DataStore store = templateMgr.getImageStore(dataCenterId, template.getId());
-            if (store == null) {
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("No secondary storage available in zone " + dataCenterId + ", wait until it is ready to launch secondary storage vm");
+            if (!template.isDirectDownload()) {
+                DataStore store = templateMgr.getImageStore(dataCenterId, template.getId());
+                if (store == null) {
+                    if (s_logger.isDebugEnabled()) {
+                        s_logger.debug("No secondary storage available in zone " + dataCenterId + ", wait until it is ready to launch secondary storage vm");
+                    }
+                    return false;
                 }
-                return false;
             }
 
             boolean useLocalStorage = false;

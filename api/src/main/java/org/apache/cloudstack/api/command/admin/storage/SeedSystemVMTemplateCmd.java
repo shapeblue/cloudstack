@@ -58,11 +58,6 @@ public class SeedSystemVMTemplateCmd extends BaseCmd {
     @Parameter(name = ApiConstants.TEMPLATE_ID, type = CommandType.STRING, required = true, description = "The id of a specific template")
     private String templateId;
 
-    @Parameter(name = ApiConstants.DIRECT_DOWNLOAD, type = CommandType.BOOLEAN,
-            description = "true if template should bypass Secondary Storage and be downloaded to Primary Storage on deployment",
-            since = "4.14.0")
-    private Boolean directDownload;
-
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -113,10 +108,6 @@ public class SeedSystemVMTemplateCmd extends BaseCmd {
 
     public void setTemplateId(String templateId) {
         this.templateId = templateId;
-    }
-
-    public boolean isDirectDownload() {
-        return directDownload == null ? false : directDownload;
     }
 
     /////////////////////////////////////////////////////
