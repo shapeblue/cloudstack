@@ -62,15 +62,12 @@ class TestActivateTemplate(cloudstackTestCase):
         )
         cls._cleanup.append(cls.user)
 
-        
         cls.firstRun = True
         cls.testTemplateId = ""
     
     @classmethod
     def tearDownClass(cls):
         try:
-            # Activate initial system template
-            
             cleanup_resources(cls.apiclient, cls._cleanup)
         except Exception as e:
             raise Exception("Warning: Exception during cleanup : %s" % e)
@@ -78,6 +75,10 @@ class TestActivateTemplate(cloudstackTestCase):
 
     def setUp(self):
         self.cleanup = []
+
+        # Existing system VM active template
+        self.initialActiveTemplate = self.getActiveSystemVmTemplate()
+
         # Default URL
         self.getDefaultURLCmd = getSystemVMTemplateDefaultUrl.getSystemVMTemplateDefaultUrlCmd()
         self.getDefaultURLCmd.hypervisor = self.hypervisor
@@ -87,8 +88,8 @@ class TestActivateTemplate(cloudstackTestCase):
         self.test_template = registerTemplate.registerTemplateCmd()
         self.test_template.hypervisor = self.hypervisor
         self.test_template.zoneid = self.zone.id
-        self.test_template.name = 'test-system-' + self.hypervisor + '-4.11.3'
-        self.test_template.displaytext = 'test-system-' + self.hypervisor + '-4.11.3'
+        self.test_template.name = self.account.id + '-test-system-' + self.hypervisor + '-4.11.3'
+        self.test_template.displaytext = self.account.id + 'test-system-' + self.hypervisor + '-4.11.3'
         self.test_template.url = self.urlResponse.url.url
         self.test_template.format = self.urlResponse.url.type
         self.test_template.system = True
@@ -108,6 +109,7 @@ class TestActivateTemplate(cloudstackTestCase):
 
     def tearDown(self):
         try:
+            self.activateTemplateId(self.initialActiveTemplate.id)
             # Clean up the created templates
             for temp in self.cleanup:
                 cmd = deleteTemplate.deleteTemplateCmd()
@@ -138,7 +140,7 @@ class TestActivateTemplate(cloudstackTestCase):
         self.activateTemplate(self.activateTemplateCmd)
         response = self.checkConfiguration(self.listConfigurationsCmd)
         # Checking template activation
-        self.assertEqual(response[0].value, "test-system-"+ self.hypervisor + "-4.11.3", "Expected template name to be test-system-"+ self.hypervisor +"-4.11.3")
+        self.assertEqual(response[0].value, self.test_template.name, "Expected template name to be "+ self.test_template.name)
         return
 
     @attr(tags=["advanced", "smoke"], required_hardware="true")
@@ -168,6 +170,32 @@ class TestActivateTemplate(cloudstackTestCase):
         self.debug(testPath)
         self.assertEqual(installPath[0][0], testPath, "Unexpected install path for system vm template.")
 
+    @attr(hypervisor="kvm")
+    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    def test_04_activate_sytem_vm_direct_download_template(self):
+        """
+        Test activating registered direct download template
+        """
+
+        # Register direct download system VM template
+        self.test_template.name = self.test_template.name + '-dd'
+        self.test_template.displaytext = self.test_template.name
+        self.test_template.directdownload = True
+        template = self.registerTemplate(self.test_template)
+        self.debug("Direct download system VM template registered %s" % template.id)
+        self.cleanup.append(template)
+
+        # Activating direct download system VM template
+        self.activateTemplateId(template.id)
+
+        # Checking template activation
+        response = self.checkConfiguration(self.listConfigurationsCmd)
+        self.assertEqual(response[0].value, self.test_template.name, "Expected template name in configuration to be " + self.test_template.name + " but found " + response[0].value)
+        currentSystemVmTemplate = self.getActiveSystemVmTemplate()
+        self.assertEqual(currentSystemVmTemplate.name, self.test_template.name, "Expected template name to be " + self.test_template.name)
+        self.assertEqual(currentSystemVmTemplate.state, "Active", "Expected template state to be Active but found" + currentSystemVmTemplate.state)
+        return
+
     def registerTemplate(self, cmd):
         temp = self.apiclient.registerTemplate(cmd)[0]
         if not temp:
@@ -177,6 +205,12 @@ class TestActivateTemplate(cloudstackTestCase):
     def activateTemplate(self, cmd):
         response = self.apiclient.activateSystemVMTemplate(cmd)[0]
         return response
+
+    def activateTemplateId(self, templateId):
+        activateTemplateCmd = activateSystemVMTemplate.activateSystemVMTemplateCmd()
+        activateTemplateCmd.id = templateId
+        activateResponse = self.activateTemplate(activateTemplateCmd)
+        return activateResponse
     
     def checkConfiguration(self, cmd):
         response = self.apiclient.listConfigurations(cmd)
@@ -239,3 +273,12 @@ class TestActivateTemplate(cloudstackTestCase):
             else:
                 retries = retries - 1
         raise Exception("Template download failed exception.")
+
+    def getActiveSystemVmTemplate(self):
+        listTemplatesCmd = listTemplates.listTemplatesCmd()
+        listTemplatesCmd.templatefilter= 'system'
+        templates = self.apiclient.listTemplates(listTemplatesCmd)
+        if isinstance(templates, list):
+            if len(templates) > 0:
+                return templates[0]
+        raise Exception("Active system VM template not found")
