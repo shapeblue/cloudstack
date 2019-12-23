@@ -267,7 +267,7 @@ public class TemplateServiceImpl implements TemplateService {
             List<VMTemplateVO> defaultBuiltin = _templateDao.listDefaultBuiltinTemplates();
 
             for (VMTemplateVO rtngTmplt : rtngTmplts) {
-                if (rtngTmplt.getHypervisorType() == hostHyper && !rtngTmplt.isDirectDownload()) {
+                if (rtngTmplt.getHypervisorType() == hostHyper) {
                     toBeDownloaded.add(rtngTmplt);
                 }
             }
@@ -279,6 +279,10 @@ public class TemplateServiceImpl implements TemplateService {
             }
 
             for (VMTemplateVO template : toBeDownloaded) {
+                if (template.isDirectDownload()) {
+                    s_logger.info("Template " + template.getName() + ":" + template.getUuid() + " is marked for direct download, discarding it for download on image stores for data center: " + dcId);
+                    continue;
+                }
                 TemplateDataStoreVO tmpltHost = _vmTemplateStoreDao.findByStoreTemplate(store.getId(), template.getId());
                 if (tmpltHost == null) {
                     associateTemplateToZone(template.getId(), dcId);
