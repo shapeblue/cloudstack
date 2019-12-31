@@ -252,7 +252,17 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
     @DB
     public void completeAsyncJob(final long jobId, final Status jobStatus, final int resultCode, final String resultObject) {
         if (s_logger.isDebugEnabled()) {
-            s_logger.debug("Complete async job-" + jobId + ", jobStatus: " + jobStatus + ", resultCode: " + resultCode + ", result: " + resultObject);
+            String resultObj = null;
+            String component = "org.apache.cloudstack.api.response.UserVmResponse/virtualmachine/";
+            String pattern = "\"password\":";
+            if (resultObject != null) {
+                if (resultObject.contains(component) && resultObject.contains(pattern)) {
+                    String[] resp = resultObject.split(pattern);
+                    String psswd = resp[1].toString().split(",")[0];
+                    resultObj = resp[0] + pattern + psswd.replace(psswd.substring(2, psswd.length() - 1), "*****") + "," + resp[1].split(",", 2)[1];
+                }
+            }
+            s_logger.debug("Complete async job-" + jobId + ", jobStatus: " + jobStatus + ", resultCode: " + resultCode + ", result: " + ( resultObj==null ? resultObject : resultObj ));
         }
 
         final AsyncJobVO job = _jobDao.findById(jobId);
