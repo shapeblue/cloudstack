@@ -103,7 +103,7 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
     private static final ConfigKey<Integer> VmJobLockTimeout = new ConfigKey<Integer>("Advanced",
             Integer.class, "vm.job.lock.timeout", "1800",
             "Time in seconds to wait in acquiring lock to submit a vm worker job", false);
-    private static final ConfigKey<Boolean> HidePassword = new ConfigKey<Boolean>("Advanced", Boolean.class, "hide.password", "true", "If set to true, the password is hidden", true, ConfigKey.Scope.Global);
+    private static final ConfigKey<Boolean> HidePassword = new ConfigKey<Boolean>("Advanced", Boolean.class, "log.hide.password", "true", "If set to true, the password is hidden", true, ConfigKey.Scope.Global);
 
     private static final Logger s_logger = Logger.getLogger(AsyncJobManagerImpl.class);
 
@@ -253,22 +253,10 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
     @DB
     public void completeAsyncJob(final long jobId, final Status jobStatus, final int resultCode, final String resultObject) {
         if (s_logger.isDebugEnabled()) {
-            if (HidePassword.value() == true) {
-                String resultObj = null;
-                String pattern = "\"password\":";
-                if (resultObject != null) {
-                    if (resultObject.contains(pattern)) {
-                        String[] resp = resultObject.split(pattern);
-                        String psswd = resp[1].toString().split(",")[0];
-                        resultObj = resp[0] + pattern + psswd.replace(psswd.substring(2, psswd.length() - 1), "*****") + "," + resp[1].split(",", 2)[1];
-                    }
-                }
-                s_logger.debug("Complete async job-" + jobId + ", jobStatus: " + jobStatus + ", resultCode: " + resultCode + ", result: " + resultObj);
-            }
-            else {
-                s_logger.debug("Complete async job-" + jobId + ", jobStatus: " + jobStatus + ", resultCode: " + resultCode + ", result: " + resultObject);
-            }
+            String resultObj = obfuscatePassword(resultObject, HidePassword.value());
+            s_logger.debug("Complete async job-" + jobId + ", jobStatus: " + jobStatus + ", resultCode: " + resultCode + ", result: " + resultObj);
         }
+
 
         final AsyncJobVO job = _jobDao.findById(jobId);
         if (job == null) {
@@ -470,6 +458,20 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
             _jobDao.update(jobId, job);
         }
         return job;
+    }
+
+    private String obfuscatePassword(String result, boolean hidePassword) {
+        if (hidePassword) {
+            String pattern = "\"password\":";
+            if (result != null) {
+                if (result.contains(pattern)) {
+                    String[] resp = result.split(pattern);
+                    String psswd = resp[1].toString().split(",")[0];
+                    result = resp[0] + pattern + psswd.replace(psswd.substring(2, psswd.length() - 1), "*****") + "," + resp[1].split(",", 2)[1];
+                }
+            }
+        }
+        return result;
     }
 
     private void scheduleExecution(final AsyncJobVO job) {
