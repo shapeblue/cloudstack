@@ -101,7 +101,7 @@ public class BaremetalManagerImpl extends ManagerBase implements BaremetalManage
 
       HostVO host = _hostDao.findById(vo.getHostId());
       if (host == null) {
-        s_logger.debug("Skip oldState " + oldState + " to " + "newState " + newState + " transimtion");
+        s_logger.debug("Skip state transition from " + oldState + " to " + newState);
         return true;
       }
       _hostDao.loadDetails(host);
