@@ -35,6 +35,7 @@ public abstract class DirectDownloadCommand extends StorageSubSystemCommand {
     private PrimaryDataStoreTO destPool;
     private String checksum;
     private Map<String, String> headers;
+    private Long templateSize;
 
     protected DirectDownloadCommand (final String url, final Long templateId, final PrimaryDataStoreTO destPool, final String checksum, final Map<String, String> headers) {
         this.url = url;
@@ -62,6 +63,14 @@ public abstract class DirectDownloadCommand extends StorageSubSystemCommand {
 
     public Map<String, String> getHeaders() {
         return headers;
+    }
+
+    public Long getTemplateSize() {
+        return templateSize;
+    }
+
+    public void setTemplateSize(Long templateSize) {
+        this.templateSize = templateSize;
     }
 
     @Override
