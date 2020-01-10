@@ -474,6 +474,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         return _ovsPvlanVmPath;
     }
 
+    public String getDirectDownloadTemporaryDownloadPath() {
+        return directDownloadTemporaryDownloadPath;
+    }
+
     public String getResizeVolumePath() {
         return _resizeVolumePath;
     }
@@ -526,6 +530,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
     protected boolean dpdkSupport = false;
     protected String dpdkOvsPath;
+    protected String directDownloadTemporaryDownloadPath;
 
     private String getEndIpFromStartIp(final String startIp, final int numIps) {
         final String[] tokens = startIp.split("[.]");
@@ -571,6 +576,10 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         } catch (final IOException ex) {
             throw new CloudRuntimeException("IOException in reading " + file.getAbsolutePath(), ex);
         }
+    }
+
+    private String getDefaultDirectDownloadTemporaryPath() {
+        return "/var/lib/libvirt/images";
     }
 
     protected String getDefaultNetworkScriptsDir() {
@@ -650,6 +659,11 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             if (dpdkOvsPath != null && !dpdkOvsPath.endsWith("/")) {
                 dpdkOvsPath += "/";
             }
+        }
+
+        directDownloadTemporaryDownloadPath = (String) params.get("direct.download.temporary.download.location");
+        if (org.apache.commons.lang.StringUtils.isBlank(directDownloadTemporaryDownloadPath)) {
+            directDownloadTemporaryDownloadPath = getDefaultDirectDownloadTemporaryPath();
         }
 
         params.put("domr.scripts.dir", domrScriptsDir);
