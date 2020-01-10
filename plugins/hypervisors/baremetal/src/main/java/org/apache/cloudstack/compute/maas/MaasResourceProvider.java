@@ -261,7 +261,10 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
             }
 
             if (!maasNode.getStatusName().equals(MaasObject.MaasState.Ready.toString())){
-                maasApi.releaseMachine(maasNode.getSystemId(), true, true);
+                Integer eraseStrategy = BaremetalManagerImpl.diskEraseOnDestroy.value();
+                boolean eraseDisk = eraseStrategy == 1 || eraseStrategy == 2;
+                boolean fullErase = eraseStrategy == 2;
+                maasApi.releaseMachine(maasNode.getSystemId(), eraseDisk, fullErase);
             }
 
             String hostname = "HOST-" + Long.toString(hostId);
@@ -398,7 +401,10 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
 
             try {
                 maasNode = maasApi.getMaasNode(maasNode.getSystemId());
-                maasApi.releaseMachine(maasNode.getSystemId(), true, true);
+                Integer eraseStrategy = BaremetalManagerImpl.diskEraseOnDestroy.value();
+                boolean eraseDisk = eraseStrategy == 1 || eraseStrategy == 2;
+                boolean fullErase = eraseStrategy == 2;
+                maasApi.releaseMachine(maasNode.getSystemId(), eraseDisk, fullErase);
             } catch (IOException ex) {
                 //XXX: put node into alert state, manual intervention required
                 s_logger.error("Unable to release node " + maasNode.getSystemId(), ex);
