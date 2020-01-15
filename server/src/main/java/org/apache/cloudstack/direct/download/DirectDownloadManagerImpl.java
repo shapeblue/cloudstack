@@ -35,6 +35,8 @@ import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.storage.DataStoreRole;
+import com.cloud.storage.ScopeType;
+import com.cloud.storage.Storage;
 import com.cloud.storage.VMTemplateStoragePoolVO;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.VMTemplateVO;
@@ -54,7 +56,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -197,7 +198,7 @@ public class DirectDownloadManagerImpl extends ManagerBase implements DirectDown
      */
     protected Long[] createHostIdsList(List<Long> hostIds, long hostId) {
         if (CollectionUtils.isEmpty(hostIds)) {
-            return Arrays.asList(hostId).toArray(new Long[1]);
+            return Collections.singletonList(hostId).toArray(new Long[1]);
         }
         Long[] ids = new Long[hostIds.size() + 1];
         ids[0] = hostId;
@@ -210,11 +211,15 @@ public class DirectDownloadManagerImpl extends ManagerBase implements DirectDown
     }
 
     /**
-     * Get hosts to retry download having hostId as the first element
+     * Get alternative hosts to retry downloading a template. The planner have previously selected a host and a storage pool
+     * @return array of host ids which can access the storage pool
      */
-    protected Long[] getHostsToRetryOn(Long clusterId, long dataCenterId, HypervisorType hypervisorType, long hostId) {
-        List<Long> hostIds = getRunningHostIdsInTheSameCluster(clusterId, dataCenterId, hypervisorType, hostId);
-        return createHostIdsList(hostIds, hostId);
+    protected Long[] getHostsToRetryOn(Host host, StoragePoolVO storagePool) {
+        List<Long> clusterHostIds = new ArrayList<>();
+        if (storagePool.getPoolType() != Storage.StoragePoolType.Filesystem || storagePool.getScope() != ScopeType.HOST) {
+            clusterHostIds = getRunningHostIdsInTheSameCluster(host.getClusterId(), host.getDataCenterId(), host.getHypervisorType(), host.getId());
+        }
+        return createHostIdsList(clusterHostIds, host.getId());
     }
 
     @Override
@@ -280,7 +285,9 @@ public class DirectDownloadManagerImpl extends ManagerBase implements DirectDown
     private Answer sendDirectDownloadCommand(DirectDownloadCommand cmd, VMTemplateVO template, long poolId, HostVO host) {
         boolean downloaded = false;
         int retry = 3;
-        Long[] hostsToRetry = getHostsToRetryOn(host.getClusterId(), host.getDataCenterId(), host.getHypervisorType(), host.getId());
+
+        StoragePoolVO storagePoolVO = primaryDataStoreDao.findById(poolId);
+        Long[] hostsToRetry = getHostsToRetryOn(host, storagePoolVO);
         int hostIndex = 0;
         Answer answer = null;
         Long hostToSendDownloadCmd = hostsToRetry[hostIndex];
