@@ -471,7 +471,7 @@
                                             vGpuMap['Group of NVIDIA Corporation GK107GL [GRID K1] GPUs'] = ['passthrough', 'GRID K100', 'GRID K120Q', 'GRID K140Q', 'GRID K160Q', 'GRID K180Q'];
                                             vGpuMap['Group of NVIDIA Corporation GK104GL [GRID K2] GPUs'] = ['passthrough', 'GRID K200', 'GRID K220Q', 'GRID K240Q', 'GRID K260Q', 'GRID K280Q'];
                                             vGpuMap['Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs'] = ['passthrough', 'GRID V100D-32A', 'GRID V100D-8Q', 'GRID V100D-4A', 'GRID V100D-1B', 'GRID V100D-2Q', 'GRID V100D-4Q', 'GRID V100D-2A', 'GRID V100D-2B', 'GRID V100D-32Q', 'GRID V100D-16A', 'GRID V100D-1Q', 'GRID V100D-2B4', 'GRID V100D-16Q', 'GRID V100D-8A', 'GRID V100D-1A'];
-                                            vGpuMap['Group of Nvidia Corporation TU104GL [Tesla T4] GPUs'] = ['passthrough', 'GRID T4-16A', 'GRID T4-2B4', 'GRID T4-4Q', 'GRID T4-16Q', 'GRID T4-4A', 'GRID T4-1A, 'GRID T4-2Q, 'GRID T4-2B, 'GRID T4-8Q, 'GRID T4-2A, 'GRID T4-1B, 'GRID T4-1Q, 'GRID T4-8A'];
+                                            vGpuMap['Group of Nvidia Corporation TU104GL [Tesla T4] GPUs'] = ['passthrough', 'GRID T4-16A', 'GRID T4-2B4', 'GRID T4-4Q', 'GRID T4-16Q', 'GRID T4-4A', 'GRID T4-1A', 'GRID T4-2Q', 'GRID T4-2B', 'GRID T4-8Q', 'GRID T4-2A', 'GRID T4-1B', 'GRID T4-1Q', 'GRID T4-8A'];
 
                                             args.$select.change(function() {
                                                 var gpu = $(this).val();
