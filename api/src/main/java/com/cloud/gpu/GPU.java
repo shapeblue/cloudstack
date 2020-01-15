@@ -47,6 +47,19 @@ public class GPU {
         GRID_V100D_16Q("GRID V100D-16Q"),
         GRID_V100D_8A("GRID V100D-8A"),
         GRID_V100D_1A("GRID V100D-1A"),
+        GRID_T4_16A("GRID T4-16A"),
+        GRID_T4_2B4("GRID T4-2B4"),
+        GRID_T4_4Q("GRID T4-4Q"),
+        GRID_T4_16Q("GRID T4-16Q"),
+        GRID_T4_4A("GRID T4-4A"),
+        GRID_T4_1A("GRID T4-1A"),
+        GRID_T4_2Q("GRID T4-2Q"),
+        GRID_T4_2B("GRID T4-2B"),
+        GRID_T4_8Q("GRID T4-8Q"),
+        GRID_T4_2A("GRID T4-2A"),
+        GRID_T4_1B("GRID T4-1B"),
+        GRID_T4_1Q("GRID T4-1Q"),
+        GRID_T4_8A("GRID T4-8A"),
         passthrough("passthrough");
 
         private String type;
