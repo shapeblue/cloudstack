@@ -2276,7 +2276,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                 // try to unmount this path
                 Script.runSimpleBashScriptForExitValue("sudo umount " + mountPoint, 10000);
                 // mount secondary storage - have to use sudo, doesn't work otherwise
-                result = Script.runSimpleBashScriptForExitValue(String.format("sudo mount -t nfs %s:%s %s",  uri.getHost(), uri.getPath(), mountPoint), 60000);
+                result = Script.runSimpleBashScriptForExitValue(String.format("sudo mount -t nfs %s:%s %s",  uri.getHost(), uri.getPath(), mountPoint), 1);
                 if (result != 0){
                     throw new CloudRuntimeException("Unable to mount secondary storage for system template.");
                 }
