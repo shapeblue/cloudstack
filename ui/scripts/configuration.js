@@ -462,6 +462,11 @@
                                             items.push({
                                                 id: 'Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs',
                                                 description: 'NVIDIA TESLA V100'
+                                            items.push({
+                                                id: 'Group of Nvidia Corporation TU104GL [Tesla T4] GPUs',
+                                                description: 'NVIDIA TESLA T4'
+                                            });
+
                                             });
                                             args.response.success({
                                                 data: items
