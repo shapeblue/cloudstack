@@ -18,6 +18,7 @@
 //
 package com.cloud.agent.direct.download;
 
+import com.cloud.utils.Pair;
 import com.cloud.utils.UriUtils;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.commons.collections.CollectionUtils;
@@ -37,8 +38,9 @@ public class MetalinkDirectTemplateDownloader extends HttpDirectTemplateDownload
     private Random random = new Random();
     private static final Logger s_logger = Logger.getLogger(MetalinkDirectTemplateDownloader.class.getName());
 
-    public MetalinkDirectTemplateDownloader(String url, String destPoolPath, Long templateId, String checksum, Map<String, String> headers) {
-        super(url, templateId, destPoolPath, checksum, headers);
+    public MetalinkDirectTemplateDownloader(String url, String destPoolPath, Long templateId, String checksum,
+                                            Map<String, String> headers, String downloadPath) {
+        super(url, templateId, destPoolPath, checksum, headers, downloadPath);
         metalinkUrl = url;
         metalinkUrls = UriUtils.getMetalinkUrls(metalinkUrl);
         metalinkChecksums = UriUtils.getMetalinkChecksums(metalinkUrl);
@@ -52,7 +54,7 @@ public class MetalinkDirectTemplateDownloader extends HttpDirectTemplateDownload
     }
 
     @Override
-    public boolean downloadTemplate() {
+    public Pair<Boolean, String> downloadTemplate() {
         if (StringUtils.isBlank(getUrl())) {
             throw new CloudRuntimeException("Download url has not been set, aborting");
         }
@@ -72,7 +74,8 @@ public class MetalinkDirectTemplateDownloader extends HttpDirectTemplateDownload
                 }
                 setDownloadedFilePath(f.getAbsolutePath());
                 request = createRequest(getUrl(), reqHeaders);
-                downloaded = super.downloadTemplate();
+                Pair<Boolean, String> downloadResult = super.downloadTemplate();
+                downloaded = downloadResult.first();
                 if (downloaded) {
                     s_logger.info("Successfully downloaded template from url: " + getUrl());
                 }
@@ -83,7 +86,7 @@ public class MetalinkDirectTemplateDownloader extends HttpDirectTemplateDownload
             i++;
         }
         while (!downloaded && !isRedownload() && i < metalinkUrls.size());
-        return downloaded;
+        return new Pair<>(downloaded, getDownloadedFilePath());
     }
 
     @Override
