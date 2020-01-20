@@ -129,11 +129,11 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.compress.compressors.CompressorException;
 import org.apache.commons.compress.compressors.CompressorInputStream;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
@@ -1359,6 +1359,12 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             throw new InvalidParameterValueException("Unable to find an ISO with id " + isoId);
         }
 
+        long dcId = vm.getDataCenterId();
+        VMTemplateZoneVO exists = _tmpltZoneDao.findByZoneTemplate(dcId, isoId);
+        if (null == exists) {
+            throw new InvalidParameterValueException("ISO is not available in the zone the VM is in.");
+        }
+
         // check permissions
         // check if caller has access to VM and ISO
         // and also check if the VM's owner has access to the ISO.
@@ -2242,7 +2248,6 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         templateStore.setInstallPath(String.format("template/tmpl/%d/%d/%s.%s", userId, templateId, template.getUuid(), fileExtension));
         templateStore.setErrorString(null);
         templateStore.setSize(size);
-        templateStore.setSize(0L);
         if (template.isActivateAfterUpload()){
             template.setState(VirtualMachineTemplate.State.Active);
         } else {
@@ -2285,8 +2290,9 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             return new SeedSystemVMTemplateResponse();
         }
 
+        String tempFolder = FileUtils.getTempDirectory().getAbsolutePath();
         // mount locally
-        String mountPoint = "/tmp/nfsmount";
+        String mountPoint = tempFolder + "/nfsmount";
         int result = Script.runSimpleBashScriptForExitValue("mkdir -p " + mountPoint, 10000);
         if (result != 0){
             throw new CloudRuntimeException("Unable to create temporary mount folders.");
@@ -2300,7 +2306,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                 // try to unmount this path
                 Script.runSimpleBashScriptForExitValue("sudo umount " + mountPoint, 10000);
                 // mount secondary storage - have to use sudo, doesn't work otherwise
-                result = Script.runSimpleBashScriptForExitValue(String.format("sudo mount -t nfs %s:%s %s",  uri.getHost(), uri.getPath(), mountPoint), 10000);
+                result = Script.runSimpleBashScriptForExitValue(String.format("sudo mount -t nfs %s:%s %s",  uri.getHost(), uri.getPath(), mountPoint), 60000);
                 if (result != 0){
                     throw new CloudRuntimeException("Unable to mount secondary storage for system template.");
                 }
@@ -2326,7 +2332,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             String downloadedFileName = "";
             if (cmd.getLocalFile()){
                 // File location on management server
-                inputFile = "/tmp/upload/" + cmd.getTemplateId();
+                inputFile = tempFolder + "/upload/" + cmd.getTemplateId();
             } else {
 
                 URI downloadURI;
@@ -2340,28 +2346,27 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                 downloadedFileName = downloadPath.substring(downloadPath.lastIndexOf("/"));
 
                 startDownloadTemplate(template.getId(), cmd.getId());
-                download(cmd.getUrl(), "/tmp" + downloadedFileName);
-
-                inputFile = "/tmp" + downloadedFileName;
+                download(cmd.getUrl(), tempFolder + downloadedFileName);
+                inputFile = tempFolder + downloadedFileName;
             }
 
             startInstallTemplate(template.getId(), cmd.getId());
             // Decompress file
-            boolean decompressed = decompressFile(inputFile, "/tmp/" + template.getUuid() + "." + fileExtension);
+            boolean decompressed = decompressFile(inputFile, tempFolder + "/" + template.getUuid() + "." + fileExtension);
             if (decompressed) {
-                inputFile = "/tmp/" + template.getUuid() + "." + fileExtension;
+                inputFile = tempFolder + "/" + template.getUuid() + "." + fileExtension;
             }
 
             Long userId = CallContext.current().getCallingUserId();
             String finalDestination = String.format("%s/template/tmpl/%d/%d/%s.%s", mountPoint, userId, template.getId(), template.getUuid(), fileExtension);
 
             // create folder
-            result = Script.runSimpleBashScriptForExitValue(String.format("mkdir -p %s/template/tmpl/%d/%d", mountPoint, userId, template.getId()), 10000);
+            result = Script.runSimpleBashScriptForExitValue(String.format("sudo mkdir -p %s/template/tmpl/%d/%d", mountPoint, userId, template.getId()), 60000);
             if (result != 0){
                 throw new CloudRuntimeException("Unable to create temporary mount folders.");
             }
             // Copy template File to image store
-            result = Script.runSimpleBashScriptForExitValue(String.format("sudo cp %s %s", inputFile, finalDestination ), 10000);
+            result = Script.runSimpleBashScriptForExitValue(String.format("sudo cp %s %s", inputFile, finalDestination ), 900000);
             if (result != 0){
                 throw new CloudRuntimeException("Failure copying system VM template to image store");
             }
@@ -2370,7 +2375,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             // Create new template properties File
             PrintWriter writer = null;
             try {
-                writer = new PrintWriter(String.format("%s/template/tmpl/%d/%d/template.properties", mountPoint, userId, template.getId()), "UTF-8");
+                writer = new PrintWriter(String.format("%s/template.properties", tempFolder), "UTF-8");
             } catch (FileNotFoundException | UnsupportedEncodingException e) {
                 throw new CloudRuntimeException("Unable to create system VM template properties file");
             }
@@ -2385,9 +2390,16 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             writer.println(fileExtension + ".size=" + destinationFile.length());
             writer.close();
 
+            String propertiesFileLocation = String.format("%s/template/tmpl/%d/%d/template.properties", mountPoint, userId, template.getId());
+            // Copy template properties File to image store
+            result = Script.runSimpleBashScriptForExitValue(String.format("sudo cp %s/template.properties %s", tempFolder, propertiesFileLocation), 900000);
+            if (result != 0){
+                throw new CloudRuntimeException("Failure copying template properties to image store");
+            }
+
             updateTemplate(template.getId(), fileExtension, cmd.getId(), destinationFile.length());
 
-            Script.runSimpleBashScriptForExitValue("sudo umount " + mountPoint, 10000);
+            Script.runSimpleBashScriptForExitValue("sudo umount " + mountPoint, 60000);
         }
         return new SeedSystemVMTemplateResponse();
     }

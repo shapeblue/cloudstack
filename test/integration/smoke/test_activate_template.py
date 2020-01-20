@@ -75,10 +75,13 @@ class TestActivateTemplate(cloudstackTestCase):
 
     def setUp(self):
         self.cleanup = []
+<<<<<<< HEAD
 
         # Existing system VM active template
         self.initialActiveTemplate = self.getActiveSystemVmTemplate()
 
+=======
+>>>>>>> systemvm-template-api
         # Default URL
         self.getDefaultURLCmd = getSystemVMTemplateDefaultUrl.getSystemVMTemplateDefaultUrlCmd()
         self.getDefaultURLCmd.hypervisor = self.hypervisor
@@ -88,8 +91,13 @@ class TestActivateTemplate(cloudstackTestCase):
         self.test_template = registerTemplate.registerTemplateCmd()
         self.test_template.hypervisor = self.hypervisor
         self.test_template.zoneid = self.zone.id
+<<<<<<< HEAD
         self.test_template.name = self.account.id + '-test-system-' + self.hypervisor + '-4.11.3'
         self.test_template.displaytext = self.account.id + 'test-system-' + self.hypervisor + '-4.11.3'
+=======
+        self.test_template.name = 'test-system-' + self.hypervisor + '-4.11.3'
+        self.test_template.displaytext = 'test-system-' + self.hypervisor + '-4.11.3'
+>>>>>>> systemvm-template-api
         self.test_template.url = self.urlResponse.url.url
         self.test_template.format = self.urlResponse.url.type
         self.test_template.system = True
@@ -116,11 +124,6 @@ class TestActivateTemplate(cloudstackTestCase):
                 cmd.id = temp.id
                 cmd.zoneid = self.zone.id
                 self.apiclient.deleteTemplate(cmd)
-
-            for temp in self.templates: 
-                cmd = self.activateTemplateCmd
-                cmd.id = temp.id
-                self.apiclient.activateSystemVMTemplate(cmd)
         except Exception as e:
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
@@ -140,19 +143,11 @@ class TestActivateTemplate(cloudstackTestCase):
         self.activateTemplate(self.activateTemplateCmd)
         response = self.checkConfiguration(self.listConfigurationsCmd)
         # Checking template activation
-        self.assertEqual(response[0].value, self.test_template.name, "Expected template name to be "+ self.test_template.name)
+        self.assertEqual(response[0].value, "test-system-"+ self.hypervisor + "-4.11.3", "Expected template name to be test-system-"+ self.hypervisor +"-4.11.3")
         return
 
     @attr(tags=["advanced", "smoke"], required_hardware="true")
-    def test_02_get_default_url(self):
-        response = self.apiclient.getSystemVMTemplateDefaultUrl(self.getDefaultURLCmd)
-        self.assertNotEqual(response.url.url, "", "Expected a value")
-        # This test will have to be updated for every official template version
-        if self.hypervisor == "kvm":
-            self.assertEqual(response.url.url, "https://download.cloudstack.org/systemvm/4.11/systemvmtemplate-4.11.3-kvm.qcow2.bz2", "Default url mismatch")
-
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
-    def test_03_seedSystemVMTemplate(self):
+    def test_02_seedSystemVMTemplate(self):
         activeTemplate = self.apiclient.listTemplates(self.listTemplatesCmd)[0]
         cmd = seedSystemVMTemplate.seedSystemVMTemplateCmd()
         cmd.id = self.zone.id

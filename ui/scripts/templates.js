@@ -465,7 +465,7 @@
                                                     $form.find('.form-item[rel=rootDiskControllerTypeKVM]').css('display', 'inline-block');
                                                     $('#label_root_disk_controller').prop('selectedIndex', 2);
                                                     $form.find('.form-item[rel=requireshvm]').css('display', 'inline-block');
-                                                    if (isAdmin()) {
+                                                    if (isAdmin() && !($form.find('#label_action_create_template_type').val() == "system") ) {
                                                       $form.find('.form-item[rel=directdownload]').show();
                                                     }
                                                 } else {
@@ -3062,6 +3062,13 @@
 								custom: cloudStack.uiCustom.granularDetails({
                                     resourceType: 'Template',
 									dataProvider: function(args) {
+									    // no paging for listTemplates details
+									    if (args.page > 1) {
+									        args.response.success({
+									            data: []
+									        });
+									        return;
+									    }
 										$.ajax({
 											url: createURL('listTemplates'),
 											data: {
