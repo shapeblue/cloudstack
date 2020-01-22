@@ -1737,7 +1737,7 @@ public class KVMStorageProcessor implements StorageProcessor {
             return new DirectDownloadAnswer(false, "Unable to create direct downloader: " + e.getMessage(), true);
         }
 
-        return new DirectDownloadAnswer(true, template.getSize(), template.getPath());
+        return new DirectDownloadAnswer(true, template.getSize(), template.getName());
     }
 
     /**
