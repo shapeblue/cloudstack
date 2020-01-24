@@ -185,7 +185,7 @@ public class BareMetalDiscoverer extends DiscovererBase implements Discoverer, R
                 Class<?> clazz = Class.forName(resourceClassName);
                 resource = (BareMetalResource) clazz.newInstance();
                 String externalUrl = _configDao.getValue(Config.ExternalBaremetalSystemUrl.key());
-                if (externalUrl == null) {
+                if (externalUrl == null && resourceClassName != "org.apache.cloudstack.compute.maas.MaasResourceProvider") {
                     throw new IllegalArgumentException(String.format("You must specify ExternalBaremetalSystemUrl in global config page as ExternalBaremetalResourceClassName is not null"));
                 }
                 details.put(BaremetalManager.ExternalBaremetalSystemUrl, externalUrl);
