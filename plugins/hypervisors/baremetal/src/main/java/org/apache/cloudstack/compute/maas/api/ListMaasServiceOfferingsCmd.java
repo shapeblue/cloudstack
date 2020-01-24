@@ -28,25 +28,27 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseListCmd;
+import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.cloudstack.compute.maas.MaasInventoryResponse;
+import org.apache.cloudstack.compute.maas.MaasServiceOfferingsResponse;
 import org.apache.cloudstack.compute.maas.MaasManager;
 import org.apache.log4j.Logger;
 
 @APICommand(
-        name = "listMaasInventory",
-        description = "list baremetal maas inventory",
-        responseObject = MaasInventoryResponse.class,
+        name = "listMaasServiceOfferings",
+        description = "list baremetal maas service offerings",
+        responseObject = MaasServiceOfferingsResponse.class,
         requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin}
 )
-public class ListMaasInventoryCmd extends BaseListCmd {
-    private static final Logger LOGGER = Logger.getLogger(ListMaasInventoryCmd.class);
-    private static final String NAME = "listmassinventoryresponse";
+public class ListMaasServiceOfferingsCmd extends BaseListCmd {
+    private static final Logger LOGGER = Logger.getLogger(ListMaasServiceOfferingsCmd.class);
+    private static final String NAME = "listmaasserviceofferingsresponse";
 
     @Inject
     private MaasManager manager;
@@ -54,22 +56,15 @@ public class ListMaasInventoryCmd extends BaseListCmd {
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
     // ///////////////////////////////////////////////////
-//    @Parameter(name = ApiConstants.ID, type = CommandType.LONG, description = "DHCP server device ID")
-//    private Long id;
-//
-//    @Parameter(name = ApiConstants.DHCP_SERVER_TYPE, type = CommandType.STRING, description = "Type of DHCP device")
-//    private String deviceType;
+    @Parameter(name = ApiConstants.POOL_NAME, type = CommandType.STRING, description = "name of the Resource Pool in MaaS to list the service offerings of")
+    private String poolName;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
-//    public Long getClusterId() {
-//        return clusterId;
-//    }
-//
-//    public Long getId() {
-//        return id;
-//    }
+    public String getPoolName() {
+        return poolName;
+    }
 
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
@@ -77,14 +72,14 @@ public class ListMaasInventoryCmd extends BaseListCmd {
     @Override
     public void execute() {
         try {
-            ListResponse<MaasInventoryResponse> response = new ListResponse<MaasInventoryResponse>();
-            List<MaasInventoryResponse> responses = manager.listMaasInventory(this);
+            ListResponse<MaasServiceOfferingsResponse> response = new ListResponse<MaasServiceOfferingsResponse>();
+            List<MaasServiceOfferingsResponse> responses = manager.listMaasServiceOfferings(this);
             response.setResponses(responses);
             response.setResponseName(getCommandName());
-            response.setObjectName("massinventory");
+            response.setObjectName("maasserviceoffering");
             this.setResponseObject(response);
         } catch (Exception e) {
-            LOGGER.debug("Exception happend while executing ListMaasInventoryCmd");
+            LOGGER.debug("Exception happend while executing ListMaasServiceOfferingsCmd");
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
         }
     }

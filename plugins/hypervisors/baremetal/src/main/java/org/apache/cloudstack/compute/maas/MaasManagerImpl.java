@@ -32,12 +32,15 @@ import java.util.Set;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import org.apache.cloudstack.compute.maas.api.ListMaasInventoryCmd;
+import org.apache.cloudstack.compute.maas.MaasObject.MaasNode;
+import org.apache.cloudstack.compute.maas.api.ListMaasServiceOfferingsCmd;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 
+import com.cloud.api.query.dao.ServiceOfferingJoinDao;
+import com.cloud.api.query.vo.ServiceOfferingJoinVO;
 import com.cloud.configuration.Config;
 import com.cloud.dc.ClusterDetailsDao;
 import com.cloud.dc.ClusterVO;
@@ -46,6 +49,8 @@ import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.crypt.DBEncryptionUtil;
+import com.cloud.utils.db.SearchCriteria;
+import com.google.common.base.Strings;
 
 public class MaasManagerImpl extends ManagerBase implements MaasManager, Configurable {
     public static final Logger LOGGER = Logger.getLogger(MaasManagerImpl.class.getName());
@@ -54,6 +59,7 @@ public class MaasManagerImpl extends ManagerBase implements MaasManager, Configu
     @Inject private ClusterDao clusterDao;
     @Inject protected ConfigurationDao configDao;
     @Inject private ClusterDetailsDao clusterDetailsDao;
+    @Inject private ServiceOfferingJoinDao svcOfferingJoinDao;
 
     @Override
     public String getConfigComponentName() {
@@ -68,26 +74,62 @@ public class MaasManagerImpl extends ManagerBase implements MaasManager, Configu
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> cmds = new ArrayList<Class<?>>();
-        cmds.add(ListMaasInventoryCmd.class);
+        cmds.add(ListMaasServiceOfferingsCmd.class);
         return cmds;
     }
 
     @Override
-    public List<MaasInventoryResponse> listMaasInventory(ListMaasInventoryCmd cmd) throws ConfigurationException, IOException {
-        List<MaasInventoryResponse> responses = new ArrayList<>();
+    public List<MaasServiceOfferingsResponse> listMaasServiceOfferings(ListMaasServiceOfferingsCmd cmd) throws ConfigurationException, IOException {
+        List<MaasServiceOfferingsResponse> responses = new ArrayList<>();
 
-        for ( ClusterVO c : getMaasClusters()) {
-            getMaasApiClient(c.getId()).getMaasNodes().forEach(n -> {
-                MaasInventoryResponse response = new MaasInventoryResponse();
-
-                response.setCpuCount(n.getCpuCount());
-                response.setCpuSpeed(n.getCpuSpeed());
-                response.setMemory(n.getMemory());
-                response.setStorage(n.getStorage());
-
-                responses.add(response);
-            });
+        if (Strings.isNullOrEmpty(cmd.getPoolName())) {
+            return responses;
         }
+
+        SearchCriteria<ServiceOfferingJoinVO> sc = svcOfferingJoinDao.createSearchBuilder().create();
+        sc.setParameters("deploymentPlanner", "BareMetalPlanner");
+        List<ServiceOfferingJoinVO> offerings = svcOfferingJoinDao.search(sc, null);
+
+        if (offerings == null || offerings.size() == 0) {
+            return responses;
+        }
+
+        List<MaasNode> nodes = new ArrayList<>();
+
+        for (ClusterVO c : getMaasClusters()) {
+            MaasApiClient client = getMaasApiClient(c.getId());
+            nodes.addAll(client.getMaasNodes(cmd.getPoolName()));
+        }
+
+        offerings.forEach(svc -> {
+            int available = 0;
+            int total = 0;
+            int erasing = 0;
+
+            for (MaasNode node : nodes) {
+                if (node.getCpuCount() == svc.getCpu() && node.getCpuSpeed().intValue() == svc.getSpeed() && node.getMemory().intValue() == svc.getRamSize()) {
+                    total++;
+
+                    if (node.getStatusName().equals(MaasObject.MaasState.Ready.toString())) {
+                        available++;
+                    }
+                    //TODO
+//                    if (node.getStatusName().equals(MaasObject.MaasState.Erasing.toString())) {
+//                        erasing++;
+//                    }
+                }
+            };
+
+            MaasServiceOfferingsResponse response = new MaasServiceOfferingsResponse();
+
+            response.setOfferingId(svc.getUuid());
+            response.setOfferingName(svc.getName());
+            response.setAvailable(available);
+            response.setTotal(total);
+            response.setErasing(erasing);
+
+            responses.add(response);
+        });
 
         return responses;
     }

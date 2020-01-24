@@ -625,10 +625,11 @@ public class ApiConstants {
     public static final String BAREMETAL_MAAS_HOST = "baremetalmaashost";
     public static final String BAREMETAL_MAAS_KEY = "baremetalmaaskey";
     public static final String BAREMETAL_MAAS_NODE_ID = "baremetalmaasnodeid";
-    public static final String BAREMETAL_MAAS_CPU_COUNT = "baremetalmaascpucount";
-    public static final String BAREMETAL_MAAS_CPU_SPEED = "baremetalmaascpuspeed";
-    public static final String BAREMETAL_MAAS_MEMORY = "baremetalmaasmemory";
-    public static final String BAREMETAL_MAAS_STORAGE = "baremetalmaasstorage";
+    public static final String BAREMETAL_MAAS_OFFERING_ID = "offeringid";
+    public static final String BAREMETAL_MAAS_OFFERING_NAME = "offeringname";
+    public static final String BAREMETAL_MAAS_AVIALBALE_COUNT = "available";
+    public static final String BAREMETAL_MAAS_TOTAL_COUNT = "total";
+    public static final String BAREMETAL_MAAS_ERASING_COUNT = "erasing";
     public static final String UCS_DN = "ucsdn";
     public static final String GSLB_PROVIDER = "gslbprovider";
     public static final String EXCLUSIVE_GSLB_PROVIDER = "isexclusivegslbprovider";

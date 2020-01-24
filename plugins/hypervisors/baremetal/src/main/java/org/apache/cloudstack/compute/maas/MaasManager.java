@@ -27,7 +27,7 @@ import java.util.List;
 
 import javax.naming.ConfigurationException;
 
-import org.apache.cloudstack.compute.maas.api.ListMaasInventoryCmd;
+import org.apache.cloudstack.compute.maas.api.ListMaasServiceOfferingsCmd;
 
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
@@ -35,5 +35,5 @@ import com.cloud.utils.component.PluggableService;
 public interface MaasManager extends PluggableService, Manager {
     MaasApiClient getMaasApiClient(long clusterId) throws ConfigurationException;
 
-    List<MaasInventoryResponse> listMaasInventory(ListMaasInventoryCmd cmd) throws ConfigurationException, IOException;
+    List<MaasServiceOfferingsResponse> listMaasServiceOfferings(ListMaasServiceOfferingsCmd cmd) throws ConfigurationException, IOException;
 }

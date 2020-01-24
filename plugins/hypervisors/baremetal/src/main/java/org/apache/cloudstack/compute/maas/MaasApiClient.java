@@ -20,6 +20,7 @@ package org.apache.cloudstack.compute.maas;
 
 import com.cloud.utils.StringUtils;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -342,7 +343,15 @@ public class MaasApiClient {
     }
 
     public List<MaasObject.MaasNode> getMaasNodes() throws IOException {
+        return getMaasNodes(null);
+    }
+
+    public List<MaasObject.MaasNode> getMaasNodes(String pool) throws IOException {
         String url = getApiUrl("machines");
+
+        if (!Strings.isNullOrEmpty(pool)) {
+            url += "?pool=" + pool;
+        }
 
         HttpGet maasNodeReq = new HttpGet(url);
 
