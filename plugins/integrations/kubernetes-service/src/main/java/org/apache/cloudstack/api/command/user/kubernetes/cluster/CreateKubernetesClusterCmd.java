@@ -16,6 +16,10 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.kubernetes.cluster;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.RoleType;
@@ -29,6 +33,7 @@ import org.apache.cloudstack.api.BaseAsyncCreateCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ResponseObject.ResponseView;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.response.DiskOfferingResponse;
 import org.apache.cloudstack.api.response.DomainResponse;
 import org.apache.cloudstack.api.response.KubernetesClusterResponse;
 import org.apache.cloudstack.api.response.KubernetesSupportedVersionResponse;
@@ -37,6 +42,7 @@ import org.apache.cloudstack.api.response.ProjectResponse;
 import org.apache.cloudstack.api.response.ServiceOfferingResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.commons.collections.MapUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.kubernetes.cluster.KubernetesCluster;
@@ -140,6 +146,15 @@ public class CreateKubernetesClusterCmd extends BaseAsyncCreateCmd {
             description = "root disk size of root disk for each node")
     private Long nodeRootDiskSize;
 
+    @ACL(accessType = AccessType.UseEntry)
+    @Parameter(name = ApiConstants.DISK_OFFERING_ID, type = CommandType.UUID, entityType = DiskOfferingResponse.class,
+            description = "the ID of the disk offering to use for creating and attaching data disk for each node")
+    private Long diskOfferingId;
+
+    @Parameter(name = ApiConstants.DETAILS, type = CommandType.MAP,
+            description = "Kubernetes cluster details in key/value pairs")
+    private Map details;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -217,6 +232,20 @@ public class CreateKubernetesClusterCmd extends BaseAsyncCreateCmd {
 
     public Long getNodeRootDiskSize() {
         return nodeRootDiskSize;
+    }
+
+    public Long getDiskOfferingId() {
+        return diskOfferingId;
+    }
+
+    public Map<String, String> getDetails() {
+        if (MapUtils.isEmpty(details)) {
+            return new HashMap<String, String>();
+        }
+
+        Collection<String> paramsCollection = details.values();
+        Map<String, String> params = (Map<String, String>) (paramsCollection.toArray())[0];
+        return params;
     }
 
     /////////////////////////////////////////////////////

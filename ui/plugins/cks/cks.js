@@ -302,6 +302,59 @@
                                                 number: true
                                             }
                                         },
+                                        nodedatadiskofferingid: {
+                                            label: 'label.node.data.disk.offering',
+                                            //docID: 'helpKubernetesClusterNodeRootDiskSize',
+                                            select: function(args) {
+                                                var offeringObjs = [];
+                                                $.ajax({
+                                                    url: createURL("listDiskOfferings"),
+                                                    dataType: "json",
+                                                    async: true,
+                                                    success: function(json) {
+                                                        offeringObjs = json.listdiskofferingsresponse.diskoffering;
+                                                        var items = [];
+                                                        items.push({
+                                                            id: "",
+                                                            description: ""
+                                                        });
+                                                        if (offeringObjs != null) {
+                                                            for (var i = 0; i < offeringObjs.length; i++) {
+                                                                items.push({
+                                                                    id: offeringObjs[i].id,
+                                                                    description: offeringObjs[i].name
+                                                                });
+                                                            }
+                                                        }
+                                                        args.response.success({
+                                                            data: items
+                                                        });
+                                                    }
+                                                });
+
+                                                args.$select.change(function() {
+                                                    var $form = $(this).closest("form");
+                                                    $form.find('.form-item[rel=nodedatadisksize]').hide();
+                                                    var currentOfferingId = $(this).val();
+                                                    if (currentOfferingId != null  && offeringObjs != null) {
+                                                        for (var i = 0; i < offeringObjs.length; i++) {
+                                                            if (currentOfferingId == offeringObjs[i].id &&
+                                                                offeringObjs[i].iscustomized) {
+                                                                $form.find('.form-item[rel=nodedatadisksize]').css('display', 'inline-block');
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                        },
+                                        nodedatadisksize: {
+                                            label: 'label.node.data.disk.size.gb',
+                                            //docID: 'helpKubernetesClusterNodeRootDiskSize',
+                                            validation: {
+                                                number: true
+                                            },
+                                            isHidden: true,
+                                        },
                                         network: {
                                             label: 'label.network',
                                             //docID: 'helpKubernetesClusterNetwork',
@@ -450,6 +503,19 @@
                                         $.extend(data, {
                                             noderootdisksize: args.data.noderootdisksize
                                         });
+                                    }
+
+                                    if (args.data.nodedatadiskofferingid != undefined && args.data.nodedatadiskofferingid != null && args.data.nodedatadiskofferingid != "") {
+                                        $.extend(data, {
+                                            diskofferingid: args.data.nodedatadiskofferingid
+                                        });
+                                        if (args.data.nodedatadisksize != null && args.data.nodedatadisksize != "" && args.data.nodedatadisksize > 0) {
+                                            $.extend(data, {
+                                                details: [{
+                                                    disksize: args.data.nodedatadisksize
+                                                }]
+                                            });
+                                        }
                                     }
 
                                     var masterNodes = 1;

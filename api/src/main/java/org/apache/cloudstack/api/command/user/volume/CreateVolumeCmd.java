@@ -122,6 +122,10 @@ public class CreateVolumeCmd extends BaseAsyncCreateCustomIdCmd implements UserC
         return diskOfferingId;
     }
 
+    public void setDiskOfferingId(Long diskOfferingId) {
+        this.diskOfferingId = diskOfferingId;
+    }
+
     public Long getDomainId() {
         return domainId;
     }
@@ -132,6 +136,10 @@ public class CreateVolumeCmd extends BaseAsyncCreateCustomIdCmd implements UserC
 
     public Long getSize() {
         return size;
+    }
+
+    public void setSize(Long size) {
+        this.size = size;
     }
 
     public Long getMinIops() {
@@ -148,6 +156,10 @@ public class CreateVolumeCmd extends BaseAsyncCreateCustomIdCmd implements UserC
 
     public Long getZoneId() {
         return zoneId;
+    }
+
+    public void setZoneId(Long zoneId) {
+        this.zoneId = zoneId;
     }
 
     private Long getProjectId() {
@@ -168,6 +180,10 @@ public class CreateVolumeCmd extends BaseAsyncCreateCustomIdCmd implements UserC
 
     public Long getVirtualMachineId() {
         return virtualMachineId;
+    }
+
+    public void setVirtualMachineId(Long virtualMachineId) {
+        this.virtualMachineId = virtualMachineId;
     }
 
     /////////////////////////////////////////////////////

@@ -126,6 +126,7 @@ public interface KubernetesCluster extends ControlledEntity, com.cloud.utils.fsm
     long getCores();
     long getMemory();
     long getNodeRootDiskSize();
+    Long getNodeDataDiskOfferingId();
     String getEndpoint();
     boolean isCheckForGc();
     @Override

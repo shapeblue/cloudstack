@@ -31,6 +31,8 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.command.user.firewall.CreateFirewallRuleCmd;
 import org.apache.cloudstack.api.command.user.vm.StartVMCmd;
+import org.apache.cloudstack.api.command.user.volume.AttachVolumeCmd;
+import org.apache.cloudstack.api.command.user.volume.CreateVolumeCmd;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Level;
@@ -66,8 +68,12 @@ import com.cloud.network.rules.FirewallRuleVO;
 import com.cloud.network.rules.PortForwardingRuleVO;
 import com.cloud.network.rules.RulesService;
 import com.cloud.network.rules.dao.PortForwardingRulesDao;
+import com.cloud.offering.DiskOffering;
 import com.cloud.offering.ServiceOffering;
 import com.cloud.resource.ResourceManager;
+import com.cloud.storage.Volume;
+import com.cloud.storage.VolumeApiService;
+import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.user.Account;
 import com.cloud.user.SSHKeyPairVO;
@@ -93,6 +99,8 @@ public class KubernetesClusterResourceModifierActionWorker extends KubernetesClu
     @Inject
     protected ClusterDetailsDao clusterDetailsDao;
     @Inject
+    protected DiskOfferingDao diskOfferingDao;
+    @Inject
     protected FirewallRulesDao firewallRulesDao;
     @Inject
     protected FirewallService firewallService;
@@ -106,9 +114,31 @@ public class KubernetesClusterResourceModifierActionWorker extends KubernetesClu
     protected ResourceManager resourceManager;
     @Inject
     protected LoadBalancerDao loadBalancerDao;
+    @Inject
+    protected VolumeApiService volumeApiService;
+
+    protected DiskOffering dataDiskOffering;
+    protected Long dataDiskSize = null;
 
     protected KubernetesClusterResourceModifierActionWorker(final KubernetesCluster kubernetesCluster, final KubernetesClusterManagerImpl clusterManager) {
         super(kubernetesCluster, clusterManager);
+    }
+
+    protected void init() {
+        super.init();
+        if (kubernetesCluster.getNodeDataDiskOfferingId() != null) {
+            dataDiskOffering = diskOfferingDao.findByIdIncludingRemoved(kubernetesCluster.getNodeDataDiskOfferingId());
+        }
+        if (dataDiskOffering != null && dataDiskOffering.isCustomized()) {
+            KubernetesClusterDetailsVO detailsVO = kubernetesClusterDetailsDao.findDetail(kubernetesCluster.getId(), ApiConstants.DISK_SIZE);
+            if (detailsVO != null) {
+                try {
+                    dataDiskSize = Long.parseLong(detailsVO.getValue());
+                } catch (NumberFormatException e) {
+                    dataDiskSize = null;
+                }
+            }
+        }
     }
 
     private String getKubernetesNodeConfig(final String joinIp) throws IOException {
@@ -271,6 +301,7 @@ public class KubernetesClusterResourceModifierActionWorker extends KubernetesClu
             if (vm == null) {
                 throw new ManagementServerException(String.format("Failed to provision worker VM for Kubernetes cluster ID: %s" , kubernetesCluster.getUuid()));
             }
+            addDataDiskToNodeVM(vm);
             nodes.add(vm);
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info(String.format("Provisioned node VM ID: %s in to the Kubernetes cluster ID: %s", vm.getUuid(), kubernetesCluster.getUuid()));
@@ -466,6 +497,35 @@ public class KubernetesClusterResourceModifierActionWorker extends KubernetesClu
                 lbService.deleteLoadBalancerRule(rule.getId(), true);
                 break;
             }
+        }
+    }
+
+    protected void addDataDiskToNodeVM(final UserVm vm) throws ManagementServerException {
+        if (dataDiskOffering == null) {
+            return;
+        }
+        if (dataDiskOffering.isCustomized() && dataDiskSize == null) {
+            throw new ManagementServerException(String.format("Invalid disk size for Kubernetes cluster with the customized disk offering ID: %s", dataDiskOffering.getUuid()));
+        }
+        CreateVolumeCmd createVolumeCmd = new CreateVolumeCmd();
+        createVolumeCmd = ComponentContext.inject(createVolumeCmd);
+        createVolumeCmd.setDiskOfferingId(dataDiskOffering.getId());
+        if (dataDiskSize != null) {
+            createVolumeCmd.setSize(dataDiskSize);
+        }
+        createVolumeCmd.setVirtualMachineId(vm.getId());
+        createVolumeCmd.setZoneId(vm.getDataCenterId());
+        Volume volume = volumeApiService.allocVolume(createVolumeCmd);
+        if (volume == null) {
+            throw new ManagementServerException(String.format("Failed to allocate data disk volume for KubernetesCluster node VM ID: %s", vm.getUuid()));
+        }
+        AttachVolumeCmd attachVolumeCmd = new AttachVolumeCmd();
+        attachVolumeCmd = ComponentContext.inject(attachVolumeCmd);
+        attachVolumeCmd.setId(volume.getId());
+        attachVolumeCmd.setVirtualMachineId(vm.getId());
+        volume = volumeApiService.attachVolumeToVM(attachVolumeCmd);
+        if (volume == null) {
+            throw new ManagementServerException(String.format("Failed to create data disk volume for KubernetesCluster node VM ID: %s", vm.getUuid()));
         }
     }
 }

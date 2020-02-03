@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS `cloud`.`kubernetes_cluster` (
     `cores` bigint unsigned NOT NULL COMMENT 'total number of CPU cores used by this Kubernetes cluster',
     `memory` bigint unsigned NOT NULL COMMENT 'total memory used by this Kubernetes cluster',
     `node_root_disk_size` bigint(20) unsigned DEFAULT 0 COMMENT 'root disk size of root disk for each node',
+    `node_data_disk_offering_id` bigint unsigned DEFAULT NULL COMMENT 'the ID of the disk offering to use for creating and attaching data disk for each node',
     `endpoint` varchar(255) COMMENT 'url endpoint of the Kubernetes cluster manager api access',
     `created` datetime NOT NULL COMMENT 'date created',
     `removed` datetime COMMENT 'date removed or null, if still present',

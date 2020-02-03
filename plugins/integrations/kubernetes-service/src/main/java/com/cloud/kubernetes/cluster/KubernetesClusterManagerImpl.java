@@ -105,6 +105,7 @@ import com.cloud.network.dao.NetworkVO;
 import com.cloud.network.dao.PhysicalNetworkDao;
 import com.cloud.network.rules.FirewallRule;
 import com.cloud.network.rules.FirewallRuleVO;
+import com.cloud.offering.DiskOffering;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.offering.ServiceOffering;
 import com.cloud.offerings.NetworkOfferingVO;
@@ -116,6 +117,7 @@ import com.cloud.service.ServiceOfferingVO;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.VMTemplateZoneVO;
+import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VMTemplateZoneDao;
 import com.cloud.template.TemplateApiService;
@@ -171,6 +173,8 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
     protected ClusterDao clusterDao;
     @Inject
     protected ClusterDetailsDao clusterDetailsDao;
+    @Inject
+    protected DiskOfferingDao diskOfferingDao;
     @Inject
     protected ServiceOfferingDao serviceOfferingDao;
     @Inject
@@ -554,7 +558,9 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
         final String dockerRegistryUrl = cmd.getDockerRegistryUrl();
         final String dockerRegistryEmail = cmd.getDockerRegistryEmail();
         final Long nodeRootDiskSize = cmd.getNodeRootDiskSize();
+        final Long diskOfferingId = cmd.getDiskOfferingId();
         final String externalLoadBalancerIpAddress = cmd.getExternalLoadBalancerIpAddress();
+        final Map<String, String> details = cmd.getDetails();
 
         if (name == null || name.isEmpty()) {
             throw new InvalidParameterValueException("Invalid name for the Kubernetes cluster name:" + name);
@@ -627,6 +633,24 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
 
         if (nodeRootDiskSize != null && nodeRootDiskSize <= 0) {
             throw new InvalidParameterValueException(String.format("Invalid value for %s", ApiConstants.NODE_ROOT_DISK_SIZE));
+        }
+
+        Long dataDiskSize = null;
+        if (details.containsKey(ApiConstants.DISK_SIZE)) {
+            try {
+                dataDiskSize = Long.parseLong(Strings.emptyToNull(details.get(ApiConstants.DISK_SIZE)));
+            } catch (NumberFormatException ex) {}
+        }
+
+        if (diskOfferingId != null) {
+            DiskOffering diskOffering = diskOfferingDao.findById(diskOfferingId);
+            if (diskOffering == null) {
+                throw new InvalidParameterValueException("Invalid disk offering specified for node data disk");
+            }
+            accountManager.checkAccess(owner, diskOffering, zone);
+            if (diskOffering.isCustomized() && dataDiskSize == null) {
+                throw new InvalidParameterValueException(String.format("Invalid disk size specified for the custom disk offering ID: %s", diskOffering.getUuid()));
+            }
         }
 
         VMTemplateVO template = templateDao.findByTemplateName(KubernetesClusterTemplateName.value());
@@ -709,6 +733,8 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
         final String dockerRegistryUrl = cmd.getDockerRegistryUrl();
         final String dockerRegistryEmail = cmd.getDockerRegistryEmail();
         final boolean networkCleanup = cmd.getNetworkId() == null;
+        final Map<String, String> details = cmd.getDetails();
+        final String diskSize = details.get(ApiConstants.DISK_SIZE);
         Transaction.execute(new TransactionCallbackNoReturn() {
             @Override
             public void doInTransactionWithoutResult(TransactionStatus status) {
@@ -727,6 +753,9 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
                 }
                 if (!Strings.isNullOrEmpty(dockerRegistryEmail)) {
                     details.add(new KubernetesClusterDetailsVO(kubernetesCluster.getId(), ApiConstants.DOCKER_REGISTRY_EMAIL, dockerRegistryEmail, true));
+                }
+                if (!Strings.isNullOrEmpty(diskSize)) {
+                    details.add(new KubernetesClusterDetailsVO(kubernetesCluster.getId(), ApiConstants.DISK_SIZE, diskSize, true));
                 }
                 details.add(new KubernetesClusterDetailsVO(kubernetesCluster.getId(), ApiConstants.USERNAME, "admin", true));
                 SecureRandom random = new SecureRandom();
@@ -895,6 +924,11 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
         final ServiceOffering serviceOffering = serviceOfferingDao.findById(cmd.getServiceOfferingId());
         final Account owner = accountService.getActiveAccountById(cmd.getEntityOwnerId());
         final KubernetesSupportedVersion clusterKubernetesVersion = kubernetesSupportedVersionDao.findById(cmd.getKubernetesVersionId());
+        DiskOffering dof = null;
+        if (cmd.getDiskOfferingId() != null) {
+            dof = diskOfferingDao.findById(cmd.getDiskOfferingId());
+        }
+        final DiskOffering diskOffering = dof;
 
         try {
             plan(totalNodeCount, zone, serviceOffering);
@@ -912,7 +946,7 @@ public class KubernetesClusterManagerImpl extends ManagerBase implements Kuberne
             public KubernetesClusterVO doInTransaction(TransactionStatus status) {
                 KubernetesClusterVO newCluster = new KubernetesClusterVO(cmd.getName(), cmd.getDisplayName(), zone.getId(), clusterKubernetesVersion.getId(),
                         serviceOffering.getId(), finalTemplate.getId(), defaultNetwork.getId(), owner.getDomainId(),
-                        owner.getAccountId(), masterNodeCount, clusterSize, KubernetesCluster.State.Created, cmd.getSSHKeyPairName(), cores, memory, cmd.getNodeRootDiskSize(), "");
+                        owner.getAccountId(), masterNodeCount, clusterSize, KubernetesCluster.State.Created, cmd.getSSHKeyPairName(), cores, memory, cmd.getNodeRootDiskSize(), diskOffering.getId(), "");
                 kubernetesClusterDao.persist(newCluster);
                 return newCluster;
             }

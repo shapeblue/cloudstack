@@ -266,6 +266,7 @@ public class KubernetesClusterStartWorker extends KubernetesClusterResourceModif
         if (k8sMasterVM == null) {
             throw new ManagementServerException(String.format("Failed to provision master VM for Kubernetes cluster ID: %s" , kubernetesCluster.getUuid()));
         }
+        addDataDiskToNodeVM(k8sMasterVM);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(String.format("Provisioned the master VM ID: %s in to the Kubernetes cluster ID: %s", k8sMasterVM.getUuid(), kubernetesCluster.getUuid()));
         }
@@ -285,6 +286,7 @@ public class KubernetesClusterStartWorker extends KubernetesClusterResourceModif
                 if (vm == null) {
                     throw new ManagementServerException(String.format("Failed to provision additional master VM for Kubernetes cluster ID: %s" , kubernetesCluster.getUuid()));
                 }
+                addDataDiskToNodeVM(vm);
                 additionalMasters.add(vm);
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info(String.format("Provisioned additional master VM ID: %s in to the Kubernetes cluster ID: %s", vm.getUuid(), kubernetesCluster.getUuid()));

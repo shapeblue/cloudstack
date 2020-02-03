@@ -84,6 +84,9 @@ public class KubernetesClusterVO implements KubernetesCluster {
     @Column(name = "node_root_disk_size")
     private long nodeRootDiskSize;
 
+    @Column(name = "node_data_disk_offering_id", nullable = true)
+    private Long nodeDataDiskOfferingId;
+
     @Column(name = "state")
     private State  state;
 
@@ -252,6 +255,15 @@ public class KubernetesClusterVO implements KubernetesCluster {
     }
 
     @Override
+    public Long getNodeDataDiskOfferingId() {
+        return nodeDataDiskOfferingId;
+    }
+
+    public void setNodeDataDiskOfferingId(Long nodeDataDiskOfferingId) {
+        this.nodeDataDiskOfferingId = nodeDataDiskOfferingId;
+    }
+
+    @Override
     public State getState() {
         return state;
     }
@@ -309,7 +321,7 @@ public class KubernetesClusterVO implements KubernetesCluster {
 
     public KubernetesClusterVO(String name, String description, long zoneId, long kubernetesVersionId, long serviceOfferingId, long templateId,
                                long networkId, long domainId, long accountId, long masterNodeCount, long nodeCount, State state,
-                               String keyPair, long cores, long memory, Long nodeRootDiskSize, String endpoint) {
+                               String keyPair, long cores, long memory, Long nodeRootDiskSize, Long nodeDataDiskOfferingId, String endpoint) {
         this.uuid = UUID.randomUUID().toString();
         this.name = name;
         this.description = description;
@@ -328,6 +340,9 @@ public class KubernetesClusterVO implements KubernetesCluster {
         this.memory = memory;
         if (nodeRootDiskSize != null && nodeRootDiskSize > 0) {
             this.nodeRootDiskSize = nodeRootDiskSize;
+        }
+        if (nodeDataDiskOfferingId != null) {
+            this.nodeDataDiskOfferingId = nodeDataDiskOfferingId;
         }
         this.endpoint = endpoint;
         this.checkForGc = false;

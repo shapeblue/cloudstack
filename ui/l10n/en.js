@@ -1260,6 +1260,8 @@ var dictionary = {
 "label.no.items":"No Available Items",
 "label.no.security.groups":"No Available Security Groups",
 "label.no.thanks":"No thanks",
+"label.node.data.disk.offering":"Node data disk offering",
+"label.node.data.disk.size.gb":"Node data disk size (in GB)",
 "label.node.root.disk.size.gb":"Node root disk size (in GB)",
 "label.none":"None",
 "label.not.found":"Not Found",
