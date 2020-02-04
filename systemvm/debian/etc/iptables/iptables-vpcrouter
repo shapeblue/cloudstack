@@ -26,7 +26,9 @@ COMMIT
 :OUTPUT ACCEPT [0:0]
 -A INPUT -d 224.0.0.18/32 -j ACCEPT
 -A INPUT -d 225.0.0.50/32 -j ACCEPT
--A INPUT -p icmp -j ACCEPT
+-A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT
+-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+-A INPUT -m u32 --u32 "6&0xFF=1 && 17&0xFF=68" -j DROP
 -A INPUT -i lo -j ACCEPT
 -A INPUT -i eth0 -p tcp -m tcp -m state --state NEW,ESTABLISHED --dport 3922 -j ACCEPT
 -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
