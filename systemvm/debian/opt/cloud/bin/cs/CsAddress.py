@@ -400,9 +400,8 @@ class CsIP:
         self.fw.append(["filter", "", "-A INPUT -d 225.0.0.50/32 -j ACCEPT"])
         self.fw.append(["filter", "", "-A INPUT -i %s -m state --state RELATED,ESTABLISHED -j ACCEPT" %
                         self.dev])
-        self.fw.append(["filter", "", "-D INPUT -p icmp -j ACCEPT"])
-        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-reply -j ACCEPT"])
-        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-request -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT"])
         self.fw.append(["filter", "front", "-A INPUT -m u32 --u32 \"6&0xFF=1 && 17&0xFF=68\" -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -p icmp -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -i lo -j ACCEPT"])
@@ -492,10 +491,6 @@ class CsIP:
                 self.fw.append(["nat", "front",
                                 "-A POSTROUTING -o %s -j SNAT --to-source %s" %
                                 (self.dev, self.address['public_ip'])])
-            else:
-                self.fw.append(["nat", "front",
-                            "-A POSTROUTING -s %s -o %s -j SNAT --to-source %s" %
-                            (guestNetworkCidr, self.dev, self.address['public_ip'])])
 
         if self.get_type() in ["public"]:
             self.fw.append(
@@ -519,9 +514,8 @@ class CsIP:
         self.fw.append(["filter", "", "-A INPUT -d 224.0.0.18/32 -j ACCEPT"])
         self.fw.append(["filter", "", "-A INPUT -d 225.0.0.50/32 -j ACCEPT"])
 
-        self.fw.append(["filter", "", "-D INPUT -p icmp -j ACCEPT"])
-        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-reply -j ACCEPT"])
-        self.fw.append(["filter", "front", "-A INPUT -p icmp --icmp-type echo-request -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT"])
         self.fw.append(["filter", "front", "-A INPUT -m u32 --u32 \"6&0xFF=1 && 17&0xFF=68\" -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -p icmp -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -i lo -j ACCEPT"])
