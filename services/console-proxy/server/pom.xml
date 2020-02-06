@@ -24,7 +24,7 @@
     <parent>
         <groupId>org.apache.cloudstack</groupId>
         <artifactId>cloudstack-service-console-proxy</artifactId>
-        <version>4.12.0.5-cca-SNAPSHOT</version>
+        <version>4.12.0.5-cca</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <dependencies>
