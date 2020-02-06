@@ -120,9 +120,9 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             boolean lastVlan = getInterfaceVlans(interfaceName).size() == 1;
 
-            if (lastVlan) {
+//            if (lastVlan) {
                 config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
-            }
+//            }
 
             s_logger.info(config);
             device.connect();
@@ -153,7 +153,8 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
             List<Integer> interfaceVlans = new ArrayList<>();
 
             XMLBuilder rpcBuilder = new XMLBuilder();
-            XML vlanQuery = rpcBuilder.createNewRPC("get-vlan-information").append("interface", interfaceName + ".0");
+//            XML vlanQuery = rpcBuilder.createNewRPC("get-vlan-information").append("interface", interfaceName + ".0");
+            XML vlanQuery = rpcBuilder.createNewRPC("get-interface-information").append("interface-name", interfaceName);
             XML out = getConfig(vlanQuery.toString());
 
 
@@ -162,14 +163,17 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
             Document doc = out.getOwnerDocument();
             XPathFactory xPathfactory = XPathFactory.newInstance();
             XPath xpath = xPathfactory.newXPath();
-            XPathExpression expr = xpath.compile("//l2ifbd-vlan-name");
+//            XPathExpression expr = xpath.compile("//l2ifbd-vlan-name");
+//            XPathExpression expr = xpath.compile("//interfaces/interface/unit/family/ethernet-switching/vlan/member");
+            XPathExpression expr = xpath.compile("//vlan/members");
 
             NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
             for (int i =0; i<nl.getLength(); i++) {
                 Node node = nl.item(i);
                 String vlanText = node.getTextContent();
-                Integer vlanId = getVlanIdFromName(vlanText);
-                interfaceVlans.add(vlanId);
+                s_logger.debug(vlanText);
+//                Integer vlanId = getVlanIdFromName(vlanText);
+//                interfaceVlans.add(vlanId);
             }
 
             return interfaceVlans;
