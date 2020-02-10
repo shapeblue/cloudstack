@@ -125,35 +125,6 @@ Audit:
   tags:
     - java
 
-# Compile and test and verify build
-Verify:
-  image:
-    name: khos2ow/cloudstack-rpm-builder:centos7
-    entrypoint: ["/bin/bash", "-l", "-c"]
-  stage: test
-  before_script:
-    - environment-info.sh
-  script:
-    - mvn --activate-profiles developer,systemvm -Dsimulator clean verify
-  artifacts:
-    name: "test_report_${CI_BUILD_REF_SLUG}"
-    paths:
-      - "*/target/surefire-reports"
-      - "*/*/target/surefire-reports"
-      - "*/*/*/target/surefire-reports"
-      - "*/*/*/*/target/surefire-reports"
-
-      - "*/target/checkstyle-result.xml"
-      - "*/*/target/checkstyle-result.xml"
-      - "*/*/*/target/checkstyle-result.xml"
-      - "*/*/*/*/target/checkstyle-result.xml"
-    when: on_failure
-    expire_in: 1 day
-  only:
-    - branches
-  tags:
-    - java
-
 # Archive RPMs to object storage
 RPM:
   image:
@@ -162,16 +133,19 @@ RPM:
   stage: archive
   before_script:
     - environment-info.sh
-    - pip install python-swiftclient
-    - pip install python-keystoneclient
+    - pip3 install python-swiftclient
+    - pip3 install python-keystoneclient
     - *LOAD_REPO_SWIFT
     - *YUM_REPO_PATH
   script:
+    # worksaround for SSLHandshakeException issue, https://github.com/apache/cloudstack/issues/2682#issuecomment-392973706
+    - cat ${CI_PROJECT_DIR}/client/conf/java.security.ciphers.in >> /usr/lib/jvm/java-1.8.0-openjdk/jre/lib/security/java.security
+
     # download required vhd-util file, if it doesn't exist
     - wget http://download.cloud.com.s3.amazonaws.com/tools/vhd-util --directory-prefix=${CI_PROJECT_DIR}/scripts/vm/hypervisor/xenserver
 
     # do the packaging and creating RPMs
-    - /usr/local/bin/docker-entrypoint.sh --workspace-path ${CI_PROJECT_DIR} --distribution centos7 --use-timestamp --skip-tests
+    - /usr/local/bin/docker-entrypoint.sh --workspace-path ${CI_PROJECT_DIR} --distribution centos7 --use-timestamp
 
     # upload RPMs to swift object storage
     - |
@@ -193,6 +167,20 @@ RPM:
         swift delete ${namespace} --prefix ${swift_path}/repodata
         swift upload ${namespace} --object-name ${swift_path}/repodata/ ${CI_PROJECT_DIR}/target/rpms/${swift_path}/repodata/
       fi
+  artifacts:
+    name: "test_report_${CI_BUILD_REF_SLUG}"
+    paths:
+      - "*/target/surefire-reports"
+      - "*/*/target/surefire-reports"
+      - "*/*/*/target/surefire-reports"
+      - "*/*/*/*/target/surefire-reports"
+
+      - "*/target/checkstyle-result.xml"
+      - "*/*/target/checkstyle-result.xml"
+      - "*/*/*/target/checkstyle-result.xml"
+      - "*/*/*/*/target/checkstyle-result.xml"
+    when: on_failure
+    expire_in: 1 day
   only:
     - branches
   tags:
