@@ -1375,11 +1375,12 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     public boolean passCmdLine(final String vmName, final String cmdLine) throws InternalErrorException {
-        final Script command = new Script(_patchViaSocketPath, 5 * 1000, s_logger);
+        final Script command = new Script(_patchViaSocketPath, 50 * 1000, s_logger);
         String result;
         command.add("-n", vmName);
         command.add("-p", cmdLine.replaceAll(" ", "%"));
         result = command.execute();
+        s_logger.debug("Finished execution of patchviasocket: " + result);
         if (result != null) {
             s_logger.error("passcmd failed:" + result);
             return false;
