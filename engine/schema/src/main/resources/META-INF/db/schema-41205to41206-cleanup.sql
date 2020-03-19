@@ -18,3 +18,33 @@
 --;
 -- Schema upgrade cleanup from 4.12.0.5 to 4.12.0.6
 --;
+
+-- Remove key/value tags from project_view
+DROP VIEW IF EXISTS `cloud`.`project_view`;
+CREATE VIEW `cloud`.`project_view` AS
+    select
+        projects.id,
+        projects.uuid,
+        projects.name,
+        projects.display_text,
+        projects.state,
+        projects.removed,
+        projects.created,
+        projects.project_account_id,
+        account.account_name owner,
+        pacct.account_id,
+        domain.id domain_id,
+        domain.uuid domain_uuid,
+        domain.name domain_name,
+        domain.path domain_path
+    from
+        `cloud`.`projects`
+            inner join
+        `cloud`.`domain` ON projects.domain_id = domain.id
+            inner join
+        `cloud`.`project_account` ON projects.id = project_account.project_id
+            and project_account.account_role = 'Admin'
+            inner join
+        `cloud`.`account` ON account.id = project_account.account_id
+            left join
+        `cloud`.`project_account` pacct ON projects.id = pacct.project_id;

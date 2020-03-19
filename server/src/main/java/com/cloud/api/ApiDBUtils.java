@@ -1766,12 +1766,8 @@ public class ApiDBUtils {
         return s_userAccountJoinDao.newUserView(usr);
     }
 
-    public static ProjectResponse newProjectResponse(ProjectJoinVO proj) {
-        return s_projectJoinDao.newProjectResponse(proj);
-    }
-
-    public static ProjectResponse fillProjectDetails(ProjectResponse rsp, ProjectJoinVO proj) {
-        return s_projectJoinDao.setProjectResponse(rsp, proj);
+    public static ProjectResponse newProjectResponse(EnumSet<DomainDetails> details, ProjectJoinVO proj) {
+        return s_projectJoinDao.newProjectResponse(details, proj);
     }
 
     public static List<ProjectJoinVO> newProjectView(Project proj) {
@@ -1875,8 +1871,8 @@ public class ApiDBUtils {
         return s_domainJoinDao.newDomainResponse(view, details, ve);
     }
 
-    public static AccountResponse newAccountResponse(ResponseView view, AccountJoinVO ve) {
-        AccountResponse response = s_accountJoinDao.newAccountResponse(view, ve);
+    public static AccountResponse newAccountResponse(ResponseView view, EnumSet<DomainDetails> details, AccountJoinVO ve) {
+        AccountResponse response = s_accountJoinDao.newAccountResponse(view, details, ve);
         // Populate account role information
         if (ve.getRoleId() != null) {
             Role role = s_roleService.findRole(ve.getRoleId());
