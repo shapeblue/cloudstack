@@ -1519,6 +1519,7 @@ public class HypervisorHostHelper {
         videoDeviceSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
 
         vmConfig.getDeviceChange().add(videoDeviceSpec);
+        vmConfig.setVersion("vmx-11");
 
         if (host.createVm(vmConfig)) {
             // Here, when attempting to find the VM, we need to use the name

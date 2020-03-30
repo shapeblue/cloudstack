@@ -2247,7 +2247,6 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             configBasicExtraOption(extraOptions, vmSpec);
             configNvpExtraOption(extraOptions, vmSpec, nicUuidToDvSwitchUuid);
             configCustomExtraOption(extraOptions, vmSpec);
-            vmConfigSpec.setVersion("11");
 
             // config for NCC
             VirtualMachine.Type vmType = cmd.getVirtualMachine().getType();
@@ -2294,7 +2293,6 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     vmConfigSpec.setBootOptions(bootOptions);
                 }
             }
-
 
             //
             // Configure VM

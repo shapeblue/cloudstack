@@ -776,6 +776,9 @@ public class VirtualMachineMO extends BaseMO {
         cloneSpec.setTemplate(false);
         cloneSpec.setLocation(rSpec);
         cloneSpec.setSnapshot(morBaseSnapshot);
+        VirtualMachineConfigSpec configSpec = new VirtualMachineConfigSpec();
+        configSpec.setVersion("vmx-11");
+        cloneSpec.setConfig(configSpec);
 
         ManagedObjectReference morTask = _context.getService().cloneVMTask(_mor, morFolder, cloneName, cloneSpec);
 
