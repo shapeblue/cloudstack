@@ -235,7 +235,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
                 Network nw = networkDao.findByUuid(nic.getNetworkUuid());
                 if (nw != null) {
                     int vlan = Integer.parseInt(Networks.BroadcastDomainType.getValue(nw.getBroadcastUri()));
-                    releaseVlan(vlan, nic.isDefaultNic()? VlanType.UNTAGGED: VlanType.TAGGED);
+                    releaseVlan(vlan, nic.isDefaultNic()? VlanType.UNTAGGED: VlanType.TAGGED, false);
                 }
             }
 
@@ -351,7 +351,10 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
 
         try {
 
+            // Before we prepare VLANs, we must be sure that there
+            // are no other VLANs on the ports just to be safe
             if (BaremetalManagerImpl.pxeVlan.value() != null) {
+                releaseVlan(BaremetalManagerImpl.pxeVlan.value(), VlanType.UNTAGGED, true);
                 prepareVlan(BaremetalManagerImpl.pxeVlan.value(), VlanType.UNTAGGED);
             }
 
@@ -377,12 +380,11 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
                 throw new CloudRuntimeException("Set " + _ip + " boot dev to Disk failed");
             }
 
-            //TODO: Before we prepare VLANs, we must be sure that there
-            // are no other VLANs on the ports just to be safe
+            // Before we prepare VLANs, we must to remove
+            // default PXE VLAN on the ports just to be safe
             if (BaremetalManagerImpl.pxeVlan.value() != null) {
-                releaseVlan(BaremetalManagerImpl.pxeVlan.value(), VlanType.UNTAGGED);
+                releaseVlan(BaremetalManagerImpl.pxeVlan.value(), VlanType.UNTAGGED, false);
             }
-
             prepareVlan(vlan, VlanType.UNTAGGED);
 
             // reboot the host so that it picks up the new config from VR DHCP
@@ -394,7 +396,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
             s_logger.error(e.getMessage(), e);
 
             try {
-                releaseVlan(vlan, VlanType.UNTAGGED);
+                releaseVlan(vlan, VlanType.UNTAGGED, false);
             } catch (Exception ex) {
                 s_logger.error("Failed cleanup of VLANs ", ex);
             }
@@ -459,7 +461,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
         } catch (Exception e) {
             String errMesg = "Unable to add Nic " + nic.getUuid()  + " to network " + nw.getId();
             s_logger.warn(errMesg, e);
-            releaseVlan(vlan, VlanType.TAGGED);
+            releaseVlan(vlan, VlanType.TAGGED, false);
             throw new CloudRuntimeException(errMesg, e);
         }
 
@@ -477,7 +479,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
         }
 
         try {
-            releaseVlan(vlan, VlanType.TAGGED);
+            releaseVlan(vlan, VlanType.TAGGED, false);
         } catch (Exception e) {
             String errMesg = "Unable to add Nic " + nic.getUuid()  + " to network " + nw.getId();
             s_logger.warn(errMesg, e);
@@ -663,13 +665,17 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
         maasApi.updateInterfaceMac(node.systemId, bondInterface.id, mac);
     }
 
-    private void releaseVlan(int vlan, VlanType type){
+    private void releaseVlan(int vlan, VlanType type, boolean releaseAll) {
         for (String mac : getAllConnectedMacs(maasNode)) {
-            vlanMgr.releaseVlan(vlan, mac, type);
+            if (releaseAll) {
+                vlanMgr.releaseAllVlan(mac, type);
+            } else {
+                vlanMgr.releaseVlan(vlan, mac, type);
+            }
         }
     }
 
-    private void prepareVlan(int vlan, VlanType type){
+    private void prepareVlan(int vlan, VlanType type) {
         for (String mac : getAllConnectedMacs(maasNode)) {
             vlanMgr.prepareVlan(vlan, mac, type);
         }

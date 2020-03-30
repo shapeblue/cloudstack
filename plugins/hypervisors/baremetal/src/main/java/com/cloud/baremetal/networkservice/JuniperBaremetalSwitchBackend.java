@@ -74,7 +74,11 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
     public void removePortFromVlan(BaremetalVlanStruct struct) {
         try {
             JuniperDevice juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
-            juniper.removeVlanFromInterface(struct.getPort(), struct.getVlan(), struct.getVlanType());
+            if (struct.isRemoveAll()) {
+                juniper.clearAllVlansFromInterface(struct.getPort());
+            } else {
+                juniper.removeVlanFromInterface(struct.getPort(), struct.getVlan(), struct.getVlanType());
+            }
         } catch (ParserConfigurationException e) {
             String mesg = "Invalid configuration to initiate netconf session to the backend switch";
             s_logger.error(mesg, e);
@@ -135,8 +139,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
             String config = String.format("delete interfaces %s native-vlan-id \n", interfaceName);
             for (int vl : this.getInterfaceVlans(interfaceName)) {
                 if (vl > 1)  {
-                    String vlanName = getVlanName(vl);
-                    config += String.format("delete interfaces %s unit 0 family ethernet-switching vlan members %s\n", interfaceName, vlanName);
+                    config += String.format("delete interfaces %s unit 0 family ethernet-switching vlan members %s\n", interfaceName, vl);
                 }
             }
 
@@ -153,45 +156,24 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
             List<Integer> interfaceVlans = new ArrayList<>();
 
             XMLBuilder rpcBuilder = new XMLBuilder();
-            XML vlanQuery = rpcBuilder.createNewRPC("get-vlan-information").append("interface", interfaceName + ".0");
+            XML vlanQuery = rpcBuilder.createNewRPC("get-ethernet-switching-interface-information").append("interface-name", interfaceName + ".0");
             XML out = getConfig(vlanQuery.toString());
-
 
             assert out != null;
 
             Document doc = out.getOwnerDocument();
             XPathFactory xPathfactory = XPathFactory.newInstance();
             XPath xpath = xPathfactory.newXPath();
-            XPathExpression expr = xpath.compile("//l2ifbd-vlan-name");
+            XPathExpression expr = xpath.compile("//l2iff-interface-vlan-id");
 
             NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
             for (int i =0; i<nl.getLength(); i++) {
                 Node node = nl.item(i);
                 String vlanText = node.getTextContent();
-                Integer vlanId = getVlanIdFromName(vlanText);
-                interfaceVlans.add(vlanId);
+                interfaceVlans.add(Integer.valueOf(vlanText));
             }
 
             return interfaceVlans;
-        }
-
-        private Integer getVlanIdFromName(String vlanName) throws ParserConfigurationException, XPathExpressionException {
-            XMLBuilder rpcBuilder = new XMLBuilder();
-            XML vlanQuery = rpcBuilder.createNewRPC("get-vlan-information").append("vlan-name", vlanName);
-            XML out = getConfig(vlanQuery.toString());
-
-            assert out != null;
-            XPathFactory xPathfactory = XPathFactory.newInstance();
-            XPath xpath = xPathfactory.newXPath();
-            XPathExpression expr = xpath.compile("//l2ng-l2rtb-vlan-tag");
-
-            NodeList xPathResult = (NodeList) expr.evaluate(out.getOwnerDocument(), XPathConstants.NODESET);
-
-            if(xPathResult.getLength() != 1) {
-                return null;
-            }
-
-            return Integer.valueOf(xPathResult.item(0).getTextContent());
         }
 
         private String getVlanName(int vlanId) throws IOException, SAXException, ParserConfigurationException, XPathExpressionException {
