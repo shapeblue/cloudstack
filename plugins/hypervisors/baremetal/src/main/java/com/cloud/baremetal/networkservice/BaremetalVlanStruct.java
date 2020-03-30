@@ -36,6 +36,7 @@ public class BaremetalVlanStruct {
     private String port;
     private int vlan;
     private VlanType type;
+    private boolean removeAll;
 
     public String getSwitchType() {
         return switchType;
@@ -99,5 +100,13 @@ public class BaremetalVlanStruct {
 
     public VlanType getVlanType(){
         return type;
+    }
+
+    public boolean isRemoveAll() {
+        return removeAll;
+    }
+
+    public void setRemoveAll(boolean removeAll) {
+        this.removeAll = removeAll;
     }
 }

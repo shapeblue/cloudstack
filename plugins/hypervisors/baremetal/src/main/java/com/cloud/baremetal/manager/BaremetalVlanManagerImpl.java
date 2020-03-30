@@ -165,9 +165,35 @@ public class BaremetalVlanManagerImpl extends ManagerBase implements BaremetalVl
         struct.setSwitchUsername(rp.rack.getL2Switch().getUsername());
         struct.setVlan(vlanId);
         struct.setVlanType(type);
+        struct.setRemoveAll(false);
         BaremetalSwitchBackend backend = getSwitchBackend(rp.rack.getL2Switch().getType());
         backend.removePortFromVlan(struct);
+    }
 
+    @Override
+    public void releaseAllVlan(String macAddress, VlanType type) {
+        List<BaremetalRctVO> vos = rctDao.listAll();
+        if (vos.isEmpty()) {
+            throw new CloudRuntimeException("no rack configuration found, please call addBaremetalRct to add one");
+        }
+
+        BaremetalRctVO vo = vos.get(0);
+        BaremetalRct rct = gson.fromJson(vo.getRct(), BaremetalRct.class);
+
+        RackPair rp = findRack(rct, macAddress);
+        assert rp != null : String.format("where is my rack???");
+
+        BaremetalVlanStruct struct = new BaremetalVlanStruct();
+        struct.setHostMac(rp.host.getMac());
+        struct.setPort(rp.host.getPort());
+        struct.setSwitchIp(rp.rack.getL2Switch().getIp());
+        struct.setSwitchPassword(rp.rack.getL2Switch().getPassword());
+        struct.setSwitchType(rp.rack.getL2Switch().getType());
+        struct.setSwitchUsername(rp.rack.getL2Switch().getUsername());
+        struct.setVlanType(type);
+        struct.setRemoveAll(true);
+        BaremetalSwitchBackend backend = getSwitchBackend(rp.rack.getL2Switch().getType());
+        backend.removePortFromVlan(struct);
     }
 
     @Override

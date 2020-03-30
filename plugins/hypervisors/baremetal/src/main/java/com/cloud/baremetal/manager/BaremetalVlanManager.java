@@ -36,5 +36,7 @@ public interface BaremetalVlanManager extends Manager, PluggableService {
 
     void releaseVlan(int vlanId, String macAddress, VlanType type);
 
+    void releaseAllVlan(String macAddress, VlanType type);
+
     BaremetalRctResponse listRct();
 }
