@@ -1905,6 +1905,10 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 if (volIso == null)
                     totalChangeDevices++;
             }
+            // vApp cdrom device
+            if (vmSpec.getOvfProperties() != null) {
+                totalChangeDevices++;
+            }
 
             VirtualMachineConfigSpec vmConfigSpec = new VirtualMachineConfigSpec();
 
