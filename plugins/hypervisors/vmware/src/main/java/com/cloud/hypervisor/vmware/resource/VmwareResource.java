@@ -1949,6 +1949,25 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             // Setup ISO device
             //
 
+            // vAPP ISO
+            if (vmSpec.getOvfProperties() != null) {
+                deviceConfigSpecArray[i] = new VirtualDeviceConfigSpec();
+                Pair<VirtualDevice, Boolean> isoInfo = VmwareHelper.prepareIsoDevice(vmMo, null, null, true, true, ideUnitNumber++, i + 1);
+                deviceConfigSpecArray[i].setDevice(isoInfo.first());
+                if (isoInfo.second()) {
+                    if (s_logger.isDebugEnabled())
+                        s_logger.debug("Prepare vApp ISO volume at existing device " + _gson.toJson(isoInfo.first()));
+
+                    deviceConfigSpecArray[i].setOperation(VirtualDeviceConfigSpecOperation.ADD);
+                } else {
+                    if (s_logger.isDebugEnabled())
+                        s_logger.debug("Prepare vApp ISO volume at existing device " + _gson.toJson(isoInfo.first()));
+
+                    deviceConfigSpecArray[i].setOperation(VirtualDeviceConfigSpecOperation.EDIT);
+                }
+                i++;
+            }
+
             // prepare systemvm patch ISO
             if (vmSpec.getType() != VirtualMachine.Type.User) {
                 // attach ISO (for patching of system VM)
