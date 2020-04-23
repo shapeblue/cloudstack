@@ -21,6 +21,7 @@
 
 package com.cloud.baremetal.networkservice;
 
+import com.cloud.baremetal.manager.BaremetalManagerImpl;
 import com.cloud.baremetal.manager.VlanType;
 import com.cloud.utils.exception.CloudRuntimeException;
 import net.juniper.netconf.Device;
@@ -59,6 +60,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
         try {
             JuniperDevice juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
             juniper.addVlanToInterface(struct.getPort(), struct.getVlan(), struct.getVlanType());
+            juniper.setInterfaceLLDP(struct.getPort(), struct.getVlan());
         } catch (ParserConfigurationException e) {
             String mesg = "Invalid configuration to initiate netconf session to the backend switch";
             s_logger.error(mesg, e);
@@ -109,6 +111,22 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             String config = String.format(configTemplate, interfaceName, vlanId, interfaceName);
 
+            device.connect();
+            device.loadSetConfiguration(config);
+            device.commit();
+            device.close();
+        }
+
+        public void setInterfaceLLDP(String interfaceName, int vlanId) throws IOException, SAXException, XPathExpressionException, ParserConfigurationException {
+            String config = "";
+
+            if(vlanId == BaremetalManagerImpl.pxeVlan.value()) {
+                config += String.format("set protocols lldp interface %s enable\n", interfaceName);
+            } else {
+                config += String.format("delete protocols lldp interface %s\n", interfaceName);
+            }
+
+            s_logger.info(config);
             device.connect();
             device.loadSetConfiguration(config);
             device.commit();
