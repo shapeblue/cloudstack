@@ -204,9 +204,9 @@ public class MaasApiClient {
 
         HttpDelete deleteMachineReq = new HttpDelete(getApiUrl("machines", systemId));
 
-        String resp = executeApiRequest(deleteMachineReq);
+        executeApiRequest(deleteMachineReq);
 
-        s_logger.info("deleted MAAS machine " + resp);
+        s_logger.info("deleted MAAS machine");
 
         return true;
     }
@@ -221,8 +221,7 @@ public class MaasApiClient {
         allocateReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
         allocateReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
 
-        String resp = executeApiRequest(allocateReq);
-        s_logger.debug(resp);
+        executeApiRequest(allocateReq);
     }
 
     public void addTagToMachine(String systemId, String tagName) throws IOException {
@@ -249,8 +248,7 @@ public class MaasApiClient {
             req.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
             req.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
 
-            String resp = executeApiRequest(req);
-            s_logger.debug(resp);
+            executeApiRequest(req);
         }
     }
 
@@ -286,8 +284,7 @@ public class MaasApiClient {
         req.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
         req.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
 
-        String resp = executeApiRequest(req);
-        s_logger.debug(resp);
+        executeApiRequest(req);
     }
 
     public MaasObject.MaasNode deployMachine(String systemId, MaasObject.DeployMachineParameters deployMachineParameters) throws IOException {
@@ -300,8 +297,7 @@ public class MaasApiClient {
         deployMachineReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
         deployMachineReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
 
-        String resp = executeApiRequest(deployMachineReq);
-        s_logger.debug(resp);
+        executeApiRequest(deployMachineReq);
 
         return waitTillDeployed(systemId);
     }
@@ -317,8 +313,7 @@ public class MaasApiClient {
         releaseMachineReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
         releaseMachineReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
 
-        String resp = executeApiRequest(releaseMachineReq);
-        s_logger.debug(resp);
+        executeApiRequest(releaseMachineReq);
 
         return waitTillReady(systemId);
     }
@@ -479,8 +474,8 @@ public class MaasApiClient {
         updateMacReq.setEntity(new UrlEncodedFormEntity(params, ENCODING_UTF8));
         updateMacReq.setHeader(HEADER_CONTENT_TYPE, HEADER_VALUE_FORM);
 
-        String response = executeApiRequest(updateMacReq);
-        s_logger.debug("updated interface mac on " + systemId + " to " + mac + " resp " + response);
+        executeApiRequest(updateMacReq);
+        s_logger.debug("updated interface mac on " + systemId + " to " + mac);
     }
 
     public void updateHostname(String systemId, String newHostName) throws IOException {

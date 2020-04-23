@@ -109,7 +109,6 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             String config = String.format(configTemplate, interfaceName, vlanId, interfaceName);
 
-            s_logger.info(config);
             device.connect();
             device.loadSetConfiguration(config);
             device.commit();
@@ -128,7 +127,6 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
                 config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
             }
 
-            s_logger.info(config);
             device.connect();
             device.loadSetConfiguration(config);
             device.commit();
@@ -145,7 +143,6 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
 
-            System.out.println(config);
             device.connect();
             device.loadSetConfiguration(config);
             device.commit();
@@ -196,7 +193,6 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
         private XML getConfig(String req) {
             try {
-                s_logger.info(req);
                 device.connect();
                 return device.executeRPC(req);
             } catch (SAXException | IOException e) {
