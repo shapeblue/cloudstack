@@ -18,3 +18,16 @@
 --;
 -- Schema upgrade from 4.12.0.5 to 4.12.0.6
 --;
+
+-- Add XenServer 8.1 hypervisor capabilities
+INSERT INTO `cloud`.`hypervisor_capabilities`(uuid, hypervisor_type, hypervisor_version, max_guests_limit, max_data_volumes_limit, storage_motion_supported) values (UUID(), 'XenServer', '8.0.0', 500, 13, 1);
+INSERT INTO `cloud`.`hypervisor_capabilities`(uuid, hypervisor_type, hypervisor_version, max_guests_limit, max_data_volumes_limit, storage_motion_supported) values (UUID(), 'XenServer', '8.1.0', 500, 13, 1);
+
+-- Copy XenServer 7.6 hypervisor guest OS mappings to XenServer 8.0
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) SELECT UUID(),'Xenserver', '8.0.0', guest_os_name, guest_os_id, utc_timestamp(), 0  FROM `cloud`.`guest_os_hypervisor` WHERE hypervisor_type='Xenserver' AND hypervisor_version='7.6.0';
+
+-- Add New XenServer 8.0 Guest OSes
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '8.0.0', 'Windows Server 2019 (64-bit)', 276, now(), 0);
+
+-- Copy XenServer 8.0 hypervisor guest OS mappings to XenServer 8.1
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) SELECT UUID(),'Xenserver', '8.1.0', guest_os_name, guest_os_id, utc_timestamp(), 0  FROM `cloud`.`guest_os_hypervisor` WHERE hypervisor_type='Xenserver' AND hypervisor_version='8.0.0';
