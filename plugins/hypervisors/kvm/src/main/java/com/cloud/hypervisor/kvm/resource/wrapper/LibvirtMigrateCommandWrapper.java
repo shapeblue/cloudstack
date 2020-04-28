@@ -61,6 +61,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import org.apache.cloudstack.utils.qemu.QemuImg;
+import org.apache.cloudstack.utils.qemu.QemuImgException;
+import org.apache.cloudstack.utils.qemu.QemuImgFile;
+
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.MigrateAnswer;
 import com.cloud.agent.api.MigrateCommand;
@@ -154,6 +158,14 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
             }
             // delete the metadata of vm snapshots before migration
             vmsnapshots = libvirtComputingResource.cleanVMSnapshotMetadata(dm);
+
+            // Verify Format of backing file
+            for (DiskDef disk : disks) {
+                if (disk.getDeviceType() == DiskDef.DeviceType.DISK
+                        && disk.getDiskFormatType() == DiskDef.DiskFmtType.QCOW2) {
+                    setBackingFileFormat(disk.getDiskPath());
+                }
+            }
 
             Map<String, MigrateCommand.MigrateDiskInfo> mapMigrateStorage = command.getMigrateStorage();
             // migrateStorage is declared as final because the replaceStorage method may mutate mapMigrateStorage, but
@@ -421,6 +433,25 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
             }
         }
         return xmlDesc;
+    }
+
+    private void setBackingFileFormat(String volPath) {
+        final int timeout = 0;
+        QemuImgFile file = new QemuImgFile(volPath);
+        QemuImg qemu = new QemuImg(timeout);
+        try{
+            Map<String, String> info = qemu.info(file);
+            String backingFilePath = info.get(new String("backing_file"));
+            String backingFileFormat = info.get(new String("backing_file_format"));
+            if (StringUtils.isEmpty(backingFileFormat)) {
+                QemuImgFile backingFile = new QemuImgFile(backingFilePath);
+                Map<String, String> backingFileinfo = qemu.info(backingFile);
+                String backingFileFmt = backingFileinfo.get(new String("file_format"));
+                qemu.rebase(file, backingFile, backingFileFmt, false);
+            }
+        } catch (QemuImgException e) {
+            s_logger.error("Failed to rebase " + volPath + " due to : " + e.getMessage());
+        }
     }
 
     /**
