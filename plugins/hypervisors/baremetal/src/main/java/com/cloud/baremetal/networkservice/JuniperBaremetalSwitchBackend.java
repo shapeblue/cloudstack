@@ -77,7 +77,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
         try {
             JuniperDevice juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
             if (struct.isRemoveAll()) {
-                juniper.clearAllVlansFromInterface(struct.getPort());
+                juniper.clearAllVlansFromInterface(struct.getPort(), struct.getVlanType());
             } else {
                 juniper.removeVlanFromInterface(struct.getPort(), struct.getVlan(), struct.getVlanType());
             }
@@ -151,12 +151,17 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
             device.close();
         }
 
-        void clearAllVlansFromInterface(String interfaceName) throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
-            String config = String.format("delete interfaces %s native-vlan-id \n", interfaceName);
+        void clearAllVlansFromInterface(String interfaceName, VlanType vlanType) throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
+            String config = "";
+
             for (int vl : this.getInterfaceVlans(interfaceName)) {
                 if (vl > 1)  {
-                    config += String.format("delete interfaces %s unit 0 family ethernet-switching vlan members %s\n", interfaceName, vl);
+                    config += String.format("delete interfaces %s unit 0 family ethernet-switching vlan members %d\n", interfaceName, vl);
                 }
+            }
+
+            if(vlanType.equals(VlanType.UNTAGGED)) {
+                config = String.format("delete interfaces %s native-vlan-id \n", interfaceName);
             }
 
             config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
