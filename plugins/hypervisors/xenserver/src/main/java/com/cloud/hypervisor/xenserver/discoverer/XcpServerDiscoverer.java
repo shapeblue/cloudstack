@@ -423,7 +423,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             }
         } else if (prodBrand.equals("XCP_Kronos")) {
             return new XcpOssResource();
-        } else if (prodBrand.equals("XenServer") || prodBrand.equals("XCP-ng")) {
+        } else if (prodBrand.equals("XenServer") || prodBrand.equals("XCP-ng") || prodBrand.equals("Citrix Hypervisor")) {
             final String[] items = prodVersion.split("\\.");
             if ((Integer.parseInt(items[0]) > 6) ||
                     (Integer.parseInt(items[0]) == 6 && Integer.parseInt(items[1]) >= 4)) {
