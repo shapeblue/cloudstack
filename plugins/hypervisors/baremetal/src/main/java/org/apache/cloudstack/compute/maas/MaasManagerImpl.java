@@ -23,43 +23,62 @@
 package org.apache.cloudstack.compute.maas;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import org.apache.cloudstack.compute.maas.MaasObject.MaasNode;
+import com.cloud.agent.AgentManager;
+
+import com.cloud.api.query.dao.HostJoinDao;
+import com.cloud.api.query.dao.UserVmJoinDao;
+import com.cloud.api.query.vo.HostJoinVO;
+import com.cloud.api.query.vo.UserVmJoinVO;
+import com.cloud.configuration.Config;
+import com.cloud.dc.ClusterDetailsDao;
+import com.cloud.dc.DataCenterVO;
+import com.cloud.dc.dao.DataCenterDao;
+import com.cloud.utils.crypt.DBEncryptionUtil;
+import com.cloud.vm.VirtualMachine;
 import org.apache.cloudstack.compute.maas.api.ListMaasServiceOfferingsCmd;
+import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
-import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 
 import com.cloud.api.query.dao.ServiceOfferingJoinDao;
 import com.cloud.api.query.vo.ServiceOfferingJoinVO;
-import com.cloud.configuration.Config;
-import com.cloud.dc.ClusterDetailsDao;
-import com.cloud.dc.ClusterVO;
-import com.cloud.dc.dao.ClusterDao;
-import com.cloud.dc.dao.DataCenterDao;
-import com.cloud.hypervisor.Hypervisor.HypervisorType;
+import com.cloud.user.AccountManager;
 import com.cloud.utils.component.ManagerBase;
-import com.cloud.utils.crypt.DBEncryptionUtil;
+import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
-import com.google.common.base.Strings;
+import com.cloud.utils.db.SearchCriteria.Op;
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 
 public class MaasManagerImpl extends ManagerBase implements MaasManager, Configurable {
+
+    private static class OfferingStats {
+        int total = 0;
+        int available = 0;
+        int erasing = 0;
+    }
+
     public static final Logger LOGGER = Logger.getLogger(MaasManagerImpl.class.getName());
 
+    @Inject private AgentManager _agentMgr;
+    @Inject private AccountManager accountMgr;
     @Inject private DataCenterDao dcDao;
-    @Inject private ClusterDao clusterDao;
     @Inject protected ConfigurationDao configDao;
     @Inject private ClusterDetailsDao clusterDetailsDao;
     @Inject private ServiceOfferingJoinDao svcOfferingJoinDao;
+    @Inject private HostJoinDao _hostJoinDao;
+    @Inject private UserVmJoinDao _userVmJoinDao;
 
     @Override
     public String getConfigComponentName() {
@@ -82,56 +101,110 @@ public class MaasManagerImpl extends ManagerBase implements MaasManager, Configu
     public List<MaasServiceOfferingsResponse> listMaasServiceOfferings(ListMaasServiceOfferingsCmd cmd) throws ConfigurationException, IOException {
         List<MaasServiceOfferingsResponse> responses = new ArrayList<>();
 
-        if (Strings.isNullOrEmpty(cmd.getPoolName())) {
-            return responses;
-        }
-
-        SearchCriteria<ServiceOfferingJoinVO> sc = svcOfferingJoinDao.createSearchBuilder().create();
-        sc.setParameters("deploymentPlanner", "BareMetalPlanner");
-        List<ServiceOfferingJoinVO> offerings = svcOfferingJoinDao.search(sc, null);
+        SearchBuilder<ServiceOfferingJoinVO> serviceOfferingJoinVOSearchBuilder = svcOfferingJoinDao.createSearchBuilder();
+        serviceOfferingJoinVOSearchBuilder.and("networkOfferingId", serviceOfferingJoinVOSearchBuilder.entity().getDeploymentPlanner(), Op.EQ);
+        SearchCriteria<ServiceOfferingJoinVO> serviceOfferingJoinVOSearchCriteria = serviceOfferingJoinVOSearchBuilder.create();
+        serviceOfferingJoinVOSearchCriteria.addAnd("deploymentPlanner", SearchCriteria.Op.EQ, "BareMetalPlanner");
+        List<ServiceOfferingJoinVO> offerings = svcOfferingJoinDao.search(serviceOfferingJoinVOSearchCriteria, null);
 
         if (offerings == null || offerings.size() == 0) {
             return responses;
         }
 
-        List<MaasNode> nodes = new ArrayList<>();
+        List<HostJoinVO> bareMetalHosts = new ArrayList<>();
 
-        for (ClusterVO c : getMaasClusters()) {
-            MaasApiClient client = getMaasApiClient(c.getId());
-            nodes.addAll(client.getMaasNodes(cmd.getPoolName()));
+        if (cmd.getClusterId() != null) {
+            if (!accountMgr.isNormalUser(CallContext.current().getCallingAccount().getAccountId())) {
+                bareMetalHosts = getHostJoinVOSByClusterId(cmd);
+            }
+        } else {
+            bareMetalHosts = getHostJoinVOSByZoneId(cmd);
+        }
+
+        HashMap<String, OfferingStats> bareMetalHostsMap = new HashMap<>();
+
+        for (HostJoinVO host : bareMetalHosts) {
+            String key = createSpecKey(host.getTag(), host.getCpus(), host.getSpeed().intValue(), (host.getTotalMemory() / 1048576));
+            OfferingStats offeringStats = bareMetalHostsMap.get(key);
+
+            if(offeringStats == null) {
+                offeringStats = new OfferingStats();
+                bareMetalHostsMap.put(key, offeringStats);
+            }
+
+            offeringStats.total++;
+
+            UserVmJoinVO userVm = getVmByHostId(host.getId());
+            if(userVm == null) {
+                offeringStats.available++;
+            } else if(userVm.getState().equals(VirtualMachine.State.Expunging) || userVm.getState().equals(VirtualMachine.State.Destroyed)) {
+                offeringStats.erasing++;
+            }
         }
 
         offerings.forEach(svc -> {
-            int available = 0;
-            int total = 0;
-            int erasing = 0;
+            String key = createSpecKey(svc.getHostTag(), svc.getCpu(), svc.getSpeed(), svc.getRamSize());
 
-            for (MaasNode node : nodes) {
-                if (node.getCpuCount() == svc.getCpu() && node.getCpuSpeed().intValue() == svc.getSpeed() && node.getMemory().intValue() == svc.getRamSize()) {
-                    total++;
-
-                    if (node.getStatusName().equals(MaasObject.MaasState.Ready.toString())) {
-                        available++;
-                    }
-                    //TODO
-//                    if (node.getStatusName().equals(MaasObject.MaasState.Erasing.toString())) {
-//                        erasing++;
-//                    }
-                }
-            };
+            OfferingStats offeringStats = bareMetalHostsMap.get(key);
+            if(offeringStats == null) {
+                offeringStats = new OfferingStats();
+            }
 
             MaasServiceOfferingsResponse response = new MaasServiceOfferingsResponse();
-
+            response.setObjectName("maasserviceoffering");;
             response.setOfferingId(svc.getUuid());
             response.setOfferingName(svc.getName());
-            response.setAvailable(available);
-            response.setTotal(total);
-            response.setErasing(erasing);
+            response.setAvailable(offeringStats.available);
+            if (accountMgr.isRootAdmin(CallContext.current().getCallingAccount().getAccountId())) {
+                response.setTotal(offeringStats.total);
+                response.setErasing(offeringStats.erasing);
+            }
 
             responses.add(response);
         });
-
         return responses;
+    }
+
+    private List<HostJoinVO> getHostJoinVOSByClusterId(ListMaasServiceOfferingsCmd cmd) {
+        SearchBuilder<HostJoinVO> hostJoinVOSearchBuilder = _hostJoinDao.createSearchBuilder();
+        hostJoinVOSearchBuilder.and("hypervisor_type", hostJoinVOSearchBuilder.entity().getHypervisorType(), Op.EQ);
+        hostJoinVOSearchBuilder.and("cluster_id", hostJoinVOSearchBuilder.entity().getClusterId(), Op.EQ);
+        SearchCriteria<HostJoinVO> hostJoinVOSearchCriteria = hostJoinVOSearchBuilder.create();
+        hostJoinVOSearchCriteria.setParameters("hypervisor_type", "BareMetal");
+        hostJoinVOSearchCriteria.setParameters("cluster_id", cmd.getClusterId());
+        return _hostJoinDao.search(hostJoinVOSearchCriteria, null);
+    }
+
+    private List<HostJoinVO> getHostJoinVOSByZoneId(ListMaasServiceOfferingsCmd cmd) {
+        List<Long> zoneIds = new ArrayList<>();
+        if(cmd.getZoneId() != null) {
+            zoneIds.add(cmd.getZoneId());
+        } else {
+            for(DataCenterVO dataCenterVO : dcDao.listAllZones()) {
+                zoneIds.add(dataCenterVO.getId());
+            }
+        }
+
+        SearchBuilder<HostJoinVO> hostJoinVOSearchBuilder = _hostJoinDao.createSearchBuilder();
+        hostJoinVOSearchBuilder.and("hypervisor_type", hostJoinVOSearchBuilder.entity().getHypervisorType(), Op.EQ);
+        hostJoinVOSearchBuilder.and("data_center_id", hostJoinVOSearchBuilder.entity().getZoneId(), Op.IN);
+        SearchCriteria<HostJoinVO> hostJoinVOSearchCriteria = hostJoinVOSearchBuilder.create();
+        hostJoinVOSearchCriteria.setParameters("hypervisor_type", "BareMetal");
+        hostJoinVOSearchCriteria.setParameters("data_center_id", zoneIds.toArray(new Object[zoneIds.size()]));
+        return _hostJoinDao.search(hostJoinVOSearchCriteria, null);
+    }
+
+    private UserVmJoinVO getVmByHostId(long hostId) {
+        SearchBuilder<UserVmJoinVO> userVmJoinVOSearchBuilder = _userVmJoinDao.createSearchBuilder();
+        userVmJoinVOSearchBuilder.and("hypervisor_type", userVmJoinVOSearchBuilder.entity().getHypervisorType(), Op.EQ);
+        userVmJoinVOSearchBuilder.and().op("host_id", userVmJoinVOSearchBuilder.entity().getHostId(), Op.EQ);
+        userVmJoinVOSearchBuilder.or("last_host_id", userVmJoinVOSearchBuilder.entity().getLastHostId(), Op.EQ);
+        userVmJoinVOSearchBuilder.cp();
+        SearchCriteria<UserVmJoinVO> userVmJoinVOSearchCriteria = userVmJoinVOSearchBuilder.create();
+        userVmJoinVOSearchCriteria.setParameters("hypervisor_type", "BareMetal");
+        userVmJoinVOSearchCriteria.setParameters("host_id", hostId);
+        userVmJoinVOSearchCriteria.setParameters("last_host_id", hostId);
+        return _userVmJoinDao.findOneBy(userVmJoinVOSearchCriteria);
     }
 
     @Override
@@ -198,16 +271,17 @@ public class MaasManagerImpl extends ManagerBase implements MaasManager, Configu
         return new MaasApiClient(maasScheme, maasIp, maasPort, maasKey,  maasSercret, maasConsumerKey, timeout);
     }
 
-    private Set<ClusterVO> getMaasClusters() {
-        Set<ClusterVO> clusters = new HashSet<>();
-
-        dcDao.listAllZones().forEach(dc -> {
-            clusterDao.listClustersByDcId(dc.getId())
-                .stream()
-                .filter(c -> c.getHypervisorType().equals(HypervisorType.BareMetal))
-                .forEach(c -> clusters.add(c));
-        });
-
-        return clusters;
+    private String createSpecKey(String tags, int cpus, int speed, long memory) {
+        String key = String.format("%s,%s,%s", cpus, speed, memory);
+        if(tags != null && !tags.isEmpty()) {
+            String[] tagArray = tags.split(",");
+            key += String.join(",",
+                    Arrays.stream(tagArray).
+                            filter(tag -> tag.startsWith("bm")).
+                            sorted(Comparator.naturalOrder()).
+                            collect(Collectors.toList()));
+        }
+        return key;
     }
+
 }

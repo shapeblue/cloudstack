@@ -504,10 +504,11 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
                 details.put("ovm3cluster", allParams.get("ovm3cluster"));
             }
             else if (hypervisorType == HypervisorType.BareMetal) {
-                if (cmd.getBaremetalMaasHost() != null && cmd.getBaremetalMaasKey() != null) {
+                if (cmd.getBaremetalMaasHost() != null && cmd.getBaremetalMaasKey() != null && cmd.getBaremetalMaasPool() != null) {
                     details.put("baremetalType", "MaaS");
                     details.put("baremetalMaasHost", cmd.getBaremetalMaasHost());
                     details.put("baremetalMaaSKey", DBEncryptionUtil.encrypt(cmd.getBaremetalMaasKey()));
+                    details.put("baremetalMaasPool", cmd.getBaremetalMaasPool());
                 }
             }
             details.put("cpuOvercommitRatio", CapacityManager.CpuOverprovisioningFactor.value().toString());

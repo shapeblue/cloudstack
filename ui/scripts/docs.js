@@ -236,6 +236,10 @@ cloudStack.docs = {
     	desc: 'Administrator API key to access MaaS server',
     	externalLink: ''
     },
+    helpClusterBaremetalMaaSPool: {
+        desc: 'Pool name in MaaS server to correspond this cluster with',
+        externalLink: ''
+    },
     // Add compute offering
     helpComputeOfferingName: {
         desc: 'Any desired name for the offering',

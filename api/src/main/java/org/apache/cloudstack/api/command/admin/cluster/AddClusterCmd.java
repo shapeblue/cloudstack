@@ -123,6 +123,9 @@ public class AddClusterCmd extends BaseCmd {
     @Parameter(name = ApiConstants.BAREMETAL_MAAS_KEY, type = CommandType.STRING, required = false,  description = "Administrator API key to access MaaS server")
     private String baremetalMaasKey;
 
+    @Parameter(name = ApiConstants.BAREMETAL_MAAS_KEY, type = CommandType.STRING, required = false,  description = "Pool name in MaaS server to correspond this cluster with")
+    private String baremetalMaasPool;
+
     public String getOvm3Pool() {
          return ovm3pool;
     }
@@ -221,6 +224,10 @@ public class AddClusterCmd extends BaseCmd {
 
     public String getBaremetalMaasKey() {
         return baremetalMaasKey;
+    }
+
+    public String getBaremetalMaasPool() {
+        return baremetalMaasPool;
     }
 
     @Override
