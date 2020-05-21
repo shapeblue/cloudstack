@@ -33,7 +33,10 @@ import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseListCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.BaseCmd.CommandType;
+import org.apache.cloudstack.api.response.ClusterResponse;
 import org.apache.cloudstack.api.response.ListResponse;
+import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.compute.maas.MaasServiceOfferingsResponse;
 import org.apache.cloudstack.compute.maas.MaasManager;
 import org.apache.log4j.Logger;
@@ -44,7 +47,7 @@ import org.apache.log4j.Logger;
         responseObject = MaasServiceOfferingsResponse.class,
         requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false,
-        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin}
+        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class ListMaasServiceOfferingsCmd extends BaseListCmd {
     private static final Logger LOGGER = Logger.getLogger(ListMaasServiceOfferingsCmd.class);
@@ -56,14 +59,20 @@ public class ListMaasServiceOfferingsCmd extends BaseListCmd {
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
     // ///////////////////////////////////////////////////
-    @Parameter(name = ApiConstants.POOL_NAME, type = CommandType.STRING, description = "name of the Resource Pool in MaaS to list the service offerings of")
-    private String poolName;
+    @Parameter(name = ApiConstants.ZONE_ID, type = CommandType.UUID, entityType = ZoneResponse.class, description = "The ID of the zone to lists maas service offerings for")
+    private Long zoneId;
+
+    @Parameter(name = ApiConstants.CLUSTER_ID, type = CommandType.UUID, entityType = ClusterResponse.class, description = "The ID of the cluster to lists maas service offerings for")
+    private Long clusterId;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
-    public String getPoolName() {
-        return poolName;
+    public Long getZoneId() {
+        return zoneId;
+    }
+    public Long getClusterId() {
+        return clusterId;
     }
 
     /////////////////////////////////////////////////////
@@ -72,14 +81,13 @@ public class ListMaasServiceOfferingsCmd extends BaseListCmd {
     @Override
     public void execute() {
         try {
-            ListResponse<MaasServiceOfferingsResponse> response = new ListResponse<MaasServiceOfferingsResponse>();
             List<MaasServiceOfferingsResponse> responses = manager.listMaasServiceOfferings(this);
-            response.setResponses(responses);
+            ListResponse<MaasServiceOfferingsResponse> response = new ListResponse<MaasServiceOfferingsResponse>();
+            response.setResponses(responses, responses.size());
             response.setResponseName(getCommandName());
-            response.setObjectName("maasserviceoffering");
             this.setResponseObject(response);
         } catch (Exception e) {
-            LOGGER.debug("Exception happend while executing ListMaasServiceOfferingsCmd");
+            LOGGER.debug("Exception happend while executing ListMaasServiceOfferingsCmd", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
         }
     }

@@ -624,6 +624,7 @@ public class ApiConstants {
     public static final String BAREMETAL_MAAS_ACTION_IMPORT = "baremetalmaasimport";
     public static final String BAREMETAL_MAAS_HOST = "baremetalmaashost";
     public static final String BAREMETAL_MAAS_KEY = "baremetalmaaskey";
+    public static final String BAREMETAL_MAAS_POOL = "baremetalmaaspool";
     public static final String BAREMETAL_MAAS_NODE_ID = "baremetalmaasnodeid";
     public static final String BAREMETAL_MAAS_OFFERING_ID = "offeringid";
     public static final String BAREMETAL_MAAS_OFFERING_NAME = "offeringname";

@@ -33,6 +33,7 @@ import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
 
 public interface MaasManager extends PluggableService, Manager {
+
     MaasApiClient getMaasApiClient(long clusterId) throws ConfigurationException;
 
     List<MaasServiceOfferingsResponse> listMaasServiceOfferings(ListMaasServiceOfferingsCmd cmd) throws ConfigurationException, IOException;

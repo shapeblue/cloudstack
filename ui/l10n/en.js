@@ -482,6 +482,7 @@ var dictionary = {
 "label.baremetal.cluster.type":"Baremetal Type",
 "label.baremetal.cluster.maas.host":"MaaS Host",
 "label.baremetal.cluster.maas.key":"MaaS API Key",
+"label.baremetal.cluster.maas.pool":"MaaS Pool Name",
 "label.baremetal.maas.host.action.type":"MaaS Action",
 "label.baremetal.maas.host.action.import":"Import Node",
 "label.baremetal.maas.host.action.create":"Create Node",

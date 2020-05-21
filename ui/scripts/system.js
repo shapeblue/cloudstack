@@ -14739,6 +14739,7 @@
                                             if (isMaas) {
                                                 $form.find('.form-item[rel=baremetalMaasHost]').css('display', 'inline-block');
                                                 $form.find('.form-item[rel=baremetalMaasKey]').css('display', 'inline-block');
+                                                $form.find('.form-item[rel=baremetalMaasPool]').css('display', 'inline-block');
                                             }
                                         }
                                         
@@ -14759,6 +14760,7 @@
                                         if ($form.find('.form-item[rel=hypervisor] select').val() != 'BareMetal') {
                                             $form.find('.form-item[rel=baremetalMaasHost]').css('display', 'none');
                                             $form.find('.form-item[rel=baremetalMaasKey]').css('display', 'none');
+                                            $form.find('.form-item[rel=baremetalMaasPool]').css('display', 'none');
                                         }
 
                                         if ($form.find('.form-item[rel=overridepublictraffic]').css('display') != 'none' && $overridePublicTraffic.is(':checked')) {
@@ -15182,6 +15184,14 @@
                                         docID: 'helpClusterBaremetalMaaSKey',
                                         isPassword: true
                                     },
+                                    baremetalMaasPool: {
+                                        label: 'label.baremetal.cluster.maas.pool',
+                                        validation: {
+                                            required: true
+                                        },
+                                        isHidden: true,
+                                        docID: 'helpClusterBaremetalMaaSPool'
+                                    },
                                     //hypervisor==Baremetal ends here
                                 }
                             },
@@ -15283,6 +15293,9 @@
                                     }
                                     if (args.$form.find('.form-item[rel=baremetalMaasKey]').css('display') != 'none' && args.data.baremetalMaasKey != "") {
                                         array1.push("&baremetalmaaskey=" + args.data.baremetalMaasKey);
+                                    }
+                                    if (args.$form.find('.form-item[rel=baremetalMaasPool]').css('display') != 'none' && args.data.baremetalMaasPool != "") {
+                                        array1.push("&baremetalmaaspool=" + args.data.baremetalMaasPool);
                                     }
                                 }
                                 
@@ -15844,7 +15857,7 @@
                                 preFilter: function(args) {
                                     // don't show baremetal related fields on other hypervisor types
                                     if (args.context.clusters[0].hypervisortype != 'BareMetal') {
-                                        return ['baremetaltype', 'baremetalmaashost'];
+                                        return ['baremetaltype', 'baremetalmaashost', 'baremetalmaaspool'];
                                     }
 
                                     // Baremetal - MaaS (do not filter required fileds)
@@ -15852,7 +15865,7 @@
                                         return [];
                                     }
 
-                                    return ['baremetaltype', 'baremetalmaashost'];
+                                    return ['baremetaltype', 'baremetalmaashost', 'baremetalmaaspool'];
                                 },
                                 fields:[{
                                     name: {
@@ -15885,6 +15898,9 @@
                                     },
                                     baremetalmaashost: {
                                         label: 'label.baremetal.cluster.maas.host'
+                                    },
+                                    baremetalmaaspool: {
+                                        label: 'label.baremetal.cluster.maas.pool'
                                     }
                                 }, {
                                     isdedicated: {
@@ -15927,7 +15943,8 @@
                                             if (typeof item.resourcedetails.baremetalMaasHost !== 'undefined') {
                                                 $.extend(item, {
                                                     baremetaltype: 'MaaS',
-                                                    baremetalmaashost: item.resourcedetails.baremetalMaasHost
+                                                    baremetalmaashost: item.resourcedetails.baremetalMaasHost,
+                                                    baremetalmaaspool: item.resourcedetails.baremetalMaasPool
                                                 });
                                             }
 
