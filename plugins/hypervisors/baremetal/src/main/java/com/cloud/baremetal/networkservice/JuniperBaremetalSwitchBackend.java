@@ -56,26 +56,30 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
     }
 
     @Override
-    public void prepareVlan(BaremetalVlanStruct struct) {
+    public synchronized void prepareVlan(BaremetalVlanStruct struct) {
+        JuniperDevice juniper = null;
+        CloudRuntimeException cloudRuntimeException = null;
         try {
-            JuniperDevice juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
+            juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
             juniper.addVlanToInterface(struct.getPort(), struct.getVlan(), struct.getVlanType());
-            juniper.setInterfaceLLDP(struct.getPort(), struct.getVlan());
         } catch (ParserConfigurationException e) {
             String mesg = "Invalid configuration to initiate netconf session to the backend switch";
             s_logger.error(mesg, e);
-            throw new CloudRuntimeException(mesg, e);
+            cloudRuntimeException = new CloudRuntimeException(mesg, e);
         } catch (SAXException | IOException | XPathExpressionException e) {
             String mesg = "Unable to add VLAN to Port";
             s_logger.error(mesg, e);
-            throw new CloudRuntimeException(mesg, e);
+            cloudRuntimeException =  new CloudRuntimeException(mesg, e);
         }
+        closeConnection(juniper, cloudRuntimeException);
     }
 
     @Override
-    public void removePortFromVlan(BaremetalVlanStruct struct) {
+    public synchronized void removePortFromVlan(BaremetalVlanStruct struct) {
+        JuniperDevice juniper = null;
+        CloudRuntimeException cloudRuntimeException = null;
         try {
-            JuniperDevice juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
+            juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
             if (struct.isRemoveAll()) {
                 juniper.clearAllVlansFromInterface(struct.getPort(), struct.getVlanType());
             } else {
@@ -84,13 +88,23 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
         } catch (ParserConfigurationException e) {
             String mesg = "Invalid configuration to initiate netconf session to the backend switch";
             s_logger.error(mesg, e);
-            throw new CloudRuntimeException(mesg, e);
+            cloudRuntimeException = new CloudRuntimeException(mesg, e);
         } catch (SAXException | IOException e) {
             String mesg = String.format("Unable to remove VLAN %d from Port: %s, type : %s", struct.getVlan(), struct.getPort(), struct.getVlanType());
             s_logger.error(mesg, e);
-            throw new CloudRuntimeException(mesg, e);
+            cloudRuntimeException = new CloudRuntimeException(mesg, e);
         } catch (XPathExpressionException e) {
             e.printStackTrace();
+        }
+        closeConnection(juniper, cloudRuntimeException);
+    }
+
+    private void closeConnection(JuniperDevice juniper, CloudRuntimeException cloudRuntimeException) {
+        if(juniper != null) {
+            juniper.close();
+        }
+        if(cloudRuntimeException != null) {
+            throw cloudRuntimeException;
         }
     }
 
@@ -99,11 +113,22 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
         public JuniperDevice(String host, int port, String user, String password) throws ParserConfigurationException, NetconfException {
             device = new Device(host, user, password, null, port);
+            device.connect();
+        }
+
+        protected void close() {
+            device.close();
         }
 
         public void addVlanToInterface(String interfaceName, int vlanId, VlanType vlanType) throws IOException, SAXException, XPathExpressionException, ParserConfigurationException {
             String configTemplate = "set interfaces %s unit 0 family ethernet-switching vlan members %d \n" +
                     "set interfaces %s unit 0 family ethernet-switching interface-mode trunk\n";
+
+            if(vlanId == BaremetalManagerImpl.pxeVlan.value()) {
+                configTemplate += String.format("set protocols lldp interface %s enable\n", interfaceName);
+            } else {
+                configTemplate += String.format("delete protocols lldp interface %s\n", interfaceName);
+            }
 
             if (vlanType.equals(VlanType.UNTAGGED)) {
                 configTemplate += String.format("set interfaces %s native-vlan-id %d", interfaceName, vlanId);
@@ -111,26 +136,8 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             String config = String.format(configTemplate, interfaceName, vlanId, interfaceName);
 
-            device.connect();
-            device.loadSetConfiguration(config);
-            device.commit();
-            device.close();
-        }
-
-        public void setInterfaceLLDP(String interfaceName, int vlanId) throws IOException, SAXException, XPathExpressionException, ParserConfigurationException {
-            String config = "";
-
-            if(vlanId == BaremetalManagerImpl.pxeVlan.value()) {
-                config += String.format("set protocols lldp interface %s enable\n", interfaceName);
-            } else {
-                config += String.format("delete protocols lldp interface %s\n", interfaceName);
-            }
-
-            s_logger.info(config);
-            device.connect();
-            device.loadSetConfiguration(config);
-            device.commit();
-            device.close();
+            this.device.loadSetConfiguration(config);
+            this.device.commit();
         }
 
         public void removeVlanFromInterface(String interfaceName, int vlanId, VlanType vlanType) throws SAXException, ParserConfigurationException, XPathExpressionException, IOException {
@@ -145,10 +152,8 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
                 config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
             }
 
-            device.connect();
-            device.loadSetConfiguration(config);
-            device.commit();
-            device.close();
+            this.device.loadSetConfiguration(config);
+            this.device.commit();
         }
 
         void clearAllVlansFromInterface(String interfaceName, VlanType vlanType) throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
@@ -166,10 +171,8 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
 
-            device.connect();
-            device.loadSetConfiguration(config);
-            device.commit();
-            device.close();
+            this.device.loadSetConfiguration(config);
+            this.device.commit();
         }
 
         private List<Integer> getInterfaceVlans(String interfaceName) throws ParserConfigurationException, XPathExpressionException {
@@ -216,12 +219,11 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
         private XML getConfig(String req) {
             try {
-                device.connect();
-                return device.executeRPC(req);
+                XML config = device.executeRPC(req);
+                return config;
             } catch (SAXException | IOException e) {
                 throw new CloudRuntimeException("Unable to get config ", e);
             } finally {
-                device.close();
             }
         }
     }
