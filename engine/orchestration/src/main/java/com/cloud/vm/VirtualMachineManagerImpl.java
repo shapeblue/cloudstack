@@ -42,6 +42,7 @@ import javax.naming.ConfigurationException;
 
 import com.cloud.network.dao.NetworkDetailVO;
 import com.cloud.network.dao.NetworkDetailsDao;
+import com.cloud.utils.db.TransactionCallback;
 import org.apache.cloudstack.affinity.dao.AffinityGroupVMMapDao;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.vm.MigrateVMCmd;
@@ -76,8 +77,10 @@ import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
+import org.apache.cloudstack.vm.UnmanageVMManager;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.AgentManager;
@@ -574,7 +577,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         }
 
         // Clean up volumes based on the vm's instance id
-        volumeMgr.cleanupVolumes(vm.getId());
+        volumeMgr.cleanupVolumes(vm.getId(), true);
 
         if (hostId != null && CollectionUtils.isNotEmpty(targets)) {
             removeDynamicTargets(hostId, targets);
@@ -1451,6 +1454,53 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         } else {
             return ExecuteInSequence.value();
         }
+    }
+
+    @Override
+    public boolean unmanage(String vmUuid) {
+        VMInstanceVO vm = _vmDao.findByUuid(vmUuid);
+        if (vm == null || vm.getRemoved() != null) {
+            throw new CloudRuntimeException("Could not find VM with id = " + vmUuid);
+        }
+
+        Boolean result = Transaction.execute(new TransactionCallback<Boolean>() {
+            @Override
+            public Boolean doInTransaction(TransactionStatus status) {
+
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug("Unmanaging vm " + vm);
+                }
+
+                final VirtualMachineProfile profile = new VirtualMachineProfileImpl(vm);
+
+                s_logger.debug("Cleaning up NICs");
+                Boolean preserveNics = UnmanageVMManager.UnmanageVMPreserveNic.valueIn(vm.getDataCenterId());
+                if (BooleanUtils.isTrue(preserveNics)) {
+                    s_logger.debug("Preserve NICs configuration enabled");
+                    profile.setParameter(VirtualMachineProfile.Param.PreserveNics, true);
+                }
+                _networkMgr.cleanupNics(profile);
+
+                final Long hostId = vm.getHostId() != null ? vm.getHostId() : vm.getLastHostId();
+                if (hostId != null) {
+                    volumeMgr.revokeAccess(vm.getId(), hostId);
+                }
+                volumeMgr.cleanupVolumes(vm.getId(), false);
+
+                List<Map<String, String>> targets = getTargets(hostId, vm.getId());
+                if (hostId != null && CollectionUtils.isNotEmpty(targets)) {
+                    removeDynamicTargets(hostId, targets);
+                }
+
+                final VirtualMachineGuru guru = getVmGuru(vm);
+                guru.finalizeUnmanage(vm);
+                userVmDetailsDao.removeDetails(vm.getId());
+
+                return true;
+            }
+        });
+
+        return BooleanUtils.isTrue(result);
     }
 
     private List<Map<String, String>> getVolumesToDisconnect(VirtualMachine vm) {

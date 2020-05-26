@@ -47,6 +47,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import com.cloud.exception.UnsupportedServiceException;
+import com.cloud.hypervisor.Hypervisor;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.affinity.AffinityGroupService;
@@ -6953,6 +6955,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
     }
 
+    @Override
+    public void finalizeUnmanage(VirtualMachine vm) {
+    }
+
     private void encryptAndStorePassword(UserVmVO vm, String password) {
         String sshPublicKey = vm.getDetail(VmDetailConstants.SSH_PUBLIC_KEY);
         if (sshPublicKey != null && !sshPublicKey.equals("") && password != null && !password.equals("saved_password")) {
@@ -7113,5 +7119,55 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 accountId, userId, serviceOffering, template.getFormat().equals(ImageFormat.ISO), sshPublicKey, null,
                 id, instanceName, uuidName, hypervisorType, customParameters,
                 null, null, null, powerState);
+    }
+
+    @Override
+    public boolean unmanageUserVM(Long vmId) {
+        UserVmVO vm = _vmDao.findById(vmId);
+        if (vm == null || vm.getRemoved() != null) {
+            throw new InvalidParameterValueException("Unable to find a VM with ID = " + vmId);
+        }
+
+        vm = _vmDao.acquireInLockTable(vm.getId());
+        boolean result;
+        try {
+            if (vm.getState() != State.Running && vm.getState() != State.Stopped) {
+                s_logger.debug("VM ID = " + vmId + " is not running or stopped, cannot be unmanaged");
+                return false;
+            }
+
+            if (vm.getHypervisorType() != Hypervisor.HypervisorType.VMware) {
+                throw new UnsupportedServiceException("Unmanage VM is currently allowed for VMware VMs only");
+            }
+
+            s_logger.debug("Checking if there are any ongoing snapshots on the ROOT volumes associated with VM with ID " + vmId);
+            if (checkStatusOfVolumeSnapshots(vmId, Volume.Type.ROOT)) {
+                throw new CloudRuntimeException("There is/are unbacked up snapshot(s) on ROOT volume, vm unmanage is not permitted, please try again later.");
+            }
+            s_logger.debug("Found no ongoing snapshots on volume of type ROOT, for the vm with id " + vmId);
+
+            List<VolumeVO> volumes = _volsDao.findByInstance(vmId);
+            for (VolumeVO volume : volumes) {
+                if (volume.getInstanceId() == null || !volume.getInstanceId().equals(vmId)) {
+                    throw new CloudRuntimeException("Invalid state for volume with ID " + volume.getId() + " of VM " +
+                            vm.getId() +": it is not attached to VM");
+                } else if (volume.getVolumeType() != Volume.Type.ROOT && volume.getVolumeType() != Volume.Type.DATADISK) {
+                    throw new CloudRuntimeException("Invalid type for volume with ID " + volume.getId() +
+                            ": ROOT or DATADISK expected but got " + volume.getVolumeType());
+                }
+            }
+
+            result = _itMgr.unmanage(vm.getUuid());
+            if (result) {
+                _vmDao.remove(vmId);
+            }
+        } catch (Exception e) {
+            s_logger.error("Could not unmanage VM " + vm.getUuid(), e);
+            throw new CloudRuntimeException(e);
+        } finally {
+            _vmDao.releaseFromLockTable(vm.getId());
+        }
+
+        return result;
     }
 }

@@ -101,7 +101,7 @@ public interface VolumeOrchestrationService {
 
     void release(VirtualMachineProfile profile);
 
-    void cleanupVolumes(long vmId) throws ConcurrentOperationException;
+    void cleanupVolumes(long vmId, boolean expunge) throws ConcurrentOperationException;
 
     void revokeAccess(DataObject dataObject, Host host, DataStore dataStore);
 

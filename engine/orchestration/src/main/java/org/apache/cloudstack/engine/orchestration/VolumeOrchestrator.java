@@ -885,7 +885,7 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
 
     @Override
     @DB
-    public void cleanupVolumes(long vmId) throws ConcurrentOperationException {
+    public void cleanupVolumes(long vmId, boolean expunge) throws ConcurrentOperationException {
         if (s_logger.isDebugEnabled()) {
             s_logger.debug("Cleaning storage for vm: " + vmId);
         }
@@ -904,7 +904,9 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
                         } else {
                             s_logger.debug("Skipping destroy for the volume " + vol + " as its in state " + vol.getState().toString());
                         }
-                        toBeExpunged.add(vol);
+                        if (expunge) {
+                            toBeExpunged.add(vol);
+                        }
                     } else {
                         if (s_logger.isDebugEnabled()) {
                             s_logger.debug("Detaching " + vol);
@@ -916,14 +918,14 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
         });
 
         AsyncCallFuture<VolumeApiResult> future = null;
-        for (VolumeVO expunge : toBeExpunged) {
-            future = volService.expungeVolumeAsync(volFactory.getVolume(expunge.getId()));
+        for (VolumeVO volExpunge : toBeExpunged) {
+            future = volService.expungeVolumeAsync(volFactory.getVolume(volExpunge.getId()));
             try {
                 future.get();
             } catch (InterruptedException e) {
-                s_logger.debug("failed expunge volume" + expunge.getId(), e);
+                s_logger.debug("failed expunge volume" + volExpunge.getId(), e);
             } catch (ExecutionException e) {
-                s_logger.debug("failed expunge volume" + expunge.getId(), e);
+                s_logger.debug("failed expunge volume" + volExpunge.getId(), e);
             }
         }
     }

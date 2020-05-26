@@ -517,4 +517,5 @@ public interface UserVmService {
                     final long accountId, final long userId, final ServiceOffering serviceOffering, final String sshPublicKey,
                     final String hostName, final HypervisorType hypervisorType, final Map<String, String> customParameters, final VirtualMachine.PowerState powerState) throws InsufficientCapacityException;
 
+    boolean unmanageUserVM(Long vmId);
 }
