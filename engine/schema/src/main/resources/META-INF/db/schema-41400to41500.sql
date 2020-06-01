@@ -32,3 +32,18 @@ INSERT INTO `cloud`.`roles` (`uuid`, `name`, `role_type`, `description`, `is_def
 INSERT INTO `cloud`.`roles` (`uuid`, `name`, `role_type`, `description`, `is_default`) VALUES (UUID(), 'Read-Only User - Default', 'User', 'Default read-only user role', 1);
 INSERT INTO `cloud`.`roles` (`uuid`, `name`, `role_type`, `description`, `is_default`) VALUES (UUID(), 'Support Admin - Default', 'Admin', 'Default support admin role', 1);
 INSERT INTO `cloud`.`roles` (`uuid`, `name`, `role_type`, `description`, `is_default`) VALUES (UUID(), 'Support User - Default', 'User', 'Default support user role', 1);
+
+CREATE TABLE IF NOT EXISTS `cloud`.`vsphere_storage_policy` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `uuid` varchar(255) UNIQUE,
+  `zone_id` bigint(20) unsigned NOT NULL COMMENT 'id of the zone',
+  `policy_id` varchar(255) NOT NULL COMMENT 'the identifier of the Storage Policy in vSphere DataCenter',
+  `name` varchar(255) NOT NULL COMMENT 'name of the storage policy',
+  `description` text COMMENT 'description of the storage policy',
+  `update_time` datetime COMMENT 'last updated when policy imported',
+  `removed` datetime COMMENT 'date removed',
+  PRIMARY KEY (`id`),
+  KEY `fk_vsphere_storage_policy__zone_id` (`zone_id`),
+  UNIQUE KEY (`zone_id`, `policy_id`),
+  CONSTRAINT `fk_vsphere_storage_policy__zone_id` FOREIGN KEY (`zone_id`) REFERENCES `data_center` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
