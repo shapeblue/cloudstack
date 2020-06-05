@@ -2545,8 +2545,11 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 }
                 for (String detailName : details.keySet()) {
                     if (detailName.startsWith(ApiConstants.OVF_PROPERTIES)) {
+                        // TODO FR37 do not replace the name
                         String ovfPropKey = detailName.replace(ApiConstants.OVF_PROPERTIES + "-", "");
+                        // TODO FR37 get the vm_template_detail
                         TemplateOVFPropertyVO ovfPropertyVO = templateOVFPropertiesDao.findByTemplateAndKey(vmInstance.getTemplateId(), ovfPropKey);
+                        // TODO FR37 create the OvfProperertyTO from the value of the vm_template_detail and get isPassword from that
                         if (ovfPropertyVO != null && ovfPropertyVO.isPassword()) {
                             details.put(detailName, DBEncryptionUtil.encrypt(details.get(detailName)));
                         }
@@ -4014,6 +4017,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                             } else if (value.equalsIgnoreCase("False")) {
                                 value = "False";
                             } else {
+                                // TODO FR37 get the vm_template_detail
+                                // TODO FR37 create the OvfProperertyTO from the value of the vm_template_detail and get isPassword from that
                                 TemplateOVFPropertyVO ovfPropertyVO = templateOVFPropertiesDao.findByTemplateAndKey(vm.getTemplateId(), key);
                                 if (ovfPropertyVO.isPassword()) {
                                     value = DBEncryptionUtil.encrypt(value);
