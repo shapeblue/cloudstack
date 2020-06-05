@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import com.cloud.host.dao.HostDao;
+import com.cloud.storage.dao.SnapshotDao;
+import com.cloud.user.dao.AccountDao;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.command.user.volume.CreateVolumeCmd;
@@ -50,8 +53,6 @@ import org.apache.cloudstack.framework.jobs.AsyncJobManager;
 import org.apache.cloudstack.framework.jobs.dao.AsyncJobJoinMapDao;
 import org.apache.cloudstack.framework.jobs.impl.AsyncJobVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
-import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailVO;
-import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreVO;
@@ -77,14 +78,13 @@ import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.ResourceAllocationException;
-import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.offering.DiskOffering;
 import com.cloud.org.Grouping;
 import com.cloud.serializer.GsonHelper;
 import com.cloud.storage.Volume.Type;
+import com.cloud.storage.dao.StoragePoolTagsDao;
 import com.cloud.storage.dao.DiskOfferingDao;
-import com.cloud.storage.dao.SnapshotDao;
 import com.cloud.storage.dao.VolumeDao;
 import com.cloud.storage.snapshot.SnapshotManager;
 import com.cloud.user.Account;
@@ -93,7 +93,6 @@ import com.cloud.user.AccountVO;
 import com.cloud.user.ResourceLimitService;
 import com.cloud.user.User;
 import com.cloud.user.UserVO;
-import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.fsm.NoTransitionException;
 import com.cloud.vm.UserVmManager;
@@ -152,7 +151,7 @@ public class VolumeApiServiceImplTest {
     @Mock
     private HostDao _hostDao;
     @Mock
-    private StoragePoolDetailsDao storagePoolDetailsDao;
+    private StoragePoolTagsDao storagePoolTagsDao;
     @Mock
     private DiskOfferingDao _diskOfferingDao;
     @Mock
@@ -168,6 +167,7 @@ public class VolumeApiServiceImplTest {
     private DiskOfferingVO newDiskOfferingMock;
     @Mock
     private SnapshotDao _snapshotDao;
+
 
     @Mock
     private VolumeVO volumeVoMock;
@@ -769,26 +769,25 @@ public class VolumeApiServiceImplTest {
 
     @Test
     public void getStoragePoolTagsTestStorageWithoutTags() {
-        Mockito.when(storagePoolDetailsDao.listDetails(storagePoolMockId)).thenReturn(new ArrayList<>());
+        Mockito.when(storagePoolTagsDao.getStoragePoolTags(storagePoolMockId)).thenReturn(new ArrayList<>());
 
         String returnedStoragePoolTags = volumeApiServiceImpl.getStoragePoolTags(storagePoolMock);
 
         Assert.assertNull(returnedStoragePoolTags);
-
     }
 
     @Test
     public void getStoragePoolTagsTestStorageWithTags() {
-        ArrayList<StoragePoolDetailVO> tags = new ArrayList<>();
-        StoragePoolDetailVO tag1 = new StoragePoolDetailVO(1l, "tag1", "value", true);
-        StoragePoolDetailVO tag2 = new StoragePoolDetailVO(1l, "tag2", "value", true);
-        StoragePoolDetailVO tag3 = new StoragePoolDetailVO(1l, "tag3", "value", true);
+        ArrayList<String> tags = new ArrayList<>();
+        String tag1 = "tag1";
+        String tag2 = "tag2";
+        String tag3 = "tag3";
 
         tags.add(tag1);
         tags.add(tag2);
         tags.add(tag3);
 
-        Mockito.when(storagePoolDetailsDao.listDetails(storagePoolMockId)).thenReturn(tags);
+        Mockito.when(storagePoolTagsDao.getStoragePoolTags(storagePoolMockId)).thenReturn(tags);
 
         String returnedStoragePoolTags = volumeApiServiceImpl.getStoragePoolTags(storagePoolMock);
 
