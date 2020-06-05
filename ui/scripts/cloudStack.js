@@ -151,6 +151,8 @@
                         g_userProjectsEnabled = json.listcapabilitiesresponse.capability.allowusercreateprojects;
 
                         g_cloudstackversion = json.listcapabilitiesresponse.capability.cloudstackversion;
+                        // Allow users to see all accounts within a domain
+                        g_allowUserViewAllDomainAccounts = json.listcapabilitiesresponse.capability.allowuserviewalldomainaccounts;
 
                         if (json.listcapabilitiesresponse.capability.apilimitinterval != null && json.listcapabilitiesresponse.capability.apilimitmax != null) {
                             var intervalLimit = ((json.listcapabilitiesresponse.capability.apilimitinterval * 1000) / json.listcapabilitiesresponse.capability.apilimitmax) * 3; //multiply 3 to be on safe side
@@ -298,6 +300,8 @@
                                 g_userProjectsEnabled = json.listcapabilitiesresponse.capability.allowusercreateprojects;
 
                                 g_cloudstackversion = json.listcapabilitiesresponse.capability.cloudstackversion;
+                                // Allow users to see all accounts within a domain
+                                g_allowUserViewAllDomainAccounts = json.listcapabilitiesresponse.capability.allowuserviewalldomainaccounts;
 
                                 if (json.listcapabilitiesresponse.capability.apilimitinterval != null && json.listcapabilitiesresponse.capability.apilimitmax != null) {
                                     var intervalLimit = ((json.listcapabilitiesresponse.capability.apilimitinterval * 1000) / json.listcapabilitiesresponse.capability.apilimitmax) * 3; //multiply 3 to be on safe side
@@ -354,6 +358,7 @@
                         g_kvmsnapshotenabled = null;
                         g_regionsecondaryenabled = null;
                         g_loginCmdText = null;
+                        g_allowUserViewAllDomainAccounts = null;
 
                         // Remove any cookies
                         var cookies = document.cookie.split(";");
@@ -390,6 +395,7 @@
                 g_kvmsnapshotenabled = null;
                 g_regionsecondaryenabled = null;
                 g_loginCmdText = null;
+                g_allowUserViewAllDomainAccounts = null;
 
                 // Remove any cookies
                 var cookies = document.cookie.split(";");
