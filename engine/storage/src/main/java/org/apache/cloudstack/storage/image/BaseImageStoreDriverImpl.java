@@ -177,7 +177,9 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
      * Persist OVF properties as template details for template with id = templateId
      */
     private void persistOVFProperties(List<OVFPropertyTO> ovfProperties, long templateId) {
-        List<VMTemplateDetailVO> templateDetailsList = new ArrayList<>();
+        if (s_logger.isTraceEnabled()) {
+            s_logger.trace(String.format("saving properts for template %d as details", templateId));
+        }
         for (OVFPropertyTO property : ovfProperties) {
             if (s_logger.isTraceEnabled()) {
                 s_logger.trace(String.format("saving property %s for template %d as detail", property.getKey(), templateId));
@@ -188,6 +190,9 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
     }
 
     private void persistOvfPropertiesInDedicatedTable(List<OVFPropertyTO> ovfProperties, long templateId) {
+        if (s_logger.isTraceEnabled()) {
+            s_logger.trace(String.format("saving properties for template %d in dedicated table", templateId));
+        }
         List<TemplateOVFPropertyVO> listToPersist = new ArrayList<>();
         for (OVFPropertyTO property : ovfProperties) {
             persistOvfPropertyAsTemplateDetail(templateId, property);
