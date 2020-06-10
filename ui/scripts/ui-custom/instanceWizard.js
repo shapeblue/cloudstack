@@ -178,13 +178,14 @@
                                     var maxLen = 524288; /* 524288 being the default according to w3schools */
                                     for ( var i = 0; i < split.length; i++ ) {
                                         if (split[i].startsWith("MaxLen")) {
-                                            maxLen = split[i].replace("MaxLen(","").replace(")","").slice(0, -1);
+                                            maxLen = split[i].replace("MaxLen(","").replace(")","");
                                         } else if (split[i].startsWith("MinLen")) {
-                                            minLen = split[i].replace("MinLen(","").replace(")","").slice(0, -1);
+                                            minLen = split[i].replace("MinLen(","").replace(")","");
                                         }
                                     }
                                     propertyField = $('<input id=ovf-property-'+key+'>')
-                                        .attr({pattern : '{' + minLen + ',' + maxLen + '}', type: fieldType})
+                                        .attr({pattern : '.{' + minLen + ',' + maxLen + '}'})
+                                        .attr(type: fieldType})
                                         .addClass('name').val(_s(this[fields.value]))
                                 }
                             } else {
