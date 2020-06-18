@@ -1913,6 +1913,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             if (platformstring != null && !platformstring.isEmpty()) {
                 final Map<String, String> platform = StringUtils.stringToMap(platformstring);
                 vm.setPlatform(conn, platform);
+                calculateCorePerSocket(vm, conn, vmSpec);
             } else {
                 final String timeoffset = details.get("timeoffset");
                 if (timeoffset != null) {
@@ -1920,23 +1921,9 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                     platform.put("timeoffset", timeoffset);
                     vm.setPlatform(conn, platform);
                 }
-                final String coresPerSocket = details.get("cpu.corespersocket");
-                if (coresPerSocket != null) {
-                    final Map<String, String> platform = vm.getPlatform(conn);
-                    platform.put("cores-per-socket", coresPerSocket);
-                    vm.setPlatform(conn, platform);
-                } else {
-                    int coresPerSocketCalculated;
-                    int cpus = vmSpec.getCpus();
-                    if (cpus % 2 == 1) {
-                        coresPerSocketCalculated = 1;
-                    } else {
-                        coresPerSocketCalculated = cpus / 2;
-                    }
-                    final Map<String, String> platform = vm.getPlatform(conn);
-                    platform.put("cores-per-socket", Integer.toString(coresPerSocketCalculated));
-                    vm.setPlatform(conn, platform);
-                }
+
+                calculateCorePerSocket(vm, conn, vmSpec);
+
                 final String nestedHvm = details.get("nested.hvm");
                 if (nestedHvm != null) {
                     final Map<String, String> platform = vm.getPlatform(conn);
@@ -1955,6 +1942,18 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         }
     }
 
+    private void calculateCorePerSocket(final VM vm, final Connection conn, final VirtualMachineTO vmSpec) throws XmlRpcException, XenAPIException {
+        int coresPerSocketCalculated;
+        int cpus = vmSpec.getCpus();
+        if (cpus % 2 == 1) {
+            coresPerSocketCalculated = 1;
+        } else {
+            coresPerSocketCalculated = cpus / 2;
+        }
+        final Map<String, String> platform = vm.getPlatform(conn);
+        platform.put("cores-per-socket", Integer.toString(coresPerSocketCalculated));
+        vm.setPlatform(conn, platform);
+    }
     /**
      * This method just creates a XenServer network following the tunnel network
      * naming convention
@@ -4779,6 +4778,13 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             // vm.addToVCPUsParamsLive(conn, "weight",
             // Integer.toString(cpuWeight));
             callHostPlugin(conn, "vmops", "add_to_VCPUs_params_live", "key", "weight", "value", Integer.toString(cpuWeight), "vmname", vmSpec.getName());
+
+            // Recalculating cores per socket
+            try {
+                finalizeVmMetaData(vm, conn, vmSpec);
+            } catch (final Exception e) {
+                throw new CloudRuntimeException("Unable to finalize VM MetaData: " + vmSpec);
+            }
         }
     }
 

@@ -320,10 +320,10 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
                 }
             }
             // TODO: Uncomment this code when moving to newer version
-//            userVmResponse.setDetails(resourceDetails);
-//            if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
-//                userVmResponse.setReadOnlyUIDetails(QueryService.UserVMReadOnlyUIDetails.value());
-//            }
+            userVmResponse.setDetails(resourceDetails);
+            /*if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
+                userVmResponse.setReadOnlyUIDetails(QueryService.UserVMReadOnlyUIDetails.value());
+            }*/
         }
 
         userVmResponse.setObjectName(objectName);
