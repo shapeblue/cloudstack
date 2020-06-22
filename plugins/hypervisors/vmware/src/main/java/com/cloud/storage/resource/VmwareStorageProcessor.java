@@ -19,6 +19,7 @@ package com.cloud.storage.resource;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -35,6 +36,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.cloudstack.agent.directdownload.DirectDownloadCommand;
+import com.cloud.agent.api.to.DataObjectType;
+import org.apache.commons.io.FileUtils;
 import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.CopyCmdAnswer;
@@ -296,6 +299,120 @@ public class VmwareStorageProcessor implements StorageProcessor {
             s_logger.debug(ex.getMessage());
 
             throw new CloudRuntimeException(ex.getMessage());
+        }
+    }
+    private ImageFormat getTemplateFormat(String filePath) {
+        String ext = null;
+        int extensionPos = filePath.lastIndexOf('.');
+        int lastSeparator = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+        int i = lastSeparator > extensionPos ? -1 : extensionPos;
+        if (i > 0) {
+            ext = filePath.substring(i + 1);
+        }
+        if (ext != null) {
+            if (ext.equalsIgnoreCase("vhd")) {
+                return ImageFormat.VHD;
+            } else if (ext.equalsIgnoreCase("vhdx")) {
+                return ImageFormat.VHDX;
+            } else if (ext.equalsIgnoreCase("qcow2")) {
+                return ImageFormat.QCOW2;
+            } else if (ext.equalsIgnoreCase("ova")) {
+                return ImageFormat.OVA;
+            } else if (ext.equalsIgnoreCase("tar")) {
+                return ImageFormat.TAR;
+            } else if (ext.equalsIgnoreCase("img") || ext.equalsIgnoreCase("raw")) {
+                return ImageFormat.RAW;
+            } else if (ext.equalsIgnoreCase("vmdk")) {
+                return ImageFormat.VMDK;
+            } else if (ext.equalsIgnoreCase("vdi")) {
+                return ImageFormat.VDI;
+            }
+        }
+
+        return null;
+
+    }
+
+    @Override
+    protected Answer copyFromSecondaryToSecondary(CopyCommand cmd) {
+        final DataTO srcData = cmd.getSrcTO();
+        final DataTO destData = cmd.getDestTO();
+        DataStoreTO srcDataStore = srcData.getDataStore();
+        NfsTO srcStore = (NfsTO)srcDataStore;
+        DataStoreTO destDataStore = destData.getDataStore();
+        final NfsTO destStore = (NfsTO) destDataStore;
+        try {
+
+            File srcFile = new File(mountService.getMountPoint(srcStore.getUrl(), _nfsVersion), srcData.getPath());
+            File destFile = new File(mountService.getMountPoint(destStore.getUrl(), _nfsVersion), destData.getPath());
+            ImageFormat format = getTemplateFormat(srcFile.getName());
+
+            if (srcFile == null) {
+                return new CopyCmdAnswer("Can't find src file:" + srcFile);
+            }
+            if (srcData instanceof TemplateObjectTO || srcData instanceof VolumeObjectTO) {
+                File srcDir = null;
+                if (srcFile.isFile()) {
+                    srcDir = new File(srcFile.getParent());
+                }
+                File destDir = null;
+                if (destFile.isFile()) {
+                    destDir = new File(destFile.getParent());
+                }
+                try {
+                    FileUtils.copyDirectory((srcDir == null ? srcFile : srcDir), (destDir == null? destFile : destDir));
+                } catch (IOException e) {
+                    String msg = "Failed to copy file to destination";
+                    s_logger.info(msg);
+                    return new CopyCmdAnswer(msg);
+                }
+            } else {
+                destFile = new File(destFile, srcFile.getName());
+                try {
+                    if (srcFile.isFile()) {
+                        FileUtils.copyFile(srcFile, destFile);
+                    } else {
+                        // for vmware
+                        srcFile = new File(srcFile.getParent());
+                        FileUtils.copyDirectory(srcFile, destFile);
+                    }
+                } catch (IOException e) {
+                    String msg = "Failed to copy file to destination";
+                    s_logger.info(msg);
+                    return new CopyCmdAnswer(msg);
+                }
+            }
+
+            DataTO retObj = null;
+            if (destData.getObjectType() == DataObjectType.TEMPLATE) {
+                TemplateObjectTO newTemplate = new TemplateObjectTO();
+                newTemplate.setPath(destData.getPath() + File.separator + srcFile.getName());
+                newTemplate.setSize(srcFile.length());
+                newTemplate.setPhysicalSize(srcFile.length());
+                newTemplate.setFormat(format);
+                retObj = newTemplate;
+            } else if (destData.getObjectType() == DataObjectType.VOLUME) {
+                VolumeObjectTO newVol = new VolumeObjectTO();
+                if (srcFile.isFile()) {
+                    newVol.setPath(destData.getPath() + File.separator + srcFile.getName());
+                } else {
+                    newVol.setPath(destData.getPath());
+                }
+                newVol.setSize(srcFile.length());
+                retObj = newVol;
+            } else if (destData.getObjectType() == DataObjectType.SNAPSHOT) {
+                SnapshotObjectTO newSnapshot = new SnapshotObjectTO();
+                if (srcFile.isFile()) {
+                    newSnapshot.setPath(destData.getPath() + File.separator + destFile.getName());
+                } else {
+                    newSnapshot.setPath(destData.getPath() + File.separator + destFile.getName() + File.separator + destFile.getName());
+                }
+                retObj = newSnapshot;
+            }
+            return new CopyCmdAnswer(retObj);
+        } catch (Exception e) {
+            s_logger.error("failed to copy file" + srcData.getPath(), e);
+            return new CopyCmdAnswer("failed to copy file" + srcData.getPath() + e.toString());
         }
     }
 

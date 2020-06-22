@@ -82,6 +82,13 @@ public class StorageSubsystemCommandHandlerBase implements StorageSubsystemComma
         DataStoreTO srcDataStore = srcData.getDataStore();
         DataStoreTO destDataStore = destData.getDataStore();
 
+        if (((srcData.getObjectType() == DataObjectType.TEMPLATE && destData.getObjectType() == DataObjectType.TEMPLATE) ||
+                (srcData.getObjectType() == DataObjectType.SNAPSHOT && destData.getObjectType() == DataObjectType.SNAPSHOT) ||
+                (srcData.getObjectType() == DataObjectType.VOLUME && destData.getObjectType() == DataObjectType.VOLUME)) &&
+                (srcDataStore.getRole() == DataStoreRole.Image && destDataStore.getRole() == DataStoreRole.Image)) {
+            return processor.copyFromSecondaryToSecondary(cmd);
+        }
+
         if (srcData.getObjectType() == DataObjectType.TEMPLATE &&
             (srcData.getDataStore().getRole() == DataStoreRole.Image || srcData.getDataStore().getRole() == DataStoreRole.ImageCache) &&
             destData.getDataStore().getRole() == DataStoreRole.Primary) {

@@ -924,6 +924,11 @@ public class XenServerStorageProcessor implements StorageProcessor {
         return new CopyCmdAnswer("unsupported protocol");
     }
 
+    @Override
+    public Answer copyFromSecondaryToSecondary(CopyCommand cmd) {
+        return null;
+    }
+
     private boolean swiftUpload(final Connection conn, final SwiftTO swift, final String container, final String ldir, final String lfilename, final Boolean isISCSI,
             final int wait) {
 

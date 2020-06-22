@@ -41,6 +41,8 @@ public interface StorageProcessor {
 
     public Answer copyVolumeFromPrimaryToSecondary(CopyCommand cmd);
 
+    public Answer copyFromSecondaryToSecondary(CopyCommand cmd);
+
     public Answer createTemplateFromVolume(CopyCommand cmd);
 
     public Answer createTemplateFromSnapshot(CopyCommand cmd);

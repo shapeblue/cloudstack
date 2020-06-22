@@ -531,6 +531,11 @@ public class KVMStorageProcessor implements StorageProcessor {
     }
 
     @Override
+    public Answer copyFromSecondaryToSecondary(CopyCommand cmd) {
+        return null;
+    }
+
+    @Override
     public Answer createTemplateFromVolume(final CopyCommand cmd) {
         Map<String, String> details = cmd.getOptions();
 

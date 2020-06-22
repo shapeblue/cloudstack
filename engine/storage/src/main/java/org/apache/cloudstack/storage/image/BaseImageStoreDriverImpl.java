@@ -389,13 +389,16 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
         if (epId == null) {
             Collections.shuffle(eps);
             endPoint = eps.get(0);
+            s_logger.debug("PEARL - endpoint 1 = "+endPoint.getPublicAddr() +" "+endPoint.getHostAddr());
         } else {
             List<EndPoint> remainingEps = eps.stream().filter(ep -> ep.getId() != epId ).collect(Collectors.toList());
             if (!remainingEps.isEmpty()) {
                 Collections.shuffle(remainingEps);
                 endPoint = remainingEps.get(0);
+                s_logger.debug("PEARL - endpoint 2 = "+endPoint.getPublicAddr() +" "+endPoint.getHostAddr());
             } else {
                 endPoint = _defaultEpSelector.getEndPointFromHostId(epId);
+                s_logger.debug("PEARL - endpoint 3 = "+endPoint.getPublicAddr() +" "+endPoint.getHostAddr());
             }
         }
         CommandExecLogVO execLog = new CommandExecLogVO(endPoint.getId(), _secStorageVmDao.findByInstanceName(hostDao.findById(endPoint.getId()).getName()).getId(), cmd.getClass().getSimpleName(), 1);
@@ -494,6 +497,7 @@ public abstract class BaseImageStoreDriverImpl implements ImageStoreDriver {
         } catch (SQLException e) {
             s_logger.debug("SQLException caught", e);
         }
+        s_logger.debug("PEARL - ep : "+epId);
         return epId;
     }
 }

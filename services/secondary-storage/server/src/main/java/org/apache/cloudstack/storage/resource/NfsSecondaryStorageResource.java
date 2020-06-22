@@ -1299,7 +1299,8 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
             File srcFile = new File(getDir(srcStore.getUrl(), _nfsVersion), srcData.getPath());
             File destFile = new File(getDir(destStore.getUrl(), _nfsVersion), destData.getPath());
             ImageFormat format = getTemplateFormat(srcFile.getName());
-
+            s_logger.info("PEARL - src: "+srcFile.getParent()+"/"+srcFile.getName());
+            s_logger.info("PEARL - src: "+destFile.getParent()+"/"+destFile.getName());
             if (srcFile == null) {
                 return new CopyCmdAnswer("Can't find src file:" + srcFile);
             }

@@ -247,6 +247,12 @@ public class Ovm3StorageProcessor implements StorageProcessor {
         LOGGER.debug("execute copyVolumeFromPrimaryToSecondary: "+ cmd.getClass());
         return new Answer(cmd);
     }
+
+    @Override
+    public Answer copyFromSecondaryToSecondary(CopyCommand cmd) {
+        return null;
+    }
+
     /**
      * dest is VolumeObject, src is a template
      */
