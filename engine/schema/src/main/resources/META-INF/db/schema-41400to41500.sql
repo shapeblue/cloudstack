@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS `cloud`.`vsphere_storage_policy` (
 -- Add passthrough instruction for appliance deployments
 ALTER TABLE `cloud`.`vm_template` ADD COLUMN `deploy_as_is` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'True if the template should be deployed with disks and networks as defined';
 
+ALTER TABLE cloud.vm_template_details MODIFY COLUMN value varchar(8192) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
+
 -- Changes to template_view for both deploying multidisk OVA/vApp as is
 DROP VIEW IF EXISTS `cloud`.`template_view`;
 CREATE VIEW `cloud`.`template_view` AS
