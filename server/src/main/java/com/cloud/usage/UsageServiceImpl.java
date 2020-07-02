@@ -23,11 +23,14 @@ import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
+import com.cloud.network.Network;
 import com.cloud.network.VpnUserVO;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.LoadBalancerDao;
 import com.cloud.network.dao.LoadBalancerVO;
+import com.cloud.network.dao.NetworkDetailVO;
+import com.cloud.network.dao.NetworkDetailsDao;
 import com.cloud.network.dao.VpnUserDao;
 import com.cloud.network.rules.PortForwardingRuleVO;
 import com.cloud.network.rules.dao.PortForwardingRulesDao;
@@ -117,6 +120,8 @@ public class UsageServiceImpl extends ManagerBase implements UsageService, Manag
     private IPAddressDao _ipDao;
     @Inject
     private HostDao _hostDao;
+    @Inject
+    NetworkDetailsDao _networkDetailsDao;
 
     public UsageServiceImpl() {
     }
@@ -328,9 +333,20 @@ public class UsageServiceImpl extends ManagerBase implements UsageService, Manag
                     break;
                 case UsageTypes.IP_ADDRESS:
                     IPAddressVO ip = _ipDao.findByUuidIncludingRemoved(usageId);
-                    if (ip != null) {
-                        usageDbId = ip.getId();
+                    if (ip == null) {
+                        break;
                     }
+                    Long networkId = ip.getAssociatedWithNetworkId();
+                    if (networkId == null) {
+                        networkId = ip.getSourceNetworkId();
+                    }
+                    NetworkDetailVO networkDetail = _networkDetailsDao.findDetail(networkId, Network.hideIpAddressUsage);
+                    if (networkDetail != null && networkDetail.getValue() != null && networkDetail.getValue().equals("true")) {
+                        // Don't export network usage when admin wants it hidden
+                        break;
+                    }
+                    //
+                    usageDbId = ip.getId();
                     break;
                 default:
                     break;
