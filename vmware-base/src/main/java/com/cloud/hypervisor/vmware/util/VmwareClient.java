@@ -72,6 +72,9 @@ import com.vmware.vim25.VimPortType;
 import com.vmware.vim25.VimService;
 import com.vmware.vim25.WaitOptions;
 
+import com.vmware.vapi.protocol.HttpConfiguration;
+import com.vmware.vapi.protocol.HttpConfiguration.SslConfiguration;
+
 /**
  * A wrapper class to handle Vmware vsphere connection and disconnection.
  *
@@ -136,6 +139,7 @@ public class VmwareClient {
     private static VimService vimService;
     private static PbmService pbmService;
     private PbmServiceInstanceContent pbmServiceContent;
+    private ContentLibraryClient libraryClient;
     private VimPortType vimPort;
     private PbmPortType pbmPort;
     private static final String PBM_SERVICE_INSTANCE_TYPE = "PbmServiceInstance";
@@ -144,6 +148,7 @@ public class VmwareClient {
     private String serviceCookie;
     private final static String SVC_INST_NAME = "ServiceInstance";
     private int vCenterSessionTimeout = 1200000; // Timeout in milliseconds
+    public static final String VIMSERVICE_PATH = "/sdk/vimService";
 
     private boolean isConnected = false;
 
@@ -156,12 +161,13 @@ public class VmwareClient {
      * @throws Exception
      *             the exception
      */
-    public void connect(String url, String userName, String password) throws Exception {
+    public void connect(String vCenterAddress, String userName, String password) throws Exception {
         svcInstRef.setType(SVC_INST_NAME);
         svcInstRef.setValue(SVC_INST_NAME);
 
         vimPort = vimService.getVimPort();
         Map<String, Object> ctxt = ((BindingProvider)vimPort).getRequestContext();
+        String url = "https://" + vCenterAddress + VIMSERVICE_PATH;
 
         ctxt.put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, url);
         ctxt.put(BindingProvider.SESSION_MAINTAIN_PROPERTY, true);
@@ -199,6 +205,14 @@ public class VmwareClient {
         map.put("Cookie", Collections.singletonList(serviceCookie));
         ((BindingProvider)vimPort).getRequestContext().put(MessageContext.HTTP_REQUEST_HEADERS, map);
         pbmConnect(url, cookieValue);
+
+        //login to content library
+        HttpConfiguration httpConfig = new HttpConfiguration.Builder().setSslConfiguration(buildSslConfiguration()).getConfig();
+        Map<String, Object> contentLibraryConfig = new HashMap<String, Object>();
+        contentLibraryConfig.put(ContentLibraryClient.HTTP_CONFIG, httpConfig);
+        libraryClient = new ContentLibraryClient();
+        libraryClient.login(vCenterAddress, userName, password, contentLibraryConfig);
+
         isConnected = true;
     }
 
@@ -235,6 +249,7 @@ public class VmwareClient {
     public void disconnect() throws Exception {
         if (isConnected) {
             vimPort.logout(getServiceContent().getSessionManager());
+            libraryClient.logout();
         }
         isConnected = false;
     }
@@ -274,6 +289,18 @@ public class VmwareClient {
         } catch (com.vmware.pbm.RuntimeFaultFaultMsg e) {
         }
         return null;
+    }
+
+    /**
+     * @return Content library client instance
+     */
+    public ContentLibraryClient getContentLibrary() {
+        return libraryClient;
+    }
+
+    private SslConfiguration buildSslConfiguration() throws Exception {
+        trustAllHttpsCertificates();
+        return new SslConfiguration.Builder().disableCertificateValidation().disableHostnameVerification().getConfig();
     }
 
     /**

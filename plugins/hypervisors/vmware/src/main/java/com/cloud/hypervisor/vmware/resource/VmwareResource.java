@@ -196,6 +196,8 @@ import com.cloud.exception.InternalErrorException;
 import com.cloud.host.Host.Type;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.hypervisor.guru.VMwareGuru;
+import com.cloud.hypervisor.vmware.manager.ContentLibraryService;
+import com.cloud.hypervisor.vmware.manager.ContentLibraryServiceImpl;
 import com.cloud.hypervisor.vmware.manager.VmwareHostService;
 import com.cloud.hypervisor.vmware.manager.VmwareManager;
 import com.cloud.hypervisor.vmware.manager.VmwareStorageMount;
@@ -370,6 +372,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     protected boolean _recycleHungWorker = false;
     protected DiskControllerType _rootDiskController = DiskControllerType.ide;
 
+    protected final ContentLibraryService contentLibraryService = new ContentLibraryServiceImpl();
     protected ManagedObjectReference _morHyperHost;
     protected final static ThreadLocal<VmwareContext> s_serviceContext = new ThreadLocal<VmwareContext>();
     protected String _hostName;
@@ -3382,6 +3385,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
             DatastoreMO dsMo = new DatastoreMO(getServiceContext(), morDatastore);
             HypervisorHostHelper.createBaseFolderInDatastore(dsMo, hyperHost);
+            contentLibraryService.createContentLibrary(getServiceContext(), pool.getUuid().replace("-", ""));
 
             DatastoreSummary summary = dsMo.getSummary();
             long capacity = summary.getCapacity();

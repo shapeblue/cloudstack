@@ -267,6 +267,10 @@ public class VMwareGuru extends HypervisorGuruBase implements HypervisorGuru, Co
             if (destData.getObjectType() == DataObjectType.VOLUME && destStoreTO.getRole() == DataStoreRole.Primary && srcData.getObjectType() == DataObjectType.TEMPLATE
                     && srcStoreTO.getRole() == DataStoreRole.Primary) {
                 needDelegation = false;
+            /* TODO: Uncomment this to disable delegation to SSVM, for copying the template from secondary to primary
+            } else if (destData.getObjectType() == DataObjectType.TEMPLATE && destStoreTO.getRole() == DataStoreRole.Primary
+                    && srcData.getObjectType() == DataObjectType.TEMPLATE && srcStoreTO.getRole() == DataStoreRole.Image) {
+                needDelegation = false; */
             } else {
                 needDelegation = true;
             }

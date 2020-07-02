@@ -58,6 +58,24 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
+            <groupId>com.vmware.vapi</groupId>
+            <artifactId>vapi-runtime</artifactId>
+            <version>${vapi.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.vmware.vapi</groupId>
+            <artifactId>vapi-authentication</artifactId>
+            <version>${vapi.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.vmware.vsphereautomation.client</groupId>
+            <artifactId>vsphereautomation-client-sdk</artifactId>
+            <version>${vsphereautomationsdk.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.axis</groupId>
             <artifactId>axis</artifactId>
         </dependency>

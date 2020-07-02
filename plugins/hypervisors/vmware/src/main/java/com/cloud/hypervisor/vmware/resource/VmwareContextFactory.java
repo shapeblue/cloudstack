@@ -60,14 +60,13 @@ public class VmwareContextFactory {
         assert (vCenterUserName != null);
         assert (vCenterPassword != null);
 
-        String serviceUrl = "https://" + vCenterAddress + "/sdk/vimService";
         if (s_logger.isDebugEnabled())
-            s_logger.debug("initialize VmwareContext. url: " + serviceUrl + ", username: " + vCenterUserName + ", password: " +
+            s_logger.debug("initialize VmwareContext. vCenter: " + vCenterAddress + ", username: " + vCenterUserName + ", password: " +
                 StringUtils.getMaskedPasswordForDisplay(vCenterPassword));
 
         VmwareClient vimClient = new VmwareClient(vCenterAddress + "-" + s_seq++);
         vimClient.setVcenterSessionTimeout(s_vmwareMgr.getVcenterSessionTimeout());
-        vimClient.connect(serviceUrl, vCenterUserName, vCenterPassword);
+        vimClient.connect(vCenterAddress, vCenterUserName, vCenterPassword);
 
         VmwareContext context = new VmwareContext(vimClient, vCenterAddress);
         context.registerStockObject(VmwareManager.CONTEXT_STOCK_NAME, s_vmwareMgr);

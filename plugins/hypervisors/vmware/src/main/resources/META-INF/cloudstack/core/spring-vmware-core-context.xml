@@ -31,6 +31,8 @@
         class="com.cloud.hypervisor.vmware.manager.VmwareManagerImpl" />
     <bean id="vmwareContextFactory"
         class="com.cloud.hypervisor.vmware.resource.VmwareContextFactory" />
+    <bean id="ContentLibraryService"
+          class="com.cloud.hypervisor.vmware.manager.ContentLibraryServiceImpl" />
     <bean id="VmwareDatacenterDaoImpl"
         class="com.cloud.hypervisor.vmware.dao.VmwareDatacenterDaoImpl" />
     <bean id="VmwareDatacenterZoneMapDaoImpl"

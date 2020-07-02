@@ -70,6 +70,8 @@ import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.hypervisor.vmware.manager.VmwareHostService;
+import com.cloud.hypervisor.vmware.manager.ContentLibraryService;
+import com.cloud.hypervisor.vmware.manager.ContentLibraryServiceImpl;
 import com.cloud.hypervisor.vmware.manager.VmwareManager;
 import com.cloud.hypervisor.vmware.manager.VmwareStorageMount;
 import com.cloud.hypervisor.vmware.mo.ClusterMO;
@@ -151,6 +153,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
     private static final int DEFAULT_NFS_PORT = 2049;
     private static final int SECONDS_TO_WAIT_FOR_DATASTORE = 120;
 
+    private final ContentLibraryService contentLibraryService = new ContentLibraryServiceImpl();
     private final VmwareHostService hostService;
     private boolean _fullCloneFlag;
     private final VmwareStorageMount mountService;
@@ -482,6 +485,21 @@ public class VmwareStorageProcessor implements StorageProcessor {
         return null;
     }
 
+    private String getOVFFile(String srcOVAFileName) {
+        File file = new File(srcOVAFileName);
+        assert (_storage != null);
+        String[] files = _storage.listFiles(file.getParent());
+        if (files != null) {
+            for (String fileName : files) {
+                if (fileName.toLowerCase().endsWith(".ovf")) {
+                    File ovfFile = new File(fileName);
+                    return ovfFile.getName();
+                }
+            }
+        }
+        return null;
+    }
+
     private Pair<VirtualMachineMO, Long> copyTemplateFromSecondaryToPrimary(VmwareHypervisorHost hyperHost, DatastoreMO datastoreMo, String secondaryStorageUrl,
                                                                             String templatePathAtSecondaryStorage, String templateName, String templateUuid,
                                                                             boolean createSnapshot, Integer nfsVersion) throws Exception {
@@ -519,6 +537,22 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
         String vmName = templateUuid;
         hyperHost.importVmFromOVF(srcFileName, vmName, datastoreMo, "thin", true);
+
+        /* TODO: Uncomment this to use content library to import vm from ovf
+        String storeName = getSecondaryDatastoreUUID(secondaryStorageUrl);
+        ManagedObjectReference morSecDatastore = HypervisorHostHelper.findDatastoreWithBackwardsCompatibility(hyperHost, storeName);
+        if (morSecDatastore == null) {
+            morSecDatastore = prepareSecondaryDatastoreOnHost(secondaryStorageUrl);
+        }
+        DatastoreMO secDsMo = new DatastoreMO(datastoreMo.getContext(), morSecDatastore);
+        DatastoreSummary secDatastoresummary = secDsMo.getSummary();
+
+        String ovfFile = getOVFFile(srcOVAFileName);
+        boolean importResult = contentLibraryService.importOvf(datastoreMo.getContext(), secDatastoresummary.getUrl() + templatePathAtSecondaryStorage, ovfFile, datastoreMo.getName(), templateUuid);
+        if (!importResult) {
+            s_logger.debug("Failed to import ovf: " + srcFileName);
+        }
+        */
 
         VirtualMachineMO vmMo = hyperHost.findVmOnHyperHost(vmName);
         VmConfigInfo vAppConfig;
@@ -770,6 +804,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
         return true;
     }
 
+    //TODO: Remove this method after deploying VM from OVF directly using content library
     @Override
     public Answer cloneVolumeFromBaseTemplate(CopyCommand cmd) {
         DataTO srcData = cmd.getSrcTO();

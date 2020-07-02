@@ -45,3 +45,12 @@ mvn install:install-file -Dfile=pbm_65.jar -DgroupId=com.cloud.com.vmware -Darti
 
 # From https://my.vmware.com/group/vmware/details?downloadGroup=WEBCLIENTSDK67U2&productId=742
 mvn install:install-file -Dfile=pbm_67.jar -DgroupId=com.cloud.com.vmware -DartifactId=vmware-pbm -Dversion=6.7 -Dpackaging=jar
+
+# From https://github.com/vmware/vsphere-automation-sdk-java/tree/master/lib
+mvn install:install-file -Dfile=vapi-runtime-2.15.0.jar -DgroupId=com.vmware.vapi -DartifactId=vapi-runtime -Dversion=2.15.0 -Dpackaging=jar
+
+# From https://github.com/vmware/vsphere-automation-sdk-java/tree/master/lib
+mvn install:install-file -Dfile=vapi-authentication-2.15.0.jar -DgroupId=com.vmware.vapi -DartifactId=vapi-authentication -Dversion=2.15.0 -Dpackaging=jar
+
+# From https://github.com/vmware/vsphere-automation-sdk-java/tree/master/lib
+mvn install:install-file -Dfile=vsphereautomation-client-sdk-3.3.0.jar -DgroupId=com.vmware.vsphereautomation.client -DartifactId=vsphereautomation-client-sdk -Dversion=3.3.0 -Dpackaging=jar

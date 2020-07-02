@@ -42,15 +42,13 @@ public class TestVmwareContextFactory {
         assert (vCenterUserName != null);
         assert (vCenterPassword != null);
 
-        String serviceUrl = "https://" + vCenterAddress + "/sdk/vimService";
-
         if (s_logger.isDebugEnabled())
-            s_logger.debug("initialize VmwareContext. url: " + serviceUrl + ", username: " + vCenterUserName + ", password: " +
+            s_logger.debug("initialize VmwareContext. vCenter: " + vCenterAddress + ", username: " + vCenterUserName + ", password: " +
                 StringUtils.getMaskedPasswordForDisplay(vCenterPassword));
 
         VmwareClient vimClient = new VmwareClient(vCenterAddress + "-" + s_seq++);
         vimClient.setVcenterSessionTimeout(1200000);
-        vimClient.connect(serviceUrl, vCenterUserName, vCenterPassword);
+        vimClient.connect(vCenterAddress, vCenterUserName, vCenterPassword);
 
         VmwareContext context = new VmwareContext(vimClient, vCenterAddress);
         return context;
