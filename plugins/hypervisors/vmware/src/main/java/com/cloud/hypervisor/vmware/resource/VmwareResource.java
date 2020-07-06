@@ -3322,6 +3322,8 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 _storageProcessor.prepareManagedDatastore(context, getHyperHost(context), cmd.getDetails().get(CreateStoragePoolCommand.DATASTORE_NAME),
                         cmd.getDetails().get(CreateStoragePoolCommand.IQN), cmd.getDetails().get(CreateStoragePoolCommand.STORAGE_HOST),
                         Integer.parseInt(cmd.getDetails().get(CreateStoragePoolCommand.STORAGE_PORT)));
+
+                contentLibraryService.createContentLibrary(context, cmd.getDetails().get(CreateStoragePoolCommand.DATASTORE_NAME));
             } catch (Exception ex) {
                 return new Answer(cmd, false, "Issue creating datastore");
             }
@@ -3432,7 +3434,9 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         }
 
         try {
+            VmwareContext context = getServiceContext();
             if (cmd.getRemoveDatastore()) {
+                contentLibraryService.deleteContentLibrary(context, cmd.getDetails().get(DeleteStoragePoolCommand.DATASTORE_NAME));
                 _storageProcessor.handleDatastoreAndVmdkDetach(cmd, cmd.getDetails().get(DeleteStoragePoolCommand.DATASTORE_NAME),
                         cmd.getDetails().get(DeleteStoragePoolCommand.IQN), cmd.getDetails().get(DeleteStoragePoolCommand.STORAGE_HOST),
                         Integer.parseInt(cmd.getDetails().get(DeleteStoragePoolCommand.STORAGE_PORT)));
@@ -3445,6 +3449,8 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 // VmwareHypervisorHost hyperHost = this.getHyperHost(getServiceContext());
                 // hyperHost.unmountDatastore(pool.getUuid());
 
+                StorageFilerTO pool = cmd.getPool();
+                contentLibraryService.deleteContentLibrary(context, pool.getUuid().replace("-", ""));
                 return new Answer(cmd, true, "success");
             }
         } catch (Throwable e) {

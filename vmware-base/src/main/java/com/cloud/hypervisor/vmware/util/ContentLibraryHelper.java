@@ -27,6 +27,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import com.cloud.utils.db.GlobalLock;
+
 import com.vmware.vim25.ManagedObjectReference;
 
 import com.vmware.content.library.ItemModel;
@@ -53,6 +55,7 @@ import com.vmware.vcenter.ovf.LibraryItemTypes.ResourcePoolDeploymentSpec;
 
 public class ContentLibraryHelper {
     private static final Logger s_logger = Logger.getLogger(ContentLibraryHelper.class);
+    private static final int DEFAULT_LOCK_TIMEOUT_SECONDS = 5;
     private static final String HEADING_ADDITIONAL_INFO = "Additional information :";
 
     public static boolean createContentLibrary(VmwareContext context, String datastoreName, String libraryName) throws Exception {
@@ -60,30 +63,46 @@ public class ContentLibraryHelper {
             return false;
         }
 
-        if (getContentLibraryByName(context, libraryName) != null) {
-            s_logger.debug("Failed to create, content library with the given name: " + libraryName + " already exists");
-            return false;
+        GlobalLock lock = GlobalLock.getInternLock("ContentLibrary." + datastoreName + "-" + libraryName);
+        try {
+            if (lock.lock(DEFAULT_LOCK_TIMEOUT_SECONDS)) {
+                try {
+                    if (getContentLibraryByName(context, libraryName) != null) {
+                        s_logger.debug("Failed to create, content library with the given name: " + libraryName + " already exists");
+                        return false;
+                    }
+
+                    // Build the storage backing for the library to be created
+                    StorageBacking storageBacking = createStorageBacking(context, datastoreName);
+
+                    // Build the specification for the library to be created
+                    LibraryModel createSpec = new LibraryModel();
+                    createSpec.setName(libraryName);
+                    createSpec.setDescription("Local content library for datastore " + datastoreName);
+                    createSpec.setType(LibraryModel.LibraryType.LOCAL);
+                    createSpec.setStorageBackings(Collections.singletonList(storageBacking));
+
+                    // Create a content library
+                    String clientToken = UUID.randomUUID().toString();
+                    String libraryId = context.getVimClient().getContentLibrary().getLocalLibrary().create(clientToken, createSpec);
+                    if (StringUtils.isBlank(libraryId)) {
+                        return false;
+                    }
+
+                    s_logger.debug("Content library created: " + libraryName + " on the datastore: " + datastoreName);
+                    return true;
+                } finally {
+                    lock.unlock();
+                }
+
+            }  else {
+                s_logger.warn("Unable to lock local library to create content library: " + libraryName);
+            }
+        } finally {
+            lock.releaseRef();
         }
 
-        // Build the storage backing for the library to be created
-        StorageBacking storageBacking = createStorageBacking(context, datastoreName);
-
-        // Build the specification for the library to be created
-        LibraryModel createSpec = new LibraryModel();
-        createSpec.setName(libraryName);
-        createSpec.setDescription("Local content library for datastore " + datastoreName);
-        createSpec.setType(LibraryModel.LibraryType.LOCAL);
-        createSpec.setStorageBackings(Collections.singletonList(storageBacking));
-
-        // Create a content library
-        String clientToken = UUID.randomUUID().toString();
-        String libraryId = context.getVimClient().getContentLibrary().getLocalLibrary().create(clientToken, createSpec);
-        if (StringUtils.isBlank(libraryId)) {
-            return false;
-        }
-
-        s_logger.debug("Content library created: " + libraryName + " on the datastore: " + datastoreName);
-        return true;
+        return false;
     }
 
     public static boolean deleteContentLibrary(VmwareContext context, String datastoreName, String libraryName) throws Exception {
