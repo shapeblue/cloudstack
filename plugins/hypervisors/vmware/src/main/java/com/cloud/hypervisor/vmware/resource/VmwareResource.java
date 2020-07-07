@@ -3387,7 +3387,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
             DatastoreMO dsMo = new DatastoreMO(getServiceContext(), morDatastore);
             HypervisorHostHelper.createBaseFolderInDatastore(dsMo, hyperHost);
-            contentLibraryService.createContentLibrary(getServiceContext(), pool.getUuid().replace("-", ""));
+            contentLibraryService.createContentLibrary(getServiceContext(), dsMo.getName());
 
             DatastoreSummary summary = dsMo.getSummary();
             long capacity = summary.getCapacity();
@@ -3449,8 +3449,14 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 // VmwareHypervisorHost hyperHost = this.getHyperHost(getServiceContext());
                 // hyperHost.unmountDatastore(pool.getUuid());
 
+                VmwareHypervisorHost hyperHost = getHyperHost(context);
                 StorageFilerTO pool = cmd.getPool();
-                contentLibraryService.deleteContentLibrary(context, pool.getUuid().replace("-", ""));
+                ManagedObjectReference morDatastore = HypervisorHostHelper.findDatastoreWithBackwardsCompatibility(hyperHost, pool.getUuid());
+                if (morDatastore != null) {
+                    DatastoreMO dsMo = new DatastoreMO(context, morDatastore);
+                    contentLibraryService.deleteContentLibrary(context, dsMo.getName());
+                }
+
                 return new Answer(cmd, true, "success");
             }
         } catch (Throwable e) {

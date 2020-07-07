@@ -28,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import com.cloud.utils.db.GlobalLock;
+import com.cloud.utils.Pair;
 
 import com.vmware.vim25.ManagedObjectReference;
 
@@ -74,6 +75,10 @@ public class ContentLibraryHelper {
 
                     // Build the storage backing for the library to be created
                     StorageBacking storageBacking = createStorageBacking(context, datastoreName);
+                    if (storageBacking == null) {
+                        LOGGER.error("Not able to create storage backing for datastore: " + datastoreName);
+                        return false;
+                    }
 
                     // Build the specification for the library to be created
                     LibraryModel createSpec = new LibraryModel();
@@ -206,15 +211,15 @@ public class ContentLibraryHelper {
         return false;
     }
 
-    public static boolean deployOvf(VmwareContext context, String sourcelibraryName, String sourceovfName, String vmName, ManagedObjectReference resourcePoolMor, ManagedObjectReference datastoreMor) throws Exception {
+    public static Pair<ManagedObjectReference, String> deployOvf(VmwareContext context, String sourcelibraryName, String sourceovfName, String vmName, ManagedObjectReference resourcePoolMor, ManagedObjectReference datastoreMor) throws Exception {
         String libraryId = getContentLibraryByName(context, sourcelibraryName);
         if (libraryId == null) {
-            return false;
+            return new Pair<ManagedObjectReference, String>(null, "Library not found with the name: " + sourcelibraryName);
         }
 
         String itemId = getContentLibraryItemByName(context, libraryId, sourceovfName);
         if (itemId == null) {
-            return false;
+            return new Pair<ManagedObjectReference, String>(null, "Ovf file not found with the name: " + sourceovfName);
         }
 
         DeploymentTarget target = new DeploymentTarget();
@@ -228,7 +233,15 @@ public class ContentLibraryHelper {
 
         displayOperationResult(result.getSucceeded(), result.getError());
 
-        return result.getSucceeded();
+        if (!result.getSucceeded()) {
+            return new Pair<ManagedObjectReference, String>(null, result.getError().toString());
+        }
+
+        String vmId = result.getResourceId().getId();
+        ManagedObjectReference vmMor = new ManagedObjectReference();
+        vmMor.setType("VirtualMachine");
+        vmMor.setValue(vmId);
+        return new Pair<ManagedObjectReference, String>(vmMor, "success");
     }
 
     private static ResourcePoolDeploymentSpec createResourcePoolDeploymentSpec(String entityName, ManagedObjectReference datastoreMor) {

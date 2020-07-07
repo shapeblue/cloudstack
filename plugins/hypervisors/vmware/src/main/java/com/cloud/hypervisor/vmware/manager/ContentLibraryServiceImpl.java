@@ -24,6 +24,8 @@ import com.cloud.hypervisor.vmware.mo.VirtualMachineMO;
 import com.cloud.hypervisor.vmware.mo.VmwareHypervisorHost;
 import com.cloud.hypervisor.vmware.util.VmwareContext;
 import com.cloud.hypervisor.vmware.util.ContentLibraryHelper;
+import com.cloud.utils.Pair;
+
 import com.vmware.vim25.ManagedObjectReference;
 
 @Component
@@ -49,13 +51,13 @@ public class ContentLibraryServiceImpl implements ContentLibraryService {
         String dsName = primaryDataStoreMO.getName();
         ManagedObjectReference morDatastore = primaryDataStoreMO.getMor();
         ManagedObjectReference morHostResourcePool = targetHypervisorHost.getHyperHostOwnerResourcePool();
-        boolean deployResult = ContentLibraryHelper.deployOvf(context, dsName, sourceovfTemplateName, vmNameToDeploy, morHostResourcePool, morDatastore);
-        if (!deployResult) {
-            LOGGER.error("Deployment failed for the VM: " + vmNameToDeploy);
-            return null;
+        Pair<ManagedObjectReference, String> deployResult = ContentLibraryHelper.deployOvf(context, dsName, sourceovfTemplateName, vmNameToDeploy, morHostResourcePool, morDatastore);
+        if (deployResult.first() == null) {
+            LOGGER.error("Deployment failed for the VM: " + vmNameToDeploy + ", due to error: " + deployResult.second());
+            throw new Exception("Deployment failed for the VM: " + vmNameToDeploy + ", due to error: " + deployResult.second());
         }
 
-        VirtualMachineMO vmMo = targetHypervisorHost.findVmOnHyperHost(vmNameToDeploy);
+        VirtualMachineMO vmMo = new VirtualMachineMO(context, deployResult.first());
         return vmMo;
     }
 }
