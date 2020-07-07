@@ -54,7 +54,7 @@ import com.vmware.vcenter.ovf.LibraryItemTypes.DeploymentTarget;
 import com.vmware.vcenter.ovf.LibraryItemTypes.ResourcePoolDeploymentSpec;
 
 public class ContentLibraryHelper {
-    private static final Logger s_logger = Logger.getLogger(ContentLibraryHelper.class);
+    private static final Logger LOGGER = Logger.getLogger(ContentLibraryHelper.class);
     private static final int DEFAULT_LOCK_TIMEOUT_SECONDS = 5;
     private static final String HEADING_ADDITIONAL_INFO = "Additional information :";
 
@@ -68,7 +68,7 @@ public class ContentLibraryHelper {
             if (lock.lock(DEFAULT_LOCK_TIMEOUT_SECONDS)) {
                 try {
                     if (getContentLibraryByName(context, libraryName) != null) {
-                        s_logger.debug("Failed to create, content library with the given name: " + libraryName + " already exists");
+                        LOGGER.error("Failed to create, content library with the given name: " + libraryName + " already exists");
                         return false;
                     }
 
@@ -89,14 +89,14 @@ public class ContentLibraryHelper {
                         return false;
                     }
 
-                    s_logger.debug("Content library created: " + libraryName + " on the datastore: " + datastoreName);
+                    LOGGER.info("Content library created: " + libraryName + " on the datastore: " + datastoreName);
                     return true;
                 } finally {
                     lock.unlock();
                 }
 
             }  else {
-                s_logger.warn("Unable to lock local library to create content library: " + libraryName);
+                LOGGER.warn("Unable to lock local library to create content library: " + libraryName);
             }
         } finally {
             lock.releaseRef();
@@ -112,13 +112,13 @@ public class ContentLibraryHelper {
 
         String libraryId = getContentLibraryByName(context, libraryName);
         if (libraryId == null) {
-            s_logger.debug("Failed to delete, content library with the given name: " + libraryName + " doesn't exists");
+            LOGGER.warn("Failed to delete, content library with the given name: " + libraryName + " doesn't exists");
             return false;
         }
 
         LibraryModel localLibrary = context.getVimClient().getContentLibrary().getLocalLibrary().get(libraryId);
         if (localLibrary == null) {
-            s_logger.debug("Failed to delete, library: " + libraryName + " not found");
+            LOGGER.warn("Failed to delete, library: " + libraryName + " not found");
             return false;
         }
 
@@ -134,13 +134,13 @@ public class ContentLibraryHelper {
         }
 
         if(!canDelete) {
-            s_logger.debug("Can not delete, library: " + libraryName + " not found in datastore: " + datastoreName);
+            LOGGER.warn("Can not delete, library: " + libraryName + " not found in datastore: " + datastoreName);
             return false;
         }
 
         // Delete the content library
         context.getVimClient().getContentLibrary().getLocalLibrary().delete(localLibrary.getId());
-        s_logger.debug("Deleted content library : " + libraryName + " on the datastore: " + datastoreName);
+        LOGGER.info("Deleted content library : " + libraryName + " on the datastore: " + datastoreName);
         return true;
     }
 
@@ -152,7 +152,7 @@ public class ContentLibraryHelper {
 
         String libraryId = getContentLibraryByName(context, targetLibraryName);
         if (libraryId == null) {
-            s_logger.error("Failed to import ovf, library: " + targetLibraryName + " doesn't exists");
+            LOGGER.error("Failed to import ovf, library: " + targetLibraryName + " doesn't exists");
             return false;
         }
 
@@ -167,7 +167,7 @@ public class ContentLibraryHelper {
         file.setSourceType(com.vmware.content.library.item.updatesession.FileTypes.SourceType.PULL);
 
         String sourceOvfUri = sourceOvfFileUri + sourceOvfFileName;
-        s_logger.debug("Source ovf uri: " + sourceOvfUri + " to be imported to library: " + targetLibraryName + ", with name: " + targetOvfName);
+        LOGGER.debug("Source ovf uri: " + sourceOvfUri + " to be imported to library: " + targetLibraryName + ", with name: " + targetOvfName);
 
         TransferEndpoint sourceEndPoint = new TransferEndpoint();
         sourceEndPoint.setUri(URI.create(sourceOvfUri));
@@ -175,9 +175,9 @@ public class ContentLibraryHelper {
 
         context.getVimClient().getContentLibrary().getFile().add(sessionId, file);
         context.getVimClient().getContentLibrary().getUpdateSession().complete(sessionId);
-        s_logger.debug("Ovf: " + sourceOvfUri + " import initiated to library: " + targetLibraryName + ", with session: " + sessionId);
+        LOGGER.debug("Ovf: " + sourceOvfUri + " import initiated to library: " + targetLibraryName + ", with session: " + sessionId);
         boolean status = waitForUpdateSession(context, sessionId);
-        s_logger.debug("Ovf: " + sourceOvfUri + " import completed to library: " + targetLibraryName + ", with session: " + sessionId);
+        LOGGER.debug("Ovf: " + sourceOvfUri + " import completed to library: " + targetLibraryName + ", with session: " + sessionId);
 
         return status;
     }
@@ -196,10 +196,10 @@ public class ContentLibraryHelper {
         }
 
         if (state == UpdateSessionModel.State.DONE) {
-            s_logger.debug("Ovf importing completed for sessionId: " + sessionId);
+            LOGGER.debug("Ovf importing completed for sessionId: " + sessionId);
             return true;
         } else if (state == UpdateSessionModel.State.ERROR) {
-            s_logger.debug("Ovf importing failed for sessionId: " + sessionId);
+            LOGGER.error("Ovf importing failed for sessionId: " + sessionId);
             return false;
         }
 
@@ -249,14 +249,14 @@ public class ContentLibraryHelper {
         LibraryItemTypes.ResultInfo info = operationResult;
 
         if (operationSucceeded) {
-            s_logger.debug("OVF item deployment succeeded");
+            LOGGER.info("OVF item deployment succeeded");
         } else {
-            s_logger.debug("OVF item deployment failed");
+            LOGGER.warn("OVF item deployment failed");
             // print only failure information here
             if (info != null) {
                 List<OvfError> errors = info.getErrors();
                 if (!errors.isEmpty() /* to decide if header needs to be printed */ ) {
-                    s_logger.debug(HEADING_ADDITIONAL_INFO);
+                    LOGGER.debug(HEADING_ADDITIONAL_INFO);
                     displayHeader = false;
 
                     for (OvfError error : errors) {
@@ -273,7 +273,7 @@ public class ContentLibraryHelper {
 
             // little bit of pretty print
             if (!warnings.isEmpty() || !additionalInfo.isEmpty()) {
-                s_logger.debug(HEADING_ADDITIONAL_INFO);
+                LOGGER.debug(HEADING_ADDITIONAL_INFO);
                 displayHeader = false; // for completeness
             }
             // display warnings
@@ -285,7 +285,7 @@ public class ContentLibraryHelper {
                 List<LocalizableMessage> messages =
                         information.getMessages();
                 for (LocalizableMessage message : messages) {
-                    s_logger.debug("Information: " + message.getDefaultMessage());
+                    LOGGER.debug("Information: " + message.getDefaultMessage());
                 }
             }
         }
@@ -296,15 +296,15 @@ public class ContentLibraryHelper {
             List<LocalizableMessage> messages =
                     ovfMessage.getError()._convertTo(com.vmware.vapi.std.errors.Error.class).getMessages();
             for (LocalizableMessage message : messages) {
-                s_logger.debug("Server error message: " + message);
+                LOGGER.debug("Server error message: " + message);
             }
         } else if (ovfMessage.getCategory().equals(
                 OvfMessage.Category.VALIDATION)) {
             for (ParseIssue issue : ovfMessage.getIssues()) {
-                s_logger.debug("Issue message: " + issue.getMessage());
+                LOGGER.debug("Issue message: " + issue.getMessage());
             }
         } else if (ovfMessage.getCategory().equals(OvfMessage.Category.INPUT)) {
-            s_logger.debug("Input validation message: " + ovfMessage.getMessage());
+            LOGGER.debug("Input validation message: " + ovfMessage.getMessage());
         }
     }
 
@@ -313,12 +313,12 @@ public class ContentLibraryHelper {
         findSpec.setName(libraryName);
         List<String> libraryIds = context.getVimClient().getContentLibrary().getLibrary().find(findSpec);
         if (!libraryIds.isEmpty()) {
-            s_logger.debug("Found content library with name: " + libraryName);
+            LOGGER.debug("Found content library with name: " + libraryName);
             String libraryId = libraryIds.get(0);
             return libraryId;
         }
 
-        s_logger.debug("Couldn't find the content library with name: " + libraryName);
+        LOGGER.debug("Couldn't find the content library with name: " + libraryName);
         return null;
     }
 
@@ -329,11 +329,11 @@ public class ContentLibraryHelper {
         List<String> itemIds = context.getVimClient().getContentLibrary().getItem().find(findSpec);
         if (!itemIds.isEmpty()) {
             String itemId = itemIds.get(0);
-            s_logger.debug("Found library item : " + libraryItemName);
+            LOGGER.debug("Found library item : " + libraryItemName);
             return itemId;
         }
 
-        s_logger.debug("Couldn't find the content library item with name: " + libraryItemName);
+        LOGGER.debug("Couldn't find the content library item with name: " + libraryItemName);
         return null;
     }
 
@@ -371,7 +371,7 @@ public class ContentLibraryHelper {
         datastoreFilterSpec = new DatastoreTypes.FilterSpec.Builder().setNames(datastores).build();
         datastoreSummaries = datastoreService.list(datastoreFilterSpec);
         if (datastoreSummaries == null || datastoreSummaries.isEmpty()) {
-            s_logger.debug("Couldn't find the datastore with name: " + datastoreName);
+            LOGGER.debug("Couldn't find the datastore with name: " + datastoreName);
             return null;
         }
 

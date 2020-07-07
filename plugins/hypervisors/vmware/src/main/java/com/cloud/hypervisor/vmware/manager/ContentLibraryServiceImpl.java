@@ -28,7 +28,7 @@ import com.vmware.vim25.ManagedObjectReference;
 
 @Component
 public class ContentLibraryServiceImpl implements ContentLibraryService {
-    private static final Logger s_logger = Logger.getLogger(ContentLibraryServiceImpl.class);
+    private static final Logger LOGGER = Logger.getLogger(ContentLibraryServiceImpl.class);
 
     public ContentLibraryServiceImpl() {
     }
@@ -51,7 +51,7 @@ public class ContentLibraryServiceImpl implements ContentLibraryService {
         ManagedObjectReference morHostResourcePool = targetHypervisorHost.getHyperHostOwnerResourcePool();
         boolean deployResult = ContentLibraryHelper.deployOvf(context, dsName, sourceovfTemplateName, vmNameToDeploy, morHostResourcePool, morDatastore);
         if (!deployResult) {
-            s_logger.debug("Deployment failed for the VM: " + vmNameToDeploy);
+            LOGGER.error("Deployment failed for the VM: " + vmNameToDeploy);
             return null;
         }
 
