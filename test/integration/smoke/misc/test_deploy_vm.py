@@ -30,7 +30,7 @@ from marvin.lib.base import Account, VirtualMachine, ServiceOffering, SimulatorM
 from marvin.lib.utils import cleanup_resources
 
 #common - commonly used methods for all tests are listed here
-from marvin.lib.common import get_zone, get_domain, get_template
+from marvin.lib.common import get_zone, get_domain, get_template, get_test_template
 
 from nose.plugins.attrib import attr
 
@@ -46,7 +46,20 @@ class TestDeployVMVolumeCreationFailure(cloudstackTestCase):
         self.domain = get_domain(self.apiclient)
         self.zone = get_zone(self.apiclient, self.testClient.getZoneForTests())
         self.testdata["mode"] = self.zone.networktype
-        self.template = get_template(self.apiclient, self.zone.id, self.testdata["ostype"])
+        self.hypervisor = self.testClient.getHypervisorInfo()
+        self.template = get_test_template(
+            self.apiclient,
+            self.zone.id,
+            self.hypervisor
+        )
+        if self.template == FAILED:
+            self.template = get_template(
+                self.apiclient,
+                self.zone.id,
+                self.services["ostype"]
+            )
+        if self.template == FAILED:
+            assert False, "get_template() failed to return template with description %s" % self.services["ostype"]
 
         #create a user account
         self.account = Account.create(

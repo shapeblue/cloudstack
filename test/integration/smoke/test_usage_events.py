@@ -38,11 +38,19 @@ class TestUsageEvents(cloudstackTestCase):
         # Get Zone, Domain and templates
         cls.domain = get_domain(cls.apiclient)
         cls.zone = get_zone(cls.apiclient, testClient.getZoneForTests())
-
-        cls.template = get_template(
+        cls.template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.testdata["ostype"])
+            cls.hypervisor
+        )
+        if cls.template == FAILED:
+            cls.template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.testdata["ostype"]
+            )
+        if cls.template == FAILED:
+            assert False, "get_template() failed to return template with description %s" % cls.testdata["ostype"]
         cls._cleanup = []
 
         try:

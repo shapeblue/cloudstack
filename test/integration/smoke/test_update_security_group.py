@@ -41,11 +41,12 @@ from marvin.lib.base import (PhysicalNetwork,
 from marvin.lib.common import (get_domain,
                                get_zone,
                                get_template,
+                               get_test_template,
                                list_virtual_machines,
                                list_routers,
                                list_hosts,
                                get_free_vlan)
-from marvin.codes import (PASS, FAIL)
+from marvin.codes import (PASS, FAIL, FAILED)
 import logging
 import random
 import time
@@ -62,7 +63,19 @@ class TestUpdateSecurityGroup(cloudstackTestCase):
 
         zone = get_zone(cls.apiclient, cls.testClient.getZoneForTests())
         cls.zone = Zone(zone.__dict__)
-        cls.template = get_template(cls.apiclient, cls.zone.id)
+        cls.hypervisor = testClient.getHypervisorInfo()
+        cls.template = get_test_template(
+            cls.apiclient,
+            cls.zone.id,
+            cls.hypervisor
+        )
+        if cls.template == FAILED:
+            cls.template = get_template(
+                cls.apiclient,
+                cls.zone.id
+            )
+        if cls.template == FAILED:
+            assert False, "get_template() failed to return template"
         cls._cleanup = []
 
         if str(cls.zone.securitygroupsenabled) != "True":

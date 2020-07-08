@@ -41,6 +41,7 @@ from marvin.lib.base import (Account,
 from marvin.lib.common import (get_domain,
                                get_zone,
                                get_template,
+                               get_test_template,
                                list_hosts)
 from marvin.codes import FAILED, PASS
 from nose.plugins.attrib import attr
@@ -62,6 +63,7 @@ class TestDeployVM(cloudstackTestCase):
         cls.domain = get_domain(cls.apiclient)
         cls.zone = get_zone(cls.apiclient, testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
+        cls.hypervisor = testClient.getHypervisorInfo()
 
         # If local storage is enabled, alter the offerings to use localstorage
         # this step is needed for devcloud
@@ -70,11 +72,17 @@ class TestDeployVM(cloudstackTestCase):
             cls.services["service_offerings"]["small"]["storagetype"] = 'local'
             cls.services["service_offerings"]["medium"]["storagetype"] = 'local'
 
-        template = get_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"]
+            cls.hypervisor
         )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
@@ -280,11 +288,17 @@ class TestVMLifeCycle(cloudstackTestCase):
             cls.services["service_offerings"]["small"]["storagetype"] = 'local'
             cls.services["service_offerings"]["medium"]["storagetype"] = 'local'
 
-        template = get_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"]
+            cls.hypervisor
         )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
@@ -844,11 +858,17 @@ class TestSecuredVmMigration(cloudstackTestCase):
             0].__dict__
         cls.management_ip = cls.config.__dict__["mgtSvr"][0].__dict__["mgtSvrIp"]
 
-        template = get_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"]
+            cls.hypervisor
         )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
@@ -1116,11 +1136,17 @@ class TestMigrateVMwithVolume(cloudstackTestCase):
             0].__dict__
         cls.management_ip = cls.config.__dict__["mgtSvr"][0].__dict__["mgtSvrIp"]
 
-        template = get_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"]
+            cls.hypervisor
         )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
@@ -1328,11 +1354,17 @@ class TestKVMLiveMigration(cloudstackTestCase):
             0].__dict__
         cls.management_ip = cls.config.__dict__["mgtSvr"][0].__dict__["mgtSvrIp"]
 
-        template = get_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"]
+            cls.hypervisor
         )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 

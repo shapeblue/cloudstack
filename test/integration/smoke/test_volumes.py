@@ -34,8 +34,9 @@ from marvin.lib.base import (ServiceOffering,
                              DiskOffering,
                              StoragePool,)
 from marvin.lib.common import (get_domain,
-                                get_zone,
                                 get_template,
+                                get_test_template,
+                                get_zone,
                                 find_storage_pool_type,
                                 get_pod,
                                 list_disk_offering)
@@ -83,11 +84,18 @@ class TestCreateVolume(cloudstackTestCase):
                                     cls.services["disk_offering"],
                                     custom=True
                                     )
-        template = get_template(
-                            cls.apiclient,
-                            cls.zone.id,
-                            cls.services["ostype"]
-                            )
+
+        template = get_test_template(
+            cls.apiclient,
+            cls.zone.id,
+            cls.hypervisor
+        )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 

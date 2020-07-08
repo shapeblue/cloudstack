@@ -24,6 +24,7 @@ from marvin.lib.base import *
 from marvin.lib.common import (get_domain,
                                get_zone,
                                get_template,
+                               get_test_template,
                                list_virtual_machines)
 from nose.plugins.attrib import attr
 
@@ -43,15 +44,19 @@ class TestDeployVmWithAffinityGroup(cloudstackTestCase):
         # Get Zone, Domain and templates
         cls.zone = get_zone(cls.apiclient, cls.testClient.getZoneForTests())
         cls.hypervisor = cls.testClient.getHypervisorInfo()
-
-        cls.template = get_template(
+        cls.template = get_test_template(
             cls.apiclient,
             cls.zone.id,
             cls.hypervisor
         )
-        
         if cls.template == FAILED:
-            assert False, "get_template() failed to return template"
+            cls.template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.hypervisor
+            )
+        if cls.template == FAILED:
+            assert False, "get_template() failed to return template with hypervisor %s" % cls.hypervisor
             
         cls.services["virtual_machine"]["zoneid"] = cls.zone.id
 

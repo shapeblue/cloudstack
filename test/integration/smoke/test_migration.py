@@ -89,11 +89,19 @@ class TestNetworkMigration(cloudstackTestCase):
             cls.zone = get_zone(
                     cls.api_client,
                     cls.testClient.getZoneForTests())
-            cls.template = get_template(
-                    cls.api_client,
-                    cls.zone.id,
-                    cls.test_data["ostype"]
+            cls.template = get_test_template(
+                cls.apiclient,
+                cls.zone.id,
+                hypervisor
             )
+            if cls.template == FAILED:
+                cls.template = get_template(
+                    cls.apiclient,
+                    cls.zone.id,
+                    cls.services["ostype"]
+                )
+            if cls.template == FAILED:
+                assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
             cls.services["virtual_machine"]["template"] = cls.template.id
             if cls.zone.localstorageenabled:
                 cls.storagetype = 'local'
