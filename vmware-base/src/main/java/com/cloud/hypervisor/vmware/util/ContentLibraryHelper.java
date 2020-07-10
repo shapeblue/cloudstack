@@ -69,7 +69,7 @@ public class ContentLibraryHelper {
             if (lock.lock(DEFAULT_LOCK_TIMEOUT_SECONDS)) {
                 try {
                     if (getContentLibraryByName(context, libraryName) != null) {
-                        LOGGER.error("Failed to create, content library with the given name: " + libraryName + " already exists");
+                        LOGGER.info("Failed to create, content library with the given name: " + libraryName + " already exists");
                         return false;
                     }
 

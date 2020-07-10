@@ -16,6 +16,7 @@
 // under the License.
 package com.cloud.hypervisor.vmware.manager;
 
+import com.vmware.vapi.std.errors.AlreadyExists;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -43,8 +44,16 @@ public class ContentLibraryServiceImpl implements ContentLibraryService {
         return ContentLibraryHelper.deleteContentLibrary(context, primaryDatastoreName, primaryDatastoreName);
     }
 
+    /**
+// FR37 TODO this should not throw exception but be more specific
+     */
     public boolean importOvf(VmwareContext context, String sourceOvfTemplateUri, String sourceOvfTemplateName, String targetDatastoreName, String targetOvfTemplateName) throws Exception {
-        return ContentLibraryHelper.importOvfFromDatastore(context, sourceOvfTemplateUri, sourceOvfTemplateName, targetDatastoreName, targetOvfTemplateName);
+        try {
+            return ContentLibraryHelper.importOvfFromDatastore(context, sourceOvfTemplateUri, sourceOvfTemplateName, targetDatastoreName, targetOvfTemplateName);
+        } catch (AlreadyExists e) {
+            // FR37 TODO this is not safe, the already existing could be corrupt or not the intended one
+            return true;
+        }
     }
 
     public VirtualMachineMO deployOvf(VmwareContext context, String sourceovfTemplateName, String vmNameToDeploy, VmwareHypervisorHost targetHypervisorHost, DatastoreMO primaryDataStoreMO) throws Exception {
