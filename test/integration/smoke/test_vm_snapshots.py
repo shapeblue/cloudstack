@@ -94,7 +94,7 @@ class TestVmSnapshot(cloudstackTestCase):
             mode=cls.zone.networktype
         )
         cls.random_data_0 = random_gen(size=100)
-        cls.test_dir = "/tmp"
+        cls.test_dir = "$HOME"
         cls.random_data = "random.data"
         return
 
