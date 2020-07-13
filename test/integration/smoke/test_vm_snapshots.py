@@ -27,6 +27,7 @@ from marvin.lib.base import (Account,
 from marvin.lib.common import (get_zone,
                                get_domain,
                                get_template,
+                               get_test_template,
                                list_snapshots,
                                list_virtual_machines)
 import time
@@ -50,11 +51,17 @@ class TestVmSnapshot(cloudstackTestCase):
         cls.domain = get_domain(cls.apiclient)
         cls.zone = get_zone(cls.apiclient, testClient.getZoneForTests())
 
-        template = get_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"]
+            cls.hypervisor
         )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template\
                     with description %s" % cls.services["ostype"]
@@ -316,11 +323,17 @@ class TestChangeServiceOfferingForVmWithSnapshots(cloudstackTestCase):
                 cls.testClient.getZoneForTests()
             )
             cls.services["small"]["zoneid"] = cls.zone.id
-            cls.template = get_template(
+            cls.template = get_test_template(
                 cls.api_client,
                 cls.zone.id,
-                cls.services["ostype"]
+                cls.hypervisor
             )
+            if cls.template == FAILED:
+                cls.template = get_template(
+                    cls.api_client,
+                    cls.zone.id,
+                    cls.services["ostype"]
+                )
             if cls.template == FAILED:
                 assert False, "get_template() failed to return template\
                     with description %s" % cls.services["ostype"]

@@ -85,23 +85,23 @@ class TestCreateVolume(cloudstackTestCase):
                                     custom=True
                                     )
 
-        template = get_test_template(
+        cls.template = get_test_template(
             cls.apiclient,
             cls.zone.id,
             cls.hypervisor
         )
-        if template == FAILED:
+        if cls.template == FAILED:
             template = get_template(
                 cls.apiclient,
                 cls.zone.id,
                 cls.services["ostype"]
             )
-        if template == FAILED:
+        if cls.template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
         cls.services["domainid"] = cls.domain.id
         cls.services["zoneid"] = cls.zone.id
-        cls.services["template"] = template.id
+        cls.services["template"] = cls.template.id
         cls.services["customdiskofferingid"] = cls.custom_disk_offering.id
         cls.services["diskname"] = cls.services["volume"]["diskname"]
         # Create VMs, NAT Rules etc
@@ -885,6 +885,7 @@ class TestVolumes(cloudstackTestCase):
         test_vm = VirtualMachine.create(
             self.apiclient,
             self.services,
+            templateid=cls.template.id,
             accountid=self.account.name,
             domainid=self.account.domainid,
             serviceofferingid=self.service_offering.id,
