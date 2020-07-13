@@ -85,23 +85,23 @@ class TestCreateVolume(cloudstackTestCase):
                                     custom=True
                                     )
 
-        cls.template = get_test_template(
+        template = get_test_template(
             cls.apiclient,
             cls.zone.id,
             cls.hypervisor
         )
-        if cls.template == FAILED:
+        if template == FAILED:
             template = get_template(
                 cls.apiclient,
                 cls.zone.id,
                 cls.services["ostype"]
             )
-        if cls.template == FAILED:
+        if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
         cls.services["domainid"] = cls.domain.id
         cls.services["zoneid"] = cls.zone.id
-        cls.services["template"] = cls.template.id
+        cls.services["template"] = template.id
         cls.services["customdiskofferingid"] = cls.custom_disk_offering.id
         cls.services["diskname"] = cls.services["volume"]["diskname"]
         # Create VMs, NAT Rules etc
@@ -310,23 +310,23 @@ class TestVolumes(cloudstackTestCase):
                                     custom=True
                                     )
 
-        template = get_test_template(
+        cls.template = get_test_template(
             cls.apiclient,
             cls.zone.id,
             cls.hypervisor
         )
-        if template == FAILED:
-            template = get_template(
+        if cls.template == FAILED:
+            cls.template = get_template(
                 cls.apiclient,
                 cls.zone.id,
                 cls.services["ostype"]
             )
-        if template == FAILED:
+        if cls.template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
         cls.services["domainid"] = cls.domain.id
         cls.services["zoneid"] = cls.zone.id
-        cls.services["template"] = template.id
+        cls.services["template"] = cls.template.id
         cls.services["diskofferingid"] = cls.disk_offering.id
         cls.services['resizeddiskofferingid'] = cls.resized_disk_offering.id
         cls.services['customresizeddiskofferingid'] = cls.custom_resized_disk_offering.id
@@ -885,7 +885,7 @@ class TestVolumes(cloudstackTestCase):
         test_vm = VirtualMachine.create(
             self.apiclient,
             self.services,
-            templateid=cls.template.id,
+            templateid=self.template.id,
             accountid=self.account.name,
             domainid=self.account.domainid,
             serviceofferingid=self.service_offering.id,
@@ -921,6 +921,8 @@ class TestVolumes(cloudstackTestCase):
             None,
             "Check if volume state (attached) is reflected"
         )
+        #Sleep to ensure the current state will reflected in other calls
+        time.sleep(self.services["sleep"])
 
         test_vm.detach_volume(self.apiClient, self.volume)
         self.cleanup.append(test_vm)
