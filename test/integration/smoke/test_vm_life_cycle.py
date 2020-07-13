@@ -1565,13 +1565,18 @@ class TestUnmanageVM(cloudstackTestCase):
         cls.domain = get_domain(cls.apiclient)
         cls.zone = get_zone(cls.apiclient, cls.testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
-
-        cls.template = get_template(
+        cls.template = get_test_template(
             cls.apiclient,
             cls.zone.id,
-            cls.services["ostype"],
-            hypervisor=cls.hypervisor.lower()
+            cls.hypervisor
         )
+        if cls.template == FAILED:
+            cls.template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"],
+                hypervisor=cls.hypervisor.lower()
+            )
         if cls.template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
