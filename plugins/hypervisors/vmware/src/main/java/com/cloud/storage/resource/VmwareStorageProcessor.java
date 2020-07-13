@@ -70,9 +70,9 @@ import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
-import com.cloud.hypervisor.vmware.manager.VmwareHostService;
 import com.cloud.hypervisor.vmware.manager.ContentLibraryService;
 import com.cloud.hypervisor.vmware.manager.ContentLibraryServiceImpl;
+import com.cloud.hypervisor.vmware.manager.VmwareHostService;
 import com.cloud.hypervisor.vmware.manager.VmwareManager;
 import com.cloud.hypervisor.vmware.manager.VmwareStorageMount;
 import com.cloud.hypervisor.vmware.mo.ClusterMO;
@@ -592,7 +592,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             morSecDatastore = prepareSecondaryDatastoreOnHost(secondaryStorageUrl);
         }
         DatastoreMO secDsMo = new DatastoreMO(datastoreMo.getContext(), morSecDatastore);
-        DatastoreSummary secDatastoresummary = secDsMo.getSummary();
+        DatastoreSummary secDatastoresummary = secDsMo.getDatastoreSummary();
 
         String ovfFile = getOVFFile(srcOVAFileName);
         boolean importResult = contentLibraryService.importOvf(datastoreMo.getContext(), secDatastoresummary.getUrl() + templatePathAtSecondaryStorage, ovfFile, datastoreMo.getName(), templateUuid);
@@ -3010,7 +3010,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             throw new Exception("Unable to create a dummy VM for volume creation");
         }
 
-        Long volumeSizeToUse = volumeSize < dsMo.getSummary().getFreeSpace() ? volumeSize : dsMo.getSummary().getFreeSpace();
+        Long volumeSizeToUse = volumeSize < dsMo.getDatastoreSummary().getFreeSpace() ? volumeSize : dsMo.getDatastoreSummary().getFreeSpace();
 
         vmMo.createDisk(vmdkDatastorePath, getMBsFromBytes(volumeSizeToUse), dsMo.getMor(), vmMo.getScsiDeviceControllerKey());
         vmMo.detachDisk(vmdkDatastorePath, false);

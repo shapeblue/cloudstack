@@ -16,12 +16,10 @@
 // under the License.
 package com.cloud.hypervisor.vmware.mo;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import com.cloud.exception.CloudException;
+import com.cloud.hypervisor.vmware.util.VmwareContext;
+import com.cloud.utils.Pair;
 import com.vmware.pbm.PbmProfile;
-import org.apache.log4j.Logger;
-
 import com.vmware.vim25.DatastoreHostMount;
 import com.vmware.vim25.DatastoreSummary;
 import com.vmware.vim25.FileInfo;
@@ -35,11 +33,12 @@ import com.vmware.vim25.ObjectSpec;
 import com.vmware.vim25.PropertyFilterSpec;
 import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.SelectionSpec;
+import com.vmware.vim25.StoragePodSummary;
 import com.vmware.vim25.TraversalSpec;
+import org.apache.log4j.Logger;
 
-import com.cloud.exception.CloudException;
-import com.cloud.hypervisor.vmware.util.VmwareContext;
-import com.cloud.utils.Pair;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatastoreMO extends BaseMO {
     private static final Logger s_logger = Logger.getLogger(DatastoreMO.class);
@@ -63,8 +62,12 @@ public class DatastoreMO extends BaseMO {
         return _name;
     }
 
-    public DatastoreSummary getSummary() throws Exception {
+    public DatastoreSummary getDatastoreSummary() throws Exception {
         return (DatastoreSummary)_context.getVimClient().getDynamicProperty(_mor, "summary");
+    }
+
+    public StoragePodSummary getDatastoreClusterSummary() throws Exception {
+        return (StoragePodSummary)_context.getVimClient().getDynamicProperty(_mor, "summary");
     }
 
     public HostDatastoreBrowserMO getHostDatastoreBrowserMO() throws Exception {
