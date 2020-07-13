@@ -37,13 +37,13 @@ class TestDummyBackupAndRecovery(cloudstackTestCase):
         cls.hypervisor = cls.testClient.getHypervisorInfo()
         cls.domain = get_domain(cls.api_client)
         cls.template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if cls.template == FAILED:
             cls.template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )

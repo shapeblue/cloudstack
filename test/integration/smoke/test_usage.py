@@ -138,16 +138,16 @@ class TestVmUsage(cloudstackTestCase):
         cls.domain = get_domain(cls.api_client)
         cls.zone = get_zone(cls.api_client, cls.testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
-        cls.hypervisor = testClient.getHypervisorInfo()
+        cls.hypervisor = cls.testClient.getHypervisorInfo()
 
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -346,17 +346,17 @@ class TestPublicIPUsage(cloudstackTestCase):
         cls.domain = get_domain(cls.api_client)
         cls.zone = get_zone(cls.api_client, cls.testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
-        cls.hypervisor = testClient.getHypervisorInfo()
+        cls.hypervisor = cls.testClient.getHypervisorInfo()
 
 
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -531,13 +531,13 @@ class TestVolumeUsage(cloudstackTestCase):
         cls._cleanup.append(cls.disk_offering)
 
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -835,13 +835,13 @@ class TestTemplateUsage(cloudstackTestCase):
         cls.services["server"]["zoneid"] = cls.zone.id
 
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -1170,15 +1170,15 @@ class TestLBRuleUsage(cloudstackTestCase):
         cls.domain = get_domain(cls.api_client)
         cls.zone = get_zone(cls.api_client, cls.testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
-        cls.hypervisor = testClient.getHypervisorInfo()
+        cls.hypervisor = cls.testClient.getHypervisorInfo()
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -1356,13 +1356,13 @@ class TestSnapshotUsage(cloudstackTestCase):
             return
 
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -1544,15 +1544,15 @@ class TestNatRuleUsage(cloudstackTestCase):
         cls.domain = get_domain(cls.api_client)
         cls.zone = get_zone(cls.api_client, cls.testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
-        cls.hypervisor = testClient.getHypervisorInfo()
+        cls.hypervisor = cls.testClient.getHypervisorInfo()
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )
@@ -1722,15 +1722,15 @@ class TestVpnUsage(cloudstackTestCase):
         cls.domain = get_domain(cls.api_client)
         cls.zone = get_zone(cls.api_client, cls.testClient.getZoneForTests())
         cls.services['mode'] = cls.zone.networktype
-        cls.hypervisor = testClient.getHypervisorInfo()
+        cls.hypervisor = cls.testClient.getHypervisorInfo()
         template = get_test_template(
-            cls.apiclient,
+            cls.api_client,
             cls.zone.id,
             cls.hypervisor
         )
         if template == FAILED:
             template = get_template(
-                cls.apiclient,
+                cls.api_client,
                 cls.zone.id,
                 cls.services["ostype"]
             )

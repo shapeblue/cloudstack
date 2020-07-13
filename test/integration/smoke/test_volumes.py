@@ -310,11 +310,17 @@ class TestVolumes(cloudstackTestCase):
                                     custom=True
                                     )
 
-        template = get_template(
-                            cls.apiclient,
-                            cls.zone.id,
-                            cls.services["ostype"]
-                            )
+        template = get_test_template(
+            cls.apiclient,
+            cls.zone.id,
+            cls.hypervisor
+        )
+        if template == FAILED:
+            template = get_template(
+                cls.apiclient,
+                cls.zone.id,
+                cls.services["ostype"]
+            )
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
