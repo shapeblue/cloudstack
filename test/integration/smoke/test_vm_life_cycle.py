@@ -299,14 +299,12 @@ class TestVMLifeCycle(cloudstackTestCase):
             cls.zone.id,
             cls.hypervisor
         )
-        cls.using_test_template = True
         if template == FAILED:
             template = get_template(
                 cls.apiclient,
                 cls.zone.id,
                 cls.services["ostype"]
             )
-            cls.using_test_template = False
         if template == FAILED:
             assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
@@ -750,64 +748,61 @@ class TestVMLifeCycle(cloudstackTestCase):
         except Exception as e:
             self.fail("SSH failed for virtual machine: %s - %s" %
                       (self.virtual_machine.ipaddress, e))
+        mount_dir = "/mnt/tmp"
+        cmds = "mkdir -p %s" % mount_dir
+        self.assert_(ssh_client.execute(cmds) == [], "mkdir failed within guest")
 
-        if self.using_test_template == False:
-            mount_dir = "/mnt/tmp"
-            cmds = "mkdir -p %s" % mount_dir
-            self.assert_(ssh_client.execute(cmds) == [], "mkdir failed within guest")
+        for diskdevice in self.services["diskdevice"]:
+            res = ssh_client.execute("mount -rt iso9660 {} {}".format(diskdevice, mount_dir))
+            if res == []:
+                self.services["mount"] = diskdevice
+                break
+        else:
+            self.fail("No mount points matched. Mount was unsuccessful")
 
-            for diskdevice in self.services["diskdevice"]:
-                res = ssh_client.execute("mount -rt iso9660 {} {}".format(diskdevice, mount_dir))
-                if res == []:
-                    self.services["mount"] = diskdevice
-                    break
-            else:
-                self.fail("No mount points matched. Mount was unsuccessful")
+        c = "mount |grep %s|head -1" % self.services["mount"]
+        res = ssh_client.execute(c)
+        size = ssh_client.execute("du %s | tail -1" % self.services["mount"])
+        self.debug("Found a mount point at %s with size %s" % (res, size))
 
-            c = "mount |grep %s|head -1" % self.services["mount"]
-            res = ssh_client.execute(c)
-            size = ssh_client.execute("du %s | tail -1" % self.services["mount"])
-            self.debug("Found a mount point at %s with size %s" % (res, size))
+        # Get ISO size
+        iso_response = Iso.list(
+            self.apiclient,
+            id=iso.id
+        )
+        self.assertEqual(
+            isinstance(iso_response, list),
+            True,
+            "Check list response returns a valid list"
+        )
 
-            # Get ISO size
-            iso_response = Iso.list(
-                self.apiclient,
-                id=iso.id
-            )
-            self.assertEqual(
-                isinstance(iso_response, list),
-                True,
-                "Check list response returns a valid list"
-            )
-
-            try:
-                # Unmount ISO
-                command = "umount %s" % mount_dir
-                ssh_client.execute(command)
-            except Exception as e:
-                self.fail("SSH failed for virtual machine: %s - %s" %
-                          (self.virtual_machine.ipaddress, e))
+        try:
+            # Unmount ISO
+            command = "umount %s" % mount_dir
+            ssh_client.execute(command)
+        except Exception as e:
+            self.fail("SSH failed for virtual machine: %s - %s" %
+                      (self.virtual_machine.ipaddress, e))
 
         # Detach from VM
         cmd = detachIso.detachIsoCmd()
         cmd.virtualmachineid = self.virtual_machine.id
         self.apiclient.detachIso(cmd)
 
-        if self.using_test_template == False:
-            try:
-                res = ssh_client.execute(c)
-            except Exception as e:
-                self.fail("SSH failed for virtual machine: %s - %s" %
-                          (self.virtual_machine.ipaddress, e))
+        try:
+            res = ssh_client.execute(c)
+        except Exception as e:
+            self.fail("SSH failed for virtual machine: %s - %s" %
+                      (self.virtual_machine.ipaddress, e))
 
-            # Check if ISO is properly detached from VM (using fdisk)
-            result = self.services["mount"] in str(res)
+        # Check if ISO is properly detached from VM (using fdisk)
+        result = self.services["mount"] in str(res)
 
-            self.assertEqual(
-                result,
-                False,
-                "Check if ISO is detached from virtual machine"
-            )
+        self.assertEqual(
+            result,
+            False,
+            "Check if ISO is detached from virtual machine"
+        )
         return
 
     @attr(tags = ["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
