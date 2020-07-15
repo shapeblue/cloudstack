@@ -45,13 +45,13 @@ public class ContentLibraryServiceImpl implements ContentLibraryService {
     }
 
     /**
-// FR37 TODO this should not throw exception but be more specific
+     * install a ovf in a contentlibrary if it doesn't already exist
      */
     public boolean importOvf(VmwareContext context, String sourceOvfTemplateUri, String sourceOvfTemplateName, String targetDatastoreName, String targetOvfTemplateName) throws Exception {
         try {
             return ContentLibraryHelper.importOvfFromDatastore(context, sourceOvfTemplateUri, sourceOvfTemplateName, targetDatastoreName, targetOvfTemplateName);
         } catch (AlreadyExists e) {
-            // FR37 TODO this is not safe, the already existing could be corrupt or not the intended one
+            // TODO this is not safe, the already existing could be corrupt or not the intended one
             return true;
         }
     }
