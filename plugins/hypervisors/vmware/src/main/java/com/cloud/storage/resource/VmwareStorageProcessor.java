@@ -33,12 +33,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.cloud.hypervisor.vmware.VmwareResourceException;
-import com.cloud.hypervisor.vmware.mo.VirtualStorageObjectManagerMO;
-import com.vmware.vim25.BaseConfigInfoDiskFileBackingInfo;
-import com.vmware.vim25.DatastoreSummary;
-import com.vmware.vim25.VStorageObject;
-import com.vmware.vim25.VirtualDiskType;
 import org.apache.cloudstack.agent.directdownload.DirectDownloadCommand;
 import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
@@ -70,6 +64,7 @@ import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
+import com.cloud.hypervisor.vmware.VmwareResourceException;
 import com.cloud.hypervisor.vmware.manager.ContentLibraryService;
 import com.cloud.hypervisor.vmware.manager.ContentLibraryServiceImpl;
 import com.cloud.hypervisor.vmware.manager.VmwareHostService;
@@ -87,6 +82,7 @@ import com.cloud.hypervisor.vmware.mo.HostStorageSystemMO;
 import com.cloud.hypervisor.vmware.mo.HypervisorHostHelper;
 import com.cloud.hypervisor.vmware.mo.NetworkDetails;
 import com.cloud.hypervisor.vmware.mo.VirtualMachineMO;
+import com.cloud.hypervisor.vmware.mo.VirtualStorageObjectManagerMO;
 import com.cloud.hypervisor.vmware.mo.VmwareHypervisorHost;
 import com.cloud.hypervisor.vmware.resource.VmwareResource;
 import com.cloud.hypervisor.vmware.util.VmwareContext;
@@ -106,7 +102,9 @@ import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.VmDetailConstants;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.vmware.vim25.BaseConfigInfoDiskFileBackingInfo;
 import com.vmware.vim25.DatastoreHostMount;
+import com.vmware.vim25.DatastoreSummary;
 import com.vmware.vim25.HostHostBusAdapter;
 import com.vmware.vim25.HostInternetScsiHba;
 import com.vmware.vim25.HostInternetScsiHbaAuthenticationProperties;
@@ -124,11 +122,13 @@ import com.vmware.vim25.HostUnresolvedVmfsResignatureSpec;
 import com.vmware.vim25.HostUnresolvedVmfsVolume;
 import com.vmware.vim25.InvalidStateFaultMsg;
 import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.VStorageObject;
 import com.vmware.vim25.VirtualDeviceBackingInfo;
 import com.vmware.vim25.VirtualDeviceConfigSpec;
 import com.vmware.vim25.VirtualDeviceConfigSpecOperation;
 import com.vmware.vim25.VirtualDisk;
 import com.vmware.vim25.VirtualDiskFlatVer2BackingInfo;
+import com.vmware.vim25.VirtualDiskType;
 import com.vmware.vim25.VirtualMachineConfigSpec;
 import com.vmware.vim25.VmConfigInfo;
 import com.vmware.vim25.VmfsDatastoreExpandSpec;
@@ -808,7 +808,6 @@ public class VmwareStorageProcessor implements StorageProcessor {
         return true;
     }
 
-    // FR37 TODO: Remove this method after deploying VM from OVF directly using content library
     // FR37 TODO: OR make sure deploy is done in this method from template
     @Override
     public Answer cloneVolumeFromBaseTemplate(CopyCommand cmd) {
@@ -867,9 +866,14 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 String templatePath = template.getPath();
                 if (template.isDeployAsIs()) {
                     if(s_logger.isDebugEnabled()) {
-                        s_logger.trace(String.format("No need to create volume as template is already copied in primary storage"));
+                        s_logger.trace("No need to create volume as template is already copied in primary storage");
                     }
-                    return new CopyCmdAnswer(template);
+                    // FR37 - should we clone the VM here instead if that it simpler?
+                    VolumeObjectTO newVol = new VolumeObjectTO();
+                    if (template.getSize() != null){
+                        newVol.setSize(template.getSize());
+                    }
+                    return new CopyCmdAnswer(newVol);
                     // FR37 TODO we should not even have been called in this case
 
                     /**ManagedObjectReference morPool = hyperHost.getHyperHostOwnerResourcePool();
