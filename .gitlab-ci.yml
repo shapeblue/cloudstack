@@ -142,7 +142,7 @@ RPM:
     - cat ${CI_PROJECT_DIR}/client/conf/java.security.ciphers.in >> /usr/lib/jvm/java-1.8.0-openjdk/jre/lib/security/java.security
 
     # download required vhd-util file, if it doesn't exist
-    - wget http://download.cloud.com.s3.amazonaws.com/tools/vhd-util --directory-prefix=${CI_PROJECT_DIR}/scripts/vm/hypervisor/xenserver
+    - wget http://download.cloudstack.org/tools/vhd-util --directory-prefix=${CI_PROJECT_DIR}/scripts/vm/hypervisor/xenserver
 
     # do the packaging and creating RPMs
     - /usr/local/bin/docker-entrypoint.sh --workspace-path ${CI_PROJECT_DIR} --distribution centos7 --use-timestamp

@@ -61,13 +61,14 @@ remove_usage_rules () {
 }
 
 get_usage () {
-  iptables -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep -v whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null
-  iptables -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "-%s:", $2}'; > /dev/null
+  all_traffic=$(iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep -v whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null)
+  whitelist=$(iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "-%s:", $2}'; > /dev/null)
+  echo $all_traffic$whitelist
   return 0
 }
 
 get_usage_whitelist () {
-  iptables -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null
+  iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null
   return 0
 }
 
