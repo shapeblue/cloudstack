@@ -88,9 +88,7 @@ public final class XenServer56NetworkUsageCommandWrapper extends CommandWrapper<
             if (option.equals("get") || option.equals("vpn")) {
                 final long[] stats = new long[2];
                 if (detail != null) {
-                    s_logger.debug("[DETAIL] : " + detail);
                     final String[] splitResult = detail.split(":");
-                    s_logger.debug("[SPLIT RESULT] : " + Arrays.toString(splitResult));
                     int i = 0;
                     while (i < splitResult.length - 1) {
                         stats[0] += Long.parseLong(splitResult[i++]);
