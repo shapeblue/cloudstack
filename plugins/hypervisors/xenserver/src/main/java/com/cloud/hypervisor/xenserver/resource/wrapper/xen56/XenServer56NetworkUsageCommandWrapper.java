@@ -30,8 +30,6 @@ import com.cloud.resource.ResourceWrapper;
 import com.cloud.utils.ExecutionResult;
 import com.xensource.xenapi.Connection;
 
-import java.util.Arrays;
-
 @ResourceWrapper(handles =  NetworkUsageCommand.class)
 public final class XenServer56NetworkUsageCommandWrapper extends CommandWrapper<NetworkUsageCommand, Answer, XenServer56Resource> {
 
