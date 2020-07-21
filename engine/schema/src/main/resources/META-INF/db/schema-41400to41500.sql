@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS `cloud`.`vsphere_storage_policy` (
   CONSTRAINT `fk_vsphere_storage_policy__zone_id` FOREIGN KEY (`zone_id`) REFERENCES `data_center` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+ALTER TABLE `cloud`.`storage_pool` ADD COLUMN `parent` BIGINT(20) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ID of the Datastore cluster (storage pool) if this is a child in that Datastore cluster';
+
 -- Add passthrough instruction for appliance deployments
 ALTER TABLE `cloud`.`vm_template` ADD COLUMN `deploy_as_is` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'True if the template should be deployed with disks and networks as defined';
 
