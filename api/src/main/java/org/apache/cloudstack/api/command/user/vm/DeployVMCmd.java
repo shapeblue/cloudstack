@@ -50,6 +50,7 @@ import org.apache.cloudstack.api.response.TemplateResponse;
 import org.apache.cloudstack.api.response.UserVmResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.log4j.Logger;
 
@@ -71,6 +72,8 @@ import com.cloud.utils.StringUtils;
 import com.cloud.utils.net.Dhcp;
 import com.cloud.utils.net.NetUtils;
 import com.cloud.vm.VirtualMachine;
+import com.cloud.vm.VmDetailConstants;
+import com.google.common.base.Strings;
 
 @APICommand(name = "deployVirtualMachine", description = "Creates and automatically starts a virtual machine based on a service offering, disk offering, and template.", responseObject = UserVmResponse.class, responseView = ResponseView.Restricted, entityType = {VirtualMachine.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = true)
@@ -225,6 +228,12 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
     @LogLevel(LogLevel.Log4jLevel.Off)
     private Map vAppProperties;
 
+    @Parameter(name = ApiConstants.NIC_NETWORK_LIST, type = CommandType.MAP, since = "4.15",
+            description = "used to specify the vApp network mapping." +
+                    " Example nicnetworklist[0].ip=Nic-101&nicnetworklist[0].network=uuid")
+    @LogLevel(LogLevel.Log4jLevel.Off)
+    private Map vAppNetworks;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -310,7 +319,6 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
         return null;
     }
 
-
     public Map<String, String> getVmProperties() {
         Map<String, String> map = new HashMap<>();
         if (MapUtils.isNotEmpty(vAppProperties)) {
@@ -319,6 +327,30 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
             while (iterator.hasNext()) {
                 HashMap<String, String> entry = (HashMap<String, String>)iterator.next();
                 map.put(entry.get("key"), entry.get("value"));
+            }
+        }
+        return map;
+    }
+
+    public Map<String, Long> getVmNetworkMap() {
+        Map<String, Long> map = new HashMap<>();
+        if (MapUtils.isNotEmpty(vAppNetworks) && (CollectionUtils.isNotEmpty(networkIds) || MapUtils.isNotEmpty(ipToNetworkList))) {
+            throw new InvalidParameterValueException(String.format("%s can't be specified along with %s and %s parameter", ApiConstants.NIC_NETWORK_LIST, ApiConstants.NETWORK_IDS, ApiConstants.IP_NETWORK_LIST));
+        }
+        if (MapUtils.isNotEmpty(vAppNetworks)) {
+            Collection parameterCollection = vAppNetworks.values();
+            Iterator iterator = parameterCollection.iterator();
+            while (iterator.hasNext()) {
+                HashMap<String, String> entry = (HashMap<String, String>)iterator.next();
+                String nic = entry.get(VmDetailConstants.NIC);
+                String networkUuid = entry.get(VmDetailConstants.NETWORK);
+                if (s_logger.isTraceEnabled()) {
+                    s_logger.trace(String.format("nic, '%s', goes on net, '%s'", nic, networkUuid));
+                }
+                if (Strings.isNullOrEmpty(nic) || Strings.isNullOrEmpty(networkUuid) || _entityMgr.findByUuid(Network.class, networkUuid) == null) {
+                    throw new InvalidParameterValueException(String.format("Network ID: %s for NIC ID: %s is invalid", networkUuid, nic));
+                }
+                map.put(nic, _entityMgr.findByUuid(Network.class, networkUuid).getId());
             }
         }
         return map;
