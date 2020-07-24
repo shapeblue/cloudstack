@@ -332,30 +332,6 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
         return map;
     }
 
-    public Map<String, Long> getVmNetworkMap() {
-        Map<String, Long> map = new HashMap<>();
-        if (MapUtils.isNotEmpty(vAppNetworks) && (CollectionUtils.isNotEmpty(networkIds) || MapUtils.isNotEmpty(ipToNetworkList))) {
-            throw new InvalidParameterValueException(String.format("%s can't be specified along with %s and %s parameter", ApiConstants.NIC_NETWORK_LIST, ApiConstants.NETWORK_IDS, ApiConstants.IP_NETWORK_LIST));
-        }
-        if (MapUtils.isNotEmpty(vAppNetworks)) {
-            Collection parameterCollection = vAppNetworks.values();
-            Iterator iterator = parameterCollection.iterator();
-            while (iterator.hasNext()) {
-                HashMap<String, String> entry = (HashMap<String, String>)iterator.next();
-                String nic = entry.get(VmDetailConstants.NIC);
-                String networkUuid = entry.get(VmDetailConstants.NETWORK);
-                if (s_logger.isTraceEnabled()) {
-                    s_logger.trace(String.format("nic, '%s', goes on net, '%s'", nic, networkUuid));
-                }
-                if (Strings.isNullOrEmpty(nic) || Strings.isNullOrEmpty(networkUuid) || _entityMgr.findByUuid(Network.class, networkUuid) == null) {
-                    throw new InvalidParameterValueException(String.format("Network ID: %s for NIC ID: %s is invalid", networkUuid, nic));
-                }
-                map.put(nic, _entityMgr.findByUuid(Network.class, networkUuid).getId());
-            }
-        }
-        return map;
-    }
-
     public String getGroup() {
         return group;
     }
@@ -405,6 +381,13 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
     }
 
     public List<Long> getNetworkIds() {
+        if (MapUtils.isNotEmpty(vAppNetworks)) {
+            if (CollectionUtils.isNotEmpty(networkIds) || ipAddress != null || getIp6Address() != null || MapUtils.isNotEmpty(ipToNetworkList)) {
+                throw new InvalidParameterValueException(String.format("%s can't be specified along with %s, %s, %s", ApiConstants.NIC_NETWORK_LIST, ApiConstants.NETWORK_IDS, ApiConstants.IP_ADDRESS, ApiConstants.IP_NETWORK_LIST));
+            } else {
+                return getNetworkIdsFromNetworkMap();
+            }
+        }
        if (ipToNetworkList != null && !ipToNetworkList.isEmpty()) {
            if ((networkIds != null && !networkIds.isEmpty()) || ipAddress != null || getIp6Address() != null) {
                throw new InvalidParameterValueException("ipToNetworkMap can't be specified along with networkIds or ipAddress");
@@ -487,6 +470,37 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
             }
         }
         return networkId;
+    }
+
+    @Nonnull
+    private List<Long> getNetworkIdsFromNetworkMap() {
+        List<Long> networkIds = new ArrayList<>();
+        HashMap<Long, Long> map = new HashMap<>();
+        if (MapUtils.isNotEmpty(vAppNetworks)) {
+            Collection parameterCollection = vAppNetworks.values();
+            Iterator iterator = parameterCollection.iterator();
+            while (iterator.hasNext()) {
+                HashMap<String, String> entry = (HashMap<String, String>)iterator.next();
+                Long nic;
+                try {
+                    nic = Long.valueOf(entry.get(VmDetailConstants.NIC));
+                } catch (NumberFormatException nfe) {
+                    nic = null;
+                }
+                String networkUuid = entry.get(VmDetailConstants.NETWORK);
+                if (s_logger.isTraceEnabled()) {
+                    s_logger.trace(String.format("nic, '%s', goes on net, '%s'", nic, networkUuid));
+                }
+                if (nic == null || Strings.isNullOrEmpty(networkUuid) || _entityMgr.findByUuid(Network.class, networkUuid) == null) {
+                    throw new InvalidParameterValueException(String.format("Network ID: %s for NIC ID: %s is invalid", networkUuid, nic));
+                }
+                map.put(nic, _entityMgr.findByUuid(Network.class, networkUuid).getId());
+            }
+        }
+        if (MapUtils.isNotEmpty(map)) {
+            networkIds.addAll(map.values());
+        }
+        return networkIds;
     }
 
     public String getIpAddress() {
