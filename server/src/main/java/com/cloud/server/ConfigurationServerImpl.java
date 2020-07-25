@@ -222,8 +222,9 @@ public class ConfigurationServerImpl extends ManagerBase implements Configuratio
             s_logger.debug("Configuration server excluded plaintext authenticator");
 
             // Save default service offerings
-            createServiceOffering(User.UID_SYSTEM, "Small Instance", 1, 512, 500, "Small Instance", ProvisioningType.THIN, false, false, null);
-            createServiceOffering(User.UID_SYSTEM, "Medium Instance", 1, 1024, 1000, "Medium Instance", ProvisioningType.THIN, false, false, null);
+            createServiceOffering(User.UID_SYSTEM, "Small Instance", 1, 512, 500, "Small Instance", ProvisioningType.THIN, false, false, null, true);
+            createServiceOffering(User.UID_SYSTEM, "Medium Instance", 1, 1024, 1000, "Medium Instance", ProvisioningType.THIN, false, false, null, true);
+            createServiceOffering(User.UID_SYSTEM, "Custom Deploy-as-is Instance", null, null, null, "Custom Deploy-as-is Instance", ProvisioningType.THIN, false, false, null, false);
             // Save default disk offerings
             createDefaultDiskOffering("Small", "Small Disk, 5 GB", ProvisioningType.THIN, 5, null, false, false);
             createDefaultDiskOffering("Medium", "Medium Disk, 20 GB", ProvisioningType.THIN, 20, null, false, false);
@@ -930,12 +931,13 @@ public class ConfigurationServerImpl extends ManagerBase implements Configuratio
         return newDiskOffering;
     }
 
-    private ServiceOfferingVO createServiceOffering(long userId, String name, int cpu, int ramSize, int speed, String displayText,
-            ProvisioningType provisioningType, boolean localStorageRequired, boolean offerHA, String tags) {
+    private ServiceOfferingVO createServiceOffering(long userId, String name, Integer cpu, Integer ramSize, Integer speed, String displayText,
+            ProvisioningType provisioningType, boolean localStorageRequired, boolean offerHA, String tags, boolean display) {
         tags = cleanupTags(tags);
         ServiceOfferingVO offering =
                 new ServiceOfferingVO(name, cpu, ramSize, speed, null, null, offerHA, displayText, provisioningType, localStorageRequired, false, tags, false, null, false);
         offering.setUniqueName("Cloud.Com-" + name);
+        offering.setDisplayOffering(display);
         // leaving the above reference to cloud.com in as it is an identifyer and has no real world relevance
         offering = _serviceOfferingDao.persistSystemServiceOffering(offering);
         return offering;
