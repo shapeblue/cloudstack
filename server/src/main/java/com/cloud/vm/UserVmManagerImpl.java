@@ -3304,7 +3304,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         List<HypervisorType> vpcSupportedHTypes = _vpcMgr.getSupportedVpcHypervisors();
 
         if (networkIdList == null || networkIdList.isEmpty()) {
-            NetworkVO defaultNetwork = getDefaultNetwork(zone, owner);
+            NetworkVO defaultNetwork = getDefaultNetwork(zone, owner, false);
             if (defaultNetwork != null) {
                 networkList.add(defaultNetwork);
             }
@@ -3354,7 +3354,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         return network;
     }
 
-    private NetworkVO getDefaultNetwork(DataCenter zone, Account owner) throws InsufficientCapacityException, ResourceAllocationException {
+    private NetworkVO getDefaultNetwork(DataCenter zone, Account owner, boolean selectAny) throws InsufficientCapacityException, ResourceAllocationException {
         NetworkVO defaultNetwork = null;
 
         // if no network is passed in
@@ -3379,7 +3379,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             }
             if (virtualNetworks.isEmpty()) {
                 defaultNetwork = createDefaultNetworkForAccount(zone, owner, requiredOfferings);
-            } else if (virtualNetworks.size() > 1) {
+            } else if (virtualNetworks.size() > 1 && !selectAny) {
                 throw new InvalidParameterValueException("More than 1 default Isolated networks are found for account " + owner + "; please specify networkIds");
             } else {
                 defaultNetwork = _networkDao.findById(virtualNetworks.get(0).getId());
@@ -5227,7 +5227,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                         throw new InvalidParameterValueException("No network with security enabled is found in zone ID: " + zone.getUuid());
                     }
                 } else {
-                    defaultNetwork = getDefaultNetwork(zone, owner);
+                    defaultNetwork = getDefaultNetwork(zone, owner, true);
                     if (defaultNetwork == null) {
                         throw new InvalidParameterValueException(String.format("Default network not found for zone ID: %s and account ID: %s", zone.getUuid(), owner.getUuid()));
                     }
