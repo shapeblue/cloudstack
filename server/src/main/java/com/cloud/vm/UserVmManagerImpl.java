@@ -3115,7 +3115,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             Account owner, String hostName, String displayName, Long diskOfferingId, Long diskSize, String group, HypervisorType hypervisor, HTTPMethod httpmethod,
             String userData, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayVm, String keyboard, List<Long> affinityGroupIdList,
             Map<String, String> customParametes, String customId, Map<String, Map<Integer, String>> dhcpOptionMap,
-            Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap, Map<String, String> userVmOVFProperties) throws InsufficientCapacityException, ConcurrentOperationException, ResourceUnavailableException,
+            Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap, Map<String, String> userVmOVFProperties, Map<Integer, Long> userVmOVFNetworkMap) throws InsufficientCapacityException, ConcurrentOperationException, ResourceUnavailableException,
     StorageUnavailableException, ResourceAllocationException {
 
         Account caller = CallContext.current().getCallingAccount();
@@ -3164,7 +3164,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         return createVirtualMachine(zone, serviceOffering, template, hostName, displayName, owner, diskOfferingId, diskSize, networkList, securityGroupIdList, group, httpmethod,
                 userData, sshKeyPair, hypervisor, caller, requestedIps, defaultIps, displayVm, keyboard, affinityGroupIdList, customParametes, customId, dhcpOptionMap,
-                dataDiskTemplateToDiskOfferingMap, userVmOVFProperties);
+                dataDiskTemplateToDiskOfferingMap, userVmOVFProperties, userVmOVFNetworkMap);
 
     }
 
@@ -3174,7 +3174,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             List<Long> securityGroupIdList, Account owner, String hostName, String displayName, Long diskOfferingId, Long diskSize, String group, HypervisorType hypervisor,
             HTTPMethod httpmethod, String userData, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayVm, String keyboard,
             List<Long> affinityGroupIdList, Map<String, String> customParameters, String customId, Map<String, Map<Integer, String>> dhcpOptionMap,
-            Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap, Map<String, String> userVmOVFProperties) throws InsufficientCapacityException, ConcurrentOperationException,
+            Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap, Map<String, String> userVmOVFProperties, Map<Integer, Long> userVmOVFNetworkMap) throws InsufficientCapacityException, ConcurrentOperationException,
     ResourceUnavailableException, StorageUnavailableException, ResourceAllocationException {
 
         Account caller = CallContext.current().getCallingAccount();
@@ -3209,6 +3209,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             }
 
             for (Long networkId : networkIdList) {
+                if (networkId == 0L && MapUtils.isNotEmpty(userVmOVFNetworkMap)) {
+                    networkList.add(getNetworkForUnpluggedNic());
+                    continue;
+                }
                 NetworkVO network = _networkDao.findById(networkId);
 
                 if (network == null) {
@@ -3275,7 +3279,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         return createVirtualMachine(zone, serviceOffering, template, hostName, displayName, owner, diskOfferingId, diskSize, networkList, securityGroupIdList, group, httpmethod,
                 userData, sshKeyPair, hypervisor, caller, requestedIps, defaultIps, displayVm, keyboard, affinityGroupIdList, customParameters, customId, dhcpOptionMap, dataDiskTemplateToDiskOfferingMap,
-                userVmOVFProperties);
+                userVmOVFProperties, userVmOVFNetworkMap);
     }
 
     @Override
@@ -3284,7 +3288,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             String hostName, String displayName, Long diskOfferingId, Long diskSize, String group, HypervisorType hypervisor, HTTPMethod httpmethod, String userData,
             String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayvm, String keyboard, List<Long> affinityGroupIdList,
             Map<String, String> customParametrs, String customId, Map<String, Map<Integer, String>> dhcpOptionsMap, Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap,
-            Map<String, String> userVmOVFPropertiesMap) throws InsufficientCapacityException, ConcurrentOperationException, ResourceUnavailableException,
+            Map<String, String> userVmOVFPropertiesMap, Map<Integer, Long> userVmOVFNetworkMap) throws InsufficientCapacityException, ConcurrentOperationException, ResourceUnavailableException,
     StorageUnavailableException, ResourceAllocationException {
 
         Account caller = CallContext.current().getCallingAccount();
@@ -3306,6 +3310,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             }
         } else {
             for (Long networkId : networkIdList) {
+                if (networkId == 0L && MapUtils.isNotEmpty(userVmOVFNetworkMap)) {
+                    networkList.add(getNetworkForUnpluggedNic());
+                    continue;
+                }
                 NetworkVO network = getNetworkToAddToNetworkList(template, owner, hypervisor, vpcSupportedHTypes, networkId);
                 networkList.add(network);
             }
@@ -3315,7 +3323,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         return createVirtualMachine(zone, serviceOffering, template, hostName, displayName, owner, diskOfferingId, diskSize, networkList, null, group, httpmethod, userData,
                 sshKeyPair, hypervisor, caller, requestedIps, defaultIps, displayvm, keyboard, affinityGroupIdList, customParametrs, customId, dhcpOptionsMap,
-                dataDiskTemplateToDiskOfferingMap, userVmOVFPropertiesMap);
+                dataDiskTemplateToDiskOfferingMap, userVmOVFPropertiesMap, userVmOVFNetworkMap);
     }
 
     private NetworkVO getNetworkToAddToNetworkList(VirtualMachineTemplate template, Account owner, HypervisorType hypervisor,
@@ -3434,7 +3442,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             String sshKeyPair, HypervisorType hypervisor, Account caller, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean isDisplayVm, String keyboard,
             List<Long> affinityGroupIdList, Map<String, String> customParameters, String customId, Map<String, Map<Integer, String>> dhcpOptionMap,
             Map<Long, DiskOffering> datadiskTemplateToDiskOfferringMap,
-            Map<String, String> userVmOVFPropertiesMap) throws InsufficientCapacityException, ResourceUnavailableException,
+            Map<String, String> userVmOVFPropertiesMap, Map<Integer, Long> userVmOVFNetworkMap) throws InsufficientCapacityException, ResourceUnavailableException,
     ConcurrentOperationException, StorageUnavailableException, ResourceAllocationException {
 
         _accountMgr.checkAccess(caller, null, true, owner);
@@ -3628,6 +3636,11 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         short defaultNetworkNumber = 0;
         boolean securityGroupEnabled = false;
         for (NetworkVO network : networkList) {
+            if (network == null && MapUtils.isNotEmpty(userVmOVFNetworkMap)) {
+                NicProfile profile = new NicProfile(null, null, null);
+                networkNicMap.put(getNetworkUuidForUnpluggedNic(), profile);
+                continue;
+            }
             if ((network.getDataCenterId() != zone.getId())) {
                 if (!network.isStrechedL2Network()) {
                     throw new InvalidParameterValueException("Network id=" + network.getId() +
@@ -5200,6 +5213,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         List<Long> networkIds = cmd.getNetworkIds();
+        Map<Integer, Long> userVmNetworkMap = new HashMap<>();
         if (ImageFormat.OVA.equals(template.getFormat())) {
             List<NetworkPrerequisiteTO> networkPrerequisiteTOList =
                     templateDetailsDao.listNetworkRequirementsByTemplateId(template.getId());
@@ -5223,7 +5237,11 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     if (networkId == null && networkPrerequisiteTO.isAutomaticAllocation()) {
                         networkId = defaultNetwork.getId();
                     }
+                    if (networkId == null) {
+                        networkId = 0L;
+                    }
                     networkIds.add(networkId);
+                    userVmNetworkMap.put(networkPrerequisiteTO.getInstanceID(), networkId);
                 }
             }
         }
@@ -5250,14 +5268,14 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 vm = createBasicSecurityGroupVirtualMachine(zone, serviceOffering, template, getSecurityGroupIdList(cmd), owner, name, displayName, diskOfferingId,
                         size , group , cmd.getHypervisor(), cmd.getHttpMethod(), userData , sshKeyPairName , cmd.getIpToNetworkMap(), addrs, displayVm , keyboard , cmd.getAffinityGroupIdList(),
                         cmd.getDetails(), cmd.getCustomId(), cmd.getDhcpOptionsMap(),
-                        dataDiskTemplateToDiskOfferingMap, userVmProperties);
+                        dataDiskTemplateToDiskOfferingMap, userVmProperties, userVmNetworkMap);
             }
         } else {
             if (zone.isSecurityGroupEnabled())  {
                 vm = createAdvancedSecurityGroupVirtualMachine(zone, serviceOffering, template, networkIds, getSecurityGroupIdList(cmd), owner, name,
                         displayName, diskOfferingId, size, group, cmd.getHypervisor(), cmd.getHttpMethod(), userData, sshKeyPairName, cmd.getIpToNetworkMap(), addrs, displayVm, keyboard,
                         cmd.getAffinityGroupIdList(), cmd.getDetails(), cmd.getCustomId(), cmd.getDhcpOptionsMap(),
-                        dataDiskTemplateToDiskOfferingMap, userVmProperties);
+                        dataDiskTemplateToDiskOfferingMap, userVmProperties, userVmNetworkMap);
 
             } else {
                 if (cmd.getSecurityGroupIdList() != null && !cmd.getSecurityGroupIdList().isEmpty()) {
@@ -5265,7 +5283,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 }
                 vm = createAdvancedVirtualMachine(zone, serviceOffering, template, networkIds, owner, name, displayName, diskOfferingId, size, group,
                         cmd.getHypervisor(), cmd.getHttpMethod(), userData, sshKeyPairName, cmd.getIpToNetworkMap(), addrs, displayVm, keyboard, cmd.getAffinityGroupIdList(), cmd.getDetails(),
-                        cmd.getCustomId(), cmd.getDhcpOptionsMap(), dataDiskTemplateToDiskOfferingMap, userVmProperties);
+                        cmd.getCustomId(), cmd.getDhcpOptionsMap(), dataDiskTemplateToDiskOfferingMap, userVmProperties, userVmNetworkMap);
             }
         }
         // check if this templateId has a child ISO
@@ -7357,5 +7375,15 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                         ": ROOT or DATADISK expected but got " + volume.getVolumeType());
             }
         }
+    }
+
+    private NetworkVO getNetworkForUnpluggedNic() {
+        // ToDo
+        return null;
+    }
+
+    private String getNetworkUuidForUnpluggedNic() {
+        // ToDo
+        return "unplugged";
     }
 }

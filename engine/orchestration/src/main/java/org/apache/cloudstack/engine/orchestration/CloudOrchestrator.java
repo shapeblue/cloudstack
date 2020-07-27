@@ -168,6 +168,10 @@ public class CloudOrchestrator implements OrchestrationService {
 
         LinkedHashMap<NetworkVO, List<? extends NicProfile>> networkIpMap = new LinkedHashMap<NetworkVO, List<? extends NicProfile>>();
         for (String uuid : networkNicMap.keySet()) {
+            if (uuid.equals("unplugged")) {
+                networkIpMap.put(null, new ArrayList<NicProfile>(Arrays.asList(networkNicMap.get(uuid))));
+                continue;
+            }
             NetworkVO network = _networkDao.findByUuid(uuid);
             if(network != null){
                 networkIpMap.put(network, new ArrayList<NicProfile>(Arrays.asList(networkNicMap.get(uuid))));
