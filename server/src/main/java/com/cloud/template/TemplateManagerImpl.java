@@ -621,6 +621,18 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
 
     private void prepareTemplateInOneStoragePool(final VMTemplateVO template, final StoragePoolVO pool) {
         LOGGER.info("Schedule to preload template " + template.getId() + " into primary storage " + pool.getId());
+        if (pool.getPoolType() == Storage.StoragePoolType.DatastoreCluster) {
+            List<StoragePoolVO> childDataStores = _poolDao.listChildStoragePoolsInDatastoreCluster(pool.getId());
+            LOGGER.debug("Schedule to preload template " + template.getId() + " into child datastores of DataStore cluster: " + pool.getId());
+            for (StoragePoolVO childDataStore :  childDataStores) {
+                prepareTemplateInOneStoragePoolInternal(template, childDataStore);
+            }
+        } else {
+            prepareTemplateInOneStoragePoolInternal(template, pool);
+        }
+    }
+
+    private void prepareTemplateInOneStoragePoolInternal(final VMTemplateVO template, final StoragePoolVO pool) {
         _preloadExecutor.execute(new ManagedContextRunnable() {
             @Override
             protected void runInContext() {
