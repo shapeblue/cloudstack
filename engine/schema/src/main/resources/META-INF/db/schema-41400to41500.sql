@@ -212,6 +212,7 @@ CREATE VIEW `cloud`.`template_view` AS
              OR (`resource_tags`.`resource_type` = 'ISO')))));
 
 -- Add the default offering for deploy-as-is templates. Not visible to the user
+ALTER TABLE `cloud`.`disk_offering` MODIFY COLUMN `unique_name` varchar(255);
 INSERT IGNORE INTO `cloud`.`disk_offering` (name, uuid, display_text, customized, unique_name, disk_size, system_use, type, display_offering)
 VALUES ('Custom Deploy-as-is Instance', UUID(), 'Custom Deploy-as-is Instance', 1, 'ApacheCloudStack.org-Custom Deploy-as-is Instance', 0, 0, 'Service', 0);
 INSERT IGNORE INTO `cloud`.`service_offering` (`id`, `nw_rate`, `mc_rate`) VALUES
