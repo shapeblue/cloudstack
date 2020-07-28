@@ -212,10 +212,10 @@ CREATE VIEW `cloud`.`template_view` AS
              OR (`resource_tags`.`resource_type` = 'ISO')))));
 
 -- Add the default offering for deploy-as-is templates. Not visible to the user
-INSERT IGNORE INTO `cloud`.`disk_offering` (name, display_text, customized, unique_name, disk_size, system_use, type, display_offering)
-VALUES ('Custom Deploy-as-is Instance', 'Custom Deploy-as-is Instance', 1, 'Cloud.com-Custom Deploy-as-is Instance', 0, 0, 'Service', 0);
+INSERT IGNORE INTO `cloud`.`disk_offering` (name, uuid, display_text, customized, unique_name, disk_size, system_use, type, display_offering)
+VALUES ('Custom Deploy-as-is Instance', UUID(), 'Custom Deploy-as-is Instance', 1, 'ApacheCloudStack.org-Custom Deploy-as-is Instance', 0, 0, 'Service', 0);
 INSERT IGNORE INTO `cloud`.`service_offering` (`id`, `nw_rate`, `mc_rate`) VALUES
-((SELECT `id` FROM `cloud`.`disk_offering` WHERE `unique_name` = 'Cloud.com-Custom Deploy-as-is Instance'), null, null);
+((SELECT `id` FROM `cloud`.`disk_offering` WHERE `unique_name` = 'ApacheCloudStack.org-Custom Deploy-as-is Instance'), null, null);
 
 ALTER VIEW `cloud`.`service_offering_view` AS
     SELECT
@@ -279,6 +279,6 @@ ALTER VIEW `cloud`.`service_offering_view` AS
             LEFT JOIN
         `cloud`.`data_center` AS `zone` ON FIND_IN_SET(`zone`.`id`, `zone_details`.`value`)
     WHERE
-        `disk_offering`.`state`='Active' and `disk_offering`.`display_offering`='1'
+        `disk_offering`.`state`='Active'
     GROUP BY
         `service_offering`.`id`;
