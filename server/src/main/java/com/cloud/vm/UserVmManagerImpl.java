@@ -3621,12 +3621,11 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             sshPublicKey = pair.getPublicKey();
         }
 
-        List<Pair<NetworkVO, NicProfile>> networks = new ArrayList<Pair<NetworkVO, NicProfile>>();
-
-        LinkedHashMap<String, NicProfile> networkNicMap = new LinkedHashMap<String, NicProfile>();
+        LinkedHashMap<String, List<NicProfile>> networkNicMap = new LinkedHashMap<>();
 
         short defaultNetworkNumber = 0;
         boolean securityGroupEnabled = false;
+        int networkIndex = 0;
         for (NetworkVO network : networkList) {
             if ((network.getDataCenterId() != zone.getId())) {
                 if (!network.isStrechedL2Network()) {
@@ -3664,7 +3663,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             }
 
             NicProfile profile = new NicProfile(requestedIpPair.getIp4Address(), requestedIpPair.getIp6Address(), requestedIpPair.getMacAddress());
-
+            profile.setOrderIndex(networkIndex);
             if (defaultNetworkNumber == 0) {
                 defaultNetworkNumber++;
                 // if user requested specific ip for default network, add it
@@ -3691,13 +3690,16 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 }
             }
 
-            networks.add(new Pair<NetworkVO, NicProfile>(network, profile));
-
             if (_networkModel.isSecurityGroupSupportedInNetwork(network)) {
                 securityGroupEnabled = true;
             }
-
-            networkNicMap.put(network.getUuid(), profile);
+            List<NicProfile> profiles = networkNicMap.get(network.getUuid());
+            if (CollectionUtils.isEmpty(profiles)) {
+                profiles = new ArrayList<>();
+            }
+            profiles.add(profile);
+            networkNicMap.put(network.getUuid(), profiles);
+            networkIndex++;
         }
 
         if (securityGroupIdList != null && !securityGroupIdList.isEmpty() && !securityGroupEnabled) {
@@ -3874,7 +3876,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     private UserVmVO commitUserVm(final boolean isImport, final DataCenter zone, final Host host, final Host lastHost, final VirtualMachineTemplate template, final String hostName, final String displayName, final Account owner,
                                   final Long diskOfferingId, final Long diskSize, final String userData, final Account caller, final Boolean isDisplayVm, final String keyboard,
-                                  final long accountId, final long userId, final ServiceOffering offering, final boolean isIso, final String sshPublicKey, final LinkedHashMap<String, NicProfile> networkNicMap,
+                                  final long accountId, final long userId, final ServiceOffering offering, final boolean isIso, final String sshPublicKey, final LinkedHashMap<String, List<NicProfile>> networkNicMap,
                                   final long id, final String instanceName, final String uuidName, final HypervisorType hypervisorType, final Map<String, String> customParameters,
                                   final Map<String, Map<Integer, String>> extraDhcpOptionMap, final Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap,
                                   final Map<String, String> userVmOVFPropertiesMap, final VirtualMachine.PowerState powerState) throws InsufficientCapacityException {
@@ -4082,7 +4084,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     private UserVmVO commitUserVm(final DataCenter zone, final VirtualMachineTemplate template, final String hostName, final String displayName, final Account owner,
             final Long diskOfferingId, final Long diskSize, final String userData, final Account caller, final Boolean isDisplayVm, final String keyboard,
-            final long accountId, final long userId, final ServiceOfferingVO offering, final boolean isIso, final String sshPublicKey, final LinkedHashMap<String, NicProfile> networkNicMap,
+            final long accountId, final long userId, final ServiceOfferingVO offering, final boolean isIso, final String sshPublicKey, final LinkedHashMap<String, List<NicProfile>> networkNicMap,
             final long id, final String instanceName, final String uuidName, final HypervisorType hypervisorType, final Map<String, String> customParameters, final Map<String,
             Map<Integer, String>> extraDhcpOptionMap, final Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap,
             Map<String, String> userVmOVFPropertiesMap) throws InsufficientCapacityException {
@@ -5200,7 +5202,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         List<Long> networkIds = cmd.getNetworkIds();
-        HashMap<Integer, Long> userVmNetworkMap = getVmOvfNetworkMapping(zone, owner, template, cmd.getVmNetworkMap());
+        LinkedHashMap<Integer, Long> userVmNetworkMap = getVmOvfNetworkMapping(zone, owner, template, cmd.getVmNetworkMap());
         if (MapUtils.isNotEmpty(userVmNetworkMap)) {
             networkIds = new ArrayList<>(userVmNetworkMap.values());
         }
@@ -7336,8 +7338,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
     }
 
-    private HashMap<Integer, Long> getVmOvfNetworkMapping(DataCenter zone, Account owner, VirtualMachineTemplate template, Map<Integer, Long> vmNetworkMapping) throws InsufficientCapacityException, ResourceAllocationException {
-        HashMap<Integer, Long> mapping = new HashMap<>();
+    private LinkedHashMap<Integer, Long> getVmOvfNetworkMapping(DataCenter zone, Account owner, VirtualMachineTemplate template, Map<Integer, Long> vmNetworkMapping) throws InsufficientCapacityException, ResourceAllocationException {
+        LinkedHashMap<Integer, Long> mapping = new LinkedHashMap<>();
         if (ImageFormat.OVA.equals(template.getFormat())) {
             List<NetworkPrerequisiteTO> networkPrerequisiteTOList =
                     templateDetailsDao.listNetworkRequirementsByTemplateId(template.getId());
