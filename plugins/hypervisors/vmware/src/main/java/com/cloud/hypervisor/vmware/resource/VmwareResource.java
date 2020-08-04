@@ -2889,7 +2889,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     // If datastore is NFS and target datastore is not already mounted on source host then mount the datastore.
                     if (filerTo.getType().equals(StoragePoolType.NetworkFilesystem)) {
                         if (morDsAtSource == null) {
-                            morDsAtSource = srcHyperHost.mountDatastore(false, tgtDsHost, tgtDsPort, tgtDsPath, tgtDsName);
+                            morDsAtSource = srcHyperHost.mountDatastore(false, tgtDsHost, tgtDsPort, tgtDsPath, tgtDsName, true);
                             if (morDsAtSource == null) {
                                 throw new Exception("Unable to mount NFS datastore " + tgtDsHost + ":/" + tgtDsPath + " on " + _hostName);
                             }
@@ -3397,7 +3397,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             ManagedObjectReference morDatastore = HypervisorHostHelper.findDatastoreWithBackwardsCompatibility(hyperHost, pool.getUuid());
 
             if (morDatastore == null) {
-                morDatastore = hyperHost.mountDatastore((pool.getType() == StoragePoolType.VMFS || pool.getType() == StoragePoolType.PreSetup), pool.getHost(), pool.getPort(), pool.getPath(), pool.getUuid().replace("-", ""));
+                morDatastore = hyperHost.mountDatastore((pool.getType() == StoragePoolType.VMFS || pool.getType() == StoragePoolType.PreSetup), pool.getHost(), pool.getPort(), pool.getPath(), pool.getUuid().replace("-", ""), true);
             }
 
             assert (morDatastore != null);
@@ -3627,7 +3627,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         URI uri = new URI(storeUrl);
 
         VmwareHypervisorHost hyperHost = getHyperHost(getServiceContext());
-        ManagedObjectReference morDatastore = hyperHost.mountDatastore(false, uri.getHost(), 0, uri.getPath(), storeName.replace("-", ""));
+        ManagedObjectReference morDatastore = hyperHost.mountDatastore(false, uri.getHost(), 0, uri.getPath(), storeName.replace("-", ""), false);
 
         if (morDatastore == null)
             throw new Exception("Unable to mount secondary storage on host. storeUrl: " + storeUrl);
@@ -3639,7 +3639,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         String storeName = getSecondaryDatastoreUUID(storeUrl);
         URI uri = new URI(storeUrl);
 
-        ManagedObjectReference morDatastore = hyperHost.mountDatastore(false, uri.getHost(), 0, uri.getPath(), storeName.replace("-", ""));
+        ManagedObjectReference morDatastore = hyperHost.mountDatastore(false, uri.getHost(), 0, uri.getPath(), storeName.replace("-", ""), false);
 
         if (morDatastore == null)
             throw new Exception("Unable to mount secondary storage on host. storeUrl: " + storeUrl);
