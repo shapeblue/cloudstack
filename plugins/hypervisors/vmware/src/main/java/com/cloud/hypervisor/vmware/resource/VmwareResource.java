@@ -1380,7 +1380,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         int nicIndex = allocPublicNicIndex(vmMo);
 
         try {
-            VirtualDevice[] nicDevices = vmMo.getNicDevices();
+            VirtualDevice[] nicDevices = vmMo.getNicDevices(true).toArray(new VirtualDevice[0]);
 
             VirtualEthernetCard device = (VirtualEthernetCard) nicDevices[nicIndex];
 
