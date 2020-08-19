@@ -69,6 +69,9 @@ public class VMTemplateVO implements VirtualMachineTemplate {
     @Column(name = "hvm")
     private boolean requiresHvm;
 
+    @Column(name = "boot_filename")
+    private String bootFilename;
+
     @Column(name = "bits")
     private int bits;
 
@@ -191,10 +194,37 @@ public class VMTemplateVO implements VirtualMachineTemplate {
             details);
         uuid = UUID.randomUUID().toString();
     }
-
+    public VMTemplateVO(long id, String name, ImageFormat format, boolean isPublic, boolean featured, boolean isExtractable, TemplateType type, String url,
+                        boolean requiresHvm, int bits, long accountId, String cksum, String displayText, boolean enablePassword, long guestOSId, boolean bootable,
+                        HypervisorType hyperType, String templateTag, Map<String, String> details, boolean sshKeyEnabled, boolean isDynamicallyScalable, boolean directDownload) {
+        this(id,
+                name,
+                format,
+                isPublic,
+                featured,
+                isExtractable,
+                type,
+                url,
+                requiresHvm,
+                bits,
+                accountId,
+                cksum,
+                displayText,
+                enablePassword,
+                guestOSId,
+                bootable,
+                hyperType,
+                details);
+        this.templateTag = templateTag;
+        uuid = UUID.randomUUID().toString();
+        enableSshKey = sshKeyEnabled;
+        dynamicallyScalable = isDynamicallyScalable;
+        state = State.Active;
+        this.directDownload = directDownload;
+    }
     public VMTemplateVO(long id, String name, ImageFormat format, boolean isPublic, boolean featured, boolean isExtractable, TemplateType type, String url,
             boolean requiresHvm, int bits, long accountId, String cksum, String displayText, boolean enablePassword, long guestOSId, boolean bootable,
-            HypervisorType hyperType, String templateTag, Map<String, String> details, boolean sshKeyEnabled, boolean isDynamicallyScalable, boolean directDownload) {
+            HypervisorType hyperType, String templateTag, Map<String, String> details, boolean sshKeyEnabled, boolean isDynamicallyScalable, boolean directDownload, String bootFilename) {
         this(id,
             name,
             format,
@@ -212,13 +242,12 @@ public class VMTemplateVO implements VirtualMachineTemplate {
             guestOSId,
             bootable,
             hyperType,
-            details);
-        this.templateTag = templateTag;
-        uuid = UUID.randomUUID().toString();
-        enableSshKey = sshKeyEnabled;
-        dynamicallyScalable = isDynamicallyScalable;
-        state = State.Active;
-        this.directDownload = directDownload;
+            templateTag,
+            details,
+            sshKeyEnabled,
+            isDynamicallyScalable,
+            directDownload);
+        this.bootFilename = bootFilename;
     }
 
     public static VMTemplateVO createPreHostIso(Long id, String uniqueName, String name, ImageFormat format, boolean isPublic, boolean featured, TemplateType type,
@@ -395,6 +424,15 @@ public class VMTemplateVO implements VirtualMachineTemplate {
     @Override
     public boolean isRequiresHvm() {
         return requiresHvm;
+    }
+
+    @Override
+    public String getBootFilename() {
+        return bootFilename;
+    }
+
+    public void setBootFilename(String bootFilename) {
+        this.bootFilename = bootFilename;
     }
 
     public void setRequiresHvm(boolean value) {

@@ -259,6 +259,7 @@ public class ApiConstants {
     public static final String RECONNECT = "reconnect";
     public static final String RECOVER = "recover";
     public static final String REQUIRES_HVM = "requireshvm";
+    public static final String BOOT_FILENAME = "bootfilename";
     public static final String RESOURCE_TYPE = "resourcetype";
     public static final String RESOURCE_TYPE_NAME = "resourcetypename";
     public static final String RESPONSE = "response";
@@ -546,6 +547,7 @@ public class ApiConstants {
     public static final String END_POINT = "endpoint";
     public static final String REGION_ID = "regionid";
     public static final String VPC_OFF_ID = "vpcofferingid";
+    public static final String NETWORK_BOOT_IP = "networkbootip";
     public static final String NETWORK = "network";
     public static final String VPC_ID = "vpcid";
     public static final String GATEWAY_ID = "gatewayid";

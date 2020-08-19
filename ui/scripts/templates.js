@@ -125,27 +125,6 @@
                                 docID: 'helpNetworkOfferingName',
                                 preFilter: cloudStack.preFilter.createTemplate,
                                 fields: {
-                                    url: {
-                                        label: 'label.url',
-                                        docID: 'helpRegisterTemplateURL',
-                                        validation: {
-                                            required: true
-                                        }
-                                    },
-                                    name: {
-                                        label: 'label.name',
-                                        docID: 'helpRegisterTemplateName',
-                                        validation: {
-                                            required: true
-                                        }
-                                    },
-                                    description: {
-                                        label: 'label.description',
-                                        docID: 'helpRegisterTemplateDescription',
-                                        validation: {
-                                            required: true
-                                        }
-                                    },
                                     zone: {
                                         label: 'label.zone',
                                         docID: 'helpRegisterTemplateZone',
@@ -484,6 +463,10 @@
                                                     id: 'VHD',
                                                     description: 'VHD'
                                                 });
+                                                items.push({
+                                                    id: 'PXEBOOT',
+                                                    description: 'PXE BOOT'
+                                                });
                                             } else if (args.hypervisor == "VMware") {
                                                 //formatSelect.append("<option value='OVA'>OVA</option>");
                                                 items.push({
@@ -536,9 +519,22 @@
                                                     description: 'VHDX'
                                                 });
                                             }
+                                            args.$select.change(function() {
+                                                var $form = $(this).closest('form');
+                                                if ($(this).val() == "PXEBOOT") {
+                                                    $form.find('.form-item[rel=bootfilename]').css('display', 'inline-block')
+                                                    $form.find('.form-item[rel=url]').hide();
+                                                } else {
+                                                    $form.find('.form-item[rel=url]').css('display', 'inline-block')
+                                                    $form.find('.form-item[rel=bootfilename]').hide();
+                                                }
+                                            });
+
                                             args.response.success({
                                                 data: items
                                             });
+
+                                            args.$select.trigger('change');
                                         }
                                     },
 
@@ -559,7 +555,36 @@
                                             });
                                         }
                                     },
-
+                                    url: {
+                                        label: 'label.url',
+                                        docID: 'helpRegisterTemplateURL',
+                                        isHidden: false,
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
+                                    bootfilename: {
+                                        label: 'label.boot.filename',
+                                        docID: 'helpBootFilename',
+                                        isHidden: true,
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
+                                    name: {
+                                        label: 'label.name',
+                                        docID: 'helpRegisterTemplateName',
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
+                                    description: {
+                                        label: 'label.description',
+                                        docID: 'helpRegisterTemplateDescription',
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
                                     isExtractable: {
                                         label: "label.extractable",
                                         docID: 'helpRegisterTemplateExtractable',
@@ -618,6 +643,7 @@
                                     name: args.data.name,
                                     displayText: args.data.description,
                                     url: args.data.url,
+                                    bootfilename: args.data.bootfilename,
                                     zoneids: zones,
                                     format: args.data.format,
                                     isextractable: (args.data.isExtractable == "on"),
@@ -1121,7 +1147,8 @@
                                         displaytext: args.data.displaytext,
                                         ostypeid: args.data.ostypeid,
                                         passwordenabled: (args.data.passwordenabled == "on"),
-                                        isdynamicallyscalable: (args.data.isdynamicallyscalable == "on")
+                                        isdynamicallyscalable: (args.data.isdynamicallyscalable == "on"),
+                                        bootfilename: args.data.bootfilename
                                     };
                                     $.ajax({
                                         url: createURL('updateTemplate'),
@@ -1131,7 +1158,6 @@
                                             //API returns an incomplete embedded object  (some properties are missing in the embedded template object)
                                         }
                                     });
-
 
                                     //***** updateTemplatePermissions *****
                                     var data = {
@@ -1169,6 +1195,7 @@
                                             isextractable: false
                                         });
                                     }
+
                                     $.ajax({
                                         url: createURL('updateTemplatePermissions'),
                                         data: data,
@@ -1291,320 +1318,8 @@
                                 notification: {
                                     poll: pollAsyncJobResult
                                 }
-                            },
-                            // Share template
-                            shareTemplate: {
-                                label: 'label.action.share.template',
-                                messages: {
-                                    notification: function (args) {
-                                        return 'label.action.share.template';
-                                    }
-                                },
-
-                                createForm: {
-                                    title: 'label.action.share.template',
-                                    desc: '',
-                                    fields: {
-                                        operation: {
-                                            label: 'label.operation',
-                                            docID: 'helpUpdateTemplateOperation',
-                                            validation: {
-                                                required: true
-                                            },
-                                            select: function (args) {
-                                                var items = [];
-                                                items.push({
-                                                    id: "add",
-                                                    description: "Add"
-                                                });
-                                                items.push({
-                                                    id: "remove",
-                                                    description: "Remove"
-                                                });
-                                                items.push({
-                                                    id: "reset",
-                                                    description: "Reset"
-                                                });
-
-                                                args.response.success({
-                                                    data: items
-                                                });
-
-                                                // Select change
-                                                args.$select.change(function () {
-                                                    var $form = $(this).closest('form');
-                                                    var selectedOperation = $(this).val();
-                                                    if (selectedOperation === "reset") {
-                                                        $form.find('[rel=projects]').hide();
-                                                        $form.find('[rel=sharewith]').hide();
-                                                        $form.find('[rel=accounts]').hide();
-                                                        $form.find('[rel=accountlist]').hide();
-                                                    } else {
-                                                        // allow.user.view.domain.accounts = true
-                                                        // Populate List of accounts in domain as dropdown multiselect
-                                                        $form.find('[rel=sharewith]').css('display', 'inline-block');
-                                                        if (!isUser() || g_allowUserViewAllDomainAccounts === true) {
-                                                            $form.find('[rel=projects]').css('display', 'inline-block');
-                                                            $form.find('[rel=accounts]').css('display', 'inline-block');
-                                                            $form.find('[rel=accountlist]').hide();
-                                                        } else {
-                                                            // If users are not allowed to see accounts in the domain, show input text field for Accounts
-                                                            // Projects will always be shown as dropdown multiselect
-                                                            $form.find('[rel=projects]').css('display', 'inline-block');
-                                                            $form.find('[rel=accountslist]').css('display', 'inline-block');
-                                                            $form.find('[rel=accounts]').hide();
-                                                        }
-                                                    }
-                                                });
-                                            }
-                                        },
-                                        shareWith: {
-                                            label: 'label.share.with',
-                                            docID: 'helpUpdateTemplateShareWith',
-                                            validation: {
-                                                required: true
-                                            },
-                                            dependsOn: 'operation',
-                                            select: function (args) {
-                                                var items = [];
-                                                items.push({
-                                                    id: "account",
-                                                    description: "Account"
-                                                });
-                                                items.push({
-                                                    id: "project",
-                                                    description: "Project"
-                                                });
-
-                                                args.response.success({ data: items });
-
-                                                // Select change
-                                                args.$select.change(function () {
-                                                    var $form = $(this).closest('form');
-                                                    var sharedWith = $(this).val();
-                                                    if (args.operation !== "reset") {
-                                                        if (sharedWith === "project") {
-                                                            $form.find('[rel=accounts]').hide();
-                                                            $form.find('[rel=accountlist]').hide();
-                                                            $form.find('[rel=projects]').css('display', 'inline-block');
-                                                        } else {
-                                                            // allow.user.view.domain.accounts = true
-                                                            // Populate List of accounts in domain as dropdown multiselect
-                                                            if (!isUser() || g_allowUserViewAllDomainAccounts === true) {
-                                                                $form.find('[rel=projects]').hide();
-                                                                $form.find('[rel=accountlist]').hide();
-                                                                $form.find('[rel=accounts]').css('display', 'inline-block');
-                                                            } else {
-                                                                // If users are not allowed to see accounts in the domain, show input text field for Accounts
-                                                                // Projects will always be shown as dropdown multiselect
-                                                                $form.find('[rel=projects]').hide();
-                                                                $form.find('[rel=accounts]').hide();
-                                                                $form.find('[rel=accountlist]').css('display', 'inline-block');
-                                                            }
-                                                        }
-                                                    }
-                                                });
-                                            }
-                                        },
-
-                                        accountlist: {
-                                            label: 'label.accounts',
-                                            docID: 'helpUpdateTemplateAccountList'
-                                        },
-
-                                        accounts: {
-                                            label: 'label.accounts',
-                                            docID: 'helpUpdateTemplateAccounts',
-                                            dependsOn: 'shareWith',
-                                            isMultiple: true,
-                                            select: function (args) {
-                                                var operation = args.operation;
-                                                if (operation !== "reset") {
-                                                    $.ajax({
-                                                        url: createURL("listAccounts&listall=true"),
-                                                        dataType: "json",
-                                                        async: true,
-                                                        success: function (jsonAccounts) {
-                                                            var accountByName = {};
-                                                            $.each(jsonAccounts.listaccountsresponse.account, function(idx, account) {
-                                                                // Only add current domain's accounts for add as update template permissions supports that
-                                                                if (account.domainid === g_domainid && operation === "add") {
-                                                                    accountByName[account.name] = {
-                                                                        projName: account.name,
-                                                                        hasPermission: false
-                                                                    };
-                                                                }
-                                                            });
-                                                            $.ajax({
-                                                                url: createURL('listTemplatePermissions&id=' + args.context.templates[0].id),
-                                                                dataType: "json",
-                                                                async: true,
-                                                                success: function (json) {
-                                                                    items = json.listtemplatepermissionsresponse.templatepermission.account;
-                                                                    $.each(items, function(idx, accountName) {
-                                                                        if (accountByName[accountName]) {
-                                                                            accountByName[accountName].hasPermission = true;
-                                                                        }
-                                                                    });
-
-                                                                    var accountObjs = [];
-                                                                    if (operation === "add") {
-                                                                        // Skip already permitted accounts
-                                                                        $.each(Object.keys(accountByName), function(idx, accountName) {
-                                                                            if (accountByName[accountName].hasPermission == false) {
-                                                                                accountObjs.push({
-                                                                                    name: accountName,
-                                                                                    description: accountName
-                                                                                });
-                                                                            }
-                                                                        });
-                                                                    } else if (items != null) {
-                                                                        $.each(items, function(idx, accountName) {
-                                                                            if (accountName !== g_account) {
-                                                                                accountObjs.push({
-                                                                                    name: accountName,
-                                                                                    description: accountName
-                                                                                });
-                                                                            }
-                                                                        });
-                                                                    }
-                                                                    args.$select.html('');
-                                                                    args.response.success({data: accountObjs});
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        },
-
-                                        projects: {
-                                            label: 'label.projects',
-                                            docID: 'helpUpdateTemplateProjectIds',
-                                            dependsOn: 'shareWith',
-                                            isMultiple: true,
-                                            select: function (args) {
-                                                var operation = args.operation;
-                                                if (operation !== "reset") {
-                                                    $.ajax({
-                                                        url: createURL("listProjects&listall=true"),
-                                                        dataType: "json",
-                                                        async: true,
-                                                        success: function (jsonProjects) {
-                                                            var projectsByIds = {};
-                                                            $.each(jsonProjects.listprojectsresponse.project, function(idx, project) {
-                                                                // Only add current domain's projects for add operation as update template permissions supports that
-                                                                if ((project.domainid === g_domainid && operation === "add") || operation === "remove") {
-                                                                    projectsByIds[project.id] = {
-                                                                        projName: project.name,
-                                                                        hasPermission: false
-                                                                    };
-                                                                }
-                                                            });
-
-                                                            $.ajax({
-                                                                url: createURL('listTemplatePermissions&id=' + args.context.templates[0].id),
-                                                                dataType: "json",
-                                                                async: true,
-                                                                success: function (json) {
-                                                                    items = json.listtemplatepermissionsresponse.templatepermission.projectids;
-                                                                    $.each(items, function(idx, projectId) {
-                                                                        if (projectsByIds[projectId]) {
-                                                                            projectsByIds[projectId].hasPermission = true;
-                                                                        }
-                                                                    });
-
-                                                                    var projectObjs = [];
-                                                                    if (operation === "add") {
-                                                                        // Skip already permitted accounts
-                                                                        $.each(Object.keys(projectsByIds), function(idx, projectId) {
-                                                                            if (projectsByIds[projectId].hasPermission == false) {
-                                                                                projectObjs.push({
-                                                                                    id: projectId,
-                                                                                    description: projectsByIds[projectId].projName
-                                                                                });
-                                                                            }
-                                                                        });
-                                                                    } else if (items != null) {
-                                                                        $.each(items, function(idx, projectId) {
-                                                                            if (projectId !== g_account) {
-                                                                                projectObjs.push({
-                                                                                    id: projectId,
-                                                                                    description: projectsByIds[projectId] ? projectsByIds[projectId].projName : projectId
-                                                                                });
-                                                                            }
-                                                                        });
-                                                                    }
-                                                                    args.$select.html('');
-                                                                    args.response.success({data: projectObjs});
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-
-                                action: function (args) {
-                                    // Load data from form
-                                    var data = {
-                                        id: args.context.templates[0].id,
-                                        op: args.data.operation
-                                    };
-                                    var selectedOperation = args.data.operation;
-                                    if (selectedOperation === "reset") {
-                                        // Do not append Project ID or Account to data object
-                                    } else {
-                                        var projects = args.data.projects;
-                                        var accounts = args.data.accounts;
-                                        var accountList = args.data.accountlist;
-
-                                        if (accounts !== undefined || (accountList !== undefined && accountList.length > 0)) {
-                                            var accountNames = "";
-                                            if (accountList !== undefined && accounts === undefined) {
-                                                accountNames = accountList;
-                                            } else {
-                                                if (Object.prototype.toString.call(accounts) === '[object Array]') {
-                                                    accountNames = accounts.join(",");
-                                                } else {
-                                                    accountNames = accounts;
-                                                }
-                                            }
-                                            $.extend(data, {
-                                                accounts: accountNames
-                                            });
-                                        }
-
-                                        if (projects !== undefined) {
-                                            var projectIds = "";
-                                            if (Object.prototype.toString.call(projects) === '[object Array]') {
-                                                projectIds = projects.join(",");
-                                            } else {
-                                                projectIds = projects;
-                                            }
-
-                                            $.extend(data, {
-                                                projectids: projectIds
-                                            });
-                                        }
-                                    }
-
-                                    $.ajax({
-                                        url: createURL('updateTemplatePermissions'),
-                                        data: data,
-                                        dataType: "json",
-                                        async: false,
-                                        success: function (json) {
-                                            var item = json.updatetemplatepermissionsresponse.success;
-                                            args.response.success({
-                                                data: item
-                                            });
-                                        }
-                                    }); //end ajax
-                                }
                             }
+
                         },
                         tabs: {
                             details: {
@@ -1794,7 +1509,11 @@
 
                                     id: {
                                         label: 'label.id'
-                                    }
+                                    },
+                                    bootfilename: {
+                                        label: 'label.boot.filename',
+                                        isEditable: true,
+                                    },
                                 }],
 
                                 tags: cloudStack.api.tags({
@@ -1983,11 +1702,11 @@
                                                                                 }else if(args.page == 1) {
 							                             args.response.success({
                                                                                          data: []
-                                                                                     });
+                                                                                     }); 
                                                                             } else {
 							                             args.response.success({
                                                                                          data: []
-                                                                                     });
+                                                                                     }); 
                                                                             }
                                                                         }
                                                                     });
@@ -2231,8 +1950,11 @@
 
                                                 templatetype: {
                                                     label: 'label.type'
-                                                }
-
+                                                },
+                                                bootfilename: {
+                                                    label: 'label.boot.filename',
+                                                    isEditable: true
+                                                },
                                             }],
 
                                             tags: cloudStack.api.tags({
@@ -2307,7 +2029,7 @@
 												}
 											}
 											newDetails += 'details[0].' + data.name + '=' + data.value;
-
+											
 											$.ajax({
 												url: createURL('updateTemplate&id=' + args.context.templates[0].id + '&' + newDetails),
 												success: function(json) {
@@ -3366,15 +3088,12 @@
             allowedActions.push("copyTemplate");
         }
 
-        // "Download Template" , "Update Template Permissions"
+        // "Download Template"
         if (((isAdmin() == false && !(jsonObj.domainid == g_domainid && jsonObj.account == g_account) && !(jsonObj.domainid == g_domainid && cloudStack.context.projects && jsonObj.projectid == cloudStack.context.projects[0].id))) //if neither root-admin, nor the same account, nor the same project
             || (jsonObj.isready == false) || jsonObj.templatetype == "SYSTEM") {
             //do nothing
         } else {
-            if (jsonObj.isextractable){
-                allowedActions.push("downloadTemplate");
-            }
-            allowedActions.push("shareTemplate");
+            allowedActions.push("downloadTemplate");
         }
 
         // "Delete Template"

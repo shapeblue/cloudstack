@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
+import com.cloud.storage.Storage;
 import com.cloud.template.VirtualMachineTemplate.BootloaderType;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.Type;
@@ -75,6 +76,8 @@ public class VirtualMachineTO {
 
     Map<String, String> guestOsDetails = new HashMap<String, String>();
     Map<String, String> extraConfig = new HashMap<>();
+
+    Storage.ImageFormat format;
 
     public VirtualMachineTO(long id, String instanceName, VirtualMachine.Type type, int cpus, Integer speed, long minRam, long maxRam, BootloaderType bootloader,
             String os, boolean enableHA, boolean limitCpuUse, String vncPassword) {
@@ -366,5 +369,13 @@ public class VirtualMachineTO {
     }
     public Map<String, String> getExtraConfig() {
         return extraConfig;
+    }
+
+    public Storage.ImageFormat getFormat() {
+        return format;
+    }
+
+    public void setFormat(Storage.ImageFormat format) {
+        this.format = format;
     }
 }

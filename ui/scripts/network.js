@@ -5319,6 +5319,13 @@
                                             });
                                         }
                                     },
+                                    networkbootip: {
+                                        label: 'label.network.boot.ip',
+                                        docID: 'helpVPCNetworkBootIP',
+                                        validation: {
+                                            ipv4AndIpv6AddressValidator: true
+                                        }
+                                    },
                                     nuageusedomaintemplate: {
                                         label: 'label.nuage.vpc.usedomaintemplate',
                                         isBoolean: true,
@@ -5410,7 +5417,8 @@
                                     displaytext: args.data.displaytext,
                                     zoneid: args.data.zoneid,
                                     cidr: args.data.cidr,
-                                    vpcofferingid: args.data.vpcoffering
+                                    vpcofferingid: args.data.vpcoffering,
+                                    networkbootip: args.data.networkbootip
                                 };
 
                                 if (args.data.networkdomain != null && args.data.networkdomain.length > 0)
@@ -5522,7 +5530,8 @@
                                         data: {
                                             id: args.context.vpc[0].id,
                                             name: args.data.name,
-                                            displaytext: args.data.displaytext
+                                            displaytext: args.data.displaytext,
+                                            networkbootip: args.data.networkbootip
                                         },
                                         success: function(json) {
                                             var jid = json.updatevpcresponse.jobid;
@@ -5744,7 +5753,12 @@
                                     },
                                     id: {
                                         label: 'label.id'
-                                    }
+                                    },
+                                    networkbootip: {
+                                        label: 'label.network.boot.ip',
+                                        docID: 'helpVPCNetworkBootIP',
+                                        isEditable: true
+                                    },
                                 }],
 
                                 tags: cloudStack.api.tags({

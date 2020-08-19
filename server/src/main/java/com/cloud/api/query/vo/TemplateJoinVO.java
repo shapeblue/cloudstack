@@ -67,6 +67,9 @@ public class TemplateJoinVO extends BaseViewWithTagInformationVO implements Cont
     @Column(name = "hvm")
     private boolean requiresHvm;
 
+    @Column(name = "boot_filename")
+    private String bootFilename;
+
     @Column(name = "bits")
     private int bits;
 
@@ -344,6 +347,8 @@ public class TemplateJoinVO extends BaseViewWithTagInformationVO implements Cont
     public boolean isRequiresHvm() {
         return requiresHvm;
     }
+
+    public String getBootFilename() { return bootFilename; }
 
     public int getBits() {
         return bits;

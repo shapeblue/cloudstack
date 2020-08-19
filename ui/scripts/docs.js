@@ -1080,6 +1080,10 @@ cloudStack.docs = {
         desc: 'If you want to assign a special domain name to this VPC\'s guest VM network, specify the DNS suffix',
         externalLink: ''
     },
+    helpVPCNetworkBootIP: {
+        desc: 'If you want to assign a network boot ip to this VPC\'s guest VM network',
+        externalLink: ''
+    },
     // Add VPC gateway
     helpVPCGatewayPhysicalNetwork: {
         desc: 'Name of a physical network that has been created in the zone',
@@ -1282,6 +1286,10 @@ cloudStack.docs = {
     },
     helpRegisterTemplateHvm: {
         desc: 'Check this if the template requires hvm.',
+        externalLink: ''
+    },
+    helpBootFilename: {
+        desc: 'A name for the file that should be used during the boot.',
         externalLink: ''
     },
     // Upload volume

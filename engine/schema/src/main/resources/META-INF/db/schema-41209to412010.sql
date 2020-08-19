@@ -18,3 +18,7 @@
 --;
 -- Schema upgrade from 4.12.0.6 to 4.12.0.7
 --;
+
+-- Adding Pxe Boot variables
+ALTER TABLE `cloud`.`vm_template` ADD `boot_filename` varchar(255) NULL default NULL COMMENT 'the url where the template exists externally';
+ALTER TABLE `cloud`.`vpc` ADD `network_boot_ip` char(40) NULL default NULL COMMENT 'Network Boot Ip';

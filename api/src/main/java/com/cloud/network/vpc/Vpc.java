@@ -56,6 +56,12 @@ public interface Vpc extends ControlledEntity, Identity, InternalIdentity {
 
     /**
      *
+     * @return Network boot ip
+     */
+    String getNetworkBootIp();
+
+    /**
+     *
      * @return VPC display text
      */
     String getDisplayText();
@@ -91,4 +97,6 @@ public interface Vpc extends ControlledEntity, Identity, InternalIdentity {
     boolean isRollingRestart();
 
     void setRollingRestart(boolean rollingRestart);
+
+    void setNetworkBootIp(String networkBootIp);
 }

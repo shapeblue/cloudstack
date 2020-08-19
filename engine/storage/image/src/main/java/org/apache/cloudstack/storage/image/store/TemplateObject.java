@@ -398,6 +398,11 @@ public class TemplateObject implements TemplateInfo {
     }
 
     @Override
+    public String getBootFilename() {
+        return imageVO.getBootFilename();
+    }
+
+    @Override
     public String getDisplayText() {
         return imageVO.getDisplayText();
     }

@@ -99,6 +99,8 @@ public interface VirtualMachineTemplate extends ControlledEntity, Identity, Inte
 
     boolean isRequiresHvm();
 
+    String getBootFilename();
+
     String getDisplayText();
 
     boolean isEnablePassword();

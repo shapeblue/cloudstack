@@ -80,6 +80,9 @@ public abstract class BaseUpdateTemplateOrIsoCmd extends BaseCmd {
             description = "optional boolean field, which indicates if details should be cleaned up or not (if set to true, details removed for this resource, details field ignored; if false or not set, no action)")
     private Boolean cleanupDetails;
 
+    @Parameter(name = ApiConstants.BOOT_FILENAME, type = CommandType.STRING, description = "PXE boot filename on the TFTP server.")
+    private String bootFilename;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -144,4 +147,6 @@ public abstract class BaseUpdateTemplateOrIsoCmd extends BaseCmd {
     public boolean isCleanupDetails(){
         return cleanupDetails == null ? false : cleanupDetails.booleanValue();
     }
+
+    public String getBootFilename() { return bootFilename; }
 }
