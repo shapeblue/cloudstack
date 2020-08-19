@@ -3299,6 +3299,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
                 SearchCriteria<TemplateJoinVO> readySc = _templateJoinDao.createSearchCriteria();
                 readySc.addOr("state", SearchCriteria.Op.EQ, TemplateState.Ready);
                 readySc.addOr("format", SearchCriteria.Op.EQ, ImageFormat.BAREMETAL);
+                readySc.addOr("format", SearchCriteria.Op.EQ, ImageFormat.PXEBOOT);
                 SearchCriteria<TemplateJoinVO> isoPerhostSc = _templateJoinDao.createSearchCriteria();
                 isoPerhostSc.addAnd("format", SearchCriteria.Op.EQ, ImageFormat.ISO);
                 isoPerhostSc.addAnd("templateType", SearchCriteria.Op.EQ, TemplateType.PERHOST);
@@ -3355,6 +3356,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
             tzIds[i++] = v.getTempZonePair();
         }
         List<TemplateJoinVO> vrs = _templateJoinDao.searchByTemplateZonePair(showRemovedTmpl, tzIds);
+
         return new Pair<List<TemplateJoinVO>, Integer>(vrs, count);
 
         // TODO: revisit the special logic for iso search in

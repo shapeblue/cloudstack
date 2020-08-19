@@ -173,6 +173,12 @@ public class TemplateEntityImpl implements TemplateEntity {
     }
 
     @Override
+    public String getBootFilename() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
     public String getDisplayText() {
         // TODO Auto-generated method stub
         return null;

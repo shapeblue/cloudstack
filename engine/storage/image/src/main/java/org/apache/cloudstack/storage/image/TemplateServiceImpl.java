@@ -523,7 +523,7 @@ public class TemplateServiceImpl implements TemplateService {
                                 }
                             }
 
-                            if (availHypers.contains(tmplt.getHypervisorType())) {
+                            if (availHypers.contains(tmplt.getHypervisorType()) && tmplt.getFormat() != ImageFormat.PXEBOOT) {
                                 s_logger.info("Downloading template " + tmplt.getUniqueName() + " to image store " + store.getName());
                                 associateTemplateToZone(tmplt.getId(), zoneId);
                                 TemplateInfo tmpl = _templateFactory.getTemplate(tmplt.getId(), store);
@@ -782,7 +782,7 @@ public class TemplateServiceImpl implements TemplateService {
         String templateName = dataDiskTemplate.isIso() ? dataDiskTemplate.getPath().substring(dataDiskTemplate.getPath().lastIndexOf(File.separator) + 1) : template.getName() + suffix + diskCount;
         VMTemplateVO templateVO = new VMTemplateVO(templateId, templateName, format, false, false, false, ttype, template.getUrl(),
                 template.requiresHvm(), template.getBits(), template.getAccountId(), null, templateName, false, guestOsId, false, template.getHypervisorType(), null,
-                null, false, false, false);
+                null, false, false, false, template.getBootFilename());
         if (dataDiskTemplate.isIso()){
             templateVO.setUniqueName(templateName);
         }

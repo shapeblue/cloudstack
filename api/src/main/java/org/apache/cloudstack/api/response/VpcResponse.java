@@ -67,6 +67,10 @@ public class VpcResponse extends BaseResponse implements ControlledEntityRespons
     @Param(description = "vpc offering id the VPC is created from")
     private String vpcOfferingId;
 
+    @SerializedName(ApiConstants.NETWORK_BOOT_IP)
+    @Param(description = "The network boot ip of VPC")
+    private String networkBootIp;
+
     @SerializedName(ApiConstants.CREATED)
     @Param(description = "the date this VPC was created")
     private Date created;
@@ -183,6 +187,8 @@ public class VpcResponse extends BaseResponse implements ControlledEntityRespons
     public void setVpcOfferingId(final String vpcOfferingId) {
         this.vpcOfferingId = vpcOfferingId;
     }
+
+    public void setNetworkBootIp(String networkBootIp) { this.networkBootIp = networkBootIp; }
 
     public List<NetworkResponse> getNetworks() {
         return networks;

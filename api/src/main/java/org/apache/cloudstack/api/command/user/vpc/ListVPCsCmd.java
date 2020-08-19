@@ -63,6 +63,9 @@ public class ListVPCsCmd extends BaseListTaggedResourcesCmd {
     @Parameter(name = ApiConstants.VPC_OFF_ID, type = CommandType.UUID, entityType = VpcOfferingResponse.class, description = "list by ID of the VPC offering")
     private Long VpcOffId;
 
+    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, description = "the network boot ip of the VPC.")
+    private String networkBootIp;
+
     @Parameter(name = ApiConstants.SUPPORTED_SERVICES, type = CommandType.LIST, collectionType = CommandType.STRING, description = "list VPC supporting certain services")
     private List<String> supportedServices;
 
@@ -99,6 +102,8 @@ public class ListVPCsCmd extends BaseListTaggedResourcesCmd {
         return VpcOffId;
     }
 
+    public String getNetworkBootIp() { return networkBootIp; }
+
     public Long getId() {
         return id;
     }
@@ -132,7 +137,7 @@ public class ListVPCsCmd extends BaseListTaggedResourcesCmd {
         Pair<List<? extends Vpc>, Integer> vpcs =
             _vpcService.listVpcs(getId(), getVpcName(), getDisplayText(), getSupportedServices(), getCidr(), getVpcOffId(), getState(), getAccountName(), getDomainId(),
                 getKeyword(), getStartIndex(), getPageSizeVal(), getZoneId(), isRecursive(), listAll(), getRestartRequired(), getTags(),
-                getProjectId(), getDisplay());
+                getProjectId(), getDisplay(), getNetworkBootIp());
         ListResponse<VpcResponse> response = new ListResponse<VpcResponse>();
         List<VpcResponse> vpcResponses = new ArrayList<VpcResponse>();
         for (Vpc vpc : vpcs.first()) {

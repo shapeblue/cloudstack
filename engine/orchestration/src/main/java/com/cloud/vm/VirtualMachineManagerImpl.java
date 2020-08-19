@@ -426,7 +426,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     s_logger.debug("Allocating disks for " + vmFinal);
                 }
 
-                if (template.getFormat() == ImageFormat.ISO) {
+                if (template.getFormat() == ImageFormat.ISO || template.getFormat() == ImageFormat.PXEBOOT) {
                     volumeMgr.allocateRawVolume(Type.ROOT, "ROOT-" + vmFinal.getId(), rootDiskOfferingInfo.getDiskOffering(), rootDiskOfferingInfo.getSize(),
                             rootDiskOfferingInfo.getMinIops(), rootDiskOfferingInfo.getMaxIops(), vmFinal, template, owner, null);
                 } else if (template.getFormat() == ImageFormat.BAREMETAL) {

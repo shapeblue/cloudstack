@@ -1373,6 +1373,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             }
         }
 
+        if(vmSpec.getFormat().equals(Storage.ImageFormat.PXEBOOT)) {
+            vmr.HVMBootParams.put("order", "ndc");
+        }
+
         final VM vm = VM.create(conn, vmr);
         s_logger.debug("Created VM " + vm.getUuid(conn) + " for " + vmSpec.getName());
 

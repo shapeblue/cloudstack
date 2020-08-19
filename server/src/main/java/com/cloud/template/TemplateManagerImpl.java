@@ -2035,7 +2035,9 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         Boolean requiresHvm = cmd.getRequiresHvm();
         Integer sortKey = cmd.getSortKey();
         Map details = cmd.getDetails();
+        String bootFilename = cmd.getBootFilename();
         Account account = CallContext.current().getCallingAccount();
+
         boolean cleanupDetails = cmd.isCleanupDetails();
 
         // verify that template exists
@@ -2069,6 +2071,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                   sortKey == null &&
                   isDynamicallyScalable == null &&
                   isRoutingTemplate == null &&
+                  bootFilename == null &&
                   (! cleanupDetails && details == null) //update details in every case except this one
                   );
         if (!updateNeeded) {
@@ -2150,6 +2153,10 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
             } else {
                 template.setTemplateType(TemplateType.USER);
             }
+        }
+
+        if (bootFilename != null) {
+            template.setBootFilename(bootFilename);
         }
 
         if (cleanupDetails) {

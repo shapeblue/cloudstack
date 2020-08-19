@@ -470,6 +470,12 @@ setup_dnsmasq() {
   else
       echo 0 > /var/cache/cloud/dnsmasq_managed_lease
   fi
+
+  if [ -n "$DHCP_BOOT" ]
+  then
+      sed -i -e "/^[#]*dhcp-boot=.*$/d" /etc/dnsmasq.conf
+      echo "dhcp-boot=$DHCP_BOOT" >> /etc/dnsmasq.conf
+  fi
 }
 
 setup_sshd(){
@@ -760,6 +766,9 @@ parse_cmd_line() {
             ;;
         ntpserverlist)
             export NTP_SERVER_LIST=$VALUE
+            ;;
+        dhcpboot)
+            export DHCP_BOOT=$VALUE
             ;;
       esac
   done

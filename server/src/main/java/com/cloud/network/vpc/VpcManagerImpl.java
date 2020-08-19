@@ -740,7 +740,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_CREATE, eventDescription = "creating vpc", create = true)
     public Vpc createVpc(final long zoneId, final long vpcOffId, final long vpcOwnerId, final String vpcName, final String displayText, final String cidr, String networkDomain,
-            final Boolean displayVpc) throws ResourceAllocationException {
+            final Boolean displayVpc, final String networkBootIp) throws ResourceAllocationException {
         final Account caller = CallContext.current().getCallingAccount();
         final Account owner = _accountMgr.getAccount(vpcOwnerId);
 
@@ -793,7 +793,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
         final boolean useDistributedRouter = vpcOff.supportsDistributedRouter();
         final VpcVO vpc = new VpcVO(zoneId, vpcName, displayText, owner.getId(), owner.getDomainId(), vpcOffId, cidr, networkDomain, useDistributedRouter, isRegionLevelVpcOff,
-                vpcOff.getRedundantRouter());
+                vpcOff.getRedundantRouter(), networkBootIp);
 
         return createVpc(displayVpc, vpc);
     }
@@ -939,7 +939,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_UPDATE, eventDescription = "updating vpc")
-    public Vpc updateVpc(final long vpcId, final String vpcName, final String displayText, final String customId, final Boolean displayVpc) {
+    public Vpc updateVpc(final long vpcId, final String vpcName, final String displayText, final String customId, final Boolean displayVpc, final String networkBootIp) {
         CallContext.current().setEventDetails(" Id: " + vpcId);
         final Account caller = CallContext.current().getCallingAccount();
 
@@ -969,6 +969,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
             vpc.setDisplay(displayVpc);
         }
 
+        if (networkBootIp != null) {
+            vpc.setNetworkBootIp(networkBootIp);
+        }
+
         if (_vpcDao.update(vpcId, vpc)) {
             s_logger.debug("Updated VPC id=" + vpcId);
             return _vpcDao.findById(vpcId);
@@ -981,7 +985,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     public Pair<List<? extends Vpc>, Integer> listVpcs(final Long id, final String vpcName, final String displayText, final List<String> supportedServicesStr, final String cidr,
             final Long vpcOffId, final String state, final String accountName, Long domainId, final String keyword, final Long startIndex, final Long pageSizeVal,
             final Long zoneId, Boolean isRecursive, final Boolean listAll, final Boolean restartRequired, final Map<String, String> tags, final Long projectId,
-            final Boolean display) {
+            final Boolean display, final String networkBootIp) {
         final Account caller = CallContext.current().getCallingAccount();
         final List<Long> permittedAccounts = new ArrayList<Long>();
         final Ternary<Long, Boolean, ListProjectResourcesCriteria> domainIdRecursiveListProject = new Ternary<Long, Boolean, ListProjectResourcesCriteria>(domainId, isRecursive,
@@ -1004,6 +1008,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         sb.and("restartRequired", sb.entity().isRestartRequired(), SearchCriteria.Op.EQ);
         sb.and("cidr", sb.entity().getCidr(), SearchCriteria.Op.EQ);
         sb.and("display", sb.entity().isDisplay(), SearchCriteria.Op.EQ);
+        sb.and("networkBootIp", sb.entity().getNetworkBootIp(), SearchCriteria.Op.EQ);
 
         if (tags != null && !tags.isEmpty()) {
             final SearchBuilder<ResourceTagVO> tagSearch = _resourceTagDao.createSearchBuilder();
@@ -1072,6 +1077,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
         if (restartRequired != null) {
             sc.addAnd("restartRequired", SearchCriteria.Op.EQ, restartRequired);
+        }
+
+        if (networkBootIp != null) {
+            sc.addAnd("networkBootIp", SearchCriteria.Op.EQ, networkBootIp);
         }
 
         final List<VpcVO> vpcs = _vpcDao.search(sc, searchFilter);

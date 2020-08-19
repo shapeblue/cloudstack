@@ -26,6 +26,8 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.storage.Storage;
+import com.cloud.template.VirtualMachineTemplate;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -265,6 +267,16 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
                 final StringBuilder buf = profile.getBootArgsBuilder();
                 final Vpc vpc = _entityMgr.findById(Vpc.class, vpcId);
                 buf.append(" vpccidr=" + vpc.getCidr() + " domain=" + vpc.getNetworkDomain());
+
+                VirtualMachineTemplate virtualMachineTemplate = profile.getTemplate();
+                if(virtualMachineTemplate.getFormat() == Storage.ImageFormat.PXEBOOT) {
+                    String networkBootIp = vpc.getNetworkBootIp();
+                    String bootFilename = virtualMachineTemplate.getBootFilename();
+                    if(networkBootIp != null && !networkBootIp.isEmpty() &&
+                            bootFilename != null && !bootFilename.isEmpty()) {
+                        buf.append(" dhcpboot=").append(bootFilename).append(",pxeserver,").append(networkBootIp);
+                    }
+                }
 
                 buf.append(" dns1=").append(defaultDns1);
                 if (defaultDns2 != null) {
