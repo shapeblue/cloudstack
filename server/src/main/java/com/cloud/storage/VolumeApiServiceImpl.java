@@ -1484,8 +1484,17 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
 
         //don't create volume on primary storage if its being attached to the vm which Root's volume hasn't been created yet
         StoragePoolVO destPrimaryStorage = null;
+
         if (exstingVolumeOfVm != null && !exstingVolumeOfVm.getState().equals(Volume.State.Allocated)) {
             destPrimaryStorage = _storagePoolDao.findById(exstingVolumeOfVm.getPoolId());
+            if(destPrimaryStorage.getPodId() == null) {
+                destPrimaryStorage.setPodId(vm.getPodIdToDeployIn());
+
+            }
+            if(destPrimaryStorage.getClusterId() == null) {
+                HostVO hostVO = _hostDao.findById(vm.getHostId());
+                destPrimaryStorage.setClusterId(hostVO.getClusterId());
+            }
         }
 
         boolean volumeOnSecondary = volumeToAttach.getState() == Volume.State.Uploaded;
