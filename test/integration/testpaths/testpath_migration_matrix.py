@@ -140,6 +140,9 @@ class TestStorageMigrations(cloudstackTestCase):
     def test_the_matrix(self):
         """
         run the defined tests in a double loop from sources to targets
+
+        TODO set up a multidimensonal dictionary to capture results in
+
         :return:
         """
         for source_name in self.source_pool_dimension:
