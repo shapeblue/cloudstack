@@ -18,7 +18,7 @@
 """
 import time
 from marvin.lib.base import ServiceOffering, Configurations, VirtualMachine, Account, Volume, DiskOffering, StoragePool
-from marvin.lib.utils import cleanup_resources
+from marvin.lib.utils import cleanup_resources, format_volume_to_ext3
 from nose.plugins.attrib import attr
 from marvin.cloudstackTestCase import cloudstackTestCase
 from marvin.lib.common import (get_domain,
@@ -29,12 +29,16 @@ from marvin.lib.common import (get_domain,
 class TestStorageMigrations(cloudstackTestCase):
     """
     test a matrix of migration based on a input of available storages and assuming users 'admin' and 'user'
+    as of now this test class makes a lot of assumtions. more defencive programming is needed to do away with those.
+    - a set of source-pools is assumed with diskOfferings and tags of the same names
+    - tagging may yet be in the way of migrations, possible improvement there
+    TODO the implementation of the matrix traversal is not implemented yet
     """
 
     user_dimension = [ "admin" ] # should be [ "admin", "user"]
     system_dimension = [ "6.7" ] # should be [ "6.5", "6.7"]
-    source_pool_dimension = [ "NFS" ]
-    targets_pool_dimension = [ "VSAN" ]
+    source_pool_dimension = [ "nfs-67" ]
+    targets_pool_dimension = [ "nfs-65" ]
     # we should use a pool_matrix of
     # [ "NFS", "VMFS5", "VMFS6", "VVOLS", "VSAN", "DSC"] * [ "NFS", "VMFS5", "VMFS6", "VVOLS", "VSAN", "DSC"]
 
@@ -88,7 +92,7 @@ class TestStorageMigrations(cloudstackTestCase):
             )
 
             cls.vm = VirtualMachine.create(
-                cls.apiclient,
+                cls.userapiclient,
                 cls.testdata["small"],
                 templateid=cls.template.id,
                 accountid=cls.account.name,
@@ -135,37 +139,45 @@ class TestStorageMigrations(cloudstackTestCase):
     @attr(tags=["advanced", "basic"], required_hardware="true")
     def test_the_matrix(self):
         """
-        run the defined tests
+        run the defined tests in a double loop from sources to targets
         :return:
         """
+        for source_name in self.source_pool_dimension:
+            for target_name in self.targets_pool_dimension:
+                if source_name != target_name:
+                    self.test_a_migration(source_name, target_name)
         return
 
-    def test_a_migration(self, source, target):
+    def test_a_migration(self, source_name, target_name):
         """
         Do a single iteration of the test sequence,
          creating the volume on the source migrating and then deleting the volume from the target.
 
-        :param source: source pool to igrate from
-        :param target: target pool to migrate to
+        :param source_name: source pool to migrate from
+        :param target_name: target pool to migrate to
         :return:
         """
-        volume = self.setup_source(source)
-        self.migrate(volume, target)
-        self.validate(volume, target)
+        # TODO validate pool results
+        source_pool = StoragePool.list(self.apiclient, name=source_name)[0]
+        target_pool = StoragePool.list(self.apiclient, name=target_name)[0]
+        volume = self.setup_source(source_pool)
+        result_to_validate = self.migrate(volume, target_pool)
+        self.validate(volume, migration_result=result_to_validate, target=target_pool)
         self.remove_volume(volume)
         return
 
     def setup_source(self, source):
         """
+        # create a volume
+        # attach the volume to a running vm to have it on primary
+        # migrate to the source primary
+        # detach the volume
 
         :param source: the pool to set a volume up on
         :return: the marvin volume object
         """
-        # create a volume with tags for the right primary
-        # attach the volume to a running vm to have it on primary
-        # detach the volume
         vol = Volume.create(
-            self.apiclient,
+            self.userapiclient,
             self.testdata["volume"],
             diskofferingid=self.disk_offering.id,
             zoneid=self.zone.id,
@@ -173,24 +185,17 @@ class TestStorageMigrations(cloudstackTestCase):
             domainid=self.account.domainid,
         )
 
-        self.cleanup.append(vol)
+        print("created volume with id: '{id}' and name: '{name}".format(id=vol.id, name=vol.name))
 
-        self.vm.attach_volume(
-            self.apiclient,
-            vol
-        )
+        # NOTE either self.cleanup.append(vol) at this point or the more localised/explicit remove(vol) in the test method
+        # TODO improve marvin so cleanup doesn't break if an explicit remove had already be done
 
-        pools = StoragePool.listForMigration(
-            self.apiclient,
-            id=vol.id
-        )
+        # make sure the volume is implemented
+        self.vm.attach_volume(self.userapiclient, vol)
+        self.vm.detach_volume(self.userapiclient, vol)
 
-        if not pools:
-            self.skipTest(
-                "No suitable storage pools found for volume migration.\
-                        Skipping")
-
-        self.vm.detach_volume(self.apiclient, vol)
+        #put it on the origin point of this migration test
+        vol.migrate(self.userapiclient, storageid=source.id)
 
         return vol
 
@@ -205,18 +210,30 @@ class TestStorageMigrations(cloudstackTestCase):
 
     def migrate(self, volume, target):
         """
+        as the method signature sugests
+
+        :param volume: the object to migrate
+        :param target: pool to migrate to
+        :return: None if no target pool found, the result of the migration command otherwise
+        """
+        pools = StoragePool.listForMigration(
+            self.userapiclient,
+            id=volume.id
+        )
+
+        for pool in pools:
+            if pool.name == target.name:
+                return volume.migrate(self.userapiclient, storageid=pool.id)
+        return None
+
+    def validate(self, volume, migration_result, target):
+        """
 
         :param volume:
         :param target:
         :return:
         """
-        return
-
-    def validate(self, volume, target):
-        """
-
-        :param volume:
-        :param target:
-        :return:
-        """
+        if migration_result == None:
+            raise Exception("No migration result to verify")
+        print migration_result
         return
