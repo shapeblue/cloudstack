@@ -53,7 +53,7 @@ var dictionary = {
     "label.CPU.cap": "CPU Cap",
     "label.DHCP.server.type": "DHCP kiszolgáló típus",
     "label.DNS.domain.for.guest.networks": "Vendég hálózatok DNS tartománya",
-    "label.network.boot.ip": "Network Boot Ip",
+    "label.network.boot.ip": "Network Boot IP",
     "label.ESP.encryption": "ESP titkosítás",
     "label.ESP.hash": "ESP Hash",
     "label.ESP.lifetime": "ESP élettartam (mp)",
