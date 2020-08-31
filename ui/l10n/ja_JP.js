@@ -53,7 +53,7 @@ var dictionary = {
     "label.CPU.cap": "CPU キャップ",
     "label.DHCP.server.type": "DHCP サーバーの種類",
     "label.DNS.domain.for.guest.networks": "ゲスト ネットワークの DNS ドメイン",
-    "label.network.boot.ip": "Network Boot Ip",
+    "label.network.boot.ip": "Network Boot IP",
     "label.ESP.encryption": "ESP 暗号化",
     "label.ESP.hash": "ESP ハッシュ",
     "label.ESP.lifetime": "ESP 有効期間 (秒)",

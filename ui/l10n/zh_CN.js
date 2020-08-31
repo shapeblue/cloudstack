@@ -53,7 +53,7 @@ var dictionary = {
     "label.CPU.cap": "CPU 上限",
     "label.DHCP.server.type": "DHCP 服务器类型",
     "label.DNS.domain.for.guest.networks": "来宾网络的 DNS 域",
-    "label.network.boot.ip": "Network Boot Ip",
+    "label.network.boot.ip": "Network Boot IP",
     "label.ESP.encryption": "ESP 加密算法",
     "label.ESP.hash": "ESP 哈希算法",
     "label.ESP.lifetime": "ESP 使用期限(第二阶段)",

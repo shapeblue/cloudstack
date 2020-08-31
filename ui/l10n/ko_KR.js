@@ -53,7 +53,7 @@ var dictionary = {
     "label.CPU.cap": "CPU 제한",
     "label.DHCP.server.type": "DHCP 서버 종류",
     "label.DNS.domain.for.guest.networks": "손님 네트워크 DNS 도메인",
-    "label.network.boot.ip": "Network Boot Ip",
+    "label.network.boot.ip": "Network Boot IP",
     "label.ESP.encryption": "ESP 암호화",
     "label.ESP.hash": "ESP 해시",
     "label.ESP.lifetime": "ESP 유효기간(초)",

@@ -53,7 +53,7 @@ var dictionary = {
     "label.CPU.cap": "CPU Cap",
     "label.DHCP.server.type": "DHCP Server Type",
     "label.DNS.domain.for.guest.networks": "مجال DNS لشبكات الزائر",
-    "label.network.boot.ip": "Network Boot Ip",
+    "label.network.boot.ip": "Network Boot IP",
     "label.ESP.encryption": "ESP Encryption",
     "label.ESP.hash": "ESP Hash",
     "label.ESP.lifetime": "عمر ESP (ثانية)",

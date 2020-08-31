@@ -82,7 +82,7 @@ public class CreateVPCCmd extends BaseAsyncCreateCmd {
                required = true, description = "the ID of the VPC offering")
     private Long vpcOffering;
 
-    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, required = true, description = "the network boot ip of the VPC.")
+    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, description = "the network boot ip of the VPC.")
     private String networkBootIp;
 
     @Parameter(name = ApiConstants.NETWORK_DOMAIN, type = CommandType.STRING,
