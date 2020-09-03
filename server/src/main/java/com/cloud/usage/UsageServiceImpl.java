@@ -140,13 +140,15 @@ public class UsageServiceImpl extends ManagerBase implements UsageService, Manag
             if (immediateJob == null) {
                 UsageJobVO job = _usageJobDao.getLastJob();
 
-                String host = null;
-                int pid = 0;
-                if (job != null) {
+                if (job == null) {
+                    String host = null;
+                    int pid = 0;
+
                     host = job.getHost();
                     pid = ((job.getPid() == null) ? 0 : job.getPid().intValue());
+
+                    _usageJobDao.createNewJob(host, pid, UsageJobVO.JOB_TYPE_SINGLE);
                 }
-                _usageJobDao.createNewJob(host, pid, UsageJobVO.JOB_TYPE_SINGLE);
             }
         } finally {
             txn.close();
