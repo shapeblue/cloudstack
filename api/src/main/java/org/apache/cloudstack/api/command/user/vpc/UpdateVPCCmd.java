@@ -57,7 +57,7 @@ public class UpdateVPCCmd extends BaseAsyncCustomIdCmd {
     @Parameter(name = ApiConstants.FOR_DISPLAY, type = CommandType.BOOLEAN, description = "an optional field, whether to the display the vpc to the end user or not", since = "4.4", authorized = {RoleType.Admin})
     private Boolean display;
 
-    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, required = true, description = "the network boot ip of the VPC.")
+    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, description = "the network boot ip of the VPC.")
     private String networkBootIp;
 
     /////////////////////////////////////////////////////
