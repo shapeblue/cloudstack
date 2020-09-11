@@ -871,7 +871,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
         final Answer answer = _agentMgr.easySend(hostId, cmd);
 
         if (answer == null || !answer.getResult()) {
-            String errMsg = "Error interacting with host (related to DeleteStoragePoolCommand)" + (StringUtils.isNotBlank(answer.getDetails()) ? ": " + answer.getDetails() : "");
+            String errMsg = "Error interacting with host (related to DeleteStoragePoolCommand)" + (answer != null && StringUtils.isNotBlank(answer.getDetails()) ? ": " + answer.getDetails() : "");
 
             s_logger.error(errMsg);
 
