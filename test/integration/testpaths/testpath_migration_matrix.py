@@ -17,7 +17,8 @@
 """ Test cases for Delta Snapshots Test Path
 """
 import time
-from marvin.lib.base import ServiceOffering, Configurations, VirtualMachine, Account, Volume, DiskOffering, StoragePool
+from marvin.lib.base import ServiceOffering, Configurations, VirtualMachine, Account, Volume, DiskOffering, StoragePool, \
+    Role
 from marvin.lib.utils import cleanup_resources, format_volume_to_ext3
 from nose.plugins.attrib import attr
 from marvin.cloudstackTestCase import cloudstackTestCase
@@ -35,10 +36,8 @@ class TestStorageMigrations(cloudstackTestCase):
     TODO the implementation of the matrix traversal is not implemented yet
     """
 
-    user_dimension = [ "admin" ] # should be [ "admin", "user"]
-    system_dimension = [ "6.7" ] # should be [ "6.5", "6.7"]
-    source_pool_dimension = [ "nfs-67" ]
-    targets_pool_dimension = [ "nfs-65" ]
+    source_pool_dimension = [ "nfs-65", "vsanDatastore-6.5", "ref-trl-1513-v-M7-alex-mattioli-esxi-pri5" ]
+    targets_pool_dimension = [ "nfs-65", "vsanDatastore-6.5", "ref-trl-1513-v-M7-alex-mattioli-esxi-pri5" ]
     # we should use a pool_matrix of
     # [ "NFS", "VMFS5", "VMFS6", "VVOLS", "VSAN", "DSC"] * [ "NFS", "VMFS5", "VMFS6", "VVOLS", "VSAN", "DSC"]
 
@@ -58,17 +57,19 @@ class TestStorageMigrations(cloudstackTestCase):
         cls.mgtSvrDetails = cls.config.__dict__["mgtSvr"][0].__dict__
         cls.skiptest = False
 
-        # for now untill we want to be more generic
+        # for now until we want to be more generic
         if cls.hypervisor.lower() not in ["vmware"]:
             cls.skiptest = True
 
         try:
+            # Get root admin role
+            cls.rootadminrole = Role.list(cls.apiclient)[0]
 
             # Create an account
             cls.account = Account.create(
                 cls.apiclient,
                 cls.testdata["account"],
-                domainid=cls.domain.id
+                roleid=cls.rootadminrole.id
             )
             cls._cleanup.append(cls.account)
 
@@ -141,44 +142,11 @@ class TestStorageMigrations(cloudstackTestCase):
         """
         run the defined tests in a double loop from sources to targets
 
-        TODO set up a multidimensonal dictionary to capture results in
+        TODO set up a multidimensional dictionary to capture results in
 
         :return:
         """
-        for source_name in self.source_pool_dimension:
-            for target_name in self.targets_pool_dimension:
-                if source_name != target_name:
-                    self.test_a_migration(source_name, target_name)
-        return
-
-    def test_a_migration(self, source_name, target_name):
-        """
-        Do a single iteration of the test sequence,
-         creating the volume on the source migrating and then deleting the volume from the target.
-
-        :param source_name: source pool to migrate from
-        :param target_name: target pool to migrate to
-        :return:
-        """
-        # TODO validate pool results
-        source_pool = StoragePool.list(self.apiclient, name=source_name)[0]
-        target_pool = StoragePool.list(self.apiclient, name=target_name)[0]
-        volume = self.setup_source(source_pool)
-        result_to_validate = self.migrate(volume, target_pool)
-        self.validate(volume, migration_result=result_to_validate, target=target_pool)
-        self.remove_volume(volume)
-        return
-
-    def setup_source(self, source):
-        """
-        # create a volume
-        # attach the volume to a running vm to have it on primary
-        # migrate to the source primary
-        # detach the volume
-
-        :param source: the pool to set a volume up on
-        :return: the marvin volume object
-        """
+        print(">>> Creating volume")
         vol = Volume.create(
             self.userapiclient,
             self.testdata["volume"],
@@ -187,56 +155,59 @@ class TestStorageMigrations(cloudstackTestCase):
             account=self.account.name,
             domainid=self.account.domainid,
         )
-
-        print("created volume with id: '{id}' and name: '{name}".format(id=vol.id, name=vol.name))
-
-        # NOTE either self.cleanup.append(vol) at this point or the more localised/explicit remove(vol) in the test method
-        # TODO improve marvin so cleanup doesn't break if an explicit remove had already be done
-
-        # make sure the volume is implemented
+        print(">>> Attach volume to the VM")
         self.vm.attach_volume(self.userapiclient, vol)
+        print(">>> Detach volume from the VM")
         self.vm.detach_volume(self.userapiclient, vol)
 
-        #put it on the origin point of this migration test
-        vol.migrate(self.userapiclient, storageid=source.id)
+        print(">>> Starting migrations")
+        for source_name in self.source_pool_dimension:
+            for target_name in self.targets_pool_dimension:
+                if source_name != target_name:
+                    self.test_a_migration(vol, source_name, target_name)
 
-        return vol
-
-    def remove_volume(self, volume):
-        """
-
-        :param volume: the id of the volume
-        :return:
-        """
-        volume.delete(self.apiclient)
+        print(">>> Delete volume")
+        vol.delete(self.apiclient)
         return
 
-    def migrate(self, volume, target):
+    def test_a_migration(self, volume, source_name, target_name):
         """
-        as the method signature sugests
+        Do a single iteration of the test sequence,
+         moving the volume to the source destination and then testing the actual migration from there to the target
 
-        :param volume: the object to migrate
-        :param target: pool to migrate to
-        :return: None if no target pool found, the result of the migration command otherwise
-        """
-        pools = StoragePool.listForMigration(
-            self.userapiclient,
-            id=volume.id
-        )
-
-        for pool in pools:
-            if pool.name == target.name:
-                return volume.migrate(self.userapiclient, storageid=pool.id)
-        return None
-
-    def validate(self, volume, migration_result, target):
-        """
-
-        :param volume:
-        :param target:
+        :param volume: the volume we want to migrate
+        :param source_name: source pool to migrate from
+        :param target_name: target pool to migrate to
         :return:
         """
-        if migration_result == None:
-            raise Exception("No migration result to verify")
-        print migration_result
+        # TODO validate pool results
+        source_pool = StoragePool.list(self.apiclient, name=source_name)[0]
+        target_pool = StoragePool.list(self.apiclient, name=target_name)[0]
+        voldata = volume.list(self.apiclient, id=volume.id)
+
+        # Move our volume to the source datastore
+        if source_pool.name != voldata[0].storage:
+            try:
+                print(">>> Setup volume migration from %s to source datastore %s" % (voldata[0].storage, source_pool.name))
+                result1 = volume.migrate(self.userapiclient, storageid=source_pool.id, volumeid=volume.id)
+                if source_pool.name == result1.storage:
+                    print("SUCCESS!")
+                else:
+                    print("ERROR: Something went wrong, volume storage is still %s" % volume.storage)
+            except Exception as e:
+                print(">>> ERROR: Setup volume migration to source datastore %s failed with error %s " % (source_pool.name, e))
+                return
+        else:
+            print(">>> Current source datastore is the desired one - no need for setup")
+
+        # Migrate our volume to the target datastore
+        try:
+            print(">>> Migrating volume from %s to %s" % (source_pool.name, target_pool.name))
+            result2 = volume.migrate(self.userapiclient, volumeid=volume.id, storageid=target_pool.id)
+            if target_pool.name == result2.storage:
+                print("SUCCESS!")
+            else:
+                print("ERROR: Something went wrong, volume storage is still %s" % volume.storage)
+        except Exception as e:
+            print(">>> ERROR: Volume migration to target datastore %s failed with error %s " % (target_pool.name, e))
         return
