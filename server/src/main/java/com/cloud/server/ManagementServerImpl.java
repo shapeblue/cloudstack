@@ -1558,7 +1558,6 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         DiskOfferingVO diskOffering = _diskOfferingDao.findById(volume.getDiskOfferingId());
         //This is an override mechanism so we can list the possible local storage pools that a volume in a shared pool might be able to be migrated to
         DiskProfile diskProfile = new DiskProfile(volume, diskOffering, type);
-        diskProfile.setUseLocalStorage(true);
 
         for (StoragePoolAllocator allocator : _storagePoolAllocators) {
             List<StoragePool> pools = allocator.allocateToPool(diskProfile, profile, plan, avoid, StoragePoolAllocator.RETURN_UPTO_ALL);
