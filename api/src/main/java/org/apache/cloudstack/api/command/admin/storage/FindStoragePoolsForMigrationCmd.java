@@ -19,7 +19,10 @@ package org.apache.cloudstack.api.command.admin.storage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandJobType;
@@ -71,6 +74,12 @@ public class FindStoragePoolsForMigrationCmd extends BaseListCmd {
         return ApiCommandJobType.StoragePool;
     }
 
+    private List<? extends StoragePool> removeDuplicateStoragePools(List<? extends StoragePool> allPools) {
+        Set< ? extends StoragePool> set = new HashSet<>(allPools);
+        allPools = set.stream().collect(Collectors.toList());
+        return allPools;
+    }
+
     @Override
     public void execute() {
         Pair<List<? extends StoragePool>, List<? extends StoragePool>> pools = _mgr.listStoragePoolsForMigrationOfVolume(getId());
@@ -78,6 +87,7 @@ public class FindStoragePoolsForMigrationCmd extends BaseListCmd {
         List<StoragePoolResponse> poolResponses = new ArrayList<StoragePoolResponse>();
 
         List<? extends StoragePool> allPools = pools.first();
+        allPools = removeDuplicateStoragePools(allPools);
         List<? extends StoragePool> suitablePoolList = pools.second();
         for (StoragePool pool : allPools) {
             StoragePoolResponse poolResponse = _responseGenerator.createStoragePoolForMigrationResponse(pool);
