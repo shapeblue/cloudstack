@@ -1232,6 +1232,10 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
     private boolean doMaintain(final long hostId) {
         final HostVO host = _hostDao.findById(hostId);
         s_logger.info("Maintenance: attempting maintenance of host " + host.getUuid());
+        if (fetchAvailableHosts(host.getClusterId()) <= 1) {
+            throw new CloudRuntimeException("Host cannot be moved to Maintenance mode as it's the only host available in the cluster");
+        }
+
         ResourceState hostState = host.getResourceState();
         if (!ResourceState.canAttemptMaintenance(hostState)) {
             throw new CloudRuntimeException("Cannot perform maintain when resource state is " + hostState + ", hostId = " + hostId);
@@ -1292,12 +1296,14 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         return doMaintain(hostId);
     }
 
-    private long fetchAvailableHosts(long zoneId) {
-        ResourceState[] states = {ResourceState.Maintenance, ResourceState.PrepareForMaintenance,
-                ResourceState.ErrorInPrepareForMaintenance};
-        long hostsCount = _hostDao.countHostsInValidStates(zoneId, states);
-        return hostsCount;
+    private long fetchAvailableHosts(Long clusterId) {
+        if (clusterId == null) {
+            throw new CloudRuntimeException("Failed to get cluster details of the specified host");
+        }
+        List<HostVO> hosts = _hostDao.findHypervisorHostInCluster(clusterId);
+        return hosts.size();
     }
+
     @Override
     public Host maintain(final PrepareForMaintenanceCmd cmd) {
         final Long hostId = cmd.getId();
@@ -1307,10 +1313,9 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
             s_logger.debug("Unable to find host " + hostId);
             throw new InvalidParameterValueException("Unable to find host with ID: " + hostId + ". Please specify a valid host ID.");
         }
-        final long zoneId = host.getDataCenterId();
 
-        if (fetchAvailableHosts(zoneId) <= 1) {
-            throw new CloudRuntimeException("Host cannot be moved to Maintenance mode as it's the only host available");
+        if (fetchAvailableHosts(host.getClusterId()) <= 1) {
+            throw new CloudRuntimeException("Host cannot be moved to Maintenance mode as it's the only host available in the cluster");
         }
 
         if (!ResourceState.canAttemptMaintenance(host.getResourceState())) {

@@ -130,7 +130,6 @@ public class HostDaoImpl extends GenericDaoBase<HostVO, Long> implements HostDao
     protected GenericSearchBuilder<HostVO, Long> ClustersForHostsNotOwnedByAnyMSSearch;
     protected GenericSearchBuilder<ClusterVO, Long> AllClustersSearch;
     protected SearchBuilder<HostVO> HostsInClusterSearch;
-    protected SearchBuilder<HostVO> ValidHostsSearch;
 
     protected Attribute _statusAttr;
     protected Attribute _resourceStateAttr;
@@ -427,12 +426,6 @@ public class HostDaoImpl extends GenericDaoBase<HostVO, Long> implements HostDao
         HostIdSearch.selectFields(HostIdSearch.entity().getId());
         HostIdSearch.and("dataCenterId", HostIdSearch.entity().getDataCenterId(), Op.EQ);
         HostIdSearch.done();
-
-        ValidHostsSearch = createSearchBuilder();
-        ValidHostsSearch.and("dc", ValidHostsSearch.entity().getDataCenterId(), SearchCriteria.Op.EQ);
-        ValidHostsSearch.and("resourceState", ValidHostsSearch.entity().getResourceState(), Op.NOTIN);
-        ValidHostsSearch.and("type", ValidHostsSearch.entity().getType(), SearchCriteria.Op.EQ);
-        ValidHostsSearch.done();
 
         _statusAttr = _allAttributes.get("status");
         _msIdAttr = _allAttributes.get("managementServerId");
@@ -1287,18 +1280,6 @@ public class HostDaoImpl extends GenericDaoBase<HostVO, Long> implements HostDao
         SearchCriteria<HostVO> sc = NameSearch.create();
         sc.setParameters("name", name);
         return findOneBy(sc);
-    }
-
-    @Override
-    public long countHostsInValidStates(long zoneId, ResourceState... states) {
-        SearchCriteria<HostVO> sc = ValidHostsSearch.create();
-
-        sc.setParameters("resourceState", (Object[])states);
-        sc.setParameters("dc", zoneId);
-        sc.setParameters("type", Type.Routing);
-
-        List<HostVO> hosts = listBy(sc);
-        return hosts.size();
     }
 
     private ResultSet executeSqlGetResultsetForMethodFindHostInZoneToExecuteCommand(HypervisorType hypervisorType, long zoneId, TransactionLegacy tx, String sql) throws SQLException {
