@@ -1292,6 +1292,12 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         return doMaintain(hostId);
     }
 
+    private long fetchAvailableHosts(long zoneId) {
+        ResourceState[] states = {ResourceState.Maintenance, ResourceState.PrepareForMaintenance,
+                ResourceState.ErrorInPrepareForMaintenance};
+        long hostsCount = _hostDao.countHostsInValidStates(zoneId, states);
+        return hostsCount;
+    }
     @Override
     public Host maintain(final PrepareForMaintenanceCmd cmd) {
         final Long hostId = cmd.getId();
@@ -1301,6 +1307,12 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
             s_logger.debug("Unable to find host " + hostId);
             throw new InvalidParameterValueException("Unable to find host with ID: " + hostId + ". Please specify a valid host ID.");
         }
+        final long zoneId = host.getDataCenterId();
+
+        if (fetchAvailableHosts(zoneId) <= 1) {
+            throw new CloudRuntimeException("Host cannot be moved to Maintenance mode as it's the only host available");
+        }
+
         if (!ResourceState.canAttemptMaintenance(host.getResourceState())) {
             throw new CloudRuntimeException("Host is already in state " + host.getResourceState() + ". Cannot recall for maintenance until resolved.");
         }

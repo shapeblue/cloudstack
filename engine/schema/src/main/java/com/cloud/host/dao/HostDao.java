@@ -125,4 +125,6 @@ public interface HostDao extends GenericDao<HostVO, Long>, StateDao<Status, Stat
     List<HostVO> listByClusterAndHypervisorType(long clusterId, HypervisorType hypervisorType);
 
     HostVO findByName(String name);
+
+    long countHostsInValidStates(long zoneId, ResourceState... states);
 }
