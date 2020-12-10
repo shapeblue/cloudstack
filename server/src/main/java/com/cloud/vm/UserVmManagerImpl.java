@@ -2516,13 +2516,18 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
         final Account caller = CallContext.current().getCallingAccount();
         final List<String> userBlacklistedSettings = Stream.of(QueryService.UserVMBlacklistedDetails.value().split(","))
-                .map(item -> (item).trim())
+                .map(String::trim)
                 .collect(Collectors.toList());
+        List<String> readOnlyDetails = Stream.of(QueryService.UserVMReadOnlyUIDetails.value().split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+        userBlacklistedSettings.addAll(readOnlyDetails);
+        List<UserVmDetailVO> userVMDetails = userVmDetailsDao.listDetails(id);
         if (cleanupDetails){
             if (caller != null && caller.getType() == Account.ACCOUNT_TYPE_ADMIN) {
                 userVmDetailsDao.removeDetails(id);
             } else {
-                for (final UserVmDetailVO detail : userVmDetailsDao.listDetails(id)) {
+                for (final UserVmDetailVO detail : userVMDetails) {
                     if (detail != null && !userBlacklistedSettings.contains(detail.getName())) {
                         userVmDetailsDao.removeDetail(id, detail.getName());
                     }
