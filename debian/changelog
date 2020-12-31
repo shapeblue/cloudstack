@@ -1,6 +1,6 @@
-cloudstack (4.15.0.0) unstable; urgency=low
+cloudstack (4.15.0.0-rpi4) unstable; urgency=low
 
-  * Update the version to 4.15.0.0
+  * Update the version to 4.15.0.0-rpi4
 
  -- the Apache CloudStack project <dev@cloudstack.apache.org>  Wed, 23 Dec 2020 16:32:25 +0000
 
