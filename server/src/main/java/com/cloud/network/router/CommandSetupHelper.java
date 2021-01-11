@@ -26,6 +26,9 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import com.cloud.storage.Storage;
+import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.dao.VMTemplateDao;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.pki.PkiManager;
 import org.apache.cloudstack.resourcedetail.dao.RemoteAccessVpnDetailsDao;
@@ -181,7 +184,8 @@ public class CommandSetupHelper {
     private RemoteAccessVpnDetailsDao remoteAccessVpnDetailsDao;
     @Inject
     private RemoteAccessVpnDao remoteAccessVpnDao;
-
+    @Inject
+    private VMTemplateDao _templateDao;
     @Inject
     private RouterControlHelper _routerControlHelper;
 
@@ -245,6 +249,18 @@ public class CommandSetupHelper {
         dhcpCommand.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
         dhcpCommand.setAccessDetail(NetworkElementCommand.ROUTER_GUEST_IP, _routerControlHelper.getRouterIpInNetwork(nic.getNetworkId(), router.getId()));
         dhcpCommand.setAccessDetail(NetworkElementCommand.ZONE_NETWORK_TYPE, dcVo.getNetworkType().toString());
+
+        VMTemplateVO template = _templateDao.findById(vm.getTemplateId());
+        if(template != null && template.getFormat().equals(Storage.ImageFormat.PXEBOOT)) {
+            if (org.apache.commons.lang.StringUtils.isNotBlank(template.getBootFilename())) {
+                dhcpCommand.setBootFilename(template.getBootFilename());
+            }
+
+            final Vpc vpc = _entityMgr.findById(Vpc.class, router.getVpcId());
+            if (org.apache.commons.lang.StringUtils.isNotBlank(vpc.getNetworkBootIp())) {
+                dhcpCommand.setNetworkBootIp(vpc.getNetworkBootIp());
+            }
+        }
 
         cmds.addCommand("dhcp", dhcpCommand);
     }

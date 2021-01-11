@@ -30,6 +30,9 @@ public class VmDhcpConfig extends ConfigBase {
     private String staticRoutes;
     private boolean defaultEntry;
 
+    private String bootFilename;
+    private String networkBootIp;
+
     // Indicate if the entry should be removed when set to true
     private boolean remove;
 
@@ -132,4 +135,19 @@ public class VmDhcpConfig extends ConfigBase {
         this.defaultEntry = defaultEntry;
     }
 
+    public String getBootFilename() {
+        return bootFilename;
+    }
+
+    public void setBootFilename(String bootFilename) {
+        this.bootFilename = bootFilename;
+    }
+
+    public String getNetworkBootIp() {
+        return networkBootIp;
+    }
+
+    public void setNetworkBootIp(String networkBootIp) {
+        this.networkBootIp = networkBootIp;
+    }
 }

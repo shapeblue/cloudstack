@@ -363,6 +363,10 @@ public abstract class TemplateAdapterBase extends AdapterBase implements Templat
             template.setSize(profile.getSize());
         }
 
+        if(profile.getFormat() == ImageFormat.PXEBOOT) {
+            template.setSize(0L);
+        }
+
         if (zoneIdList == null) {
             List<DataCenterVO> dcs = _dcDao.listAll();
 
