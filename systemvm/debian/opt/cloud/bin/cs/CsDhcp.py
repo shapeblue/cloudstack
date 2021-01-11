@@ -17,6 +17,7 @@
 import CsHelper
 import logging
 import os
+import re
 from netaddr import *
 from random import randint
 from CsGuestNetwork import CsGuestNetwork
@@ -27,7 +28,6 @@ LEASES = "/var/lib/misc/dnsmasq.leases"
 DHCP_HOSTS = "/etc/dhcphosts.txt"
 DHCP_OPTS = "/etc/dhcpopts.txt"
 CLOUD_CONF = "/etc/dnsmasq.d/cloud.conf"
-
 
 class CsDhcp(CsDataBag):
     """ Manage dhcp entries """
@@ -163,14 +163,23 @@ class CsDhcp(CsDataBag):
         # lease time boils down to once a month
         # with a splay of 60 hours to prevent storms
         lease = randint(700, 760)
+        
+        tag = entry['ipv4_address'].replace(".", "_")
+        if 'boot_filename' in entry and 'network_boot_ip' in entry:
+            self.cloud.add("%s,%s,%s,%sh,set:pxe_%s" % (entry['mac_address'],
+                                                                 entry['ipv4_address'],
+                                                                 entry['host_name'],
+                                                                 lease,
+                                                                 tag))
+            self.conf.deleteLine("dhcp-boot=tag:pxe_%s" % tag)
+            self.conf.add("dhcp-boot=tag:pxe_%s,%s,,%s" % (tag, entry['boot_filename'], entry['network_boot_ip']))
 
-        if entry['default_entry']:
+        elif entry['default_entry']:
             self.cloud.add("%s,%s,%s,%sh" % (entry['mac_address'],
-                                             entry['ipv4_address'],
-                                             entry['host_name'],
-                                             lease))
+                                                                 entry['ipv4_address'],
+                                                                 entry['host_name'],
+                                                                 lease))
         else:
-            tag = entry['ipv4_address'].replace(".", "_")
             self.cloud.add("%s,set:%s,%s,%s,%sh" % (entry['mac_address'],
                                                     tag,
                                                     entry['ipv4_address'],

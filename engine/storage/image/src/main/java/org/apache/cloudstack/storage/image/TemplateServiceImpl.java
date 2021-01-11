@@ -184,6 +184,10 @@ public class TemplateServiceImpl implements TemplateService {
         // update template_store_ref and template state
         try {
             templateOnStore.processEvent(ObjectInDataStoreStateMachine.Event.CreateOnlyRequested);
+            if(template.getFormat().equals(ImageFormat.PXEBOOT)) {
+                templateOnStore.processEvent(ObjectInDataStoreStateMachine.Event.OperationSuccessed);
+                templateOnStore.setSize(0L);
+            }
         } catch (Exception e) {
             TemplateApiResult result = new TemplateApiResult(templateOnStore);
             result.setResult(e.toString());
@@ -523,7 +527,7 @@ public class TemplateServiceImpl implements TemplateService {
                                 }
                             }
 
-                            if (availHypers.contains(tmplt.getHypervisorType()) && tmplt.getFormat() != ImageFormat.PXEBOOT) {
+                            if (availHypers.contains(tmplt.getHypervisorType())) {
                                 s_logger.info("Downloading template " + tmplt.getUniqueName() + " to image store " + store.getName());
                                 associateTemplateToZone(tmplt.getId(), zoneId);
                                 TemplateInfo tmpl = _templateFactory.getTemplate(tmplt.getId(), store);

@@ -37,6 +37,9 @@ public class DhcpEntryConfigItem extends AbstractConfigItemFacade {
         final VmDhcpConfig vmDhcpConfig = new VmDhcpConfig(command.getVmName(), command.getVmMac(), command.getVmIpAddress(), command.getVmIp6Address(), command.getDuid(), command.getDefaultDns(),
                 command.getDefaultRouter(), command.getStaticRoutes(), command.isDefault(), command.isRemove());
 
+        vmDhcpConfig.setBootFilename(command.getBootFilename());
+        vmDhcpConfig.setNetworkBootIp(command.getNetworkBootIp());
+
         return generateConfigItems(vmDhcpConfig);
     }
 
