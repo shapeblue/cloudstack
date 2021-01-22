@@ -509,7 +509,9 @@ public class VmImportManagerImpl implements VmImportService {
         }
         Set<String> callerDiskIds = dataDiskOfferingMap.keySet();
         if (callerDiskIds.size() != disks.size() - 1) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("VM has total %d disks, %d data disk - disk offering mapping provided. %d needed for import", disks.size(), callerDiskIds.size(), disks.size()-1));
+            String msg = String.format("VM has total %d disks for which %d disk offering mappings provided. %d disks need a disk offering for import", disks.size(), callerDiskIds.size(), disks.size()-1);
+            LOGGER.error(String.format("%s. %s parameter can be used to provide disk offerings for the disks", msg, ApiConstants.DATADISK_OFFERING_LIST));
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, msg);
         }
         List<String> diskIdsWithoutOffering = new ArrayList<>();
         for (UnmanagedInstanceTO.Disk disk : disks) {
@@ -522,7 +524,7 @@ public class VmImportManagerImpl implements VmImportService {
             }
         }
         if (diskIdsWithoutOffering.size() > 1) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("VM has total %d disks, disk offering mapping not provided for %d disks. Disk IDs without an offering - %s", disks.size(), diskIdsWithoutOffering.size()-1, String.join(", ", diskIdsWithoutOffering)));
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("VM has total %d disks, disk offering mapping not provided for %d disks. Disk IDs that may need a disk offering - %s", disks.size(), diskIdsWithoutOffering.size()-1, String.join(", ", diskIdsWithoutOffering)));
         }
         return new Pair<>(rootDisk, dataDisks);
     }
