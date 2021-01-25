@@ -23,6 +23,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import com.cloud.storage.Volume;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataObject;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
@@ -79,7 +80,7 @@ public class VolumeDataFactoryImpl implements VolumeDataFactory {
             return null;
         }
         VolumeObject vol = null;
-        if (volumeVO.getPoolId() == null) {
+        if (volumeVO.getPoolId() == null || volumeVO.getState() == Volume.State.Uploaded) {
             DataStore store = null;
             VolumeDataStoreVO volumeStore = volumeStoreDao.findByVolume(volumeId);
             if (volumeStore != null) {

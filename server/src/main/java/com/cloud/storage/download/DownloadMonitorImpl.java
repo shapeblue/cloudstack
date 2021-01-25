@@ -25,6 +25,7 @@ import java.util.Timer;
 
 import javax.inject.Inject;
 
+import org.apache.cloudstack.engine.subsystem.api.storage.StorageCacheManager;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -81,6 +82,8 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
     private ConfigurationDao _configDao;
     @Inject
     private EndPointSelector _epSelector;
+    @Inject
+    private StorageCacheManager cacheManager;
 
     private String _copyAuthPasswd;
     private String _proxy = null;
@@ -229,6 +232,8 @@ public class DownloadMonitorImpl extends ManagerBase implements DownloadMonitor 
             start();
             Volume vol = _volumeDao.findById(volume.getId());
             DownloadCommand dcmd = new DownloadCommand((VolumeObjectTO)(volume.getTO()), maxVolumeSizeInBytes, checkSum, url, format);
+            DataStore cacheStore = cacheManager.getCacheStorage(store.getScope());
+            dcmd.setCacheStore(cacheStore.getTO());
             dcmd.setProxy(getHttpProxy());
             if (downloadJobExists) {
                 dcmd = new DownloadProgressCommand(dcmd, volumeHost.getJobId(), RequestType.GET_OR_RESTART);
