@@ -169,6 +169,9 @@ public interface IpAddressManager {
     PublicIp assignDedicateIpAddress(Account owner, Long guestNtwkId, Long vpcId, long dcId, boolean isSourceNat)
             throws ConcurrentOperationException, InsufficientAddressCapacityException;
 
+    PublicIp assignDedicateIpAddress(Account owner, Long guestNtwkId, Long vpcId, long dcId, boolean isSourceNat, String ignoreIp)
+            throws ConcurrentOperationException, InsufficientAddressCapacityException;
+
     IpAddress allocateIp(Account ipOwner, boolean isSystem, Account caller, long callerId, DataCenter zone, Boolean displayIp)
             throws ConcurrentOperationException, ResourceAllocationException, InsufficientAddressCapacityException;
 

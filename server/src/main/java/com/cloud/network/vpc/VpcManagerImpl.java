@@ -738,6 +738,33 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     }
 
     @Override
+    @ActionEvent(eventType = EventTypes.EVENT_VPC_SOURCE_NAT_UPDATE, eventDescription = "updating vpc source nat")
+    public boolean updateVpcSourceNAT(final long id) throws InsufficientCapacityException, ResourceUnavailableException {
+        CallContext.current().setEventDetails(" ID: " + id);
+
+        // Verify input parameters
+        final VpcVO vpcToUpdate = _vpcDao.findById(id);
+        if (vpcToUpdate == null) {
+            throw new InvalidParameterValueException("Unable to find vpc " + id);
+        }
+
+        final Account caller = CallContext.current().getCallingAccount();
+        final Account owner = _accountMgr.getAccount(vpcToUpdate.accountId);
+
+        // Verify that caller can perform actions in behalf of vpc owner
+        _accountMgr.checkAccess(caller, null, false, owner);
+
+        IpAddress ipAddress = getExistingSourceNatInVpc(owner.getId(), vpcToUpdate.getId());
+        if(ipAddress == null) {
+            throw new InvalidParameterValueException("Can't find source nat ip for vpc " + id);
+        }
+
+        assignSourceNatIpAddressToVpc(owner, vpcToUpdate, ipAddress.getAddress().addr());
+
+        return restartVpc(vpcToUpdate.getId(), false, false, false);
+    }
+
+    @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_CREATE, eventDescription = "creating vpc", create = true)
     public Vpc createVpc(final long zoneId, final long vpcOffId, final long vpcOwnerId, final String vpcName, final String displayText, final String cidr, String networkDomain,
             final Boolean displayVpc, final String networkBootIp) throws ResourceAllocationException {
@@ -2411,6 +2438,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
     @Override
     public PublicIp assignSourceNatIpAddressToVpc(final Account owner, final Vpc vpc) throws InsufficientAddressCapacityException, ConcurrentOperationException {
+        return assignSourceNatIpAddressToVpc(owner, vpc, null);
+    }
+
+    private PublicIp assignSourceNatIpAddressToVpc(final Account owner, final Vpc vpc, String ignoreIp) throws InsufficientAddressCapacityException, ConcurrentOperationException {
         final long dcId = vpc.getZoneId();
 
         final IPAddressVO sourceNatIp = getExistingSourceNatInVpc(owner.getId(), vpc.getId());

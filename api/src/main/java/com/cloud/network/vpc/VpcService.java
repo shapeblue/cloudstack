@@ -257,4 +257,11 @@ public interface VpcService {
      */
     public boolean applyStaticRoute(long routeId) throws ResourceUnavailableException;
 
+    /**
+     *
+     * @param vpcId
+     * @return
+     * @throws InsufficientAddressCapacityException
+     */
+    boolean updateVpcSourceNAT(final long vpcId) throws InsufficientCapacityException, ResourceUnavailableException;
 }
