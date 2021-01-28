@@ -27,6 +27,7 @@ log_it() {
 CMDLINE=/var/cache/cloud/cmdline
 export TYPE=$(grep -Po 'type=\K[a-zA-Z]*' $CMDLINE)
 if [ "$TYPE" != "cksnode" ]; then
+  apt-get purge -y cloud-init docker-ce docker-ce-cli containerd && apt-get autoremove
   eject || true
 fi
 
