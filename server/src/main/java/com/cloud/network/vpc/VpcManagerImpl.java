@@ -759,6 +759,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
             throw new InvalidParameterValueException("Can't find source nat ip for vpc " + id);
         }
 
+        _ipAddrMgr.disassociatePublicIpAddress(ipAddress.getId(), CallContext.current().getCallingUserId(), owner);
         assignSourceNatIpAddressToVpc(owner, vpcToUpdate, ipAddress.getAddress().addr());
 
         return restartVpc(vpcToUpdate.getId(), false, false, false);
