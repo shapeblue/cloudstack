@@ -114,6 +114,7 @@ import com.cloud.agent.api.DeleteStoragePoolCommand;
 import com.cloud.agent.api.StoragePoolInfo;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
+import com.cloud.agent.api.ModifyStoragePoolCommand;
 import com.cloud.agent.manager.Commands;
 import com.cloud.api.ApiDBUtils;
 import com.cloud.api.query.dao.TemplateJoinDao;
@@ -303,7 +304,11 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
     @Inject
     SnapshotService _snapshotService;
     @Inject
+    public StorageService storageService;
+    @Inject
     StoragePoolTagsDao _storagePoolTagsDao;
+    @Inject
+    PrimaryDataStoreDao primaryStoreDao;
     @Inject
     DiskOfferingDetailsDao _diskOfferingDetailsDao;
     @Inject
@@ -2329,6 +2334,17 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
         imageStoreVO.setReadonly(readonly);
         _imageStoreDao.update(id, imageStoreVO);
         return imageStoreVO;
+    }
+
+    @Override
+    public void syncHardwareCapability(long poolId) {
+        StoragePoolVO pool = _storagePoolDao.findById(poolId);
+        // find the host
+        List<StoragePoolHostVO> hosts = _storagePoolHostDao.listByPoolId(poolId);
+        if (hosts.size() > 0) {
+            StoragePoolHostVO host = hosts.get(0);
+            _agentMgr.easySend(host.getHostId(), new ModifyStoragePoolCommand(false, pool));
+        }
     }
 
     private void duplicateCacheStoreRecordsToRegionStore(long storeId) {

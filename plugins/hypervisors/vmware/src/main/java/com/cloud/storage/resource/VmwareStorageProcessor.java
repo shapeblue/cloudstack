@@ -38,7 +38,6 @@ import com.cloud.hypervisor.vmware.mo.VirtualStorageObjectManagerMO;
 import com.cloud.hypervisor.vmware.mo.VirtualMachineDiskInfoBuilder;
 import com.vmware.vim25.BaseConfigInfoDiskFileBackingInfo;
 import com.vmware.vim25.VStorageObject;
-import com.vmware.vim25.VirtualDiskType;
 import org.apache.cloudstack.agent.directdownload.DirectDownloadCommand;
 import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
@@ -93,6 +92,7 @@ import com.cloud.serializer.GsonHelper;
 import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.JavaStorageLayer;
 import com.cloud.storage.Storage.ImageFormat;
+import com.cloud.storage.Storage.ProvisioningType;
 import com.cloud.storage.StorageLayer;
 import com.cloud.storage.Volume;
 import com.cloud.storage.template.OVAProcessor;
@@ -773,10 +773,10 @@ public class VmwareStorageProcessor implements StorageProcessor {
     }
 
     private boolean createVMFullClone(VirtualMachineMO vmTemplate, DatacenterMO dcMo, DatastoreMO dsMo, String vmdkName, ManagedObjectReference morDatastore,
-                                      ManagedObjectReference morPool) throws Exception {
+                                      ManagedObjectReference morPool, ProvisioningType diskProvisioningType) throws Exception {
         s_logger.info("creating full clone from template");
 
-        if (!vmTemplate.createFullClone(vmdkName, dcMo.getVmFolder(), morPool, morDatastore)) {
+        if (!vmTemplate.createFullClone(vmdkName, dcMo.getVmFolder(), morPool, morDatastore, diskProvisioningType)) {
             String msg = "Unable to create full clone from the template";
 
             s_logger.error(msg);
@@ -864,7 +864,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                     if (dsMo.getDatastoreType().equalsIgnoreCase("VVOL")) {
                         vmdkFileBaseName = cloneVMforVvols(context, hyperHost, template, vmTemplate, volume, dcMo, dsMo);
                     } else {
-                        vmdkFileBaseName = createVMFolderWithVMName(context, hyperHost, template, vmTemplate, volume, dcMo, dsMo, searchExcludedFolders);
+                        vmdkFileBaseName = createVMAndFolderWithVMName(context, hyperHost, template, vmTemplate, volume, dcMo, dsMo, searchExcludedFolders);
                     }
                 }
                 // restoreVM - move the new ROOT disk into corresponding VM folder
@@ -915,7 +915,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
         if (!_fullCloneFlag) {
             createVMLinkedClone(vmTemplate, dcMo, vmName, morDatastore, morPool);
         } else {
-            createVMFullClone(vmTemplate, dcMo, dsMo, vmName, morDatastore, morPool);
+            createVMFullClone(vmTemplate, dcMo, dsMo, vmName, morDatastore, morPool, null);
         }
 
         VirtualMachineMO vmMo = new ClusterMO(context, morCluster).findVmOnHyperHost(vmName);
@@ -929,21 +929,21 @@ public class VmwareStorageProcessor implements StorageProcessor {
         return vmdkFileBaseName;
     }
 
-    private String createVMFolderWithVMName(VmwareContext context, VmwareHypervisorHost hyperHost, TemplateObjectTO template,
-                                            VirtualMachineMO vmTemplate, VolumeObjectTO volume, DatacenterMO dcMo, DatastoreMO dsMo,
-                                            String searchExcludedFolders) throws Exception {
+    private String createVMAndFolderWithVMName(VmwareContext context, VmwareHypervisorHost hyperHost, TemplateObjectTO template,
+                                               VirtualMachineMO vmTemplate, VolumeObjectTO volume, DatacenterMO dcMo, DatastoreMO dsMo,
+                                               String searchExcludedFolders) throws Exception {
         String vmdkName = volume.getName();
         try {
             ManagedObjectReference morDatastore = dsMo.getMor();
             ManagedObjectReference morPool = hyperHost.getHyperHostOwnerResourcePool();
             ManagedObjectReference morCluster = hyperHost.getHyperHostCluster();
-            if (template.getSize() != null){
+            if (template.getSize() != null) {
                 _fullCloneFlag = volume.getSize() > template.getSize() ? true : _fullCloneFlag;
             }
             if (!_fullCloneFlag) {
                 createVMLinkedClone(vmTemplate, dcMo, vmdkName, morDatastore, morPool);
             } else {
-                createVMFullClone(vmTemplate, dcMo, dsMo, vmdkName, morDatastore, morPool);
+                createVMFullClone(vmTemplate, dcMo, dsMo, vmdkName, morDatastore, morPool, volume.getProvisioningType());
             }
 
             VirtualMachineMO vmMo = new ClusterMO(context, morCluster).findVmOnHyperHost(vmdkName);
@@ -954,7 +954,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             String[] vmwareLayoutFilePair = VmwareStorageLayoutHelper.getVmdkFilePairDatastorePath(dsMo, vmdkName, vmdkFileBaseName, VmwareStorageLayoutType.VMWARE, !_fullCloneFlag);
             String[] legacyCloudStackLayoutFilePair = VmwareStorageLayoutHelper.getVmdkFilePairDatastorePath(dsMo, vmdkName, vmdkFileBaseName, VmwareStorageLayoutType.CLOUDSTACK_LEGACY, !_fullCloneFlag);
 
-            for (int i=0; i<vmwareLayoutFilePair.length; i++) {
+            for (int i = 0; i < vmwareLayoutFilePair.length; i++) {
                 dsMo.moveDatastoreFile(vmwareLayoutFilePair[i], dcMo.getMor(), dsMo.getMor(), legacyCloudStackLayoutFilePair[i], dcMo.getMor(), true);
             }
 
@@ -999,7 +999,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
         if (!_fullCloneFlag) {
             createVMLinkedClone(vmMo, dcMo, cloneName, morDatastore, morPool);
         } else {
-            createVMFullClone(vmMo, dcMo, dsMo, cloneName, morDatastore, morPool);
+            createVMFullClone(vmMo, dcMo, dsMo, cloneName, morDatastore, morPool, null);
         }
     }
 
@@ -2532,7 +2532,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
             try {
                 VirtualStorageObjectManagerMO vStorageObjectManagerMO = new VirtualStorageObjectManagerMO(context);
-                VStorageObject virtualDisk = vStorageObjectManagerMO.createDisk(morDatastore, VirtualDiskType.THIN, volume.getSize(), volumeDatastorePath, volumeUuid);
+                VStorageObject virtualDisk = vStorageObjectManagerMO.createDisk(morDatastore, volume.getProvisioningType(), volume.getSize(), volumeDatastorePath, volumeUuid);
                 DatastoreFile file = new DatastoreFile(((BaseConfigInfoDiskFileBackingInfo)virtualDisk.getConfig().getBacking()).getFilePath());
                 newVol.setPath(file.getFileBaseName());
                 newVol.setSize(volume.getSize());
@@ -3950,7 +3950,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             if (!_fullCloneFlag) {
                 createVMLinkedClone(templateMo, dcMo, cloneName, morDatastore, morPool);
             } else {
-                createVMFullClone(templateMo, dcMo, dsMo, cloneName, morDatastore, morPool);
+                createVMFullClone(templateMo, dcMo, dsMo, cloneName, morDatastore, morPool, null);
             }
             VirtualMachineMO vm = dcMo.findVm(cloneName);
             if (vm == null) {

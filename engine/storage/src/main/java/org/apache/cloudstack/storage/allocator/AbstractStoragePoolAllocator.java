@@ -28,6 +28,8 @@ import javax.naming.ConfigurationException;
 
 import com.cloud.exception.StorageUnavailableException;
 import com.cloud.storage.StoragePoolStatus;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailVO;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.log4j.Logger;
 
@@ -61,6 +63,7 @@ public abstract class AbstractStoragePoolAllocator extends AdapterBase implement
     protected BigDecimal storageOverprovisioningFactor = new BigDecimal(1);
     protected String allocationAlgorithm = "random";
     protected long extraBytesPerVolume = 0;
+    protected boolean diskProvisioningTypeStrictness = false;
     @Inject protected DataStoreManager dataStoreMgr;
     @Inject protected PrimaryDataStoreDao storagePoolDao;
     @Inject protected VolumeDao volumeDao;
@@ -69,6 +72,7 @@ public abstract class AbstractStoragePoolAllocator extends AdapterBase implement
     @Inject private ClusterDao clusterDao;
     @Inject private StorageManager storageMgr;
     @Inject private StorageUtil storageUtil;
+    @Inject private StoragePoolDetailsDao storagePoolDetailsDao;
 
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
@@ -81,6 +85,10 @@ public abstract class AbstractStoragePoolAllocator extends AdapterBase implement
             String allocationAlgorithm = configs.get("vm.allocation.algorithm");
             if (allocationAlgorithm != null) {
                 this.allocationAlgorithm = allocationAlgorithm;
+            }
+            String strictness = configs.get("disk.provisioning.type.strictness");
+            if (strictness != null) {
+                diskProvisioningTypeStrictness = strictness.equals("true");
             }
             return true;
         }
@@ -205,6 +213,13 @@ public abstract class AbstractStoragePoolAllocator extends AdapterBase implement
                 s_logger.debug("StoragePool does not have required hypervisorType, skipping this pool");
             }
             return false;
+        }
+
+        if (diskProvisioningTypeStrictness){
+            StoragePoolDetailVO hardwareAcceleration = storagePoolDetailsDao.findDetail(pool.getId(), "hardwareAccelerationSupported");
+            if (!dskCh.getProvisioningType().equals("thin") && hardwareAcceleration == null || !hardwareAcceleration.getValue().equals("true")){
+                return false;
+            }
         }
 
         if(!checkHypervisorCompatibility(dskCh.getHypervisorType(), dskCh.getType(), pool.getPoolType())){

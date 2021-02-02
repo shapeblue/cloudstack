@@ -632,6 +632,9 @@ class VirtualMachine:
         if rootdiskcontroller:
             cmd.details[0]["rootDiskController"] = rootdiskcontroller
 
+        if "size" in services:
+            cmd.size = services["size"]
+
         if group:
             cmd.group = group
 
@@ -2293,6 +2296,9 @@ class ServiceOffering:
 
         if "offerha" in services:
             cmd.offerha = services["offerha"]
+
+        if "provisioningtype" in services:
+            cmd.provisioningtype = services["provisioningtype"]
 
         # Service Offering private to that domain
         if domainid:

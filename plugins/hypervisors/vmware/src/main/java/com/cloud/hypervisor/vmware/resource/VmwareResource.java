@@ -284,6 +284,8 @@ import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.GuestInfo;
 import com.vmware.vim25.GuestNicInfo;
 import com.vmware.vim25.HostCapability;
+import com.vmware.vim25.HostConfigInfo;
+import com.vmware.vim25.HostFileSystemMountInfo;
 import com.vmware.vim25.HostHostBusAdapter;
 import com.vmware.vim25.HostInternetScsiHba;
 import com.vmware.vim25.HostPortGroupSpec;
@@ -5244,6 +5246,16 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 answer.setLocalDatastoreName(morDatastore.getValue());
             }
 
+            HostMO host = (HostMO) hyperHost;
+            boolean hardwareAccelerationSupportForDataStore = getHardwareAcceleationSupportForDataStore(host.getMor(), dsMo.getName());
+            StoragePoolInfo poolInfo = answer.getPoolInfo();
+            Map<String, String> poolDetails = poolInfo.getDetails();
+            if (poolDetails == null) {
+                poolDetails = new HashMap<>();
+            }
+            poolDetails.put("hardwareAccelerationSupported", String.valueOf(hardwareAccelerationSupportForDataStore));
+            poolInfo.setDetails(poolDetails);
+
             return answer;
         } catch (Throwable e) {
             if (e instanceof RemoteException) {
@@ -5258,6 +5270,17 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
             return new Answer(cmd, false, msg);
         }
+    }
+
+    private boolean getHardwareAcceleationSupportForDataStore(ManagedObjectReference host, String dataStoreName) throws Exception {
+        HostConfigInfo config = getServiceContext().getVimClient().getDynamicProperty(host, "config");
+        List<HostFileSystemMountInfo> mountInfoList = config.getFileSystemVolume().getMountInfo();
+        for (HostFileSystemMountInfo hostFileSystemMountInfo: mountInfoList) {
+            if ( hostFileSystemMountInfo.getVolume().getName().equals(dataStoreName) ) {
+                return hostFileSystemMountInfo.getVStorageSupport().equals("vStorageSupported");
+            }
+        }
+        return false;
     }
 
     private void handleTargets(boolean add, ModifyTargetsCommand.TargetTypeToRemove targetTypeToRemove, boolean isRemoveAsync,

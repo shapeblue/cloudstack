@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import com.cloud.storage.Storage;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -770,7 +771,7 @@ public class VirtualMachineMO extends BaseMO {
         return false;
     }
 
-    public boolean createFullClone(String cloneName, ManagedObjectReference morFolder, ManagedObjectReference morResourcePool, ManagedObjectReference morDs)
+    public boolean createFullClone(String cloneName, ManagedObjectReference morFolder, ManagedObjectReference morResourcePool, ManagedObjectReference morDs, Storage.ProvisioningType diskProvisioningType)
             throws Exception {
 
         VirtualMachineCloneSpec cloneSpec = new VirtualMachineCloneSpec();
@@ -781,6 +782,9 @@ public class VirtualMachineMO extends BaseMO {
 
         relocSpec.setDatastore(morDs);
         relocSpec.setPool(morResourcePool);
+
+        setDiskProvsioningType(relocSpec, morDs, diskProvisioningType);
+
         ManagedObjectReference morTask = _context.getService().cloneVMTask(_mor, morFolder, cloneName, cloneSpec);
 
         boolean result = _context.getVimClient().waitForTask(morTask);
@@ -792,6 +796,33 @@ public class VirtualMachineMO extends BaseMO {
         }
 
         return false;
+    }
+
+    private void setDiskProvsioningType(VirtualMachineRelocateSpec relocSpec, ManagedObjectReference morDs,
+                                        Storage.ProvisioningType diskProvisioningType) throws Exception {
+        if (diskProvisioningType == null){
+            return;
+        }
+        List<VirtualMachineRelocateSpecDiskLocator> relocateDisks = relocSpec.getDisk();
+        List<VirtualDisk> disks = this.getVirtualDisks();
+        for (VirtualDisk disk: disks){
+            VirtualDiskFlatVer2BackingInfo backing = (VirtualDiskFlatVer2BackingInfo) disk.getBacking();
+            if (diskProvisioningType == Storage.ProvisioningType.FAT) {
+                backing.setThinProvisioned(false);
+                backing.setEagerlyScrub(true);
+            } else if (diskProvisioningType == Storage.ProvisioningType.THIN) {
+                backing.setThinProvisioned(true);
+            } else if (diskProvisioningType == Storage.ProvisioningType.SPARSE) {
+                backing.setThinProvisioned(false);
+                backing.setEagerlyScrub(false);
+            }
+
+            VirtualMachineRelocateSpecDiskLocator diskLocator = new VirtualMachineRelocateSpecDiskLocator();
+            diskLocator.setDiskId(disk.getKey());
+            diskLocator.setDiskBackingInfo(backing);
+            diskLocator.setDatastore(morDs);
+            relocateDisks.add(diskLocator);
+        }
     }
 
     public boolean createLinkedClone(String cloneName, ManagedObjectReference morBaseSnapshot, ManagedObjectReference morFolder, ManagedObjectReference morResourcePool,
