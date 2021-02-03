@@ -46,6 +46,7 @@ dirname_to_dirname = {
 
 
 known_categories = {
+    'fizz': 'fizz',
     'Cisco' : 'External Device',
     'SystemVm': 'System VM',
     'VirtualMachine': 'Virtual Machine',
