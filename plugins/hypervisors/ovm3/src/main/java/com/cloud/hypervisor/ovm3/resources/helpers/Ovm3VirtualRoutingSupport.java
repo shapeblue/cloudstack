@@ -147,6 +147,9 @@ public class Ovm3VirtualRoutingSupport {
             if (result == null || result.isEmpty()) {
                 LOGGER.error(" vpc network usage get returns empty ");
             }
+            if (result.contains(",")) {
+                result = result.split(",")[0];
+            }
             long[] stats = new long[2];
             if (result != null) {
                 String[] splitResult = result.split(":");
