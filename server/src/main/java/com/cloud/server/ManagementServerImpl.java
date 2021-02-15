@@ -1499,7 +1499,9 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         }
 
         StoragePool srcVolumePool = _poolDao.findById(volume.getPoolId());
-        allPools = getAllStoragePoolCompatileWithVolumeSourceStoragePool(srcVolumePool);
+        allPools = getAllStoragePoolCompatibleWithVolumeSourceStoragePool(srcVolumePool,
+                ApiDBUtils.getHypervisorTypeFromFormat(volume.getDataCenterId(), volume.getFormat()),
+                vm);
         allPools.remove(srcVolumePool);
         if (vm != null) {
             suitablePools = findAllSuitableStoragePoolsForVm(volume, vm, srcVolumePool);
@@ -1538,15 +1540,35 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
      *  <li>We also all storage available filtering by data center, pod and cluster as the current storage pool used by the given volume.</li>
      * </ul>
      */
-    private List<? extends StoragePool> getAllStoragePoolCompatileWithVolumeSourceStoragePool(StoragePool srcVolumePool) {
+    private List<? extends StoragePool> getAllStoragePoolCompatibleWithVolumeSourceStoragePool(StoragePool srcVolumePool, HypervisorType hypervisorType, VirtualMachine vm) {
         List<StoragePoolVO> storagePools = new ArrayList<>();
-        List<StoragePoolVO> zoneWideStoragePools = _poolDao.findZoneWideStoragePoolsByTags(srcVolumePool.getDataCenterId(), null);
+        List<StoragePoolVO> zoneWideStoragePools = _poolDao.findZoneWideStoragePoolsByHypervisor(srcVolumePool.getDataCenterId(), hypervisorType);
         if (CollectionUtils.isNotEmpty(zoneWideStoragePools)) {
             storagePools.addAll(zoneWideStoragePools);
         }
-        List<StoragePoolVO> clusterAndLocalStoragePools = _poolDao.listBy(srcVolumePool.getDataCenterId(), srcVolumePool.getPodId(), srcVolumePool.getClusterId(), null);
-        if (CollectionUtils.isNotEmpty(clusterAndLocalStoragePools)) {
-            storagePools.addAll(clusterAndLocalStoragePools);
+        List<Long> clusterIds = new ArrayList<>();
+        Long clusterId = srcVolumePool.getClusterId();
+        if (clusterId == null && vm != null && vm.getHostId() != null) {
+            Long hostId = vm.getHostId();
+            if (hostId == null) {
+                hostId = vm.getLastHostId();
+            }
+            HostVO host = _hostDao.findById(hostId);
+            clusterId = host.getClusterId();
+        }
+        if (clusterId == null) {
+            List<ClusterVO> clusters = _clusterDao.listByDcHyType(srcVolumePool.getDataCenterId(), hypervisorType.toString());
+            for (ClusterVO cluster : clusters) {
+                clusterIds.add(cluster.getId());
+            }
+        } else {
+            clusterIds.add(clusterId);
+        }
+        if (CollectionUtils.isNotEmpty(clusterIds)) {
+            List<StoragePoolVO> clusterAndLocalStoragePools = _poolDao.findPoolsInClusters(clusterIds);
+            if (CollectionUtils.isNotEmpty(clusterAndLocalStoragePools)) {
+                storagePools.addAll(clusterAndLocalStoragePools);
+            }
         }
         return storagePools;
     }

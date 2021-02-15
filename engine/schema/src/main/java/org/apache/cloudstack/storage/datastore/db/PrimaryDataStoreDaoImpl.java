@@ -568,4 +568,13 @@ public class PrimaryDataStoreDaoImpl extends GenericDaoBase<StoragePoolVO, Long>
         sc.addAnd("removed", SearchCriteria.Op.NULL);
         return getCount(sc);
     }
+
+    @Override
+    public List<StoragePoolVO> findPoolsInClusters(List<Long> clusterIds) {
+        SearchCriteria<StoragePoolVO> sc = createSearchCriteria();
+        sc.addAnd("cluster_id", Op.IN, clusterIds.toArray());
+        sc.addAnd("status", Op.EQ, StoragePoolStatus.Up);
+        sc.addAnd("removed", SearchCriteria.Op.NULL);
+        return listBy(sc);
+    }
 }
