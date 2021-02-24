@@ -785,7 +785,7 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
                 }
             }
 
-            String filePath = downloadPath + File.separator + ((VolumeObjectTO)destData).getName();
+            String filePath = downloadPath + File.separator + destData.getName();
             File destFile = new File(filePath);
             if (!destFile.exists()) {
                 destFile = SwiftUtil.getObject(swiftTO, downloadDirectory, srcData.getPath());
