@@ -63,7 +63,7 @@ remove_usage_rules () {
 get_usage () {
   all_traffic=$(iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep -v whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null)
   whitelist=$(iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "-%s:", $2}'; > /dev/null)
-  echo $all_traffic$whitelist
+  echo "${all_traffic}${whitelist},"
   return 0
 }
 
