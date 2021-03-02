@@ -35,6 +35,7 @@ import org.apache.cloudstack.api.response.ResourceTagResponse;
 import org.apache.cloudstack.api.response.UsageRecordResponse;
 import org.apache.cloudstack.usage.Usage;
 
+import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.utils.Pair;
 
 @APICommand(name = ListUsageRecordsCmd.APINAME,
@@ -84,6 +85,12 @@ public class ListUsageRecordsCmd extends BaseListCmd {
 
     @Parameter(name = ApiConstants.OLD_FORMAT, type = CommandType.BOOLEAN, description = "Flag to enable description rendered in old format which uses internal database IDs instead of UUIDs. False by default.")
     private Boolean oldFormat;
+
+    @Parameter(name = ApiConstants.IS_RECURSIVE,
+            type = CommandType.BOOLEAN,
+            since = "4.15.1",
+            description = "List usage records for all subdomains when " + ApiConstants.DOMAIN_ID +" is used. Default value is false.")
+    private Boolean recursive;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -151,6 +158,16 @@ public class ListUsageRecordsCmd extends BaseListCmd {
 
     public boolean getOldFormat() {
         return oldFormat != null && oldFormat;
+    }
+
+    public boolean isRecursive() {
+        if (recursive != null && recursive) {
+            if (domainId == null) {
+                throw new InvalidParameterValueException(String.format("%s must be used with %s", ApiConstants.IS_RECURSIVE, ApiConstants.DOMAIN_ID));
+            }
+            return true;
+        }
+        return false;
     }
 
     /////////////////////////////////////////////////////

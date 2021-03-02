@@ -26,6 +26,7 @@ import java.util.TimeZone;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.usage.GenerateUsageRecordsCmd;
 import org.apache.cloudstack.api.command.admin.usage.ListUsageRecordsCmd;
 import org.apache.cloudstack.api.command.admin.usage.RemoveRawUsageRecordsCmd;
@@ -39,6 +40,7 @@ import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import com.cloud.configuration.Config;
+import com.cloud.domain.Domain;
 import com.cloud.domain.DomainVO;
 import com.cloud.domain.dao.DomainDao;
 import com.cloud.exception.InvalidParameterValueException;
@@ -165,11 +167,14 @@ public class UsageServiceImpl extends ManagerBase implements UsageService, Manag
         Long accountId = cmd.getAccountId();
         Long domainId = cmd.getDomainId();
         String accountName = cmd.getAccountName();
-        Account userAccount = null;
         Account caller = CallContext.current().getCallingAccount();
         Long usageType = cmd.getUsageType();
         Long projectId = cmd.getProjectId();
         String usageId = cmd.getUsageId();
+        boolean isRecursive = cmd.isRecursive();
+        boolean isAdmin = _accountService.isRootAdmin(caller.getId());
+        boolean isDomainAdmin = !isAdmin && _accountService.isDomainAdmin(caller.getId());
+        boolean isNormalUser = !isAdmin && !isDomainAdmin && _accountService.isNormalUser(caller.getId());
 
         if (projectId != null) {
             if (accountId != null) {
@@ -182,37 +187,42 @@ public class UsageServiceImpl extends ManagerBase implements UsageService, Manag
             accountId = project.getProjectAccountId();
         }
 
-        //if accountId is not specified, use accountName and domainId
-        if ((accountId == null) && (accountName != null) && (domainId != null)) {
-            if (_domainDao.isChildDomain(caller.getDomainId(), domainId)) {
-                Filter filter = new Filter(AccountVO.class, "id", Boolean.FALSE, null, null);
-                List<AccountVO> accounts = _accountDao.listAccounts(accountName, domainId, filter);
-                if (accounts.size() > 0) {
-                    userAccount = accounts.get(0);
-                }
-                if (userAccount != null) {
-                    accountId = userAccount.getId();
-                } else {
-                    throw new InvalidParameterValueException("Unable to find account " + accountName + " in domain " + domainId);
-                }
-            } else {
-                throw new PermissionDeniedException("Invalid Domain Id or Account");
+        if (accountId != null) {
+            if (isDomainAdmin) {
+                Domain domain = _domainDao.findById(_accountDao.findById(accountId).getDomainId());
+                _accountService.checkAccess(caller, domain);
+            }
+            if (isNormalUser) {
+                throw new PermissionDeniedException(String.format("Invalid parameter %s", ApiConstants.ACCOUNT_ID));
+            }
+        }
+        if (accountName != null && isNormalUser) {
+            throw new PermissionDeniedException(String.format("Invalid parameter %s", ApiConstants.ACCOUNT));
+        }
+        if (domainId != null) {
+            if (isDomainAdmin && !_domainDao.isChildDomain(caller.getDomainId(), domainId)) {
+                throw new PermissionDeniedException("Invalid Domain");
+            }
+            if (isNormalUser) {
+                throw new PermissionDeniedException(String.format("Invalid parameter %s", ApiConstants.DOMAIN_ID));
             }
         }
 
-        boolean isAdmin = false;
-        boolean isDomainAdmin = false;
-
-        //If accountId couldn't be found using accountName and domainId, get it from userContext
-        if (accountId == null) {
-            accountId = caller.getId();
-            //List records for all the accounts if the caller account is of type admin.
-            //If account_id or account_name is explicitly mentioned, list records for the specified account only even if the caller is of type admin
-            if (_accountService.isRootAdmin(caller.getId())) {
-                isAdmin = true;
-            } else if (_accountService.isDomainAdmin(caller.getId())) {
-                isDomainAdmin = true;
+        // If accountId is not specified, use accountName and domainId
+        if (accountId == null && accountName != null && domainId != null && (isAdmin || isDomainAdmin)) {
+            Filter filter = new Filter(AccountVO.class, "id", Boolean.FALSE, null, null);
+            List<AccountVO> accounts = _accountDao.listAccounts(accountName, domainId, filter);
+            Account userAccount = accounts.size() > 0 ? accounts.get(0) : null;
+            if (userAccount != null) {
+                accountId = userAccount.getId();
+            } else {
+                throw new InvalidParameterValueException("Unable to find account " + accountName + " in domain " + domainId);
             }
+        }
+
+        // If accountId still couldn't be found get it from userContext for normal users
+        if (accountId == null && isNormalUser) {
+            accountId = caller.getId();
             s_logger.debug("Account details not available. Using userContext accountId: " + accountId);
         }
 
@@ -234,22 +244,27 @@ public class UsageServiceImpl extends ManagerBase implements UsageService, Manag
 
         SearchCriteria<UsageVO> sc = _usageDao.createSearchCriteria();
 
-        if (accountId != -1 && accountId != Account.ACCOUNT_ID_SYSTEM && !isAdmin && !isDomainAdmin) {
+        if (accountId != null && accountId != -1 && accountId != Account.ACCOUNT_ID_SYSTEM) {
             sc.addAnd("accountId", SearchCriteria.Op.EQ, accountId);
         }
 
-        if (isDomainAdmin) {
-            SearchCriteria<DomainVO> sdc = _domainDao.createSearchCriteria();
-            sdc.addOr("path", SearchCriteria.Op.LIKE, _domainDao.findById(caller.getDomainId()).getPath() + "%");
-            List<DomainVO> domains = _domainDao.search(sdc, null);
-            List<Long> domainIds = new ArrayList<Long>();
-            for (DomainVO domain : domains)
-                domainIds.add(domain.getId());
-            sc.addAnd("domainId", SearchCriteria.Op.IN, domainIds.toArray());
+        if (isDomainAdmin && domainId == null) {
+            domainId = caller.getDomainId();
+            isRecursive = true;
         }
 
         if (domainId != null) {
-            sc.addAnd("domainId", SearchCriteria.Op.EQ, domainId);
+            if (isRecursive) {
+                List<Long> domainIds = new ArrayList<>();
+                domainIds.add(domainId);
+                List<DomainVO> domains = _domainDao.findAllChildren(_domainDao.findById(domainId).getPath(), domainId);
+                for (DomainVO domain : domains) {
+                    domainIds.add(domain.getId());
+                }
+                sc.addAnd("domainId", SearchCriteria.Op.IN, domainIds.toArray());
+            } else {
+                sc.addAnd("domainId", SearchCriteria.Op.EQ, domainId);
+            }
         }
 
         if (usageType != null) {
