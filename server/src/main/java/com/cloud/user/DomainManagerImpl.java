@@ -553,7 +553,7 @@ public class DomainManagerImpl extends ManagerBase implements DomainManager, Dom
         ReservationContext context = new ReservationContextImpl(null, null, _accountMgr.getActiveUser(ctx.getCallingUserId()), ctx.getCallingAccount());
         for (Long networkId : networkIds) {
             s_logger.debug("Deleting network id=" + networkId + " as a part of domain id=" + domainId + " cleanup");
-            if (!_networkMgr.destroyNetwork(networkId, context, false)) {
+            if (!_networkMgr.destroyNetwork(networkId, context, false).first()) {
                 s_logger.warn("Unable to destroy network id=" + networkId + " as a part of domain id=" + domainId + " cleanup.");
                 networksDeleted = false;
             } else {

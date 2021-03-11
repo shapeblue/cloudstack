@@ -70,7 +70,7 @@ public interface NetworkService {
 
     Pair<List<? extends Network>, Integer> searchForNetworks(ListNetworksCmd cmd);
 
-    boolean deleteNetwork(long networkId, boolean forced);
+    Pair<Boolean, String> deleteNetwork(long networkId, boolean forced);
 
     boolean restartNetwork(Long networkId, boolean cleanup, boolean makeRedundant, User user) throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException;
 

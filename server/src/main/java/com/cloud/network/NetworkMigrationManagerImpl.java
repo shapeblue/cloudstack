@@ -497,7 +497,7 @@ public class NetworkMigrationManagerImpl implements NetworkMigrationManager {
 
         swapUuids(originalNetwork, networkCopy);
         try {
-            if (!_networkService.deleteNetwork(networkCopy.getId(), true)) {
+            if (!_networkService.deleteNetwork(networkCopy.getId(), true).first()) {
                 throw new CloudRuntimeException("Failed to delete network. Clean up not successful.");
             }
         } finally {

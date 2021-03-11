@@ -1922,7 +1922,7 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService, C
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_NETWORK_DELETE, eventDescription = "deleting network", async = true)
-    public boolean deleteNetwork(long networkId, boolean forced) {
+    public Pair<Boolean, String> deleteNetwork(long networkId, boolean forced) {
 
         Account caller = CallContext.current().getCallingAccount();
 

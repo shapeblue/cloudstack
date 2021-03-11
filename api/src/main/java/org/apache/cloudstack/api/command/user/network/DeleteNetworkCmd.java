@@ -35,6 +35,7 @@ import org.apache.cloudstack.context.CallContext;
 import com.cloud.event.EventTypes;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.network.Network;
+import com.cloud.utils.Pair;
 
 @APICommand(name = "deleteNetwork", description = "Deletes a network", responseObject = SuccessResponse.class, entityType = {Network.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
@@ -77,12 +78,14 @@ public class DeleteNetworkCmd extends BaseAsyncCmd {
     @Override
     public void execute() {
         CallContext.current().setEventDetails("Network Id: " + id);
-        boolean result = _networkService.deleteNetwork(id, isForced());
-        if (result) {
+        Pair<Boolean, String> result = _networkService.deleteNetwork(id, isForced());
+        boolean success = result.first();
+        if (success) {
             SuccessResponse response = new SuccessResponse(getCommandName());
             setResponseObject(response);
         } else {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete network");
+            String errMsg = "Failed to delete network" + (result.second() != null ? ": "+ result.second() : ".");
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, errMsg);
         }
     }
 

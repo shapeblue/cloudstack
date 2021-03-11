@@ -117,7 +117,7 @@ public class KubernetesClusterDestroyWorker extends KubernetesClusterResourceMod
             Account owner = accountManager.getAccount(network.getAccountId());
             User callerUser = accountManager.getActiveUser(CallContext.current().getCallingUserId());
             ReservationContext context = new ReservationContextImpl(null, null, callerUser, owner);
-            boolean networkDestroyed = networkMgr.destroyNetwork(kubernetesCluster.getNetworkId(), context, true);
+            boolean networkDestroyed = networkMgr.destroyNetwork(kubernetesCluster.getNetworkId(), context, true).first();
             if (!networkDestroyed) {
                 String msg = String.format("Failed to destroy network : %s as part of Kubernetes cluster : %s cleanup", network.getName(), kubernetesCluster.getName());
                 LOGGER.warn(msg);

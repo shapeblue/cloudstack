@@ -2869,21 +2869,23 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
 
     @Override
     @DB
-    public boolean destroyNetwork(final long networkId, final ReservationContext context, final boolean forced) {
+    public Pair<Boolean, String> destroyNetwork(final long networkId, final ReservationContext context, final boolean forced) {
         final Account callerAccount = context.getAccount();
-
+        String errMsg = null;
         NetworkVO network = _networksDao.findById(networkId);
         if (network == null) {
-            s_logger.debug("Unable to find network with id: " + networkId);
-            return false;
+            errMsg = "Unable to find network with id: " + networkId;
+            s_logger.warn(errMsg);
+            return new Pair<>(false, errMsg);
         }
         // Make sure that there are no user vms in the network that are not Expunged/Error
         final List<UserVmVO> userVms = _userVmDao.listByNetworkIdAndStates(networkId);
 
         for (final UserVmVO vm : userVms) {
             if (!(vm.getState() == VirtualMachine.State.Expunging && vm.getRemoved() != null)) {
-                s_logger.warn("Can't delete the network, not all user vms are expunged. Vm " + vm + " is in " + vm.getState() + " state");
-                return false;
+                errMsg = "Can't delete the network, not all user vms are expunged. Vm " + vm + " is in " + vm.getState() + " state";
+                s_logger.warn(errMsg);
+                return new Pair<>(false, errMsg);
             }
         }
 
@@ -2901,8 +2903,9 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
         if (zone.getNetworkType() == NetworkType.Basic) {
             final List<VMInstanceVO> systemVms = _vmDao.listNonRemovedVmsByTypeAndNetwork(network.getId(), Type.ConsoleProxy, Type.SecondaryStorageVm);
             if (systemVms != null && !systemVms.isEmpty()) {
-                s_logger.warn("Can't delete the network, not all consoleProxy/secondaryStorage vms are expunged");
-                return false;
+                errMsg = "Can't delete the network, not all consoleProxy/secondaryStorage vms are expunged";
+                s_logger.warn(errMsg);
+                return new Pair<>(false, errMsg);
             }
         }
 
@@ -2912,14 +2915,16 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
         // get updated state for the network
         network = _networksDao.findById(networkId);
         if (network.getState() != Network.State.Allocated && network.getState() != Network.State.Setup && !forced) {
-            s_logger.debug("Network is not not in the correct state to be destroyed: " + network.getState());
-            return false;
+            errMsg = "Network is not not in the correct state to be destroyed: " + network.getState();
+            s_logger.warn(errMsg);
+            return new Pair<>(false, errMsg);
         }
 
         boolean success = true;
         if (!cleanupNetworkResources(networkId, callerAccount, context.getCaller().getId())) {
-            s_logger.warn("Unable to delete network id=" + networkId + ": failed to cleanup network resources");
-            return false;
+            errMsg = "Unable to delete network id=" + networkId + ": failed to cleanup network resources";
+            s_logger.warn(errMsg);
+            return new Pair<>(false, errMsg);
         }
 
         // get providers to destroy
@@ -2933,16 +2938,20 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
 
                     if (!element.destroy(network, context)) {
                         success = false;
-                        s_logger.warn("Unable to complete destroy of the network: failed to destroy network element " + element.getName());
+                        errMsg = "Unable to complete destroy of the network: failed to destroy network element " + element.getName();
+                        s_logger.warn(errMsg);
                     }
                 } catch (final ResourceUnavailableException e) {
-                    s_logger.warn("Unable to complete destroy of the network due to element: " + element.getName(), e);
+                    errMsg = "Unable to complete destroy of the network due to element: " + element.getName();
+                    s_logger.warn(errMsg, e);
                     success = false;
                 } catch (final ConcurrentOperationException e) {
-                    s_logger.warn("Unable to complete destroy of the network due to element: " + element.getName(), e);
+                    errMsg = "Unable to complete destroy of the network due to element: " + element.getName();
+                    s_logger.warn(errMsg, e);
                     success = false;
                 } catch (final Exception e) {
-                    s_logger.warn("Unable to complete destroy of the network due to element: " + element.getName(), e);
+                    errMsg = "Unable to complete destroy of the network due to element: " + element.getName();
+                    s_logger.warn(errMsg, e);
                     success = false;
                 }
             }
@@ -2999,14 +3008,15 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
                     final Pair<Class<?>, Long> networkMsg = new Pair<Class<?>, Long>(Network.class, networkFinal.getId());
                     _messageBus.publish(_name, EntityManager.MESSAGE_REMOVE_ENTITY_EVENT, PublishScope.LOCAL, networkMsg);
                 }
-                return true;
+                return new Pair<>(true, null);
             } catch (final CloudRuntimeException e) {
-                s_logger.error("Failed to delete network", e);
-                return false;
+                errMsg = "Failed to delete network"+ e;
+                s_logger.error(errMsg);
+                return new Pair<>(false, errMsg);
             }
         }
 
-        return success;
+        return new Pair<>(success, errMsg);
     }
 
     @Override

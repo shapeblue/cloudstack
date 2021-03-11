@@ -176,7 +176,7 @@ public interface NetworkOrchestrationService {
 
     boolean shutdownNetwork(long networkId, ReservationContext context, boolean cleanupElements);
 
-    boolean destroyNetwork(long networkId, ReservationContext context, boolean forced);
+    Pair<Boolean, String> destroyNetwork(long networkId, ReservationContext context, boolean forced);
 
     Network createPrivateNetwork(long networkOfferingId, String name, String displayText, String gateway, String cidr, String vlanId, boolean bypassVlanOverlapCheck, Account owner, PhysicalNetwork pNtwk, Long vpcId) throws ConcurrentOperationException, InsufficientCapacityException, ResourceAllocationException;
 

@@ -208,9 +208,9 @@ public class MockNetworkManagerImpl extends ManagerBase implements NetworkOrches
      * @see com.cloud.network.NetworkService#deleteNetwork(long)
      */
     @Override
-    public boolean deleteNetwork(long networkId, boolean forced) {
+    public Pair<Boolean, String> deleteNetwork(long networkId, boolean forced) {
         // TODO Auto-generated method stub
-        return false;
+        return new Pair<>(false, null);
     }
 
     @Override
@@ -630,9 +630,9 @@ public class MockNetworkManagerImpl extends ManagerBase implements NetworkOrches
      * @see com.cloud.network.NetworkManager#destroyNetwork(long, com.cloud.vm.ReservationContext)
      */
     @Override
-    public boolean destroyNetwork(long networkId, ReservationContext context, boolean forced) {
+    public Pair<Boolean, String> destroyNetwork(long networkId, ReservationContext context, boolean forced) {
         // TODO Auto-generated method stub
-        return false;
+        return new Pair<>(false, null);
     }
 
     public Network createPrivateNetwork(final long networkOfferingId, final String name, final String displayText, final String gateway, final String cidr, final String vlanId, final boolean bypassVlanOverlapCheck, final Account owner, final PhysicalNetwork pNtwk, final Long vpcId) throws ConcurrentOperationException, InsufficientCapacityException, ResourceAllocationException {
