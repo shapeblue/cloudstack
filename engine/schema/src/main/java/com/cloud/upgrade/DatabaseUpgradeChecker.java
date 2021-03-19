@@ -238,31 +238,27 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
     }
 
-    private void updateSystemVmTemplates(DbUpgrade[] upgrades) {
-        for (int i = upgrades.length - 1; i >= 0; i--) {
-            DbUpgrade upgrade = upgrades[i];
-            if (upgrade instanceof DbUpgradeSystemVmTemplate) {
-                TransactionLegacy txn = TransactionLegacy.open("Upgrade");
-                txn.start();
+    private void updateSystemVmTemplates(DbUpgrade upgrade) {
+        if (upgrade instanceof DbUpgradeSystemVmTemplate) {
+            TransactionLegacy txn1 = TransactionLegacy.open("Upgrade-System");
+            txn1.start();
+            try {
+                Connection conn1;
                 try {
-                    Connection conn;
-                    try {
-                        conn = txn.getConnection();
-                    } catch (SQLException e) {
-                        String errorMessage = "Unable to upgrade the database";
-                        s_logger.error(errorMessage, e);
-                        throw new CloudRuntimeException(errorMessage, e);
-                    }
-                    ((DbUpgradeSystemVmTemplate)upgrade).updateSystemVmTemplates(conn);
-                    txn.commit();
-                    break;
-                } catch (CloudRuntimeException e) {
+                    conn1 = txn1.getConnection();
+                } catch (SQLException e) {
                     String errorMessage = "Unable to upgrade the database";
                     s_logger.error(errorMessage, e);
                     throw new CloudRuntimeException(errorMessage, e);
-                } finally {
-                    txn.close();
                 }
+                ((DbUpgradeSystemVmTemplate)upgrade).updateSystemVmTemplates(conn1);
+                txn1.commit();
+            } catch (CloudRuntimeException e) {
+                String errorMessage = "Unable to upgrade the database";
+                s_logger.error(errorMessage, e);
+                throw new CloudRuntimeException(errorMessage, e);
+            } finally {
+                txn1.close();
             }
         }
     }
@@ -272,12 +268,11 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         final DbUpgrade[] upgrades = calculateUpgradePath(dbVersion, currentVersion);
 
-        updateSystemVmTemplates(upgrades);
-
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version;
             s_logger.debug("Running upgrade " + upgrade.getClass().getSimpleName() + " to upgrade from " + upgrade.getUpgradableVersionRange()[0] + "-" + upgrade
                 .getUpgradableVersionRange()[1] + " to " + upgrade.getUpgradedVersion());
+            updateSystemVmTemplates(upgrade);
             TransactionLegacy txn = TransactionLegacy.open("Upgrade");
             txn.start();
             try {

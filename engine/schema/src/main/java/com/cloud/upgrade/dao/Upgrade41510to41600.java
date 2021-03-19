@@ -241,7 +241,7 @@ public class Upgrade41510to41600 implements DbUpgrade, DbUpgradeSystemVmTemplate
         LOG.debug("Updating System Vm Template IDs Complete");
     }
 
-    private void updateVMwareSystemvVMTemplateField(final Connection conn, String templateName) {
+    protected void updateVMwareSystemvVMTemplateField(final Connection conn, String templateName) {
         try (PreparedStatement update_templ_vmware_pstmt = conn
                 .prepareStatement("UPDATE `cloud`.`vm_template` SET deploy_as_is = 1 WHERE name = '"+ templateName +"' AND removed is null order by id desc limit 1");) {
             update_templ_vmware_pstmt.executeUpdate();
