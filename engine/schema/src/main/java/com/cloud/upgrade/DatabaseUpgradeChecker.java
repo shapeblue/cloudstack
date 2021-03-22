@@ -272,7 +272,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         final DbUpgrade[] upgrades = calculateUpgradePath(dbVersion, currentVersion);
 
-        updateSystemVmTemplates(upgrades);
+        //updateSystemVmTemplates(upgrades);
 
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version;
