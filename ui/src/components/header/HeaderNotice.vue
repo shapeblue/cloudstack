@@ -111,6 +111,7 @@ export default {
             }
           }).catch(function (e) {
             console.log(this.$t('error.fetching.async.job.result') + e)
+            this.jobs[i].status = 'failed'
           })
         }
       }
