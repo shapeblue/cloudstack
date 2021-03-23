@@ -132,7 +132,6 @@ import com.cloud.utils.db.JoinBuilder;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.utils.exception.CloudRuntimeException;
-import com.cloud.vm.UserVmManager;
 import com.cloud.vm.UserVmVO;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
@@ -837,8 +836,7 @@ public class SnapshotManagerImpl extends MutualExclusiveIdsManagerBase implement
 
         if (volume.getTemplateId() != null) {
             VMTemplateVO template = _templateDao.findById(volume.getTemplateId());
-            Long instanceId = volume.getInstanceId();
-            if (template != null && template.getTemplateType() == Storage.TemplateType.SYSTEM && (instanceId != null && !UserVmManager.CKS_NODE.equals(_vmDao.findById(instanceId).getUserVmType()))) {
+            if (template != null && template.getTemplateType() == Storage.TemplateType.SYSTEM) {
                 throw new InvalidParameterValueException("VolumeId: " + volumeId + " is for System VM , Creating snapshot against System VM volumes is not supported");
             }
         }
