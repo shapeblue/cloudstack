@@ -380,5 +380,5 @@ ccd-r1-acs3-acs01:
 ccd-r1-acs4:
   <<: *DEPLOY
   variables:
-    LAB_ENV_NAME: "ccd-r1-acs4"
+    LAB_ENV_NAME: "ccd-r1-acs4-acs01"
     LAB_ENV_IP: "10.218.184.142"
