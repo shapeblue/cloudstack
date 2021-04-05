@@ -26,6 +26,19 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataMotionStrategy;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataObject;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
+import org.apache.cloudstack.engine.subsystem.api.storage.StrategyPriority;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
+import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
+import org.apache.cloudstack.framework.async.AsyncCompletionCallback;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.MigrateWithStorageAnswer;
@@ -52,19 +65,8 @@ import com.cloud.storage.dao.VolumeDao;
 import com.cloud.utils.Pair;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
-import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataMotionStrategy;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataObject;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
-import org.apache.cloudstack.engine.subsystem.api.storage.StrategyPriority;
-import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
-import org.apache.cloudstack.engine.subsystem.api.storage.VolumeInfo;
-import org.apache.cloudstack.framework.async.AsyncCompletionCallback;
-import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
-import org.apache.cloudstack.storage.to.VolumeObjectTO;
-import org.apache.log4j.Logger;
-import org.springframework.stereotype.Component;
 
 @Component
 public class VmwareStorageMotionStrategy implements DataMotionStrategy {
@@ -88,7 +90,7 @@ public class VmwareStorageMotionStrategy implements DataMotionStrategy {
         if (isOnVmware(srcData, destData)
                 && isOnPrimary(srcData, destData)
                 && isVolumesOnly(srcData, destData)
-                && isDettached(srcData)
+                && isDetachedOrRootPoweredOffVm(srcData)
                 && isIntraCluster(srcData, destData)
                 && isStoreScopeEqual(srcData, destData)) {
             if (s_logger.isDebugEnabled()) {
@@ -107,9 +109,17 @@ public class VmwareStorageMotionStrategy implements DataMotionStrategy {
         return StrategyPriority.CANT_HANDLE;
     }
 
-    private boolean isDettached(DataObject srcData) {
+    private boolean isRootForPoweredOffVm(Volume volume) {
+        if (Volume.Type.ROOT.equals(volume.getVolumeType())) {
+            VMInstanceVO vm = instanceDao.findById(volume.getInstanceId());
+            return vm != null && VirtualMachine.State.Stopped.equals(vm.getState());
+        }
+        return false;
+    }
+
+    private boolean isDetachedOrRootPoweredOffVm(DataObject srcData) {
         VolumeVO volume = volDao.findById(srcData.getId());
-        return volume.getInstanceId() == null;
+        return volume.getInstanceId() == null || isRootForPoweredOffVm(volume);
     }
 
     private boolean isVolumesOnly(DataObject srcData, DataObject destData) {
