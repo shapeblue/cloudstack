@@ -116,6 +116,23 @@ ipsec_tunnel_del() {
   return 0
 }
 
+add_split_connection_config() {
+  vpnconffile=$1
+  shift
+  rsubnetarr=("$@")
+
+  # Split out all but the first right subnet into their own statements
+  subnetidx=2
+  for rsubnet in ${rsubnetarr[@]:1}; do
+      sudo echo "" >> $vpnconffile &&
+      sudo echo "conn vpn-$rightpeer-$subnetidx" >> $vpnconffile &&
+      sudo echo "  also=vpn-$rightpeer" >> $vpnconffile &&
+      sudo echo "  auto=route" >> $vpnconffile &&
+      sudo echo "  rightsubnet=$rsubnet" >> $vpnconffile
+      ((++subnetidx))
+  done
+}
+
 ipsec_tunnel_add() {
   #need to unify with remote access VPN
   start_ipsec
@@ -172,16 +189,7 @@ ipsec_tunnel_add() {
 
   if [ $splitconnections -eq 1 ]
   then
-      # Split out all but the first right subnet into their own statements
-      subnetidx=2
-      for rsubnet in ${rsubnetarr[@]:1}; do
-          sudo echo "" >> $vpnconffile &&
-          sudo echo "conn vpn-$rightpeer-$subnetidx" >> $vpnconffile &&
-          sudo echo "  also=vpn-$rightpeer" >> $vpnconffile &&
-          sudo echo "  auto=route" >> $vpnconffile &&
-          sudo echo "  rightsubnet=$rsubnet" >> $vpnconffile
-          ((++subnetidx))
-      done
+      add_split_connection_config $vpnconffile ${rsubnetarr[@]}
   fi
 
   enable_iptables_subnets

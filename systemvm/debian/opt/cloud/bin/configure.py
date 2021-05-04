@@ -591,13 +591,8 @@ class CsSite2SiteVpn(CsDataBag):
             file.addeq(" dpdtimeout=120")
             file.addeq(" dpdaction=restart")
         if splitconnections and peerlistarr.count > 1:
-            logging.debug('Splitting connections for rightsubnets %s' % peerlistarr)
-            for peeridx in range(1, len(peerlistarr)):
-                logging.debug('Adding split connection -%d for subnet %s' % (peeridx + 1, peerlistarr[peeridx]))
-                file.append('')
-                file.search('conn vpn-.*-%d' % (peeridx + 1), "conn vpn-%s-%d" % (rightpeer, peeridx + 1))
-                file.append(' also=vpn-%s' % rightpeer)
-                file.append(' rightsubnet=%s' % peerlistarr[peeridx])
+            self.add_split_connection_config(peerlistarr, rightpeer)
+
         secret = CsFile(vpnsecretsfile)
         secret.search("%s " % leftpeer, "%s %s : PSK \"%s\"" % (leftpeer, rightpeer, obj['ipsec_psk']))
         if secret.is_changed() or file.is_changed():
@@ -610,6 +605,22 @@ class CsSite2SiteVpn(CsDataBag):
         CsHelper.execute("ipsec reload")
         os.chmod(vpnsecretsfile, 0400)
 
+        self.wait_for_ipsec_connection(file, peerlistarr, rightpeer, splitconnections)
+
+        # With 'auto=route', connections are established on an attempt to
+        # communicate over the S2S VPN. This uses ping to initialize the connection.
+        self.init_connection(peerlistarr)
+
+    def add_split_connection_config(self, file, peerlistarr, rightpeer):
+        logging.debug('Splitting connections for rightsubnets %s' % peerlistarr)
+        for peeridx in range(1, len(peerlistarr)):
+            logging.debug('Adding split connection -%d for subnet %s' % (peeridx + 1, peerlistarr[peeridx]))
+            file.append('')
+            file.search('conn vpn-.*-%d' % (peeridx + 1), "conn vpn-%s-%d" % (rightpeer, peeridx + 1))
+            file.append(' also=vpn-%s' % rightpeer)
+            file.append(' rightsubnet=%s' % peerlistarr[peeridx])
+
+    def wait_for_ipsec_connection(self, peerlistarr, rightpeer, splitconnections):
         for i in xrange(3):
             done = True
             for peeridx in range(0, len(peerlistarr)):
@@ -623,8 +634,7 @@ class CsSite2SiteVpn(CsDataBag):
                 break
             time.sleep(1)
 
-        # With 'auto=route', connections are established on an attempt to
-        # communicate over the S2S VPN. This uses ping to initialize the connection.
+    def init_connection(self, peerlistarr):
         for peer in peerlistarr:
             octets = peer.split('/', 1)[0].split('.')
             octets[3] = str((int(octets[3]) + 1))

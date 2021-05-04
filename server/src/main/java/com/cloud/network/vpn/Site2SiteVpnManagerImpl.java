@@ -507,7 +507,12 @@ public class Site2SiteVpnManagerImpl extends ManagerBase implements Site2SiteVpn
         }
         _customerGatewayDao.persist(gw);
 
-        List<Site2SiteVpnConnectionVO> conns = _vpnConnectionDao.listByCustomerGatewayId(id);
+        startVpnConnection(caller, id);
+        return gw;
+    }
+
+    private void startVpnConnection(Account caller, Long vpnCustomerGwIp) {
+        List<Site2SiteVpnConnectionVO> conns = _vpnConnectionDao.listByCustomerGatewayId(vpnCustomerGwIp);
         if (conns != null) {
             for (Site2SiteVpnConnection conn : conns) {
                 try {
@@ -534,10 +539,7 @@ public class Site2SiteVpnManagerImpl extends ManagerBase implements Site2SiteVpn
                 }
             }
         }
-
-        return gw;
     }
-
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_S2S_VPN_CONNECTION_DELETE, eventDescription = "deleting s2s vpn connection", create = true)
     public boolean deleteVpnConnection(DeleteVpnConnectionCmd cmd) throws ResourceUnavailableException {
