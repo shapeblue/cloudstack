@@ -23,7 +23,7 @@ function cleanup_apt() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get -y remove --purge dictionaries-common busybox isc-dhcp-client isc-dhcp-common \
     task-english task-ssh-server tasksel tasksel-data laptop-detect wamerican sharutils \
-    nano util-linux-locales krb5-locales
+    nano util-linux-locales krb5-locales apparmor python3* libpython3* perl perl-module*
 
   apt-get -y autoremove --purge
   apt-get autoclean
