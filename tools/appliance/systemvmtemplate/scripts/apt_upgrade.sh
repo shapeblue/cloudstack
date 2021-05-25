@@ -55,6 +55,9 @@ function apt_upgrade() {
   apt-get -q -y update
   apt-get -q -y upgrade
   apt-get -q -y dist-upgrade
+
+  apt-get remove -y --purge linux-image-amd64 linux-image-4.19.0-16-amd64 || true
+
   apt-get -y autoremove --purge
   apt-get autoclean
   apt-get clean
