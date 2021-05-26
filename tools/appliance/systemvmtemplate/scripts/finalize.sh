@@ -25,6 +25,7 @@ function configure_overlay() {
   ln -s /overlay/base /overlay/current
   ln -s /overlay/base /overlay/previous
   cat >/overlay/setup.sh << END
+# call this script after patching a new app-layer changing the symlink current to that folder
 systemctl isolate rescue-ssh.target
 umount -fl /etc || true
 umount -fl /var || true
@@ -33,6 +34,7 @@ mount -t overlay overlay -o lowerdir=/etc,upperdir=/overlay/current/etc,workdir=
 mount -t overlay overlay -o lowerdir=/usr,upperdir=/overlay/current/usr,workdir=/overlay/work/usr /usr
 mount -t overlay overlay -o lowerdir=/var,upperdir=/overlay/current/var,workdir=/overlay/work/var /var
 systemctl daemon-reload
+update-initramfs -u
 systemctl isolate multi-user.target
 END
 }
