@@ -36,6 +36,7 @@ function install_packages() {
   ${apt_get} install grub-legacy openssh-server coreutils systemd ca-certificates \
     bash tar gzip zip unzip grep lsof rsync acpid sudo
 
+  ${apt_get} upgrade -t buster-backports
   apt-get -y autoremove --purge
   apt-get clean
   apt-get autoclean
