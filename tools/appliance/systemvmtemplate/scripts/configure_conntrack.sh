@@ -46,7 +46,7 @@ EOF
 }
 
 function configure_conntrack() {
-  disable_conntrack_logging
+  #disable_conntrack_logging
   load_conntrack_modules
 }
 

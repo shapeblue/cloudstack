@@ -16,7 +16,6 @@
         "scripts/authorized_keys.sh",
         "scripts/configure_persistent_config.sh",
         "scripts/configure_login.sh",
-        "../cloud_scripts_shar_archive.sh",
         "scripts/configure_systemvm_services.sh",
         "scripts/cleanup.sh",
         "scripts/finalize.sh"

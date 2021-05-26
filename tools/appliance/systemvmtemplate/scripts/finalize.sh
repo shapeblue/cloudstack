@@ -19,6 +19,24 @@
 set -e
 set -x
 
+function configure_overlay() {
+  mkdir -p /overlay/base/{etc,usr,var}
+  mkdir -p /overlay/work/{etc,usr,var}
+  ln -s /overlay/base /overlay/current
+  ln -s /overlay/base /overlay/previous
+  cat >/overlay/setup.sh << END
+systemctl isolate rescue-ssh.target
+umount -fl /etc || true
+umount -fl /var || true
+umount -fl /usr || true
+mount -t overlay overlay -o lowerdir=/etc,upperdir=/overlay/current/etc,workdir=/overlay/work/etc /etc
+mount -t overlay overlay -o lowerdir=/usr,upperdir=/overlay/current/usr,workdir=/overlay/work/usr /usr
+mount -t overlay overlay -o lowerdir=/var,upperdir=/overlay/current/var,workdir=/overlay/work/var /var
+systemctl daemon-reload
+systemctl isolate multi-user.target
+END
+}
+
 function configure_misc() {
   rm -fv /home/cloud/*.sh
   echo "cloud:`openssl rand -base64 32`" | chpasswd
@@ -72,6 +90,7 @@ function finalize() {
   configure_rundisk_size
   configure_sudoers
   cleanup_final
+  configure_overlay
   sync
   zero_disk
   sync

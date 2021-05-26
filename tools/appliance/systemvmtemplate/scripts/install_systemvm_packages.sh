@@ -33,22 +33,8 @@ function install_packages() {
 
   local apt_get="apt-get --no-install-recommends -q -y"
 
-  ${apt_get} install grub-legacy \
-    rsyslog logrotate cron net-tools ifupdown tmux vim-tiny htop netbase iptables nftables \
-    openssh-server e2fsprogs tcpdump iftop socat wget coreutils systemd \
-    ca-certificates bzip2 sed gawk diffutils grep gzip less tar telnet ftp rsync traceroute psmisc lsof procps \
-    inetutils-ping iputils-arping httping curl \
-    dnsutils zip unzip ethtool uuid file iproute2 acpid sudo \
-    ipvsadm conntrackd libnetfilter-conntrack3 \
-    sysstat \
-    sharutils \
-    xenstore-utils libxenstore3.0 \
-    virt-what open-vm-tools qemu-guest-agent
-
-  # Install xenserver guest utilities as debian repos don't have it
-  wget https://mirrors.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
-  dpkg -i xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
-  rm -f xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
+  ${apt_get} install grub-legacy openssh-server coreutils systemd ca-certificates \
+    bash tar gzip zip unzip grep lsof rsync acpid sudo
 
   apt-get -y autoremove --purge
   apt-get clean
