@@ -1147,7 +1147,7 @@ public class VirtualMachineMO extends BaseMO {
         newDisk.setUnitNumber(deviceNumber);
         newDisk.setCapacityInKB(sizeInMb * 1024);
         long size = sizeInMb*1024L;
-        s_logger.debug("Abhishek:: sizeInMb: "+(sizeInMb * 1024)+" newDisk.capacity: "+newDisk.getCapacityInKB()+" size:"+size);
+        s_logger.debug("Abhishek:: name: "+ rdmDeviceName +" sizeInMb: "+(sizeInMb * 1024)+" newDisk.capacity: "+newDisk.getCapacityInKB()+" size:"+size+" "+vmdkDatastorePath);
 
         VirtualMachineConfigSpec reConfigSpec = new VirtualMachineConfigSpec();
         VirtualDeviceConfigSpec deviceConfigSpec = new VirtualDeviceConfigSpec();
