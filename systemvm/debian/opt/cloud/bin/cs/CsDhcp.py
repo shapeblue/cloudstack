@@ -189,7 +189,7 @@ class CsDhcp(CsDataBag):
         lease = 'infinite'
 
         if entry['default_entry']:
-            self.cloud.add("%s,%s,%s,%s" % (entry['mac_address'],
+            self.cloud.search(entry['mac_address'], "%s,%s,%s,%s" % (entry['mac_address'],
                                             entry['ipv4_address'],
                                             entry['host_name'],
                                             lease))
@@ -198,7 +198,7 @@ class CsDhcp(CsDataBag):
                                                                             entry['host_name']))
         else:
             tag = entry['ipv4_address'].replace(".", "_")
-            self.cloud.add("%s,set:%s,%s,%s,%s" % (entry['mac_address'],
+            self.cloud.search(entry['mac_address'], "%s,set:%s,%s,%s,%s" % (entry['mac_address'],
                                                    tag,
                                                    entry['ipv4_address'],
                                                    entry['host_name'],
