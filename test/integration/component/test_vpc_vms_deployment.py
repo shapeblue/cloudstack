@@ -19,8 +19,7 @@
 """
 #Import Local Modules
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.lib.base import (VirtualMachine,
                                          NetworkOffering,
                                          VpcOffering,
@@ -344,7 +343,7 @@ class TestVMDeployVPC(cloudstackTestCase):
             id=vm.id,
             )
         status = validateList(vm_response)
-        self.assertEqual(
+        self.assertEquals(
             PASS,
             status[0],
             "vm list api returned invalid response after vm {} deployment".format(vm)

@@ -17,8 +17,7 @@
 """ Test cases for Test Paths Storage Migration
 """
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.lib.utils import (cleanup_resources,
                               validateList,
                               is_server_ssh_ready

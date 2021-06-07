@@ -40,19 +40,25 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
         cls.zone = get_zone(cls.apiclient, cls.testClient.getZoneForTests())
         cls.services["zoneid"] = cls.zone.id
         cls.pod = get_pod(cls.apiclient, cls.zone.id)
-        cls._cleanup = []
         # Create Account
         cls.account = Account.create(
                             cls.apiclient,
                             cls.services["account"],
                             domainid=cls.domain.id
                             )
-        cls._cleanup.append(cls.account)
+        cls._cleanup = [
+                        cls.account,
+                        ]
         return
 
     @classmethod
     def tearDownClass(cls):
-        super(TestDedicatePublicIPRange,cls).tearDownClass()
+        try:
+            # Cleanup resources used
+            cleanup_resources(cls.apiclient, cls._cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
@@ -61,7 +67,12 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
         return
 
     def tearDown(self):
-        super(TestDedicatePublicIPRange,self).tearDown()
+        try:
+            # Clean up
+            cleanup_resources(self.apiclient, self.cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     @attr(tags = ["advanced", "publiciprange", "dedicate", "release"], required_hardware="false")
     def test_dedicatePublicIpRange(self):
@@ -82,7 +93,6 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
                                     self.apiclient,
                                     self.services
                                )
-        self._cleanup.append(self.public_ip_range)
         list_public_ip_range_response = PublicIpRange.list(
                                             self.apiclient,
                                             id=self.public_ip_range.vlan.id
@@ -133,6 +143,10 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
                             "system",
                             "Check account name is system account in listVlanIpRanges"
                         )
+
+        self.debug("Deleting Public IP range");
+        self.public_ip_range.delete(self.apiclient)
+
         return
 
     @attr(tags = ["advanced", "publiciprange", "dedicate", "release"], required_hardware="false")
@@ -159,7 +173,6 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
             services,
             forsystemvms = True
         )
-        self.cleanup.append(self.public_ip_range)
         created_ip_range_response = PublicIpRange.list(
             self.apiclient,
             id = self.public_ip_range.vlan.id
@@ -173,7 +186,10 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
             created_ip_range_response[0].forsystemvms,
             "Check forsystemvms parameter in created vlan ip range"
         )
-
+        
+        # Delete range
+        self.public_ip_range.delete(self.apiclient)
+        
     def get_ip_as_number(self, ip_string):
         """ Return numeric value for ip (passed as a string)
         """

@@ -18,14 +18,14 @@
 
 
 import marvin
-from configparser import SafeConfigParser
+from ConfigParser import SafeConfigParser
 from optparse import OptionParser
 from marvin.configGenerator import *
 import random
 
 
 def getGlobalSettings(config):
-   for k, v in dict(config.items('globals')).items():
+   for k, v in dict(config.items('globals')).iteritems():
         cfg = configuration()
         cfg.name = k
         cfg.value = v

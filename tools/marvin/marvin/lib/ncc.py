@@ -27,7 +27,7 @@ from marvin.cloudstackException import (InvalidParameterException,
                                         GetDetailExceptionInfo)
 from os import system
 from subprocess import call
-import requests, json, urllib.request, urllib.parse, urllib.error
+import requests, json, urllib
 
 class NCC:
 

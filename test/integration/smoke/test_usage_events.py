@@ -63,7 +63,10 @@ class TestUsageEvents(cloudstackTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super(TestUsageEvents,cls).tearDownClass()
+        try:
+            cleanup_resources(cls.apiclient, cls._cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
 
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
@@ -78,9 +81,13 @@ class TestUsageEvents(cloudstackTestCase):
         self.cleanup.append(self.account)
 
     def tearDown(self):
-        super(TestUsageEvents,self).tearDown()
+        try:
+            cleanup_resources(self.apiclient, self.cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
-    @attr(tags=["advanced", "basic"], required_hardware="true")
+    @attr(tags=["advanced, basic"], required_hardware="true")
     def test_01_positive_tests_usage(self):
         """ Check events in usage_events table when VM creation fails
 

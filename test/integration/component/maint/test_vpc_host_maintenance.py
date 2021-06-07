@@ -19,8 +19,7 @@
 """
 #Import Local Modules
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.cloudstackAPI import migrateSystemVm
 from marvin.lib.utils import cleanup_resources
 from marvin.lib.base import (Host,

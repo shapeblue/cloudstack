@@ -57,42 +57,38 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
 
         cls.domain_1 = None
         cls.domain_2 = None
-        cls._cleanup = []
+        cls.cleanup = []
 
         try:
+    	
             # backup default apikey and secretkey
             cls.default_apikey = cls.apiclient.connection.apiKey
             cls.default_secretkey = cls.apiclient.connection.securityKey
-
+    	
             # Create domains 
             cls.domain_1 = Domain.create(
                                        cls.apiclient,
                                        cls.acldata["domain1"]
                                        )
-            cls._cleanup.append(cls.domain_1)
             cls.domain_11 = Domain.create(
                                        cls.apiclient,
                                        cls.acldata["domain11"],
-                                       parentdomainid=cls.domain_1.id
+    				   parentdomainid=cls.domain_1.id
                                        )
-            cls._cleanup.append(cls.domain_11)
             cls.domain_111 = Domain.create(
                                        cls.apiclient,
                                        cls.acldata["domain111"],
-                                       parentdomainid=cls.domain_11.id,
+    				   parentdomainid=cls.domain_11.id,
                                        )
-            cls._cleanup.append(cls.domain_111)
             cls.domain_12 = Domain.create(
                                        cls.apiclient,
                                        cls.acldata["domain12"],
-                                       parentdomainid=cls.domain_1.id
+    				   parentdomainid=cls.domain_1.id
                                        )
-            cls._cleanup.append(cls.domain_12)
             cls.domain_2 = Domain.create(
                                        cls.apiclient,
                                        cls.acldata["domain2"]
                                        )
-            cls._cleanup.append(cls.domain_2)
             # Create  1 admin account and 2 user accounts for doamin_1
             cls.account_d1 = Account.create(
                                 cls.apiclient,
@@ -100,30 +96,30 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 admin=True,
                                 domainid=cls.domain_1.id
                                 )
-            cls._cleanup.append(cls.account_d1)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d1)
+    
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d1)
             cls.user_d1_apikey = user.apikey
             cls.user_d1_secretkey = user.secretkey
-
+            
             cls.account_d1a = Account.create(
                                 cls.apiclient,
                                 cls.acldata["accountD1A"],
                                 admin=False,
                                 domainid=cls.domain_1.id
-                                )
-            cls._cleanup.append(cls.account_d1a)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d1a)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d1a)
             cls.user_d1a_apikey = user.apikey
             cls.user_d1a_secretkey = user.secretkey
             
+    
             cls.account_d1b = Account.create(
                                 cls.apiclient,
                                 cls.acldata["accountD1B"],
                                 admin=False,
                                 domainid=cls.domain_1.id
                                 )
-            cls._cleanup.append(cls.account_d1b)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d1b)
+    
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d1b)
             cls.user_d1b_apikey = user.apikey
             cls.user_d1b_secretkey = user.secretkey
       
@@ -133,9 +129,8 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD11"],
                                 admin=True,
                                 domainid=cls.domain_11.id
-                                )
-            cls._cleanup.append(cls.account_d11)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d11)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d11)
             cls.user_d11_apikey = user.apikey
             cls.user_d11_secretkey = user.secretkey
     
@@ -144,9 +139,8 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD11A"],
                                 admin=False,
                                 domainid=cls.domain_11.id
-                                )
-            cls._cleanup.append(cls.account_d11a)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d11a)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d11a)
             cls.user_d11a_apikey = user.apikey
             cls.user_d11a_secretkey = user.secretkey
     
@@ -155,21 +149,20 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD11B"],
                                 admin=False,
                                 domainid=cls.domain_11.id
-                                )
-            cls._cleanup.append(cls.account_d11b)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d11b)
+                                )  
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d11b)
             cls.user_d11b_apikey = user.apikey
             cls.user_d11b_secretkey = user.secretkey
     
             # Create  2 user accounts and 1 admin account for doamin_111
+    
             cls.account_d111 = Account.create(
                                 cls.apiclient,
                                 cls.acldata["accountD111"],
                                 admin=True,
                                 domainid=cls.domain_111.id
-                                )
-            cls._cleanup.append(cls.account_d111)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d111)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d111)
             cls.user_d111_apikey = user.apikey
             cls.user_d111_secretkey = user.secretkey
           
@@ -178,9 +171,8 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD111A"],
                                 admin=False,
                                 domainid=cls.domain_111.id
-                                )
-            cls._cleanup.append(cls.account_d111a)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d111a)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d111a)
             cls.user_d111a_apikey = user.apikey
             cls.user_d111a_secretkey = user.secretkey
           
@@ -189,9 +181,8 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD111B"],
                                 admin=False,
                                 domainid=cls.domain_111.id
-                                )
-            cls._cleanup.append(cls.account_d111b)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d111b)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d111b)
             cls.user_d111b_apikey = user.apikey
             cls.user_d111b_secretkey = user.secretkey
           
@@ -201,9 +192,8 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD12A"],
                                 admin=False,
                                 domainid=cls.domain_12.id
-                                )
-            cls._cleanup.append(cls.account_d12a)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d12a)
+                                )        
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d12a)
             cls.user_d12a_apikey = user.apikey
             cls.user_d12a_secretkey = user.secretkey
     
@@ -212,9 +202,9 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountD12B"],
                                 admin=False,
                                 domainid=cls.domain_12.id
-                                )
-            cls._cleanup.append(cls.account_d12b)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d12b)
+                                )  
+          
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d12b)
             cls.user_d12b_apikey = user.apikey
             cls.user_d12b_secretkey = user.secretkey
           
@@ -226,21 +216,21 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 admin=False,
                                 domainid=cls.domain_2.id
                                 )
-            cls._cleanup.append(cls.account_d2a)
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_d2a)
+            
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_d2a)
             cls.user_d2a_apikey = user.apikey
             cls.user_d2a_secretkey = user.secretkey
-
+                             
+                    
             # Create 1 user account and admin account in "ROOT" domain
-
+    
             cls.account_roota = Account.create(
                                 cls.apiclient,
                                 cls.acldata["accountROOTA"],
                                 admin=False,
                                 )
-            cls._cleanup.append(cls.account_roota)
             
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_roota)
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_roota)
             cls.user_roota_apikey = user.apikey
             cls.user_roota_secretkey = user.secretkey
     
@@ -249,9 +239,8 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                 cls.acldata["accountROOT"],
                                 admin=True,
                                 )
-            cls._cleanup.append(cls.account_root)
             
-            user = cls.generateKeysForUser(cls.apiclient,cls.account_root)
+    	    user = cls.generateKeysForUser(cls.apiclient,cls.account_root)
             cls.user_root_apikey = user.apikey
             cls.user_root_secretkey = user.secretkey
     
@@ -260,77 +249,86 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                                     cls.apiclient,
                                     cls.acldata["service_offering"]["small"]
                                     )
-            cls._cleanup.append(cls.service_offering)
-
+            
             cls.zone = get_zone(cls.apiclient,cls.testclient.getZoneForTests())
             cls.acldata['mode'] = cls.zone.networktype
             cls.template = get_template(cls.apiclient, cls.zone.id, cls.acldata["ostype"])
     
-            cls.apiclient.connection.apiKey = cls.default_apikey
+    	    cls.apiclient.connection.apiKey = cls.default_apikey
             cls.apiclient.connection.securityKey = cls.default_secretkey
     
             list_isolated_network_offerings_response = NetworkOffering.list(
                                                              cls.apiclient,
                                                              name="DefaultIsolatedNetworkOfferingWithSourceNatService"
                                                              )
-            cls.isolated_network_offering_id = list_isolated_network_offerings_response[0].id
+    	    cls.isolated_network_offering_id = list_isolated_network_offerings_response[0].id
     
-            ## Create Network objects for Update API related test cases
+    	    ## Create Network objects for Update API related test cases
       
-            cls.apiclient.connection.apiKey = cls.user_root_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_root_apikey
             cls.apiclient.connection.securityKey = cls.user_root_secretkey 
-            cls.network_root = cls.createNetwork(cls.apiclient,cls.account_root,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_root = cls.createNetwork(cls.apiclient,cls.account_root,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d1_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d1_apikey
             cls.apiclient.connection.securityKey = cls.user_d1_secretkey 
-            cls.network_d1 =  cls.createNetwork(cls.apiclient,cls.account_d1,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d1 =  cls.createNetwork(cls.apiclient,cls.account_d1,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d1a_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d1a_apikey
             cls.apiclient.connection.securityKey = cls.user_d1a_secretkey 
-            cls.network_d1a =  cls.createNetwork(cls.apiclient,cls.account_d1a,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d1a =  cls.createNetwork(cls.apiclient,cls.account_d1a,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d1b_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d1b_apikey
             cls.apiclient.connection.securityKey = cls.user_d1b_secretkey 
-            cls.network_d1b =  cls.createNetwork(cls.apiclient,cls.account_d1b,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d1b =  cls.createNetwork(cls.apiclient,cls.account_d1b,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d11a_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d11a_apikey
             cls.apiclient.connection.securityKey = cls.user_d11a_secretkey 
-            cls.network_d11a = cls.createNetwork(cls.apiclient,cls.account_d11a,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d11a = cls.createNetwork(cls.apiclient,cls.account_d11a,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d11b_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d11b_apikey
             cls.apiclient.connection.securityKey = cls.user_d11b_secretkey 
-            cls.network_d11b = cls.createNetwork(cls.apiclient,cls.account_d11b,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d11b = cls.createNetwork(cls.apiclient,cls.account_d11b,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d12a_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d12a_apikey
             cls.apiclient.connection.securityKey = cls.user_d12a_secretkey 
-            cls.network_d12a =  cls.createNetwork(cls.apiclient,cls.account_d12a,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d12a =  cls.createNetwork(cls.apiclient,cls.account_d12a,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_roota_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_roota_apikey
             cls.apiclient.connection.securityKey = cls.user_roota_secretkey 
-            cls.network_roota = cls.createNetwork(cls.apiclient,cls.account_roota,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_roota = cls.createNetwork(cls.apiclient,cls.account_roota,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d111a_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d111a_apikey
             cls.apiclient.connection.securityKey = cls.user_d111a_secretkey 
-            cls.network_d111a =  cls.createNetwork(cls.apiclient,cls.account_d111a,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d111a =  cls.createNetwork(cls.apiclient,cls.account_d111a,cls.isolated_network_offering_id,cls.zone)
     
-            cls.apiclient.connection.apiKey = cls.user_d111b_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d111b_apikey
             cls.apiclient.connection.securityKey = cls.user_d111b_secretkey 
-            cls.network_d111b =  cls.createNetwork(cls.apiclient,cls.account_d111b,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d111b =  cls.createNetwork(cls.apiclient,cls.account_d111b,cls.isolated_network_offering_id,cls.zone)
     
     
-            cls.apiclient.connection.apiKey = cls.user_d2a_apikey
+    	    cls.apiclient.connection.apiKey = cls.user_d2a_apikey
             cls.apiclient.connection.securityKey = cls.user_d2a_secretkey 
-            cls.network_d2a = cls.createNetwork(cls.apiclient,cls.account_d2a,cls.isolated_network_offering_id,cls.zone)
+    	    cls.network_d2a = cls.createNetwork(cls.apiclient,cls.account_d2a,cls.isolated_network_offering_id,cls.zone)
     
+            cls.cleanup = [
+                            cls.account_root,
+                            cls.account_roota,
+                            cls.service_offering,
+                            ]
         except Exception as e:
-            cls.tearDownClass()
-            raise Exception("Failed to create the setup required to execute the test cases: %s" % e)
+                cls.domain_1.delete(cls.apiclient,cleanup="true")
+                cls.domain_2.delete(cls.apiclient,cleanup="true")
+                cleanup_resources(cls.apiclient, cls.cleanup)
+                raise Exception("Failed to create the setup required to execute the test cases: %s" % e)
 
     @classmethod
     def tearDownClass(cls):
+        cls.apiclient = super(TestIsolatedNetworkDelete, cls).getClsTestClient().getApiClient()
         cls.apiclient.connection.apiKey = cls.default_apikey
         cls.apiclient.connection.securityKey = cls.default_secretkey
-        super(TestIsolatedNetworkDelete,cls).tearDownClass()
+        cls.domain_1.delete(cls.apiclient,cleanup="true")
+        cls.domain_2.delete(cls.apiclient,cleanup="true")
+        cleanup_resources(cls.apiclient, cls.cleanup)
         return
 
     def setUp(cls):
@@ -390,7 +388,6 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
         self.assertEqual(response,
                     None,
                     "Admin User is not able to delete network owned other users in other domain")
-        self._cleanup.remove(self.network_d12a)
 
 ## Test cases relating to delete Network as domain admin user
 
@@ -423,7 +420,6 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
         self.assertEqual(response,
                     None,
                     "Domain admin User is not able to delete a network that is owned by user in the same domain")
-        self._cleanup.remove(self.network_d1a)
 
     @attr("simulator_only",tags=["advanced"],required_hardware="false")
     def test_deleteNetwork_domaindmin_foruserinsubdomain(self):
@@ -439,7 +435,6 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
         self.assertEqual(response,
                     None,
                     "Domain admin User is not able to delete a network that is owned by user in the subdomain")
-        self._cleanup.remove(self.network_d11a)
 
     @attr("simulator_only",tags=["advanced"],required_hardware="false")
     def test_deleteNetwork_domaindmin_forcrossdomainuser(self):
@@ -496,9 +491,9 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
     @attr("simulator_only",tags=["advanced"],required_hardware="false")
     def test_deleteNetwork_user_foruserinotherdomain(self):
 
-        """
+	"""
         Validate that Domain admin should be NOT be able to delete network for users in other domains
-        """
+	"""
         self.apiclient.connection.apiKey = self.user_d111a_apikey
         self.apiclient.connection.securityKey = self.user_d111a_secretkey
 
@@ -524,26 +519,25 @@ class TestIsolatedNetworkDelete(cloudstackTestCase):
                         user.id
                       ))
 
-    @classmethod
-    def createNetwork(cls,apiclient,account,isolated_network_offering_id,zone):
+    @staticmethod
+    def createNetwork(apiclient,account,isolated_network_offering_id,zone):
         network= {
-            "name": "Network-",
-            "displaytext": "Network-",
-            "gateway" :"10.223.1.1",
-            "netmask" :"255.255.255.0",
-            "startip" :"10.223.1.2",
-            "endip" :"10.223.1.100",
-        }
+                 "name": "Network-",
+                 "displaytext": "Network-",
+                 "gateway" :"10.223.1.1",
+                 "netmask" :"255.255.255.0",
+                 "startip" :"10.223.1.2",
+                 "endip" :"10.223.1.100",
+        	}
 
         network["name"] = account.name +" -forupdate"
         network["displayname"] = account.name + "-forupdate"
 
         network = Network.create(
-            apiclient,
-            network,
-            networkofferingid=isolated_network_offering_id,
-            zoneid=zone.id
-        )
-        cls._cleanup.append(network)
+                         apiclient,
+                         network,
+                         networkofferingid=isolated_network_offering_id,
+                         zoneid=zone.id
+                         )
         return network
 

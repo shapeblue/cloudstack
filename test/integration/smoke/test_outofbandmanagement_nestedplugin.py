@@ -23,11 +23,11 @@ from marvin.lib.base import *
 from marvin.lib.common import *
 from nose.plugins.attrib import attr
 
-from http.server import BaseHTTPRequestHandler,HTTPServer
+from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 
 import socket
 import sys
-import _thread
+import thread
 import time
 
 
@@ -56,7 +56,7 @@ class MockedCloudStackServer(BaseHTTPRequestHandler):
         self.end_headers()
 
         json = "{\"listvirtualmachinesresponse\":{\"count\":1,\"virtualmachine\":[{\"id\":\"some-uuid\",\"name\":\"test-vm\",\"state\":\"%s\"}]}}" % state
-        self.wfile.write(json.encode())
+        self.wfile.write(json)
 
     def log_message(self, format, *args):
         return
@@ -169,7 +169,7 @@ class TestOutOfBandManagement(cloudstackTestCase):
                 server.serve_forever()
             except Exception: pass
         server = HTTPServer(('0.0.0.0', self.getServerPort()), MockedCloudStackServer)
-        _thread.start_new_thread(startMgmtServer, ("mocked-mgmt-server", server,))
+        thread.start_new_thread(startMgmtServer, ("mocked-mgmt-server", server,))
         self.server = server
 
 

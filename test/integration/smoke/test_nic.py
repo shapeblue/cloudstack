@@ -34,7 +34,7 @@ import sys
 import logging
 import time
 import threading
-from queue import Queue
+import Queue
 
 
 class TestNic(cloudstackTestCase):
@@ -374,7 +374,7 @@ class TestNic(cloudstackTestCase):
 
         # Start multiple networks
         tsize = 8
-        queue = Queue()
+        queue = Queue.Queue()
         for _ in range(tsize):
             worker = NetworkMaker(queue, createNetwork)
             worker.setDaemon(True)

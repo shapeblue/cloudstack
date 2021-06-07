@@ -57,8 +57,7 @@ setup(name="Marvin",
           "ipmisim >= 0.7",
           "pytz",
           "retries",
-          "PyCrypt",
-          "urllib3"
+          "PyCrypt"
       ],
       py_modules=['marvin.marvinPlugin'],
       zip_safe=False,

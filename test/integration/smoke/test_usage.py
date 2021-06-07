@@ -19,8 +19,7 @@
 # Import Local Modules
 from marvin.codes import FAILED
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.cloudstackAPI import deleteVolume
 from marvin.lib.utils import (cleanup_resources,get_hypervisor_type)
 from marvin.lib.base import (Account,
