@@ -19,8 +19,7 @@
 # All tests inherit from cloudstack TestCase
 
 from marvin.cloudstackTestCase import cloudstackTestCase
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.codes import FAILED, PASS
 from marvin.lib.base import (Account,
                              VirtualMachine,

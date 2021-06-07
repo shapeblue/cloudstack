@@ -28,8 +28,7 @@
 from marvin.codes import (PASS,
                           RECURRING)
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 
 from marvin.lib.base import (ServiceOffering,
                                          Account,
@@ -420,7 +419,7 @@ class TestBaseImageUpdate(cloudstackTestCase):
 
         hypervisor = host_list_validation_result[1].hypervisor
 
-        for k, v in list(self.services["templates"].items()):
+        for k, v in self.services["templates"].items():
             if k.lower() == hypervisor.lower():
                 # Register new template
                 template = Template.register(

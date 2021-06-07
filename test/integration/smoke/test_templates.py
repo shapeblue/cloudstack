@@ -20,8 +20,7 @@
 from marvin.cloudstackException import *
 from marvin.cloudstackAPI import *
 from marvin.codes import FAILED
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.cloudstackAPI import listZones
 from marvin.lib.utils import random_gen, cleanup_resources
 from marvin.lib.base import (Account,
@@ -35,7 +34,7 @@ from marvin.lib.common import (get_domain,
                                get_zone,
                                get_template)
 from nose.plugins.attrib import attr
-import urllib.request, urllib.parse, urllib.error
+import urllib
 #Import System modules
 import time
 from marvin.cloudstackAPI import (createTemplate, listOsTypes)
@@ -145,8 +144,8 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         try:
             self.download(self.apiclient, template.id)
         except Exception as e:
-            print("Negative Test Passed - Exception Occurred Under template download " \
-                  "%s" % GetDetailExceptionInfo(e))
+            print "Negative Test Passed - Exception Occurred Under template download " \
+                  "%s" % GetDetailExceptionInfo(e)
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under template download ")
 
@@ -158,8 +157,8 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         try:
             self.download(self.apiclient, template.id)
         except Exception as e:
-            print("Negative Test Passed - Exception Occurred Under template download " \
-                  "%s" % GetDetailExceptionInfo(e))
+            print "Negative Test Passed - Exception Occurred Under template download " \
+                  "%s" % GetDetailExceptionInfo(e)
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under template download ")
 
@@ -171,8 +170,8 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         try:
             self.download(self.apiclient, template.id)
         except Exception as e:
-            print("Negative Test Passed - Exception Occurred Under template download " \
-                  "%s" % GetDetailExceptionInfo(e))
+            print "Negative Test Passed - Exception Occurred Under template download " \
+                  "%s" % GetDetailExceptionInfo(e)
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under template download ")
 
@@ -729,8 +728,8 @@ class TestTemplates(cloudstackTestCase):
 
         try:
             # Format URL to ASCII to retrieve response code
-            formatted_url = urllib.parse.unquote_plus(list_extract_response.url)
-            url_response = urllib.request.urlopen(formatted_url)
+            formatted_url = urllib.unquote_plus(list_extract_response.url)
+            url_response = urllib.urlopen(formatted_url)
             response_code = url_response.getcode()
 
         except Exception:
@@ -821,7 +820,7 @@ class TestTemplates(cloudstackTestCase):
         if len(self.zones) <= 1:
             self.skipTest("Not enough zones available to perform copy template")
 
-        self.services["destzoneid"] = [z for z in self.zones if z.id != self.services["sourcezoneid"]][0].id
+        self.services["destzoneid"] = filter(lambda z: z.id != self.services["sourcezoneid"], self.zones)[0].id
 
         self.debug("Copy template from Zone: %s to %s" % (
                                             self.services["sourcezoneid"],

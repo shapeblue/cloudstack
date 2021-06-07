@@ -16,8 +16,7 @@
 # under the License.
 
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.lib.utils import cleanup_resources
 from marvin.lib.base import (Account,
                              VirtualMachine,
@@ -180,7 +179,7 @@ class TestSnapshotLimit(cloudstackTestCase):
                                     serviceofferingid=cls.service_offering.id
                                     )
             cls._cleanup.append(cls.virtual_machine)
-        except Exception as e:
+        except Exception, e:
             cls.tearDownClass()
             unittest.SkipTest("setupClass fails for %s" % cls.__name__)
             raise e

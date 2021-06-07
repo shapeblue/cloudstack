@@ -16,8 +16,7 @@
 # under the License.
 """ Tests for Multiple IP Ranges feature
 """
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.lib.utils import cleanup_resources, get_process_status
 from marvin.lib.base import (Account,
                              DiskOffering,
@@ -204,11 +203,11 @@ class TestMultipleIpRanges(cloudstackTestCase):
         )
         self.ip_range = list(
             netaddr.iter_iprange(
-                str(
-                    self.testdata["vlan_ip_range"]["startip"]), str(
+                unicode(
+                    self.testdata["vlan_ip_range"]["startip"]), unicode(
                     self.testdata["vlan_ip_range"]["endip"])))
         self.nic_ip = netaddr.IPAddress(
-            str(
+            unicode(
                 self.vm_response[0].nic[0].ipaddress))
         self.debug("vm got {} as ip address".format(self.nic_ip))
         self.assertIn(
@@ -282,11 +281,11 @@ class TestMultipleIpRanges(cloudstackTestCase):
         """
         self.ip_range = list(
             netaddr.iter_iprange(
-                str(
-                    self.testdata["vlan_ip_range"]["startip"]), str(
+                unicode(
+                    self.testdata["vlan_ip_range"]["startip"]), unicode(
                     self.testdata["vlan_ip_range"]["endip"])))
         self.nic_ip = netaddr.IPAddress(
-            str(
+            unicode(
                 self.vm_response[0].nic[0].ipaddress))
         self.debug("vm got {} as ip address".format(self.nic_ip))
         self.assertIn(

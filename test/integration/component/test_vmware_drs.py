@@ -21,8 +21,7 @@
 import marvin
 from nose.plugins.attrib import attr
 
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 
 from marvin.lib.base import (Account,
                                          AffinityGroup,

@@ -41,20 +41,25 @@ class TestPortablePublicIPRange(cloudstackTestCase):
         cls.domain = get_domain(cls.apiclient)
         cls.zone = get_zone(cls.apiclient, cls.testClient.getZoneForTests())
 
-        cls._cleanup = []
         # Create Account
         cls.account = Account.create(
                             cls.apiclient,
                             cls.services["account"],
                             domainid=cls.domain.id
                             )
-        cls._cleanup.append(cls.account)
-
+        cls._cleanup = [
+                        cls.account,
+                        ]
         return
 
     @classmethod
     def tearDownClass(cls):
-        super(TestPortablePublicIPRange,cls).tearDownClass()
+        try:
+            # Cleanup resources used
+            cleanup_resources(cls.apiclient, cls._cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
@@ -63,7 +68,12 @@ class TestPortablePublicIPRange(cloudstackTestCase):
         return
 
     def tearDown(self):
-        super(TestPortablePublicIPRange,self).tearDown()
+        try:
+            # Clean up
+            cleanup_resources(self.apiclient, self.cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     @attr(tags = ["basic", "advanced",  "portablepublicip"], required_hardware="false")
     def test_createPortablePublicIPRange(self):
@@ -74,13 +84,11 @@ class TestPortablePublicIPRange(cloudstackTestCase):
                                     self.apiclient,
                                     self.services
                                )
-        # cleanup by this test
         self.debug("attempting to verify portable Public IP range is created")
         list_portbale_ip_range_response = PortablePublicIpRange.list(
                                             self.apiclient,
                                             id=self.portable_ip_range.id
                                         )
-        # no verification? what can we do?
         self.portable_ip_range.delete(self.apiclient)
         return
 
@@ -100,21 +108,18 @@ class TestPortablePublicIPAcquire(cloudstackTestCase):
         # Get Zone, Domain
         cls.domain = get_domain(cls.apiclient)
         cls.zone = get_zone(cls.apiclient, cls.testClient.getZoneForTests())
-        cls._cleanup = []
         # Create Account
         cls.account = Account.create(
                             cls.apiclient,
                             cls.services["account"],
                             domainid=cls.domain.id
                             )
-        cls._cleanup.append(cls.account)
         cls.services["network"]["zoneid"] = cls.zone.id
 
         cls.network_offering = NetworkOffering.create(
                                     cls.apiclient,
                                     cls.services["network_offering"],
                                     )
-        cls._cleanup.append(cls.network_offering)
         # Enable Network offering
         cls.network_offering.update(cls.apiclient, state='Enabled')
 
@@ -125,13 +130,22 @@ class TestPortablePublicIPAcquire(cloudstackTestCase):
                                              cls.account.name,
                                              cls.account.domainid
                                              )
-        cls._cleanup.append(cls.account_network)
+        cls._cleanup = [
+                        cls.account_network,
+                        cls.network_offering,
+                        cls.account
+                       ]
 
         return
 
     @classmethod
     def tearDownClass(cls):
-        super(TestPortablePublicIPAcquire,cls).tearDownClass()
+        try:
+            # Cleanup resources used
+            cleanup_resources(cls.apiclient, cls._cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
@@ -140,7 +154,12 @@ class TestPortablePublicIPAcquire(cloudstackTestCase):
         return
 
     def tearDown(self):
-        super(TestPortablePublicIPAcquire,self).tearDown()
+        try:
+            # Clean up
+            cleanup_resources(self.apiclient, self.cleanup)
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     @attr(tags = ["advanced",  "portablepublicip"], required_hardware="false")
     def test_createPortablePublicIPAcquire(self):
@@ -151,11 +170,10 @@ class TestPortablePublicIPAcquire(cloudstackTestCase):
                                     self.apiclient,
                                     self.services
                                     )
-        # cleaned up in this method
+
         ip_address = PublicIPAddress.create(self.apiclient, self.account.name,
                             self.zone.id, self.account.domainid, isportable=True)
-        # cleaned up in this method
-        # no verifications done!
+
         ip_address.delete(self.apiclient)
         self.portable_ip_range.delete(self.apiclient)
         return

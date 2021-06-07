@@ -16,8 +16,7 @@
 # under the License.
 
 # Import Local Modules
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.cloudstackAPI import (updateStoragePool,
                                   resizeVolume,
                                   listCapacity,

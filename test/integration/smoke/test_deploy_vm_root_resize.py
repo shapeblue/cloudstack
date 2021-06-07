@@ -164,7 +164,14 @@ class TestDeployVmRootSize(cloudstackTestCase):
         return
 
     def tearDown(self):
-        super(TestDeployVmRootSize,self).tearDown()
+        try:
+            # Clean up, terminate the created instance, volumes and snapshots
+
+            cleanup_resources(self.apiclient, self.cleanup)
+            pass
+        except Exception as e:
+            raise Exception("Warning: Exception during cleanup : %s" % e)
+        return
 
     @classmethod
     def restartServer(cls):
@@ -395,5 +402,10 @@ class TestDeployVmRootSize(cloudstackTestCase):
         else:
             self.debug("test 02 does not support hypervisor type " + self.hypervisor)
 
+    def tearDown(self):
+        try:
+            cleanup_resources(self.apiclient, self.cleanup)
+        except Exception as e:
+            self.debug("Warning! Exception in tearDown: %s" % e)
 
 

@@ -19,8 +19,7 @@
 
 import marvin
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.cloudstackAPI import *
 from marvin.lib.utils import *
 from marvin.lib.base import *
@@ -33,7 +32,7 @@ import random
 import string
 import telnetlib
 import os
-import urllib.request, urllib.parse, urllib.error
+import urllib
 import time
 import tempfile
 _multiprocess_shared_ = True

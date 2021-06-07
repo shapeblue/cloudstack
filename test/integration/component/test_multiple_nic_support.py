@@ -19,8 +19,7 @@
 """
 # Import Local Modules
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.sshClient import SshClient
 from marvin.lib.utils import (validateList,
                               cleanup_resources,

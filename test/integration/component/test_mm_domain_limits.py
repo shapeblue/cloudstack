@@ -18,8 +18,7 @@
 """
 # Import Local Modules
 from nose.plugins.attrib import attr
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 from marvin.lib.base import (
                                         Account,
                                         ServiceOffering,
@@ -226,7 +225,7 @@ class TestDomainMemoryLimits(cloudstackTestCase):
         users =  { self.child_domain_1: self.child_do_admin_1,
                    self.child_domain_2: self.child_do_admin_2
                  }
-        for domain, admin in list(users.items()):
+        for domain, admin in users.items():
             self.account = admin
             self.domain = domain
 
@@ -370,7 +369,7 @@ class TestDomainMemoryLimits(cloudstackTestCase):
         users =  { self.child_domain_1: self.child_do_admin_1,
                    self.child_domain_2: self.child_do_admin_2
                  }
-        for domain, admin in list(users.items()):
+        for domain, admin in users.items():
             self.account = admin
             self.domain = domain
             self.debug("Creating an instance with service offering: %s" %
@@ -431,7 +430,7 @@ class TestDomainMemoryLimits(cloudstackTestCase):
         users =  { self.child_domain_1: self.child_do_admin_1,
                    self.child_domain_2: self.child_do_admin_2
                  }
-        for domain, admin in list(users.items()):
+        for domain, admin in users.items():
             self.account = admin
             self.domain = domain
             self.debug("Creating an instance with service offering: %s" %
@@ -491,7 +490,7 @@ class TestDomainMemoryLimits(cloudstackTestCase):
         users =  { self.child_domain_1: self.child_do_admin_1,
                    self.child_domain_2: self.child_do_admin_2
                  }
-        for domain, admin in list(users.items()):
+        for domain, admin in users.items():
             self.account = admin
             self.domain = domain
             self.debug("Creating an instance with service offering: %s" %

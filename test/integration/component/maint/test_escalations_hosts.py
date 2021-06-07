@@ -18,8 +18,7 @@
 # Test from the Marvin - Testing in Python wiki
 
 # All tests inherit from cloudstackTestCase
-from marvin.cloudstackTestCase import cloudstackTestCase
-import unittest
+from marvin.cloudstackTestCase import cloudstackTestCase, unittest
 
 # Import Integration Libraries
 
