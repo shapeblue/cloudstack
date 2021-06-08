@@ -31,7 +31,12 @@ fi
 customize_image() {
     local image=$1
     echo "Customizing $image"
-    virt-customize -x --run cloudstack_install_packages.sh -a $image
+    virt-customize -x \
+      --copy ../../systemvm/debian/etc/systemd/system/cloud-early-config.service:/tmp/cloud-early-config.service \
+      --copy ../../systemvm/debian/opt/cloud/bin/setup/cloud-early-config:/tmp/cloud-early-config \
+      --copy ../../systemvm/debian/etc/systemd/system/cloud-postinit.service:/tmp/cloud-postinit.service \
+      --copy ../../systemvm/debian/opt/cloud/bin/setup/postinit.sh:/tmp/postinit.sh \
+      --run cloudstack_install_packages.sh -a $image
 }
 
 # refer to https://github.com/alpinelinux/alpine-make-vm-image/blob/master/alpine-make-vm-image
