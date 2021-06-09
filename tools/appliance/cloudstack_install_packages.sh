@@ -31,7 +31,7 @@ mount -t overlay -o lowerdir=/cloudstack/usr/data:/usr,upperdir=/cloudstack/usr/
 mount -t overlay -o lowerdir=/cloudstack/root/data:/root,upperdir=/cloudstack/root/upper,workdir=/cloudstack/root/workdir overlay /root
 
 # 3. upgrade kernel and installed packages
-apt update && apt upgrade -y && apt dist-upgrade -y && apt-get -q -y upgrade -t buster-backports && apt-get -q -y dist-upgrade -t buster-backport
+apt update && apt upgrade -y && apt dist-upgrade -y && apt-get -q -y upgrade -t buster-backports && apt-get -q -y dist-upgrade -t buster-backports
 
 # 4. install new packages, please append packages name
 apt-get -q -y -o dpkg::options::=--force-confold -o dpkg::options::=--force-confdef install \
@@ -71,13 +71,16 @@ apt-get -q -y -o dpkg::options::=--force-confold -o dpkg::options::=--force-conf
     apt-get -q -y libuuid1:i386 libc6:i386
   fi
 
-  install_vhd_util
+  wget --no-check-certificate https://github.com/shapeblue/cloudstack-nonoss/raw/master/vhd-util -O /bin/vhd-util
+  chmod a+x /bin/vhd-util
+
   # Install xenserver guest utilities as debian repos don't have it
   wget https://mirrors.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
   dpkg -i xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
   rm -f xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
 
 # 5. configure
+mkdir -p /opt/cloud/bin/setup/
 cp /tmp/cloud-postinit.service /etc/systemd/system/cloud-postinit.service
 cp /tmp/postinit.sh /opt/cloud/bin/setup/postinit.sh
 cp /tmp/cloud-early-config.service /etc/systemd/system/cloud-early-config.service
@@ -159,6 +162,11 @@ function disable_conntrack_logging() {
 }
 
 disable_conntrack_logging
+
+  echo "strongwan strongwan/install_x509_certificate boolean false" | debconf-set-selections
+  echo "strongwan strongwan/install_x509_certificate seen true" | debconf-set-selections
+  echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+  echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
 
 # 6. cleanup
 apt-get -y autoremove --purge

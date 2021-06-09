@@ -3,6 +3,7 @@
 IMAGE=$1
 ACTION=$2
 OUTPUT=cloudstack-patches-debian-10.tgz
+PWD=$(readlink -f ../..)
 
 if [ -z $IMAGE ];then
     echo "please input a image file"
@@ -32,10 +33,10 @@ customize_image() {
     local image=$1
     echo "Customizing $image"
     virt-customize -x \
-      --copy ../../systemvm/debian/etc/systemd/system/cloud-early-config.service:/tmp/cloud-early-config.service \
-      --copy ../../systemvm/debian/opt/cloud/bin/setup/cloud-early-config:/tmp/cloud-early-config \
-      --copy ../../systemvm/debian/etc/systemd/system/cloud-postinit.service:/tmp/cloud-postinit.service \
-      --copy ../../systemvm/debian/opt/cloud/bin/setup/postinit.sh:/tmp/postinit.sh \
+      --upload $PWD/systemvm/debian/etc/systemd/system/cloud-early-config.service:/tmp \
+      --upload $PWD/systemvm/debian/opt/cloud/bin/setup/cloud-early-config:/tmp \
+      --upload $PWD/systemvm/debian/etc/systemd/system/cloud-postinit.service:/tmp \
+      --upload $PWD/systemvm/debian/opt/cloud/bin/setup/postinit.sh:/tmp \
       --run cloudstack_install_packages.sh -a $image
 }
 
@@ -96,8 +97,8 @@ cleanup() {
     rm -f $IMAGE
 }
 
-customize_image $IMAGE
+#customize_image $IMAGE
 nbd_dev=$(attach_image $IMAGE qcow2)
 compress_nbd $nbd_dev
 disconnect_image $nbd_dev
-cleanup
+#cleanup
