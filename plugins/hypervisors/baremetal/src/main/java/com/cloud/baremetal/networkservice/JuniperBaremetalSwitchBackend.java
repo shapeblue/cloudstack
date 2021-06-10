@@ -81,7 +81,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
         try {
             juniper = new JuniperDevice(struct.getSwitchIp(), NETCONF_PORT, struct.getSwitchUsername(), struct.getSwitchPassword());
             if (struct.isRemoveAll()) {
-                juniper.clearAllVlansFromInterface(struct.getPort(), struct.getVlanType());
+                juniper.clearAllVlansFromInterface(struct.getPort());
             } else {
                 juniper.removeVlanFromInterface(struct.getPort(), struct.getVlan(), struct.getVlanType());
             }
@@ -121,7 +121,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
         }
 
         public void addVlanToInterface(String interfaceName, int vlanId, VlanType vlanType) throws IOException, SAXException, XPathExpressionException, ParserConfigurationException {
-            String configTemplate = "set interfaces %s unit 0 family ethernet-switching vlan members %d \n" +
+            String configTemplate = "set interfaces %s unit 0 family ethernet-switching vlan members %d\n" +
                     "set interfaces %s unit 0 family ethernet-switching interface-mode trunk\n";
 
             if(vlanId == BaremetalManagerImpl.pxeVlan.value()) {
@@ -136,28 +136,41 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             String config = String.format(configTemplate, interfaceName, vlanId, interfaceName);
 
+
             this.device.loadSetConfiguration(config);
+
             this.device.commit();
         }
 
-        public void removeVlanFromInterface(String interfaceName, int vlanId, VlanType vlanType) throws SAXException, ParserConfigurationException, XPathExpressionException, IOException {
-            String config = String.format("delete interfaces %s unit 0 family ethernet-switching vlan members %d\n", interfaceName, vlanId);
-            if (vlanType.equals(VlanType.UNTAGGED)) {
-                config += String.format("delete interfaces %s native-vlan-id \n", interfaceName);
-            }
-
-            boolean lastVlan = getInterfaceVlans(interfaceName).size() == 1;
-
-            if (lastVlan) {
-                config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
-            }
-
-            this.device.loadSetConfiguration(config);
-            this.device.commit();
-        }
-
-        void clearAllVlansFromInterface(String interfaceName, VlanType vlanType) throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
+        public void removeVlanFromInterface(String interfaceName, int vlanId, VlanType vlanType) throws SAXException, IOException {
             String config = "";
+
+            if (vlanType.equals(VlanType.UNTAGGED)) {
+                config += String.format("delete interfaces %s native-vlan-id\n", interfaceName);
+            }
+
+            config += String.format("delete interfaces %s unit 0 family ethernet-switching vlan members %d\n", interfaceName, vlanId);
+
+            this.device.loadSetConfiguration(config);
+
+            XML candidateConfig = this.device.getCandidateConfig("<configuration><interfaces><interface><name>" + interfaceName + "</name></interface></interfaces></configuration>");
+
+            if (!candidateConfig.toString().contains("<vlan>")) {
+                config += String.format("delete interfaces %s unit 0 family ethernet-switching", interfaceName);
+            }
+
+            this.device.loadSetConfiguration(config);
+
+            try {
+                this.device.commit();
+            } catch (Exception e) {
+                s_logger.info(this.device.getLastRPCReply());
+                throw e;
+            }
+        }
+
+        void clearAllVlansFromInterface(String interfaceName) throws IOException, SAXException, XPathExpressionException, ParserConfigurationException {
+            String config = String.format("delete interfaces %s native-vlan-id\n", interfaceName);
 
             for (int vl : this.getInterfaceVlans(interfaceName)) {
                 if (vl > 1)  {
@@ -165,14 +178,16 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
                 }
             }
 
-            if(vlanType.equals(VlanType.UNTAGGED)) {
-                config = String.format("delete interfaces %s native-vlan-id \n", interfaceName);
-            }
-
-            config += String.format("delete interfaces %s unit 0 family ethernet-switching interface-mode", interfaceName);
+            config += String.format("delete interfaces %s unit 0 family ethernet-switching", interfaceName);
 
             this.device.loadSetConfiguration(config);
-            this.device.commit();
+
+            try {
+                this.device.commit();
+            } catch (Exception e) {
+                s_logger.info(this.device.getLastRPCReply());
+                throw e;
+            }
         }
 
         private List<Integer> getInterfaceVlans(String interfaceName) throws ParserConfigurationException, XPathExpressionException {
@@ -197,24 +212,6 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
             }
 
             return interfaceVlans;
-        }
-
-        private String getVlanName(int vlanId) throws IOException, SAXException, ParserConfigurationException, XPathExpressionException {
-            XMLBuilder rpcBuilder = new XMLBuilder();
-            XML vlanQuery = rpcBuilder.createNewRPC("get-vlan-information").append("vlan-name", Integer.toString(vlanId));
-            XML out = getConfig(vlanQuery.toString());
-
-            XPathFactory xPathfactory = XPathFactory.newInstance();
-            XPath xpath = xPathfactory.newXPath();
-            XPathExpression expr = xpath.compile("//l2ng-l2rtb-vlan-name");
-
-            NodeList xPathResult = (NodeList) expr.evaluate(out.getOwnerDocument(), XPathConstants.NODESET);
-
-            if(xPathResult.getLength() != 1) {
-                return null;
-            }
-
-            return xPathResult.item(0).getTextContent();
         }
 
         private XML getConfig(String req) {
