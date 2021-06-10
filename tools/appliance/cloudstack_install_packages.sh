@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 CLOUDSTACK_RELEASE=4.16.0.0
 
@@ -29,6 +29,14 @@ mount -t overlay -o lowerdir=/cloudstack/opt/data:/opt,upperdir=/cloudstack/opt/
 mount -t overlay -o lowerdir=/cloudstack/var/data:/var,upperdir=/cloudstack/var/upper,workdir=/cloudstack/var/workdir overlay /var
 mount -t overlay -o lowerdir=/cloudstack/usr/data:/usr,upperdir=/cloudstack/usr/upper,workdir=/cloudstack/usr/workdir overlay /usr
 mount -t overlay -o lowerdir=/cloudstack/root/data:/root,upperdir=/cloudstack/root/upper,workdir=/cloudstack/root/workdir overlay /root
+
+export DEBIAN_FRONTEND=noninteractive
+arch=`dpkg --print-architecture`
+
+  echo "strongwan strongwan/install_x509_certificate boolean false" | debconf-set-selections
+  echo "strongwan strongwan/install_x509_certificate seen true" | debconf-set-selections
+  echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+  echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
 
 # 3. upgrade kernel and installed packages
 apt update && apt upgrade -y && apt dist-upgrade -y && apt-get -q -y upgrade -t buster-backports && apt-get -q -y dist-upgrade -t buster-backports
@@ -115,7 +123,7 @@ echo "Cloudstack Release $CLOUDSTACK_RELEASE $(date)" > /etc/cloudstack-release
   systemctl disable hyperv-daemons.hv-vss-daemon.service
   systemctl disable qemu-guest-agent
 
-function configure_apache2() {
+configure_apache2() {
    # Enable ssl, rewrite and auth
    a2enmod ssl rewrite auth_basic auth_digest
    a2ensite default-ssl
@@ -125,11 +133,11 @@ function configure_apache2() {
    sed -i 's/SSLProtocol .*$/SSLProtocol TLSv1.2/g' /etc/apache2/mods-available/ssl.conf
 }
 
-function configure_strongswan() {
+configure_strongswan() {
   # change the charon stroke timeout from 3 minutes to 30 seconds
   sed -i "s/# timeout = 0/timeout = 30000/" /etc/strongswan.d/charon/stroke.conf
 }
-function configure_issue() {
+configure_issue() {
   cat > /etc/issue <<EOF
 
    __?.o/  Apache CloudStack SystemVM $CLOUDSTACK_RELEASE
@@ -139,7 +147,7 @@ function configure_issue() {
 EOF
 }
 
-function configure_cacerts() {
+configure_cacerts() {
   CDIR=$(pwd)
   cd /tmp
   # Add LetsEncrypt ca-cert
@@ -154,7 +162,7 @@ function configure_cacerts() {
   configure_issue
   configure_cacerts
 
-function disable_conntrack_logging() {
+disable_conntrack_logging() {
   grep "LogFile off" /etc/conntrackd/conntrackd.conf && return
 
   sed -i '/Stats {/,/}/ s/LogFile on/LogFile off/' /etc/conntrackd/conntrackd.conf
@@ -162,11 +170,6 @@ function disable_conntrack_logging() {
 }
 
 disable_conntrack_logging
-
-  echo "strongwan strongwan/install_x509_certificate boolean false" | debconf-set-selections
-  echo "strongwan strongwan/install_x509_certificate seen true" | debconf-set-selections
-  echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
-  echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
 
 # 6. cleanup
 apt-get -y autoremove --purge

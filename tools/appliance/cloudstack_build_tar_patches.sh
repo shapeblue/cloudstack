@@ -32,7 +32,7 @@ fi
 customize_image() {
     local image=$1
     echo "Customizing $image"
-    virt-customize -x \
+    virt-customize -v -x \
       --upload $PWD/systemvm/debian/etc/systemd/system/cloud-early-config.service:/tmp \
       --upload $PWD/systemvm/debian/opt/cloud/bin/setup/cloud-early-config:/tmp \
       --upload $PWD/systemvm/debian/etc/systemd/system/cloud-postinit.service:/tmp \
@@ -97,7 +97,7 @@ cleanup() {
     rm -f $IMAGE
 }
 
-#customize_image $IMAGE
+customize_image $IMAGE
 nbd_dev=$(attach_image $IMAGE qcow2)
 compress_nbd $nbd_dev
 disconnect_image $nbd_dev
