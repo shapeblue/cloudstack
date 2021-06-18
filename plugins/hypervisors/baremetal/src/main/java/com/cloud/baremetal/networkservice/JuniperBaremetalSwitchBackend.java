@@ -113,7 +113,12 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
         public JuniperDevice(String host, int port, String user, String password) throws ParserConfigurationException, NetconfException {
             device = new Device(host, user, password, null, port);
-            device.connect();
+            try {
+                device.connect();
+            } catch (Exception e) {
+                s_logger.error("Error while connecting to the switch", e);
+                throw e;
+            }
         }
 
         protected void close() {
@@ -136,10 +141,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             String config = String.format(configTemplate, interfaceName, vlanId, interfaceName);
 
-
-            this.device.loadSetConfiguration(config);
-
-            this.device.commit();
+            loadAndCommitConfigs(config);
         }
 
         public void removeVlanFromInterface(String interfaceName, int vlanId, VlanType vlanType) throws SAXException, IOException {
@@ -159,14 +161,7 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
                 config += String.format("delete interfaces %s unit 0 family ethernet-switching", interfaceName);
             }
 
-            this.device.loadSetConfiguration(config);
-
-            try {
-                this.device.commit();
-            } catch (Exception e) {
-                s_logger.info(this.device.getLastRPCReply());
-                throw e;
-            }
+            loadAndCommitConfigs(config);
         }
 
         void clearAllVlansFromInterface(String interfaceName) throws IOException, SAXException, XPathExpressionException, ParserConfigurationException {
@@ -180,12 +175,18 @@ public class JuniperBaremetalSwitchBackend implements BaremetalSwitchBackend {
 
             config += String.format("delete interfaces %s unit 0 family ethernet-switching", interfaceName);
 
+            loadAndCommitConfigs(config);
+        }
+
+        private void loadAndCommitConfigs(String config) throws IOException, SAXException {
             this.device.loadSetConfiguration(config);
 
             try {
                 this.device.commit();
             } catch (Exception e) {
-                s_logger.info(this.device.getLastRPCReply());
+                if(device != null) {
+                    s_logger.error(this.device.getLastRPCReply());
+                }
                 throw e;
             }
         }
