@@ -3920,8 +3920,9 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
         final ServiceOfferingVO currentServiceOffering = _offeringDao.findByIdIncludingRemoved(vmInstance.getId(), vmInstance.getServiceOfferingId());
         final DiskOfferingVO currentDiskOffering = _diskOfferingDao.findByIdIncludingRemoved(currentServiceOffering.getDiskOfferingId());
+        final DiskOfferingVO newDiskOffering = _diskOfferingDao.findByIdIncludingRemoved(newServiceOffering.getDiskOfferingId());
 
-        checkIfNewOfferingStorageScopeMatchesStoragePool(vmInstance, newServiceOffering);
+        checkIfNewOfferingStorageScopeMatchesStoragePool(vmInstance, newDiskOffering);
 
         // if vm is a system vm, check if it is a system service offering, if yes return with error as it cannot be used for user vms
         if (currentServiceOffering.isSystemUse() != newServiceOffering.isSystemUse()) {
@@ -3936,7 +3937,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
         // Check that the service offering being upgraded to has all the tags of the current service offering.
         final List<String> currentTags = StringUtils.csvTagsToList(currentDiskOffering.getTags());
-        final List<String> newTags = StringUtils.csvTagsToList(currentDiskOffering.getTags());
+        final List<String> newTags = StringUtils.csvTagsToList(newDiskOffering.getTags());
         if (!newTags.containsAll(currentTags)) {
             throw new InvalidParameterValueException("Unable to upgrade virtual machine; the current service offering " + " should have tags as subset of " +
                     "the new service offering tags. Current service offering tags: " + currentTags + "; " + "new service " + "offering tags: " + newTags);
@@ -3946,16 +3947,16 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
     /**
      * Throws an InvalidParameterValueException in case the new service offerings does not match the storage scope (e.g. local or shared).
      */
-    protected void checkIfNewOfferingStorageScopeMatchesStoragePool(VirtualMachine vmInstance, ServiceOffering newServiceOffering) {
+    protected void checkIfNewOfferingStorageScopeMatchesStoragePool(VirtualMachine vmInstance, DiskOffering newDiskOffering) {
         boolean isRootVolumeOnLocalStorage = isRootVolumeOnLocalStorage(vmInstance.getId());
 
-        if (newServiceOffering.isUseLocalStorage() && !isRootVolumeOnLocalStorage) {
+        if (newDiskOffering.isUseLocalStorage() && !isRootVolumeOnLocalStorage) {
             String message = String .format("Unable to upgrade virtual machine %s, target offering use local storage but the storage pool where "
                     + "the volume is allocated is a shared storage.", vmInstance.toString());
             throw new InvalidParameterValueException(message);
         }
 
-        if (!newServiceOffering.isUseLocalStorage() && isRootVolumeOnLocalStorage) {
+        if (!newDiskOffering.isUseLocalStorage() && isRootVolumeOnLocalStorage) {
             String message = String.format("Unable to upgrade virtual machine %s, target offering use shared storage but the storage pool where "
                     + "the volume is allocated is a local storage.", vmInstance.toString());
             throw new InvalidParameterValueException(message);
