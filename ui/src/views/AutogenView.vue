@@ -38,6 +38,21 @@
                 :un-checked-children="$t('label.metrics')"
                 :checked="$store.getters.metrics"
                 @change="(checked, event) => { $store.dispatch('SetMetrics', checked) }"/>
+              <a-dropdown style="margin-left: 8px">
+                <a-button>
+                  {{ $t('label.columns') }} <a-icon type="down" style="color: rgba(0,0,0,.45)" />
+                </a-button>
+                <a-menu
+                  slot="overlay" >
+                  <!-- :selectedKeys="selectedColumns"
+                  :multiple="true" -->
+                  <!-- @click="changeSelectedColumns"  -->
+                  <a-menu-item v-for="(column, idx) in columnKeys" :key="column">
+                    <a-checkbox :id="idx.toString()" :defaultChecked="true" @click="onClick"/>
+                    {{ $t('label.' + column) }}
+                  </a-menu-item>
+                </a-menu>
+              </a-dropdown>
               <a-tooltip placement="right">
                 <template slot="title">
                   {{ $t('label.filterby') }}
@@ -383,6 +398,7 @@ export default {
       apiName: '',
       loading: false,
       actionLoading: false,
+      selectedColumns: [],
       columns: [],
       items: [],
       itemCount: 0,
@@ -558,6 +574,7 @@ export default {
             this.columnKeys = columns
           }
         }
+        this.selectedColumns = this.columnKeys.slice()
 
         if (this.$route.meta.actions) {
           this.actions = this.$route.meta.actions
@@ -1062,6 +1079,66 @@ export default {
         })
       })
     },
+    changeSelectedColumns (data) {
+      const column = data.key
+      if (this.selectedColumns.includes(column)) {
+        this.selectedColumns = this.selectedColumns.filter(x => x !== column)
+      } else {
+        this.selectedColumns.push(column)
+      }
+      this.selectedColumns = this.columnKeys.filter(x => this.selectedColumns.includes(x))
+      // const customRender = {}
+      // this.columns = []
+      // for (var columnKey of this.selectedColumns) {
+      //   var key = columnKey
+      //   if (typeof columnKey === 'object') {
+      //     key = Object.keys(columnKey)[0]
+      //     customRender[key] = columnKey[key]
+      //   }
+      //   this.columns.push({
+      //     title: this.$t('label.' + String(key).toLowerCase()),
+      //     dataIndex: key,
+      //     scopedSlots: { customRender: key },
+      //     sorter: function (a, b) { return genericCompare(a[this.dataIndex] || '', b[this.dataIndex] || '') }
+      //   })
+      // }
+      this.columns.map(x => {
+        if (!this.selectedColumns.includes(x)) {
+          console.log(x)
+          x.className = 'hide'
+          x.onHeaderCell = (c) => {
+            console.log(c)
+          }
+        }
+      })
+      console.log(this.columns)
+    },
+    onClick (e) {
+      if (!e.target.checked) {
+        this.selectedColumns.splice(e.target.id, 1)
+      } else {
+        this.selectedColumns.splice(e.target.id, 0, this.columnKeys[e.target.id])
+      }
+      // console.log(this.selectedColumns)
+      // console.log(this.columnKeys)
+      const customRender = {}
+      this.columns = []
+      for (var columnKey of this.selectedColumns) {
+        var key = columnKey
+        if (typeof columnKey === 'object') {
+          key = Object.keys(columnKey)[0]
+          customRender[key] = columnKey[key]
+        }
+        this.columns.push({
+          title: this.$t('label.' + String(key).toLowerCase()),
+          dataIndex: key,
+          scopedSlots: { customRender: key },
+          // className: 'hide',
+          sorter: function (a, b) { return genericCompare(a[this.dataIndex] || '', b[this.dataIndex] || '') }
+        })
+      }
+      // console.log(this.columns[0])
+    },
     changeFilter (filter) {
       const query = Object.assign({}, this.$route.query)
       delete query.templatefilter
@@ -1217,5 +1294,9 @@ export default {
 
 .ant-breadcrumb {
   vertical-align: text-bottom;
+}
+
+.hide {
+  display: none !important;
 }
 </style>
