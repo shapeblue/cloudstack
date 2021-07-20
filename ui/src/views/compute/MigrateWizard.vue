@@ -21,7 +21,8 @@
       :placeholder="$t('label.search')"
       v-model="searchQuery"
       style="margin-bottom: 10px;"
-      @search="fetchData" />
+      @search="fetchData"
+      autoFocus />
     <a-table
       size="small"
       style="overflow-y: auto"
@@ -46,6 +47,9 @@
       </div>
       <div slot="memused" slot-scope="record">
         {{ record.memoryused | byteToGigabyte }} GB
+      </div>
+      <div slot="memoryallocatedpercentage" slot-scope="record">
+        {{ record.memoryallocatedpercentage }}
       </div>
       <div slot="cluster" slot-scope="record">
         {{ record.clustername }}
@@ -123,6 +127,10 @@ export default {
           dataIndex: 'cpuused'
         },
         {
+          title: this.$t('label.memoryallocated'),
+          scopedSlots: { customRender: 'memoryallocatedpercentage' }
+        },
+        {
           title: this.$t('label.memused'),
           scopedSlots: { customRender: 'memused' }
         },
@@ -145,7 +153,7 @@ export default {
       ]
     }
   },
-  mounted () {
+  created () {
     this.fetchData()
   },
   methods: {
@@ -181,17 +189,11 @@ export default {
         hostid: this.selectedHost.id,
         virtualmachineid: this.resource.id
       }).then(response => {
-        var migrateResponse = isUserVm
-          ? this.selectedHost.requiresStorageMotion ? response.migratevirtualmachinewithvolumeresponse : response.migratevirtualmachineresponse
-          : response.migratesystemvmresponse
-        this.$store.dispatch('AddAsyncJob', {
-          title: `${this.$t('label.migrating')} ${this.resource.name}`,
-          jobid: migrateResponse.jobid,
-          description: this.resource.name,
-          status: 'progress'
-        })
+        const jobid = this.selectedHost.requiresStorageMotion ? response.migratevirtualmachinewithvolumeresponse.jobid : response.migratevirtualmachineresponse.jobid
         this.$pollJob({
-          jobId: migrateResponse.jobid,
+          jobId: jobid,
+          title: `${this.$t('label.migrating')} ${this.resource.name}`,
+          description: this.resource.name,
           successMessage: `${this.$t('message.success.migrating')} ${this.resource.name}`,
           successMethod: () => {
             this.$emit('close-action')

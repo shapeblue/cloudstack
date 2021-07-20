@@ -18,9 +18,9 @@
 <template>
   <div class="take-snapshot">
     <a-spin :spinning="loading || actionLoading">
-      <label>
-        {{ $t('label.header.volume.take.snapshot') }}
-      </label>
+      <a-alert type="warning">
+        <span slot="message" v-html="$t('label.header.volume.take.snapshot')" />
+      </a-alert>
       <a-form
         class="form"
         :form="form"
@@ -31,10 +31,11 @@
             <a-form-item :label="$t('label.name')">
               <a-input
                 v-decorator="['name']"
-                :placeholder="apiParams.name.description" />
+                :placeholder="apiParams.name.description"
+                autoFocus />
             </a-form-item>
           </a-col>
-          <a-col :md="24" :lg="24">
+          <a-col :md="24" :lg="24" v-if="!supportsStorageSnapshot">
             <a-form-item :label="$t('label.asyncbackup')">
               <a-switch v-decorator="['asyncbackup']" />
             </a-form-item>
@@ -63,12 +64,8 @@
               <a-input ref="input" :value="inputKey" @change="handleKeyChange" style="width: 100px; text-align: center" :placeholder="$t('label.key')" />
               <a-input style=" width: 30px; border-left: 0; pointer-events: none; backgroundColor: #fff" placeholder="=" disabled />
               <a-input :value="inputValue" @change="handleValueChange" style="width: 100px; text-align: center; border-left: 0" :placeholder="$t('label.value')" />
-              <a-button shape="circle" size="small" @click="handleInputConfirm">
-                <a-icon type="check"/>
-              </a-button>
-              <a-button shape="circle" size="small" @click="inputVisible=false">
-                <a-icon type="close"/>
-              </a-button>
+              <tooltip-button :tooltip="$t('label.ok')" icon="check" size="small" @click="handleInputConfirm" />
+              <tooltip-button :tooltip="$t('label.cancel')" icon="close" size="small" @click="inputVisible=false" />
             </a-input-group>
           </div>
           <a-tag v-else @click="showInput" style="background: #fff; borderStyle: dashed;">
@@ -96,9 +93,13 @@
 
 <script>
 import { api } from '@/api'
+import TooltipButton from '@/components/widgets/TooltipButton'
 
 export default {
   name: 'TakeSnapshot',
+  components: {
+    TooltipButton
+  },
   props: {
     loading: {
       type: Boolean,
@@ -113,6 +114,7 @@ export default {
     return {
       actionLoading: false,
       quiescevm: false,
+      supportsStorageSnapshot: false,
       inputValue: '',
       inputKey: '',
       inputVisible: '',
@@ -122,14 +124,11 @@ export default {
   },
   beforeCreate () {
     this.form = this.$form.createForm(this)
-    this.apiConfig = this.$store.getters.apis.createSnapshot || {}
-    this.apiParams = {}
-    this.apiConfig.params.forEach(param => {
-      this.apiParams[param.name] = param
-    })
+    this.apiParams = this.$getApiParams('createSnapshot')
   },
   mounted () {
     this.quiescevm = this.resource.quiescevm
+    this.supportsStorageSnapshot = this.resource.supportsstoragesnapshot
   },
   methods: {
     handleSubmit (e) {
@@ -168,15 +167,9 @@ export default {
           if (jobId) {
             this.$pollJob({
               jobId,
-              successMethod: result => {
-                const successDescription = result.jobresult.snapshot.name
-                this.$store.dispatch('AddAsyncJob', {
-                  title: title,
-                  jobid: jobId,
-                  description: successDescription,
-                  status: 'progress'
-                })
-              },
+              title: title,
+              description: values.name || this.resource.id,
+              successMethod: result => {},
               loadingMessage: `${title} ${this.$t('label.in.progress.for')} ${description}`,
               catchMessage: this.$t('error.fetching.async.job.result')
             })
