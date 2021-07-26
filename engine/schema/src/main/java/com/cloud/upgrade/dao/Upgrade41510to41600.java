@@ -164,7 +164,8 @@ public class Upgrade41510to41600 implements DbUpgrade, DbUpgradeSystemVmTemplate
                 } else {
                     if (hypervisorsListInUse.contains(hypervisorAndTemplateName.getKey())) {
                         try {
-                            SystemVmTemplateRegistration.registerTemplates(hypervisorsListInUse);
+                            SystemVmTemplateRegistration.registerTemplates(conn, hypervisorsListInUse);
+                            break;
                         } catch (final Exception e) {
                             throw new CloudRuntimeException(getUpgradedVersion() + hypervisorAndTemplateName.getKey() + " SystemVm template not found. Cannot upgrade system Vms");
                         }
