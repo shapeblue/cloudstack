@@ -233,7 +233,7 @@ echo "description=$descr" >> /$tmpltfs/template.properties
 echo "hvm=$hvm" >> /$tmpltfs/template.properties
 echo "size=$imgsize" >> /$tmpltfs/template.properties
 
-if [[ "$cleanup" == "true" && $cloud != "true"]]
+if [[ "$cleanup" == "true" ]] && [[ $cloud != "true" ]]
 then
   rm -f $tmpltimg
 fi
