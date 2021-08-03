@@ -98,7 +98,7 @@ public class XenServer56Resource extends CitrixResourceBase {
             args += vif;
         }
 
-        return executeInVR(privateIpAddress, "netusage.sh", args).getDetails();
+        return executeInVR(null, privateIpAddress, "netusage.sh", args).getDetails();
     }
 
     public Boolean checkHeartbeat(final String hostuuid) {

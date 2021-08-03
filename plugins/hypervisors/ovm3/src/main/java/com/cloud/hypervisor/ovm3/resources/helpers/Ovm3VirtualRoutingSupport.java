@@ -78,7 +78,7 @@ public class Ovm3VirtualRoutingSupport {
             args = "-d";
             args += ethName;
         }
-        ExecutionResult result = vrr.executeInVR(privateIpAddress, "netusage.sh",
+        ExecutionResult result = vrr.executeInVR(null, privateIpAddress, "netusage.sh",
                 args);
 
         if (result == null || !result.isSuccess()) {
@@ -132,7 +132,7 @@ public class Ovm3VirtualRoutingSupport {
             return new NetworkUsageAnswer(cmd, SUCCESS, 0L, 0L);
         }
 
-        ExecutionResult callResult = vrr.executeInVR(privateIp, "vpc_netusage.sh",
+        ExecutionResult callResult = vrr.executeInVR(null, privateIp, "vpc_netusage.sh",
                 args);
 
         if (!callResult.isSuccess()) {

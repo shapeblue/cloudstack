@@ -580,12 +580,12 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
     }
 
     @Override
-    public ExecutionResult executeInVR(final String routerIP, final String script, final String args) {
-        return executeInVR(routerIP, script, args, Duration.standardSeconds(120L));
+    public ExecutionResult executeInVR(final String hostIp, final String routerIP, final String script, final String args) {
+        return executeInVR(hostIp, routerIP, script, args, Duration.standardSeconds(120L));
     }
 
     @Override
-    public ExecutionResult executeInVR(final String routerIP, final String script, final String args, final Duration timeout) {
+    public ExecutionResult executeInVR(final String hostIp, final String routerIP, final String script, final String args, final Duration timeout) {
         Pair<Boolean, String> result;
 
         //TODO: Password should be masked, cannot output to log directly
@@ -608,7 +608,7 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String routerIp, final String filePath, final String fileName, final String content) {
+    public ExecutionResult createFileInVR(final String hostIp, final String routerIp, final String filePath, final String fileName, final String content) {
         final File keyFile = getSystemVMKeyFile();
         try {
             SshHelper.scpTo(routerIp, 3922, "root", keyFile, null, filePath, content.getBytes(Charset.forName("UTF-8")), fileName, null);

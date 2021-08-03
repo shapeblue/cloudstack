@@ -39,6 +39,8 @@ public abstract class NetworkElementCommand extends Command {
     public static final String VPC_PRIVATE_GATEWAY = "vpc.gateway.private";
     public static final String FIREWALL_EGRESS_DEFAULT = "firewall.egress.default";
     public static final String NETWORK_PUB_LAST_IP = "network.public.last.ip";
+    public static final String HOST_IP = "host.ip";
+    public static final String HOST_HYPERVISOR = "host.hypervisor";
 
     private String routerAccessIp;
 

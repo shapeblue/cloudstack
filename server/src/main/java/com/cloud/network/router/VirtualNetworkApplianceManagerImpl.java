@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.agent.resource.virtualnetwork.VirtualRouterDeployerBase;
 import org.apache.cloudstack.alert.AlertService;
 import org.apache.cloudstack.alert.AlertService.AlertType;
 import org.apache.cloudstack.api.command.admin.router.RebootRouterCmd;
@@ -361,6 +362,8 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
 
     @Inject protected CommandSetupHelper _commandSetupHelper;
     @Inject protected RouterDeploymentDefinitionBuilder _routerDeploymentManagerBuilder;
+
+    @Inject protected VirtualRouterDeployerBase _deployerBase;
 
     private int _routerRamSize;
     private int _routerCpuMHz;
@@ -1464,8 +1467,10 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
             final GetRouterMonitorResultsCommand command = new GetRouterMonitorResultsCommand(performFreshChecks, false);
             command.setAccessDetail(NetworkElementCommand.ROUTER_IP, controlIP);
             command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
+            command.setAccessDetail(NetworkElementCommand.HOST_IP, getRouterHostIp(router));
+            command.setAccessDetail(NetworkElementCommand.HOST_HYPERVISOR, router.getHypervisorType().toString());
             try {
-                final Answer answer = _agentMgr.easySend(router.getHostId(), command);
+                final Answer answer = _deployerBase.executeRequest(router, command);
 
                 if (answer == null) {
                     s_logger.warn("Unable to fetch monitoring results data from router " + router.getHostName());
@@ -1486,6 +1491,15 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
         return null;
     }
 
+    private String getRouterHostIp(DomainRouterVO router) {
+        final HostVO host = _hostDao.findById(router.getHostId());
+        if (host == null || host.getState() != Status.Up) {
+            return "";
+        } else {
+            return host.getPrivateIpAddress();
+        }
+    }
+
     private GetRouterMonitorResultsAnswer performBasicTestsOnRouter(DomainRouterVO router) {
         if (!RouterHealthChecksEnabled.value()) {
             return null;
@@ -1496,8 +1510,10 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
             final GetRouterMonitorResultsCommand command = new GetRouterMonitorResultsCommand(false, true);
             command.setAccessDetail(NetworkElementCommand.ROUTER_IP, controlIP);
             command.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
+            command.setAccessDetail(NetworkElementCommand.HOST_IP, getRouterHostIp(router));
+            command.setAccessDetail(NetworkElementCommand.HOST_HYPERVISOR, router.getHypervisorType().toString());
             try {
-                final Answer answer = _agentMgr.easySend(router.getHostId(), command);
+                final Answer answer = _deployerBase.executeRequest(router, command);
 
                 if (answer == null) {
                     s_logger.warn("Unable to fetch basic router test results data from router " + router.getHostName());

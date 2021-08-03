@@ -97,19 +97,19 @@ public class VirtualRoutingResourceTest implements VirtualRouterDeployer {
     String ROUTERNAME = "r-4-VM";
 
     @Override
-    public ExecutionResult executeInVR(final String routerIp, final String script, final String args) {
-        return executeInVR(routerIp, script, args, Duration.standardSeconds(60L));
+    public ExecutionResult executeInVR(final String hostIp, final String routerIp, final String script, final String args) {
+        return executeInVR(hostIp, routerIp, script, args, Duration.standardSeconds(60L));
     }
 
     @Override
-    public ExecutionResult executeInVR(final String routerIp, final String script, final String args, final Duration timeout) {
+    public ExecutionResult executeInVR(final String hostIp, final String routerIp, final String script, final String args, final Duration timeout) {
         assertEquals(routerIp, ROUTERIP);
         verifyCommand(_currentCmd, script, args);
         return new ExecutionResult(true, null);
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String routerIp, final String path, final String filename, final String content) {
+    public ExecutionResult createFileInVR(final String hostIp, final String routerIp, final String path, final String filename, final String content) {
         assertEquals(routerIp, ROUTERIP);
         verifyFile(_currentCmd, path, filename, content);
         return new ExecutionResult(true, null);

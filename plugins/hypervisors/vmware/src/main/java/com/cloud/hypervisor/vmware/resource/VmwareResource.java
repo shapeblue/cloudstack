@@ -991,7 +991,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             return new NetworkUsageAnswer(cmd, "success", 0L, 0L);
         }
 
-        ExecutionResult callResult = executeInVR(privateIp, "vpc_netusage.sh", args);
+        ExecutionResult callResult = executeInVR(null, privateIp, "vpc_netusage.sh", args);
 
         if (!callResult.isSuccess()) {
             s_logger.error("Unable to execute NetworkUsage command on DomR (" + privateIp + "), domR may not be ready yet. failure due to " + callResult.getDetails());
@@ -1017,7 +1017,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     @Override
-    public ExecutionResult createFileInVR(String routerIp, String filePath, String fileName, String content) {
+    public ExecutionResult createFileInVR(final String hostIp, String routerIp, String filePath, String fileName, String content) {
         File keyFile = getSystemVmKeyFile();
         try {
             SshHelper.scpTo(routerIp, 3922, "root", keyFile, null, filePath, content.getBytes("UTF-8"), fileName, null);
@@ -1572,12 +1572,12 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     @Override
-    public ExecutionResult executeInVR(String routerIP, String script, String args) {
-        return executeInVR(routerIP, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
+    public ExecutionResult executeInVR(final String hostIp, String routerIP, String script, String args) {
+        return executeInVR(hostIp, routerIP, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
     }
 
     @Override
-    public ExecutionResult executeInVR(String routerIP, String script, String args, Duration timeout) {
+    public ExecutionResult executeInVR(final String hostIp, String routerIP, String script, String args, Duration timeout) {
         Pair<Boolean, String> result;
 
         //TODO: Password should be masked, cannot output to log directly
@@ -6587,7 +6587,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             args += ethName;
         }
 
-        ExecutionResult result = executeInVR(privateIpAddress, "netusage.sh", args);
+        ExecutionResult result = executeInVR(null, privateIpAddress, "netusage.sh", args);
 
         if (!result.isSuccess()) {
             return null;

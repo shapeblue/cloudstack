@@ -321,4 +321,7 @@
         <property name="affinityGroupProcessors"
                   value="#{affinityProcessorsRegistry.registered}" />
     </bean>
+
+    <bean id="virtualRouterDeployerBase"
+          class="com.cloud.agent.resource.virtualnetwork.VirtualRouterDeployerBase" />
 </beans>

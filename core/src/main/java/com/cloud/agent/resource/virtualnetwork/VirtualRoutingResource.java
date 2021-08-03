@@ -169,7 +169,7 @@ public class VirtualRoutingResource {
                 cmd.getKeystorePassword(),
                 cmd.getValidityDays(),
                 KeyStoreUtils.CSR_FILENAME);
-        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), KeyStoreUtils.KS_SETUP_SCRIPT, args, Duration.standardMinutes(15));
+        ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), KeyStoreUtils.KS_SETUP_SCRIPT, args, Duration.standardMinutes(15));
         return new SetupKeystoreAnswer(result.getDetails());
     }
 
@@ -187,7 +187,7 @@ public class VirtualRoutingResource {
                 cmd.getEncodedCaCertificates(),
                 KeyStoreUtils.PKEY_FILENAME,
                 cmd.getEncodedPrivateKey());
-        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), KeyStoreUtils.KS_IMPORT_SCRIPT, args, Duration.standardMinutes(15));
+        ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), KeyStoreUtils.KS_IMPORT_SCRIPT, args, Duration.standardMinutes(15));
         return new SetupCertificateAnswer(result.isSuccess());
     }
 
@@ -221,10 +221,10 @@ public class VirtualRoutingResource {
     private ExecutionResult applyConfigToVR(String routerAccessIp, ConfigItem c, Duration timeout) {
         if (c instanceof FileConfigItem) {
             FileConfigItem configItem = (FileConfigItem)c;
-            return _vrDeployer.createFileInVR(routerAccessIp, configItem.getFilePath(), configItem.getFileName(), configItem.getFileContents());
+            return _vrDeployer.createFileInVR(null, routerAccessIp, configItem.getFilePath(), configItem.getFileName(), configItem.getFileContents());
         } else if (c instanceof ScriptConfigItem) {
             ScriptConfigItem configItem = (ScriptConfigItem)c;
-            return _vrDeployer.executeInVR(routerAccessIp, configItem.getScript(), configItem.getArgs(), timeout);
+            return _vrDeployer.executeInVR(null, routerAccessIp, configItem.getScript(), configItem.getArgs(), timeout);
         }
         throw new CloudRuntimeException("Unable to apply unknown configitem of type " + c.getClass().getSimpleName());
     }
@@ -271,7 +271,7 @@ public class VirtualRoutingResource {
             buff.append(ip);
             buff.append(" ");
         }
-        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.S2SVPN_CHECK, buff.toString());
+        ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), VRScripts.S2SVPN_CHECK, buff.toString());
         return new CheckS2SVpnConnectionsAnswer(cmd, result.isSuccess(), result.getDetails());
     }
 
@@ -312,7 +312,9 @@ public class VirtualRoutingResource {
 
     private GetRouterMonitorResultsAnswer execute(GetRouterMonitorResultsCommand cmd) {
         String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
-        Pair<Boolean, String> fileSystemTestResult = checkRouterFileSystem(routerIp);
+        String hostIp = cmd.getAccessDetail(NetworkElementCommand.HOST_IP);
+        String hostHypervisor = cmd.getAccessDetail(NetworkElementCommand.HOST_HYPERVISOR);
+        Pair<Boolean, String> fileSystemTestResult = checkRouterFileSystem(hostIp, hostHypervisor, routerIp);
         if (!fileSystemTestResult.first()) {
             return new GetRouterMonitorResultsAnswer(cmd, false, null, fileSystemTestResult.second());
         }
@@ -324,7 +326,7 @@ public class VirtualRoutingResource {
 
         String args = cmd.shouldPerformFreshChecks() ? "true" : "false";
         s_logger.info("Fetching health check result for " + routerIp + " and executing fresh checks: " + args);
-        ExecutionResult result = _vrDeployer.executeInVR(routerIp, VRScripts.ROUTER_MONITOR_RESULTS, args);
+        ExecutionResult result = _vrDeployer.executeInVR(null, routerIp, VRScripts.ROUTER_MONITOR_RESULTS, args);
 
         if (!result.isSuccess()) {
             s_logger.warn("Result of " + cmd + " failed with details: " + result.getDetails());
@@ -339,8 +341,8 @@ public class VirtualRoutingResource {
         return parseLinesForHealthChecks(cmd, result.getDetails());
     }
 
-    private Pair<Boolean, String> checkRouterFileSystem(String routerIp) {
-        ExecutionResult fileSystemWritableTestResult = _vrDeployer.executeInVR(routerIp, VRScripts.ROUTER_FILESYSTEM_WRITABLE_CHECK, null);
+    private Pair<Boolean, String> checkRouterFileSystem(String hostIp, String hostHypervisor, String routerIp) {
+        ExecutionResult fileSystemWritableTestResult = _vrDeployer.executeInVR(hostIp, routerIp, VRScripts.ROUTER_FILESYSTEM_WRITABLE_CHECK, null);
         if (fileSystemWritableTestResult.isSuccess()) {
             s_logger.debug("Router connectivity and file system writable check passed");
             return new Pair<Boolean, String>(true, "success");
@@ -365,7 +367,7 @@ public class VirtualRoutingResource {
         String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
         String args = cmd.getPreviousAlertTimeStamp();
 
-        ExecutionResult result = _vrDeployer.executeInVR(routerIp, VRScripts.ROUTER_ALERTS, args);
+        ExecutionResult result = _vrDeployer.executeInVR(null, routerIp, VRScripts.ROUTER_ALERTS, args);
         String alerts[] = null;
         String lastAlertTimestamp = null;
 
@@ -382,7 +384,7 @@ public class VirtualRoutingResource {
     }
 
     private Answer execute(CheckRouterCommand cmd) {
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.RVR_CHECK, null);
+        final ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), VRScripts.RVR_CHECK, null);
         if (!result.isSuccess()) {
             return new CheckRouterAnswer(cmd, result.getDetails());
         }
@@ -391,7 +393,7 @@ public class VirtualRoutingResource {
 
     private Answer execute(DiagnosticsCommand cmd) {
         _eachTimeout = Duration.standardSeconds(NumbersUtil.parseInt("60", 60));
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.DIAGNOSTICS, cmd.getSrciptArguments(), _eachTimeout);
+        final ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), VRScripts.DIAGNOSTICS, cmd.getSrciptArguments(), _eachTimeout);
         if (!result.isSuccess()) {
             return new DiagnosticsAnswer(cmd, false, result.getDetails());
         }
@@ -401,7 +403,7 @@ public class VirtualRoutingResource {
     private Answer execute(PrepareFilesCommand cmd) {
         String fileList = String.join(" ", cmd.getFilesToRetrieveList());
         _eachTimeout = Duration.standardSeconds(cmd.getTimeout());
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.RETRIEVE_DIAGNOSTICS, fileList, _eachTimeout);
+        final ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), VRScripts.RETRIEVE_DIAGNOSTICS, fileList, _eachTimeout);
         if (result.isSuccess()) {
             return new PrepareFilesAnswer(cmd, true, result.getDetails());
         }
@@ -409,7 +411,7 @@ public class VirtualRoutingResource {
     }
 
     private Answer execute(DeleteFileInVrCommand cmd) {
-        ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.VR_FILE_CLEANUP, cmd.getFileName());
+        ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), VRScripts.VR_FILE_CLEANUP, cmd.getFileName());
         if (result.isSuccess()) {
             return new Answer(cmd, result.isSuccess(), result.getDetails());
         }
@@ -417,7 +419,7 @@ public class VirtualRoutingResource {
     }
 
     private Answer execute(GetDomRVersionCmd cmd) {
-        final ExecutionResult result = _vrDeployer.executeInVR(cmd.getRouterAccessIp(), VRScripts.VERSION, null);
+        final ExecutionResult result = _vrDeployer.executeInVR(null, cmd.getRouterAccessIp(), VRScripts.VERSION, null);
         if (!result.isSuccess()) {
             return new GetDomRVersionAnswer(cmd, "GetDomRVersionCmd failed");
         }

@@ -78,7 +78,7 @@ public final class XenServer56NetworkUsageCommandWrapper extends CommandWrapper<
                 return new NetworkUsageAnswer(command, "success", 0L, 0L);
             }
 
-            final ExecutionResult result = xenServer56.executeInVR(command.getPrivateIP(), "vpc_netusage.sh", args);
+            final ExecutionResult result = xenServer56.executeInVR(null, command.getPrivateIP(), "vpc_netusage.sh", args);
             final String detail = result.getDetails();
             if (!result.isSuccess()) {
                 throw new Exception(" vpc network usage plugin call failed ");

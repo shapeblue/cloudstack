@@ -131,7 +131,7 @@ public class XenServer56WrapperTest {
         assertNotNull(wrapper);
 
         final String args = " -l 192.168.10.1 -c -v 10.1.1.1/24";
-        when(xenServer56Resource.executeInVR(networkCommand.getPrivateIP(), "vpc_netusage.sh", args)).thenReturn(executionResult);
+        when(xenServer56Resource.executeInVR(null, networkCommand.getPrivateIP(), "vpc_netusage.sh", args)).thenReturn(executionResult);
         when(executionResult.isSuccess()).thenReturn(true);
 
         final Answer answer = wrapper.execute(networkCommand, xenServer56Resource);
@@ -149,7 +149,7 @@ public class XenServer56WrapperTest {
         assertNotNull(wrapper);
 
         final String args = " -l 192.168.10.1 -c -v 10.1.1.1/24";
-        when(xenServer56Resource.executeInVR(networkCommand.getPrivateIP(), "vpc_netusage.sh", args)).thenReturn(executionResult);
+        when(xenServer56Resource.executeInVR(null, networkCommand.getPrivateIP(), "vpc_netusage.sh", args)).thenReturn(executionResult);
         when(executionResult.isSuccess()).thenReturn(false);
 
         final Answer answer = wrapper.execute(networkCommand, xenServer56Resource);

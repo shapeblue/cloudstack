@@ -65,7 +65,7 @@ public class Ovm3VirtualRoutingResourceTest {
         con = support.prepConnectionResults();
         cmd = "/opt/cloud/bin/" + cmd;
         virtualrouting.setConnection(con);
-        ExecutionResult result = virtualrouting.executeInVR(domrIp, cmd, args);
+        ExecutionResult result = virtualrouting.executeInVR(null, domrIp, cmd, args);
         results.basicBooleanTest(result.isSuccess());
     }
 
@@ -73,7 +73,7 @@ public class Ovm3VirtualRoutingResourceTest {
     public void executeInVRFailTest() {
         ConnectionTest con = new ConnectionTest();
         virtualrouting.setConnection(con);
-        ExecutionResult result = virtualrouting.executeInVR(domrIp, cmd, args);
+        ExecutionResult result = virtualrouting.executeInVR(null, domrIp, cmd, args);
         results.basicBooleanTest(result.isSuccess(), false);
     }
 
@@ -81,7 +81,7 @@ public class Ovm3VirtualRoutingResourceTest {
     public void createFileInVRTest() {
         con = support.prepConnectionResults();
         virtualrouting.setConnection(con);
-        ExecutionResult result = virtualrouting.createFileInVR(domrIp, "/tmp",
+        ExecutionResult result = virtualrouting.createFileInVR(null, domrIp, "/tmp",
                 "test", "1 2 3");
         results.basicBooleanTest(result.isSuccess());
     }
@@ -90,7 +90,7 @@ public class Ovm3VirtualRoutingResourceTest {
     public void createFileInVRFailTest() {
         ConnectionTest con = new ConnectionTest();
         virtualrouting.setConnection(con);
-        ExecutionResult result = virtualrouting.createFileInVR(domrIp, "/tmp",
+        ExecutionResult result = virtualrouting.createFileInVR(null, domrIp, "/tmp",
                 "test", "1 2 3");
         results.basicBooleanTest(result.isSuccess(), false);
     }

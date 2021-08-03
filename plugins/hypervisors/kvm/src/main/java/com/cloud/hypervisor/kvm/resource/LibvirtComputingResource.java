@@ -420,12 +420,12 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     @Override
-    public ExecutionResult executeInVR(final String routerIp, final String script, final String args) {
-        return executeInVR(routerIp, script, args, _timeout);
+    public ExecutionResult executeInVR(final String hostIp, final String routerIp, final String script, final String args) {
+        return executeInVR(hostIp, routerIp, script, args, _timeout);
     }
 
     @Override
-    public ExecutionResult executeInVR(final String routerIp, final String script, final String args, final Duration timeout) {
+    public ExecutionResult executeInVR(final String hostIp, final String routerIp, final String script, final String args, final Duration timeout) {
         final Script command = new Script(_routerProxyPath, timeout, s_logger);
         final AllLinesParser parser = new AllLinesParser();
         command.add(script);
@@ -444,7 +444,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String routerIp, final String path, final String filename, final String content) {
+    public ExecutionResult createFileInVR(final String hostIp, final String routerIp, final String path, final String filename, final String content) {
         final File permKey = new File("/root/.ssh/id_rsa.cloud");
         boolean success = true;
         String details = "Creating file in VR, with ip: " + routerIp + ", file: " + filename;
