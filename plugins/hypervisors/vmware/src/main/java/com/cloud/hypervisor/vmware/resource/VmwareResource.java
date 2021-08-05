@@ -1017,7 +1017,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String hostIp, String routerIp, String filePath, String fileName, String content) {
+    public ExecutionResult createFileInVR(final Long hostId, String routerIp, String filePath, String fileName, String content) {
         File keyFile = getSystemVmKeyFile();
         try {
             SshHelper.scpTo(routerIp, 3922, "root", keyFile, null, filePath, content.getBytes("UTF-8"), fileName, null);
@@ -1572,12 +1572,12 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, String routerIP, String script, String args) {
-        return executeInVR(hostIp, routerIP, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
+    public ExecutionResult executeInVR(final Long hostId, String routerIP, String script, String args) {
+        return executeInVR(hostId, routerIP, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, String routerIP, String script, String args, Duration timeout) {
+    public ExecutionResult executeInVR(final Long hostId, String routerIP, String script, String args, Duration timeout) {
         Pair<Boolean, String> result;
 
         //TODO: Password should be masked, cannot output to log directly

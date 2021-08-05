@@ -976,7 +976,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String hostIp, final String routerIp, final String path, final String filename, final String content) {
+    public ExecutionResult createFileInVR(final Long hostId, final String routerIp, final String path, final String filename, final String content) {
         final Connection conn = getConnection();
         final String hostPath = "/tmp/";
 
@@ -1736,13 +1736,13 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, final String routerIP, final String script, final String args) {
+    public ExecutionResult executeInVR(final Long hostId, final String routerIP, final String script, final String args) {
         // Timeout is 120 seconds by default
-        return executeInVR(hostIp, routerIP, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
+        return executeInVR(hostId, routerIP, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, final String routerIP, final String script, final String args, final Duration timeout) {
+    public ExecutionResult executeInVR(final Long hostId, final String routerIP, final String script, final String args, final Duration timeout) {
         Pair<Boolean, String> result;
         String cmdline = "/opt/cloud/bin/router_proxy.sh " + script + " " + routerIP + " " + args;
         // semicolon need to be escape for bash

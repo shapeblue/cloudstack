@@ -49,13 +49,13 @@ public class Ovm3VirtualRoutingResource implements VirtualRouterDeployer {
         c = conn;
     }
     @Override
-    public ExecutionResult executeInVR(final String hostIp, String routerIp, String script,
+    public ExecutionResult executeInVR(final Long hostId, String routerIp, String script,
             String args) {
-        return executeInVR(hostIp, routerIp, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
+        return executeInVR(hostId, routerIp, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, String routerIp, String script,
+    public ExecutionResult executeInVR(final Long hostId, String routerIp, String script,
             String args, Duration timeout) {
         if (!script.contains(domRCloudPath)) {
             script = domRCloudPath + "/" + script;
@@ -76,7 +76,7 @@ public class Ovm3VirtualRoutingResource implements VirtualRouterDeployer {
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String hostIp, String routerIp, String path,
+    public ExecutionResult createFileInVR(final Long hostId, String routerIp, String path,
             String filename, String content) {
         String error = null;
         logger.debug("createFileInVR via " + agentName + " on " + routerIp

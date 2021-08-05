@@ -23,11 +23,18 @@ import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.GetRouterMonitorResultsCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
+import com.cloud.host.HostVO;
+import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.resource.ResourceManager;
 import com.cloud.utils.ExecutionResult;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.ManagerBase;
+import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.ssh.SSHCmdHelper;
+import com.cloud.utils.ssh.SshHelper;
 import com.cloud.vm.DomainRouterVO;
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 import org.joda.time.Duration;
 
@@ -40,8 +47,12 @@ public class VirtualRouterDeployerBase extends ManagerBase implements Manager, V
     private static final Logger s_logger = Logger.getLogger(VirtualRouterDeployerBase.class);
     VirtualRoutingResource _resource;
 
-    @Inject
-    protected AgentManager _agentMgr;
+    @Inject private AgentManager _agentMgr;
+    @Inject private ConfigurationDao _configDao;
+    @Inject private HostDao _hostDao;
+
+    private static final String SSH_COMMAND = "ssh -p 3922 -i /root/.ssh/id_rsa.cloud root@%s /opt/cloud/bin/%s %s";
+    private static final String SCP_COMMAND = "scp -P 3922 -i /root/.ssh/id_rsa.cloud %s root@%s:/var/cache/cloud/";
 
     @Override
     public boolean configure(final String name, Map<String, Object> params) throws ConfigurationException {
@@ -51,24 +62,45 @@ public class VirtualRouterDeployerBase extends ManagerBase implements Manager, V
         try {
             _resource.configure(name, new HashMap<String, Object>());
         } catch (final ConfigurationException e) {
-            e.printStackTrace();
+            throw new CloudRuntimeException("Error while configuring VirtualRouterDeployerBase:", e);
         }
 
         return true;
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, String routerIp, String script, String args) {
-        return null;
+    public ExecutionResult executeInVR(final Long hostId, String routerIp, String script, String args) {
+        return executeInVR(hostId, routerIp, script, args, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
     }
 
     @Override
-    public ExecutionResult executeInVR(final String hostIp, String routerIp, String script, String args, Duration timeout) {
-        return new ExecutionResult(true, null);
+    public ExecutionResult executeInVR(final Long hostId, String routerIp, String script, String args, Duration timeout) {
+        HostVO host = getHostDetails(hostId);
+        final String password = host.getDetail("password");
+        final String username = host.getDetail("username");
+        final com.trilead.ssh2.Connection connection = SSHCmdHelper.acquireAuthorizedConnection(
+                host.getPrivateIpAddress(), 22, username, password);
+        if (connection == null) {
+            throw new CloudRuntimeException(String.format("SSH to agent is enabled, but failed to connect to %s via IP address [%s].", host, host.getPrivateIpAddress()));
+        }
+        SSHCmdHelper.SSHCmdResult result = SSHCmdHelper.sshExecuteCmdWithResult(connection, String.format(SSH_COMMAND, routerIp, script, args == null ? "" : args));
+        if (result.getReturnCode() != 0) {
+            throw new CloudRuntimeException(String.format("Could not execute command in VR %s on %s due to: %s", routerIp, host, result.getStdErr()));
+        }
+        s_logger.debug("Execute command in VR result: " + result.getStdOut());
+        return new ExecutionResult(true, result.getStdOut());
     }
 
     @Override
-    public ExecutionResult createFileInVR(final String hostIp, String routerIp, String path, String filename, String content) {
+    public ExecutionResult createFileInVR(final Long hostId, String routerIp, String path, String filename, String content) {
+        HostVO host = getHostDetails(hostId);
+        final String password = host.getDetail("password");
+        final String username = host.getDetail("username");
+        try {
+            SshHelper.scpTo(host.getPrivateIpAddress(), 22, username, null, password, VRScripts.CONFIG_CACHE_LOCATION, String.format(SCP_COMMAND, filename, routerIp), null);
+        } catch (Exception e) {
+            throw new CloudRuntimeException("Exception while creating file in VR:", e);
+        }
         return new ExecutionResult(true, null);
     }
 
@@ -91,5 +123,15 @@ public class VirtualRouterDeployerBase extends ManagerBase implements Manager, V
             }
         }
         return _agentMgr.easySend(router.getHostId(), cmd);
+    }
+
+    private HostVO getHostDetails(Long hostId) {
+        final boolean sshToAgent = Boolean.parseBoolean(_configDao.getValue(ResourceManager.KvmSshToAgentEnabled.key()));
+        if (!sshToAgent) {
+            throw new CloudRuntimeException("SSH access is disabled, cannot execute command in VR");
+        }
+        HostVO host = _hostDao.findById(hostId);
+        _hostDao.loadDetails(host);
+        return host;
     }
 }
