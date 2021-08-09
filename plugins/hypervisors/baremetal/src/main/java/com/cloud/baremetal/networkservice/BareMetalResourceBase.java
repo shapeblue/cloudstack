@@ -108,6 +108,8 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
     protected String _vmName;
     protected String ipmiIface;
     protected int ipmiRetryTimes = 5;
+    protected long ipmiRetryDelay = 1;
+    protected long ipmiTimeout = 0;
     protected boolean provisionDoneNotificationOn = false;
     protected int isProvisionDoneNotificationTimeout = 1800;
 
@@ -206,6 +208,18 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
             }
 
             try {
+                ipmiRetryDelay = Long.parseLong(configDao.getValue(Config.BaremetalIpmiRetryDelay.key()));
+            } catch (Exception e) {
+                s_logger.debug(e.getMessage(), e);
+            }
+
+            try {
+                ipmiTimeout = Long.parseLong(configDao.getValue(Config.BaremetalIpmiTimeout.key()));
+            } catch (Exception e) {
+                s_logger.debug(e.getMessage(), e);
+            }
+
+            try {
                 provisionDoneNotificationOn = Boolean.valueOf(configDao.getValue(Config.BaremetalProvisionDoneNotificationEnabled.key()));
                 isProvisionDoneNotificationTimeout = Integer.parseInt(configDao.getValue(Config.BaremetalProvisionDoneNotificationTimeout.key()));
             } catch (Exception e) {
@@ -219,7 +233,7 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
             throw new ConfigurationException("Cannot find ping script " + scriptPath);
         }
         String pythonPath = "/usr/bin/python";
-        _pingCommand = new Script2(pythonPath, s_logger);
+        _pingCommand = new Script2(pythonPath, ipmiTimeout, s_logger);
         _pingCommand.add(scriptPath);
         _pingCommand.add("ping");
         _pingCommand.add("interface=" + ipmiIface);
@@ -313,15 +327,11 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
         return doScript(cmd, null);
     }
 
-    protected boolean doScript(Script cmd, int retry) {
-        return doScript(cmd, null, retry);
-    }
-
     protected boolean doScript(Script cmd, OutputInterpreter interpreter) {
-        return doScript(cmd, interpreter, ipmiRetryTimes);
+        return doScript(cmd, interpreter, ipmiRetryTimes, 1);
     }
 
-    protected boolean doScript(Script cmd, OutputInterpreter interpreter, int retry) {
+    protected boolean doScript(Script cmd, OutputInterpreter interpreter, int retry, long retryDelay) {
         String res = null;
         while (retry-- > 0) {
             if (interpreter == null) {
@@ -332,7 +342,7 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
             if (res != null && res.startsWith("Error: Unable to establish LAN")) {
                 s_logger.warn("IPMI script timeout(" + cmd.toString() + "), will retry " + retry + " times");
                 try {
-                    TimeUnit.SECONDS.sleep(1);
+                    TimeUnit.SECONDS.sleep(retryDelay);
                 } catch (InterruptedException e) {
                     s_logger.debug("[ignored] interupted while waiting to retry running script.");
                 }
@@ -349,7 +359,7 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
     }
 
     protected boolean ipmiPing() {
-        return doScript(_pingCommand);
+        return doScript(_pingCommand, null, ipmiRetryTimes, ipmiRetryDelay);
     }
 
     protected Answer execute(IpmISetBootDevCommand cmd) {
@@ -433,10 +443,10 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
     protected RebootAnswer execute(final RebootCommand cmd) {
         String infoStr = "Command not supported in present state";
         OutputInterpreter.AllLinesParser interpreter = new OutputInterpreter.AllLinesParser();
-        if (!doScript(_rebootCommand, interpreter, 10)) {
+        if (!doScript(_rebootCommand, interpreter, 10, 1)) {
             if (interpreter.getLines().contains(infoStr)) {
                 // try again, this error should be temporary
-                if (!doScript(_rebootCommand, interpreter, 10)) {
+                if (!doScript(_rebootCommand, interpreter, 10, 1)) {
                     return new RebootAnswer(cmd, "IPMI reboot failed", false);
                 }
             } else {
@@ -609,11 +619,8 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
     public PingCommand getCurrentStatus(long id) {
         try {
             if (!ipmiPing()) {
-                Thread.sleep(1000);
-                if (!ipmiPing()) {
-                    s_logger.warn("Cannot ping ipmi nic " + _ip);
-                    return null;
-                }
+                s_logger.warn("Cannot ping ipmi nic " + _ip);
+                return null;
             }
         } catch (Exception e) {
             s_logger.debug("Cannot ping ipmi nic " + _ip, e);
@@ -621,21 +628,5 @@ public abstract class BareMetalResourceBase extends ManagerBase implements Serve
         }
 
         return new PingRoutingCommand(getType(), id, null);
-
-            /*
-        if (hostId != null) {
-            final List<? extends VMInstanceVO> vms = vmDao.listByHostId(hostId);
-            if (vms.isEmpty()) {
-                return new PingRoutingCommand(getType(), id, null);
-            } else {
-                VMInstanceVO vm = vms.get(0);
-                SecurityGroupHttpClient client = new SecurityGroupHttpClient();
-                HashMap<String, Pair<Long, Long>> nwGrpStates = client.sync(vm.getInstanceName(), vm.getId(), vm.getPrivateIpAddress());
-                return new PingRoutingWithNwGroupsCommand(getType(), id, null, nwGrpStates);
-            }
-        } else {
-            return new PingRoutingCommand(getType(), id, null);
-        }
-            */
     }
 }
