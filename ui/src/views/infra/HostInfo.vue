@@ -23,11 +23,11 @@
           <strong>{{ $t('label.hypervisorversion') }}</strong>
           <div>
             {{ host.hypervisor }}
-            <span v-if="host.hypervisorversion">
-              {{ host.hypervisorversion }}
-            </span>
-            <span v-else-if="host.details">
+            <span v-if="host.details">
               {{ host.details['Host.OS'] + ' ' + host.details['Host.OS.Version'] }}
+            </span>
+            <span v-else-if="host.hypervisorversion">
+              {{ host.hypervisorversion }}
             </span>
             <span v-else>
               {{ host.version }}
