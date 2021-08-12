@@ -563,20 +563,25 @@ getPublicIp() {
 
 setup_ntp() {
     log_it "Setting up NTP"
-    NTP_CONF_FILE="/etc/ntp.conf"
+    NTP_CONF_FILE="/etc/systemd/timesyncd.conf"
     if [ -f $NTP_CONF_FILE ]
     then
         IFS=',' read -a server_list <<< "$NTP_SERVER_LIST"
+        sed -i "/^NTP=/d" $NTP_CONF_FILE
+        PATTERN="NTP="
+        servers=''
         for (( iterator=${#server_list[@]}-1 ; iterator>=0 ; iterator-- ))
         do
             server=$(echo ${server_list[iterator]} | tr -d '\r')
-            PATTERN="server $server"
-            if grep -q "^$PATTERN$" $NTP_CONF_FILE ; then
-                sed -i "/^$PATTERN$/d" $NTP_CONF_FILE
-            fi
-            sed -i "0,/^server/s//$PATTERN\nserver/" $NTP_CONF_FILE
+            servers="${servers} ${server}"
         done
-        systemctl enable ntp
+        if [ ! -z "$servers" ]
+        then
+          servers=`echo ${servers} | sed 's/ *$//g'`
+          sed -i "0,/^#NTP=/s//$PATTERN${servers}\n#NTP=/" $NTP_CONF_FILE
+        fi
+        systemctl disable ntp
+        systemctl enable systemd-timesyncd
     else
         log_it "NTP configuration file not found"
     fi
