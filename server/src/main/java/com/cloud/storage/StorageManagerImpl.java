@@ -2334,8 +2334,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
             DiskProfile diskProfile = volumeDiskProfilePair.second();
             Long minIops = requestedVolume.getMinIops();
             if (requestedVolume.getDiskOfferingId() != diskProfile.getDiskOfferingId()) {
-                DiskOffering newDiskOffering = _diskOfferingDao.findById(diskProfile.getDiskOfferingId());
-                minIops = newDiskOffering.getMinIops();
+                minIops = diskProfile.getMinIops();
             }
 
             if (minIops != null && minIops > 0) {
