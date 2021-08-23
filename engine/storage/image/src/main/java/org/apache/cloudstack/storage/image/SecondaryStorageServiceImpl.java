@@ -37,6 +37,7 @@ import org.apache.cloudstack.framework.async.AsyncCallFuture;
 import org.apache.cloudstack.framework.async.AsyncCallbackDispatcher;
 import org.apache.cloudstack.framework.async.AsyncCompletionCallback;
 import org.apache.cloudstack.framework.async.AsyncRpcContext;
+import org.apache.cloudstack.storage.datastore.ObjectInDataStoreManager;
 import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreVO;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreDao;
@@ -65,6 +66,8 @@ public class SecondaryStorageServiceImpl implements SecondaryStorageService {
     SnapshotDataStoreDao snapshotStoreDao;
     @Inject
     VolumeDataStoreDao volumeDataStoreDao;
+    @Inject
+    private ObjectInDataStoreManager objectInStoreMgr;
 
     private class MigrateDataContext<T> extends AsyncRpcContext<T> {
         final DataObject srcData;
@@ -137,7 +140,7 @@ public class SecondaryStorageServiceImpl implements SecondaryStorageService {
             s_logger.debug("Failed to copy Data", e);
             if (destDataObject != null) {
                 s_logger.info("Deleting data on destination store: " + destDataObject.getDataStore().getName());
-                destDataObject.getDataStore().delete(destDataObject);
+                objectInStoreMgr.delete(destDataObject);
             }
             if (!(srcDataObject instanceof VolumeInfo)) {
                 srcDataObject.processEvent(ObjectInDataStoreStateMachine.Event.OperationFailed);
@@ -182,7 +185,7 @@ public class SecondaryStorageServiceImpl implements SecondaryStorageService {
                 }
 
                 if (destData != null) {
-                    destData.getDataStore().delete(destData);
+                    objectInStoreMgr.delete(destData);
                 }
             } else {
                 if (destData instanceof  VolumeInfo) {
