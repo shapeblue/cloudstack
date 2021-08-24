@@ -25,6 +25,7 @@
         <p class="modal-form__label">{{ $t('label.storagepool') }}</p>
         <a-select
           v-model="selectedStoragePool"
+          @change="fetchDiskOfferings"
           style="width: 100%;"
           :autoFocus="storagePools.length > 0"
           showSearch
@@ -102,7 +103,6 @@ export default {
   },
   created () {
     this.fetchStoragePools()
-    this.resource.virtualmachineid && this.fetchDiskOfferings()
   },
   methods: {
     fetchStoragePools () {
@@ -113,6 +113,7 @@ export default {
           this.storagePools = response.findstoragepoolsformigrationresponse.storagepool || []
           if (Array.isArray(this.storagePools) && this.storagePools.length) {
             this.selectedStoragePool = this.storagePools[0].id || ''
+            this.fetchDiskOfferings()
           }
         }).catch(error => {
           this.$notifyError(error)
@@ -126,6 +127,7 @@ export default {
           this.storagePools = this.storagePools.filter(pool => { return pool.id !== this.resource.storageid })
           if (Array.isArray(this.storagePools) && this.storagePools.length) {
             this.selectedStoragePool = this.storagePools[0].id || ''
+            this.fetchDiskOfferings()
           }
         }).catch(error => {
           this.$notifyError(error)
@@ -134,15 +136,18 @@ export default {
       }
     },
     fetchDiskOfferings () {
-      api('listDiskOfferings', {
-        listall: true
-      }).then(response => {
-        this.diskOfferings = response.listdiskofferingsresponse.diskoffering
-        this.selectedDiskOffering = this.diskOfferings[0].id
-      }).catch(error => {
-        this.$notifyError(error)
-        this.closeModal()
-      })
+      if (this.resource.virtualmachineid) {
+        api('listDiskOfferings', {
+          storageid: this.selectedStoragePool,
+          listall: true
+        }).then(response => {
+          this.diskOfferings = response.listdiskofferingsresponse.diskoffering
+          this.selectedDiskOffering = this.diskOfferings[0].id
+        }).catch(error => {
+          this.$notifyError(error)
+          this.closeModal()
+        })
+      }
     },
     closeModal () {
       this.$parent.$parent.close()
