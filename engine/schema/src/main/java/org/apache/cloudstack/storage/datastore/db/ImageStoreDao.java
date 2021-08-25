@@ -20,9 +20,9 @@ package org.apache.cloudstack.storage.datastore.db;
 
 import java.util.List;
 
-import com.cloud.storage.DataStoreRole;
 import org.apache.cloudstack.engine.subsystem.api.storage.ZoneScope;
 
+import com.cloud.storage.DataStoreRole;
 import com.cloud.utils.db.GenericDao;
 
 public interface ImageStoreDao extends GenericDao<ImageStoreVO, Long> {
@@ -45,4 +45,8 @@ public interface ImageStoreDao extends GenericDao<ImageStoreVO, Long> {
     List<ImageStoreVO> listStoresByZoneId(long zoneId);
 
     List<ImageStoreVO> listAllStoresInZone(Long zoneId, String provider, DataStoreRole role);
+
+    List<ImageStoreVO> findByProtocol(String provider);
+
+    ImageStoreVO findOneByZoneAndProtocol(long zoneId, String protocol);
 }

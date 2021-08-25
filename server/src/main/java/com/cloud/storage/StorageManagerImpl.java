@@ -46,10 +46,6 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import com.cloud.agent.api.GetStoragePoolCapabilitiesAnswer;
-import com.cloud.agent.api.GetStoragePoolCapabilitiesCommand;
-import com.cloud.network.router.VirtualNetworkApplianceManager;
-import com.cloud.upgrade.SystemVmTemplateRegistration;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.storage.CancelPrimaryStorageMaintenanceCmd;
 import org.apache.cloudstack.api.command.admin.storage.CreateSecondaryStagingStoreCmd;
@@ -122,6 +118,8 @@ import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.DeleteStoragePoolCommand;
+import com.cloud.agent.api.GetStoragePoolCapabilitiesAnswer;
+import com.cloud.agent.api.GetStoragePoolCapabilitiesCommand;
 import com.cloud.agent.api.GetStorageStatsAnswer;
 import com.cloud.agent.api.GetStorageStatsCommand;
 import com.cloud.agent.api.GetVolumeStatsAnswer;
@@ -173,6 +171,7 @@ import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.hypervisor.HypervisorGuruManager;
+import com.cloud.network.router.VirtualNetworkApplianceManager;
 import com.cloud.offering.DiskOffering;
 import com.cloud.offering.ServiceOffering;
 import com.cloud.org.Grouping;
@@ -197,6 +196,7 @@ import com.cloud.storage.listener.StoragePoolMonitor;
 import com.cloud.storage.listener.VolumeStateListener;
 import com.cloud.template.TemplateManager;
 import com.cloud.template.VirtualMachineTemplate;
+import com.cloud.upgrade.SystemVmTemplateRegistration;
 import com.cloud.user.Account;
 import com.cloud.user.AccountManager;
 import com.cloud.user.ResourceLimitService;
@@ -2759,6 +2759,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
                     Set<HypervisorType> hypSet = new HashSet<HypervisorType>(hypervisorTypes);
                     TransactionLegacy txn = TransactionLegacy.open("AutomaticTemplateRegister");
                     Connection conn;
+                    SystemVmTemplateRegistration systemVmTemplateRegistration = new SystemVmTemplateRegistration();
                     try {
                         conn = txn.getConnection();
                         Pair<String, Long> storeUrlAndId = new Pair<>(url, store.getId());
@@ -2767,7 +2768,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
                                 String templateName = getValidTemplateName(zoneId, hypervisorType);
                                 Pair<Hypervisor.HypervisorType, String> hypervisorAndTemplateName =
                                         new Pair<>(hypervisorType, templateName);
-                                long templateId = SystemVmTemplateRegistration.isTemplateAlreadyRegistered(conn, hypervisorAndTemplateName);
+                                long templateId = systemVmTemplateRegistration.getRegisteredTemplateId(hypervisorAndTemplateName);
                                  VMTemplateVO vmTemplateVO = _templateDao.findById(templateId);
                                 TemplateDataStoreVO templateVO = null;
                                 if (templateId != -1) {
@@ -2780,9 +2781,9 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
                                 }
                                 SystemVmTemplateRegistration.mountStore(storeUrlAndId.first());
                                 if (templateVO != null && vmTemplateVO != null) {
-                                    SystemVmTemplateRegistration.registerTemplate(conn, hypervisorAndTemplateName, storeUrlAndId, vmTemplateVO);
+                                    systemVmTemplateRegistration.registerTemplate(hypervisorAndTemplateName, storeUrlAndId, vmTemplateVO);
                                 } else {
-                                    SystemVmTemplateRegistration.registerTemplate(conn, hypervisorAndTemplateName, storeUrlAndId);
+                                    systemVmTemplateRegistration.registerTemplate(conn, hypervisorAndTemplateName, storeUrlAndId);
                                 }
                             } catch (CloudRuntimeException e) {
                                 s_logger.error(String.format("Failed to register systemVM template for hypervisor: %s", hypervisorType.name()), e);
