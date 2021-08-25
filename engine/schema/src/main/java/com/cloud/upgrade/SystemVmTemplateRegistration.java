@@ -44,7 +44,6 @@ import org.apache.cloudstack.storage.datastore.db.ImageStoreDaoImpl;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreVO;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreVO;
-import org.apache.cloudstack.storage.image.db.TemplateDataStoreDaoImpl;
 import org.apache.log4j.Logger;
 import org.ini4j.Ini;
 
@@ -62,6 +61,7 @@ import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VMTemplateDaoImpl;
 import com.cloud.template.VirtualMachineTemplate;
+import com.cloud.upgrade.dao.BasicTemplateDataStoreDaoImpl;
 import com.cloud.user.Account;
 import com.cloud.utils.DateUtil;
 import com.cloud.utils.Pair;
@@ -109,7 +109,7 @@ public class SystemVmTemplateRegistration {
         System.out.println("-------> SystemVmTemplateRegistration created");
         dataCenterDao = new DataCenterDaoImpl();
         vmTemplateDao = new VMTemplateDaoImpl();
-        templateDataStoreDao = new TemplateDataStoreDaoImpl();
+        templateDataStoreDao = new BasicTemplateDataStoreDaoImpl();
         vmInstanceDao = new VMInstanceDaoImpl();
         imageStoreDao = new ImageStoreDaoImpl();
         clusterDao = new ClusterDaoImpl();
