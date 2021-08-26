@@ -1848,7 +1848,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                     s_logger.error(msg);
                     throw new Exception(msg);
                 }
-                s_logger.debug(String.format("-----------------------------------Cloned VM: %s as %s", vmMo.getName(), clonedVm.getName()));
+                s_logger.info(String.format("-----------------------------------Cloned VM: %s as %s", vmMo.getName(), clonedVm.getName()));
                 vmMo = clonedVm;
             }
             vmMo.exportVm(exportPath, exportName, false, false);
@@ -1856,7 +1856,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             return new Pair<>(diskDevice, disks);
         } finally {
             if (clonedVm != null) {
-                s_logger.debug(String.format("-----------------------------------Destroying cloned VM: %s with its disks", clonedVm.getName()));
+                s_logger.info(String.format("-----------------------------------Destroying cloned VM: %s with its disks", clonedVm.getName()));
                 // clonedVm.detachAllDisks();
                 clonedVm.destroy();
             }
