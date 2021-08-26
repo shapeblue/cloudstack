@@ -1855,7 +1855,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             return new Pair<>(diskDevice, disks);
         } finally {
             if (clonedVm != null) {
-                clonedVm.detachAllDisks();
+                // clonedVm.detachAllDisks();
                 clonedVm.destroy();
             }
         }
