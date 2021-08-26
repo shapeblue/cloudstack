@@ -21,15 +21,13 @@ package com.cloud.storage.resource;
 import java.io.File;
 import java.util.EnumMap;
 
-import com.cloud.hypervisor.vmware.manager.VmwareManager;
-import com.cloud.utils.NumbersUtil;
-import org.apache.log4j.Logger;
 import org.apache.cloudstack.storage.command.CopyCmdAnswer;
 import org.apache.cloudstack.storage.command.CopyCommand;
 import org.apache.cloudstack.storage.command.DeleteCommand;
 import org.apache.cloudstack.storage.to.SnapshotObjectTO;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.to.DataObjectType;
@@ -38,9 +36,11 @@ import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.agent.api.to.S3TO;
 import com.cloud.agent.api.to.SwiftTO;
+import com.cloud.hypervisor.vmware.manager.VmwareManager;
 import com.cloud.hypervisor.vmware.manager.VmwareStorageManager;
 import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.resource.VmwareStorageProcessor.VmwareStorageProcessorConfigurableFields;
+import com.cloud.utils.NumbersUtil;
 
 public class VmwareStorageSubsystemCommandHandler extends StorageSubsystemCommandHandlerBase {
 
@@ -93,6 +93,7 @@ public class VmwareStorageSubsystemCommandHandler extends StorageSubsystemComman
 
     @Override
     protected Answer execute(CopyCommand cmd) {
+        s_logger.info("------------------------------VmwareStorageSubsystemCommandHandler::execute "+cmd.toString());
         DataTO srcData = cmd.getSrcTO();
         DataTO destData = cmd.getDestTO();
         DataStoreTO srcDataStore = srcData.getDataStore();

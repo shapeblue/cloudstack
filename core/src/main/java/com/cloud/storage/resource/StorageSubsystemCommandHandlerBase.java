@@ -55,6 +55,7 @@ public class StorageSubsystemCommandHandlerBase implements StorageSubsystemComma
 
     @Override
     public Answer handleStorageCommands(StorageSubSystemCommand command) {
+        s_logger.info("------------------------------StorageSubsystemCommandHandlerBase::handleStorageCommands "+command.toString());
         if (command instanceof CopyCommand) {
             return this.execute((CopyCommand)command);
         } else if (command instanceof CreateObjectCommand) {

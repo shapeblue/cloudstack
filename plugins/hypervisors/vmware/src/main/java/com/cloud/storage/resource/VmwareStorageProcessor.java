@@ -1873,6 +1873,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
     @Override
     public Answer backupSnapshot(CopyCommand cmd) {
+        s_logger.info("------------------------------VmwareStorageProcessor::backupSnapshot");
         SnapshotObjectTO srcSnapshot = (SnapshotObjectTO)cmd.getSrcTO();
         DataStoreTO primaryStore = srcSnapshot.getDataStore();
         SnapshotObjectTO destSnapshot = (SnapshotObjectTO)cmd.getDestTO();
@@ -2025,6 +2026,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 try {
                     if (workerVm != null) {
                         // detach volume and destroy worker vm
+                        workerVm.detachAllDisks();
                         workerVm.destroy();
                     }
                 } catch (Throwable e) {
