@@ -442,6 +442,8 @@ public class SystemVmTemplateRegistration {
     }
 
     private Long createTemplateObjectInDB(SystemVMTemplateDetails details) {
+        Long templateId = vmTemplateDao.getNextInSequence(Long.class, "id");
+        LOGGER.info("===============> templateid = " + templateId);
         VMTemplateVO template = new VMTemplateVO();
         template.setUuid(details.getUuid());
         template.setUniqueName(details.getUuid());
