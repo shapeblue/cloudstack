@@ -22,21 +22,24 @@
         <a-alert type="warning">
           <span slot="message" v-html="$t('message.migrate.volume')" />
         </a-alert>
-        <p class="modal-form__label">{{ $t('label.storagepool') }}</p>
-        <a-select
-          v-model="selectedStoragePool"
-          @change="fetchDiskOfferings"
-          style="width: 100%;"
-          :autoFocus="storagePools.length > 0"
-          showSearch
-          optionFilterProp="children"
-          :filterOption="(input, option) => {
-            return option.componentOptions.children[0].text.toLowerCase().indexOf(input.toLowerCase()) >= 0
-          }" >
-          <a-select-option v-for="(storagePool, index) in storagePools" :value="storagePool.id" :key="index">
-            {{ storagePool.name }} <span v-if="resource.virtualmachineid">{{ storagePool.suitableformigration ? `(${$t('label.suitable')})` : `(${$t('label.not.suitable')})` }}</span>
-          </a-select-option>
-        </a-select>
+        <a-form-item>
+          <tooltip-label slot="label" :title="$t('label.storagepool')" :tooltip="$t('message.migrate.volume.tooltip')"/>
+          <a-select
+            v-model="selectedStoragePool"
+            @change="fetchDiskOfferings"
+            style="width: 100%;"
+            :autoFocus="storagePools.length > 0"
+            showSearch
+            optionFilterProp="children"
+            :filterOption="(input, option) => {
+              return option.componentOptions.children[0].text.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }" >
+            <a-select-option v-for="(storagePool, index) in storagePools" :value="storagePool.id" :key="index">
+              {{ storagePool.name }} <span v-if="resource.virtualmachineid">{{ storagePool.suitableformigration ? `(${$t('label.suitable')})` : `(${$t('label.not.suitable')})` }}</span>
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+
         <template v-if="this.resource.virtualmachineid">
           <p class="modal-form__label" @click="replaceDiskOffering = !replaceDiskOffering" style="cursor:pointer;">
             {{ $t('label.usenewdiskoffering') }}
@@ -81,9 +84,13 @@
 
 <script>
 import { api } from '@/api'
+import TooltipLabel from '@/components/widgets/TooltipLabel'
 
 export default {
   name: 'MigrateVolume',
+  components: {
+    TooltipLabel
+  },
   props: {
     resource: {
       type: Object,
