@@ -149,7 +149,9 @@ export default {
           listall: true
         }).then(response => {
           this.diskOfferings = response.listdiskofferingsresponse.diskoffering
-          this.selectedDiskOffering = this.diskOfferings[0].id
+          if (this.diskOfferings) {
+            this.selectedDiskOffering = this.diskOfferings[0].id
+          }
         }).catch(error => {
           this.$notifyError(error)
           this.closeModal()
