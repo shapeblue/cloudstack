@@ -118,7 +118,7 @@ export default {
         pageSize: this.options.pageSize,
         response: 'json'
       }).then(response => {
-        this.total = response.listaffinitygroupsresponse.count
+        this.total = response.listaffinitygroupsresponse.count || 0
         if (this.total !== 0) {
           this.items = response.listaffinitygroupsresponse.affinitygroup
         }
