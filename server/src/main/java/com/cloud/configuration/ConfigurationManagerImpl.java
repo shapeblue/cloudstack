@@ -3082,6 +3082,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
 
         DiskOfferingVO diskOffering = _diskOfferingDao.findById(offeringHandle.getDiskOfferingId());
         updateOfferingTagsIfIsNotNull(storageTags, diskOffering);
+        _diskOfferingDao.update(diskOffering.getId(), diskOffering);
 
         updateServiceOfferingHostTagsIfNotNull(hostTags, offering);
 
@@ -3617,7 +3618,6 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         } else {
             diskOffering.setTags(null);
         }
-        _diskOfferingDao.update(diskOffering.getId(), diskOffering);
     }
 
     /**
