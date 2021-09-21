@@ -181,8 +181,9 @@ export default {
       this.groups.loading = true
       this.groups.opts = []
       api('listInstanceGroups', {
-        account: this.$store.getters.userInfo.account,
-        domainid: this.$store.getters.userInfo.domainid,
+        projectid: this.$store.getters.project ? this.$store.getters.project.id : null,
+        domainid: this.$store.getters.project && this.$store.getters.project.id ? null : this.$store.getters.userInfo.domainid,
+        account: this.$store.getters.project && this.$store.getters.project.id ? null : this.$store.getters.userInfo.account,
         listall: true
       }).then(json => {
         const groups = json.listinstancegroupsresponse.instancegroup || []
