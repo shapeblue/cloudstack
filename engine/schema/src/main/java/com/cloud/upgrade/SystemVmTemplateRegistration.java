@@ -29,6 +29,8 @@ import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VMTemplateDaoImpl;
+import com.cloud.storage.dao.VMTemplateZoneDao;
+import com.cloud.storage.dao.VMTemplateZoneDaoImpl;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.upgrade.dao.BasicTemplateDataStoreDaoImpl;
 import com.cloud.user.Account;
@@ -105,6 +107,8 @@ public class SystemVmTemplateRegistration {
     @Inject
     VMTemplateDao vmTemplateDao;
     @Inject
+    VMTemplateZoneDao vmTemplateZoneDao;
+    @Inject
     TemplateDataStoreDao templateDataStoreDao;
     @Inject
     VMInstanceDao vmInstanceDao;
@@ -118,6 +122,7 @@ public class SystemVmTemplateRegistration {
     public SystemVmTemplateRegistration() {
         dataCenterDao = new DataCenterDaoImpl();
         vmTemplateDao = new VMTemplateDaoImpl();
+        vmTemplateZoneDao = new VMTemplateZoneDaoImpl();
         templateDataStoreDao = new BasicTemplateDataStoreDaoImpl();
         vmInstanceDao = new VMInstanceDaoImpl();
         imageStoreDao = new ImageStoreDaoImpl();
