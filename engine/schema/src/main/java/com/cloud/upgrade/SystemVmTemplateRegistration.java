@@ -27,6 +27,7 @@ import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.VMTemplateZoneVO;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VMTemplateDaoImpl;
 import com.cloud.storage.dao.VMTemplateZoneDao;
@@ -37,6 +38,7 @@ import com.cloud.user.Account;
 import com.cloud.utils.DateUtil;
 import com.cloud.utils.Pair;
 import com.cloud.utils.UriUtils;
+import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.db.Transaction;
 import com.cloud.utils.db.TransactionCallbackNoReturn;
@@ -470,7 +472,18 @@ public class SystemVmTemplateRegistration {
     private void createCrossZonesTemplateZoneRefEntries(VMTemplateVO template, SystemVMTemplateDetails details) {
         List<DataCenterVO> dcs = dataCenterDao.listAll();
         for (DataCenterVO dc : dcs) {
-            if (vmTemplateDao.addTemplateToZone(template, dc.getId()) < 1) {
+            VMTemplateZoneVO templateZoneVO = vmTemplateZoneDao.findByZoneTemplate(dc.getId(), template.getId());
+            if (templateZoneVO == null) {
+                templateZoneVO = new VMTemplateZoneVO(dc.getId(), template.getId(), new java.util.Date());
+                templateZoneVO = vmTemplateZoneDao.persist(templateZoneVO);
+            } else {
+                templateZoneVO.setRemoved(GenericDaoBase.DATE_TO_NULL);
+                templateZoneVO.setLastUpdated(new java.util.Date());
+                if (vmTemplateZoneDao.update(templateZoneVO.getId(), templateZoneVO)) {
+                    templateZoneVO = null;
+                }
+            }
+            if (templateZoneVO == null) {
                 throw new CloudRuntimeException(String.format("Failed to create template_zone_ref record for the systemVM template for hypervisor: %s and zone: %s", details.getHypervisorType().name(), dc));
             }
         }
