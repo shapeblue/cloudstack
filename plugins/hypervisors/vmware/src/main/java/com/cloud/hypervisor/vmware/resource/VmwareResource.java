@@ -474,7 +474,9 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
             mbean.addProp("Name", cmd.getClass().getSimpleName());
 
             Class<? extends Command> clz = cmd.getClass();
-            if (cmd instanceof NetworkElementCommand) {
+            if (clz == PatchSystemVmCommand.class) {
+                answer = execute((PatchSystemVmCommand) cmd);
+            } else if (cmd instanceof NetworkElementCommand) {
                 return _vrResource.executeRequest((NetworkElementCommand) cmd);
             } else if (clz == ReadyCommand.class) {
                 answer = execute((ReadyCommand) cmd);
@@ -599,9 +601,7 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
                 answer = execute((SetupPersistentNetworkCommand) cmd);
             } else if (clz == GetVmVncTicketCommand.class) {
                 answer = execute((GetVmVncTicketCommand) cmd);
-            } else if (clz == PatchSystemVmCommand.class) {
-            answer = execute((PatchSystemVmCommand) cmd);
-        } else {
+            } else {
                 answer = Answer.createUnsupportedCommandAnswer(cmd);
             }
 
@@ -691,7 +691,7 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
         Pair<Boolean, String> patchResult = null;
         try {
             patchResult = SshHelper.sshExecute(controlIp, DefaultDomRSshPort, "root",
-                    pemFile, null, "/home/cloud/patch-sysvms.sh", 10000, 10000, 60000);
+                    pemFile, null, "/home/cloud/patch-sysvms.sh", 10000, 10000, 600000);
         } catch (Exception e) {
             return new PatchSystemVmAnswer(cmd, e.getMessage());
         }

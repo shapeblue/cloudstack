@@ -32,7 +32,6 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 
 import com.cloud.utils.StringUtils;
-import com.cloud.utils.script.Script;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.xml.DOMConfigurator;
 import org.eclipse.jetty.websocket.api.Session;
