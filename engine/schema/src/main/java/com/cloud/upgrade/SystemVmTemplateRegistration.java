@@ -690,7 +690,13 @@ public class SystemVmTemplateRegistration {
         }
     }
 
-    public static void parseMetadataFile() {
+    /**
+     * This method parses the metadata file consisting of the systemVM templates information
+     * @return the version of the systemvm template that is to be used. This is done to in order
+     * to fallback on the latest available version of the systemVM template when there does not
+     * exist a template corresponding to the current code version.
+     */
+    public static String parseMetadataFile() {
         try {
             Ini ini = new Ini();
             ini.load(new FileReader(METADATA_FILE));
@@ -702,6 +708,8 @@ public class SystemVmTemplateRegistration {
                 NewTemplateChecksum.put(hypervisorType, section.get("checksum"));
                 NewTemplateUrl.put(hypervisorType, section.get("downloadurl"));
             }
+            Ini.Section section = ini.get("default");
+            return section.get("version");
         } catch (Exception e) {
             String errMsg = String.format("Failed to parse systemVM template metadata file: %s", METADATA_FILE);
             LOGGER.error(errMsg, e);

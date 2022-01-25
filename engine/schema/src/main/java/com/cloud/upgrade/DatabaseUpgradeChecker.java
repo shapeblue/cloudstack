@@ -16,26 +16,6 @@
 // under the License.
 package com.cloud.upgrade;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.ObjectArrays.concat;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.Date;
-
-import javax.inject.Inject;
-
-import com.cloud.upgrade.dao.Upgrade41510to41520;
-import com.cloud.upgrade.dao.Upgrade41600to41610;
-import com.cloud.upgrade.dao.Upgrade41610to41700;
-import org.apache.cloudstack.utils.CloudStackVersion;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
-
 import com.cloud.upgrade.dao.DbUpgrade;
 import com.cloud.upgrade.dao.DbUpgradeSystemVmTemplate;
 import com.cloud.upgrade.dao.Upgrade217to218;
@@ -74,7 +54,10 @@ import com.cloud.upgrade.dao.Upgrade41300to41310;
 import com.cloud.upgrade.dao.Upgrade41310to41400;
 import com.cloud.upgrade.dao.Upgrade41400to41500;
 import com.cloud.upgrade.dao.Upgrade41500to41510;
+import com.cloud.upgrade.dao.Upgrade41510to41520;
 import com.cloud.upgrade.dao.Upgrade41520to41600;
+import com.cloud.upgrade.dao.Upgrade41600to41610;
+import com.cloud.upgrade.dao.Upgrade41610to41700;
 import com.cloud.upgrade.dao.Upgrade420to421;
 import com.cloud.upgrade.dao.Upgrade421to430;
 import com.cloud.upgrade.dao.Upgrade430to440;
@@ -111,6 +94,21 @@ import com.cloud.utils.db.ScriptRunner;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.cloudstack.utils.CloudStackVersion;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+
+import javax.inject.Inject;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Date;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ObjectArrays.concat;
 
 public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
     private static final Logger s_logger = Logger.getLogger(DatabaseUpgradeChecker.class);
@@ -369,10 +367,11 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                     return;
                 }
 
-                SystemVmTemplateRegistration.parseMetadataFile();
-                final CloudStackVersion currentVersion = CloudStackVersion.parse(currentVersionValue);
-                SystemVmTemplateRegistration.CS_MAJOR_VERSION  = String.valueOf(currentVersion.getMajorRelease()) + "." + String.valueOf(currentVersion.getMinorRelease());
-                SystemVmTemplateRegistration.CS_TINY_VERSION = String.valueOf(currentVersion.getPatchRelease());
+                String csVersion = SystemVmTemplateRegistration.parseMetadataFile();
+                final CloudStackVersion sysVmVersion = CloudStackVersion.parse(csVersion);
+                final  CloudStackVersion currentVersion = CloudStackVersion.parse(currentVersionValue);
+                SystemVmTemplateRegistration.CS_MAJOR_VERSION  = String.valueOf(sysVmVersion.getMajorRelease()) + "." + String.valueOf(sysVmVersion.getMinorRelease());
+                SystemVmTemplateRegistration.CS_TINY_VERSION = String.valueOf(sysVmVersion.getPatchRelease());
 
                 s_logger.info("DB version = " + dbVersion + " Code Version = " + currentVersion);
 
