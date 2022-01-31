@@ -42,6 +42,9 @@ public class KubernetesClusterVmMapVO implements KubernetesClusterVmMap {
     @Column(name = "control_node")
     boolean controlNode;
 
+//    @Column(name = "control_node_login_user")
+//    String controlNodeLoginUser;
+
     public KubernetesClusterVmMapVO() {
     }
 
@@ -83,4 +86,12 @@ public class KubernetesClusterVmMapVO implements KubernetesClusterVmMap {
     public void setControlNode(boolean controlNode) {
         this.controlNode = controlNode;
     }
+
+//    public String getControlNodeLoginUser() {
+//        return controlNodeLoginUser;
+//    }
+//
+//    public void setControlNodeLoginUser(String controlNodeLoginUser) {
+//        this.controlNodeLoginUser = controlNodeLoginUser;
+//    }
 }
