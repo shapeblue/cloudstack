@@ -35,8 +35,6 @@ public interface Event extends ControlledEntity, Identity, InternalIdentity {
 
     Long getResourceId();
 
-    String getResourceType();
-
     Date getCreateDate();
 
     long getUserId();

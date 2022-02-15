@@ -99,7 +99,7 @@ public class EventJoinDaoImpl extends GenericDaoBase<EventJoinVO, Long> implemen
                 objVO = entityMgr.findById(clazz, resourceId);
             } catch (ClassCastException ignored) {}
             if (objVO instanceof Identity) {
-                responseEvent.setResourceType(event.getResourceType());
+                responseEvent.setResourceType(clazz.getSimpleName());
                 responseEvent.setResourceId(((Identity)objVO).getUuid());
             }
         }

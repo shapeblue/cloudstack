@@ -64,9 +64,6 @@ public class EventVO implements Event {
     @Column(name = "resource_id")
     private Long resourceId;
 
-    @Column(name = "resource_type")
-    private String resourceType;
-
     @Column(name = "level")
     private String level = LEVEL_INFO;
 
@@ -171,15 +168,6 @@ public class EventVO implements Event {
 
     public void setResourceId(Long resourceId) {
         this.resourceId = resourceId;
-    }
-
-    @Override
-    public String getResourceType() {
-        return resourceType;
-    }
-
-    public void setResourceType(String resourceType) {
-        this.resourceType = resourceType;
     }
 
     @Override

@@ -648,8 +648,7 @@ CREATE VIEW `cloud`.`domain_router_view` AS
 
 -- Alter event table to add resource_id and resource_type
 ALTER TABLE `cloud`.`event`
-    ADD COLUMN `resource_id` bigint unsigned COMMENT 'ID of the resource associated with the event' AFTER `domain_id`,
-    ADD COLUMN `resource_type` varchar(32) COMMENT 'the type of the resource associated with the event' AFTER `resource_id`;
+    ADD COLUMN `resource_id` bigint unsigned COMMENT 'ID of the resource associated with the event' AFTER `domain_id`;
 
 DROP VIEW IF EXISTS `cloud`.`event_view`;
 CREATE VIEW `cloud`.`event_view` AS
@@ -660,7 +659,6 @@ CREATE VIEW `cloud`.`event_view` AS
         event.state,
         event.description,
         event.resource_id,
-        event.resource_type,
         event.created,
         event.level,
         event.parameters,
