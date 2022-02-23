@@ -34,6 +34,9 @@ import com.cloud.dc.DedicatedResourceVO;
 import com.cloud.dc.dao.DedicatedResourceDao;
 import com.cloud.user.Account;
 import com.cloud.utils.Pair;
+import com.cloud.vm.SecondaryStorageVm;
+import com.cloud.vm.SecondaryStorageVmVO;
+import com.cloud.vm.dao.SecondaryStorageVmDao;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataObject;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
@@ -70,6 +73,8 @@ public class DefaultEndPointSelector implements EndPointSelector {
     private static final Logger s_logger = Logger.getLogger(DefaultEndPointSelector.class);
     @Inject
     private HostDao hostDao;
+    @Inject
+    private SecondaryStorageVmDao storageVmDao;
     @Inject
     private DedicatedResourceDao dedicatedResourceDao;
     private final String findOneHostOnPrimaryStorage = "select t.id from "
@@ -309,7 +314,17 @@ public class DefaultEndPointSelector implements EndPointSelector {
         // find ssvm that can be used to download data to store. For zone-wide
         // image store, use SSVM for that zone. For region-wide store,
         // we can arbitrarily pick one ssvm to do that task
-        List<HostVO> ssAHosts = listUpAndConnectingSecondaryStorageVmHost(dcId);
+        List<HostVO> ssHosts = listUpAndConnectingSecondaryStorageVmHost(dcId);
+        List<HostVO> ssAHosts = new ArrayList<>();
+        if (ssHosts == null || ssHosts.isEmpty()) {
+            return null;
+        }
+        for (HostVO ssHost: ssHosts) {
+            SecondaryStorageVmVO storageVmVO = storageVmDao.findByInstanceName(hostDao.findById(ssHost.getId()).getName());
+            if (storageVmVO.getRole() != SecondaryStorageVm.Role.dataMigrationVM) {
+                ssAHosts.add(ssHost);
+            }
+        }
         if (ssAHosts == null || ssAHosts.isEmpty()) {
             return null;
         }

@@ -181,7 +181,7 @@ public class PremiumSecondaryStorageManagerImpl extends SecondaryStorageManagerI
                 (currentTime > nextSpawnTime) &&  alreadyRunning.size() <=  maxSsvms) {
             nextSpawnTime = currentTime + maxDataMigrationWaitTime;
             s_logger.debug("scaling SSVM to handle migration tasks");
-            return new Pair<AfterScanAction, Object>(AfterScanAction.expand, SecondaryStorageVm.Role.commandExecutor);
+            return new Pair<AfterScanAction, Object>(AfterScanAction.expand, SecondaryStorageVm.Role.dataMigrationVM);
 
         }
         scaleDownSSVMOnLoad(alreadyRunning, activeCmds, copyCmdsInPipeline);
@@ -195,7 +195,7 @@ public class PremiumSecondaryStorageManagerImpl extends SecondaryStorageManagerI
             Collections.reverse(alreadyRunning);
             for(SecondaryStorageVmVO vm : alreadyRunning) {
                 long count = activeCmds.stream().filter(cmd -> cmd.getInstanceId() == vm.getId()).count();
-                if (count == 0 && copyCmdsInPipeline.size() == 0 && vm.getRole() != SecondaryStorageVm.Role.templateProcessor) {
+                if (count == 0 && copyCmdsInPipeline.size() == 0 && vm.getRole() == SecondaryStorageVm.Role.dataMigrationVM) {
                     destroySecStorageVm(vm.getId());
                     break;
                 }
