@@ -22,6 +22,6 @@ package com.cloud.vm;
  */
 public interface SecondaryStorageVm extends SystemVm {
     enum Role {
-        templateProcessor, commandExecutor
+        templateProcessor, commandExecutor, dataMigrationVM
     }
 }

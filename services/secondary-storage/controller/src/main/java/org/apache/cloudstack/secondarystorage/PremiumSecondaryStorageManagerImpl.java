@@ -96,6 +96,7 @@ public class PremiumSecondaryStorageManagerImpl extends SecondaryStorageManagerI
         hostSearch.and("status", hostSearch.entity().getStatus(), Op.EQ);
 
         activeCommandSearch = _cmdExecLogDao.createSearchBuilder();
+        activeCommandSearch.and("command_name", activeCommandSearch.entity().getCommandName(), Op.NEQ);
         activeCommandSearch.and("created", activeCommandSearch.entity().getCreated(), Op.GTEQ);
         activeCommandSearch.join("hostSearch", hostSearch, activeCommandSearch.entity().getHostId(), hostSearch.entity().getId(), JoinType.INNER);
 
@@ -181,7 +182,7 @@ public class PremiumSecondaryStorageManagerImpl extends SecondaryStorageManagerI
                 (currentTime > nextSpawnTime) &&  alreadyRunning.size() <=  maxSsvms) {
             nextSpawnTime = currentTime + maxDataMigrationWaitTime;
             s_logger.debug("scaling SSVM to handle migration tasks");
-            return new Pair<AfterScanAction, Object>(AfterScanAction.expand, SecondaryStorageVm.Role.commandExecutor);
+            return new Pair<AfterScanAction, Object>(AfterScanAction.expand, SecondaryStorageVm.Role.dataMigrationVM);
 
         }
         scaleDownSSVMOnLoad(alreadyRunning, activeCmds, copyCmdsInPipeline);
@@ -191,11 +192,11 @@ public class PremiumSecondaryStorageManagerImpl extends SecondaryStorageManagerI
     private void scaleDownSSVMOnLoad(List<SecondaryStorageVmVO> alreadyRunning, List<CommandExecLogVO> activeCmds,
                                List<CommandExecLogVO> copyCmdsInPipeline)  {
         int halfLimit = Math.round((float) (alreadyRunning.size() * migrateCapPerSSVM) / 2);
-        if (alreadyRunning.size() > 1 && ( copyCmdsInPipeline.size() < halfLimit && (activeCmds.size() < (((alreadyRunning.size() -1) * _capacityPerSSVM)/2)) )) {
+        if (alreadyRunning.size() > 1 && (copyCmdsInPipeline.size() < halfLimit && (activeCmds.size() < (((alreadyRunning.size() -1) * _capacityPerSSVM)/2)) )) {
             Collections.reverse(alreadyRunning);
             for(SecondaryStorageVmVO vm : alreadyRunning) {
                 long count = activeCmds.stream().filter(cmd -> cmd.getInstanceId() == vm.getId()).count();
-                if (count == 0 && copyCmdsInPipeline.size() == 0 && vm.getRole() != SecondaryStorageVm.Role.templateProcessor) {
+                if (count == 0 && copyCmdsInPipeline.size() == 0 && vm.getRole() == SecondaryStorageVm.Role.dataMigrationVM) {
                     destroySecStorageVm(vm.getId());
                     break;
                 }
@@ -221,6 +222,7 @@ public class PremiumSecondaryStorageManagerImpl extends SecondaryStorageManagerI
     private List<CommandExecLogVO> findActiveCommands(long dcId, Date cutTime) {
         SearchCriteria<CommandExecLogVO> sc = activeCommandSearch.create();
         sc.setParameters("created", cutTime);
+        sc.setParameters("command_name", "DataMigrationCommand");
         sc.setJoinParameters("hostSearch", "dc", dcId);
         sc.setJoinParameters("hostSearch", "status", Status.Up);
         List<CommandExecLogVO> result = _cmdExecLogDao.search(sc, null);
