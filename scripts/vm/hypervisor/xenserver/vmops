@@ -236,10 +236,10 @@ def createFileInDomr(session, args):
     dst_path = args['dstfilepath']
     domrip = args['domrip']
     cleanup = 'true' if 'cleanup' not in args else args['cleanup']
-    txt=""
+    port = '3922' if 'port' not in args else args['port']
     try:
         target = "root@" + domrip + ":" + dst_path
-        txt = util.pread2(['scp','-P','3922','-q','-o','StrictHostKeyChecking=no','-i','/root/.ssh/id_rsa.cloud',src_filepath, target])
+        txt = util.pread2(['scp','-P',port,'-q','-o','StrictHostKeyChecking=no','-i','/root/.ssh/id_rsa.cloud',src_filepath, target])
         if cleanup == 'true' or not cleanup:
             util.pread2(['rm',src_filepath])
         txt = 'succ#' + txt

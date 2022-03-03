@@ -10,7 +10,7 @@
 # possible, but leave them commented.  Uncommented options change a
 # default value.
 
-Port 3922
+Port 3921
 #AddressFamily any
 #ListenAddress 0.0.0.0
 

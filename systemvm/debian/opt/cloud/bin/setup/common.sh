@@ -475,8 +475,9 @@ setup_dnsmasq() {
 setup_sshd(){
   local ip=$1
   local eth=$2
+  local port=$3
   [ -f /etc/ssh/sshd_config ] && sed -i -e "s/^[#]*ListenAddress.*$/ListenAddress $ip/" /etc/ssh/sshd_config
-  sed -i "/3922/s/eth./$eth/" /etc/iptables/rules.v4
+  sed -i "/$port/s/eth./$eth/" /etc/iptables/rules.v4
 }
 
 setup_vpc_apache2() {

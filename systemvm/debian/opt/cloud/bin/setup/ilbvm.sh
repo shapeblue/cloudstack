@@ -30,9 +30,6 @@ setup_ilbvm() {
   sed -i  /$NAME/d /etc/hosts
   echo "$ETH0_IP $NAME" >> /etc/hosts
 
-  cp /etc/iptables/iptables-ilbvm /etc/iptables/rules.v4
-  setup_sshd $ETH1_IP "eth1"
-
   enable_fwding 0
   enable_irqbalance 1
 }

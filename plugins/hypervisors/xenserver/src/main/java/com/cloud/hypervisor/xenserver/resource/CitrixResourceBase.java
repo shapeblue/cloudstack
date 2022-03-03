@@ -988,7 +988,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
             s_logger.warn("scp VR config file into host " + _host.getIp() + " failed with exception " + e.getMessage().toString());
         }
 
-        final String rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", hostPath + filename, "dstfilepath", path, "cleanup", "true");
+        final String rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", hostPath + filename, "dstfilepath", path, "cleanup", "true", "port", "3921");
         s_logger.debug("VR Config file " + filename + " got created in VR, IP: " + routerIp + " with content \n" + content);
 
         return new ExecutionResult(rc.startsWith("succ#"), rc.substring(5));
@@ -999,7 +999,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         final String hostPath = "/opt/xensource/packages/resources/";
         String rc = "";
         for (String file: systemVmPatchFiles) {
-            rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", hostPath.concat(file), "dstfilepath", path, "cleanup", "false");
+            rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", hostPath.concat(file), "dstfilepath", path, "port", "3921");
             if (rc.startsWith("fail#")) {
                 s_logger.error(String.format("Failed to scp file %s required for patching the systemVM", file));
                 break;

@@ -65,4 +65,9 @@ then
   ip6tables-restore < $ipv6
 fi
 
+# Enable and Start SSH
+source /opt/cloud/bin/setup/init.sh
+sed -i 's/3921/3922/g' /etc/ssh/sshd_config
+setup_interface_sshd 3922
+systemctl enable --now --no-block ssh
 date > /var/cache/cloud/boot_up_done

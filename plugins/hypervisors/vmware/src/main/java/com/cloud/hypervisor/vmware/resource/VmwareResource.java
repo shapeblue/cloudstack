@@ -2569,7 +2569,7 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
                 String controlIp = getControlIp(nics);
                 // check if the router is up?
                 for (int count = 0; count < 60; count++) {
-                    final boolean result = _vrResource.connect(controlIp, 1, 5000);
+                    final boolean result = _vrResource.connect(controlIp, 3921);
                     if (result) {
                         break;
                     }
@@ -2578,8 +2578,8 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
                 try {
                     String homeDir = System.getProperty("user.home");
                     File pemFile = new File(homeDir + "/.ssh/id_rsa");
-                    FileUtil.scpPatchFiles(controlIp, "/home/cloud", DefaultDomRSshPort, pemFile, systemVmPatchFiles, BASEPATH);
-                    Thread.sleep(10000);
+                    FileUtil.scpPatchFiles(controlIp, "/home/cloud", 3921, pemFile, systemVmPatchFiles, BASEPATH);
+//                    Thread.sleep(10000);
                 } catch (Exception e) {
                     String errMsg = "Failed to scp files to system VM. Patching of systemVM failed";
                     s_logger.error(errMsg, e);

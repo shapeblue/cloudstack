@@ -115,6 +115,7 @@ public class CertificateHelper {
             password = storePassword.toCharArray();
         }
         final KeyStore ks = KeyStore.getInstance("JKS");
+
         ks.load(null, password);
         final Certificate[] certs = new Certificate[1];
         certs[0] = buildCertificate(cert);

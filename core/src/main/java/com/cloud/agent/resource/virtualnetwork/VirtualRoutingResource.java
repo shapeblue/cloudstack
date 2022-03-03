@@ -174,30 +174,31 @@ public class VirtualRoutingResource {
         return new SetupKeystoreAnswer(result.getDetails());
     }
 
-    private void isPathPresent(String routerIp, String path, String filename, String content) throws InterruptedException {
-        String errMsg = "Failed to scp file: %s to system VM";
-        for (int retries = 15; retries > 0; retries--) {
-            try {
-                ExecutionResult result = _vrDeployer.createFileInVR(routerIp, path, filename, content);
-                if (result.isSuccess()) {
-                    break;
-                }
-            } catch (Exception e) {
-                errMsg += ", retrying";
-                s_logger.error(String.format(errMsg, filename), e);
-                Thread.sleep(2000);
-            }
-        }
-    }
+//    private void isPathPresent(String routerIp, String path, String filename, String content) throws InterruptedException {
+//        String errMsg = "Failed to scp file: %s to system VM";
+//        for (int retries = 15; retries > 0; retries--) {
+//            try {
+//                ExecutionResult result = _vrDeployer.createFileInVR(routerIp, path, filename, content);
+//                if (result.isSuccess()) {
+//                    break;
+//                }
+//            } catch (Exception e) {
+//                errMsg += ", retrying";
+//                s_logger.error(String.format(errMsg, filename), e);
+//                Thread.sleep(2000);
+//            }
+//        }
+//    }
+
     private Answer execute(final SetupCertificateCommand cmd) {
         String routerName = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
-        if (!org.apache.commons.lang3.StringUtils.isEmpty(routerName) && (routerName.startsWith("s-") || routerName.startsWith("v-"))) {
-            try {
-                isPathPresent(cmd.getRouterAccessIp(), "/usr/local/cloud/systemvm/conf/", KeyStoreUtils.CERT_FILENAME, cmd.getCertificate());
-            } catch (InterruptedException e) {
-                throw new CloudRuntimeException(String.format("Failed to scp certificate file to %s due to %s", routerName, e.getLocalizedMessage()));
-            }
-        }
+//        if (!org.apache.commons.lang3.StringUtils.isEmpty(routerName) && (routerName.startsWith("s-") || routerName.startsWith("v-"))) {
+//            try {
+//                isPathPresent(cmd.getRouterAccessIp(), "/usr/local/cloud/systemvm/conf/", KeyStoreUtils.CERT_FILENAME, cmd.getCertificate());
+//            } catch (InterruptedException e) {
+//                throw new CloudRuntimeException(String.format("Failed to scp certificate file to %s due to %s", routerName, e.getLocalizedMessage()));
+//            }
+//        }
         final String args = String.format("/usr/local/cloud/systemvm/conf/agent.properties %s " +
                         "/usr/local/cloud/systemvm/conf/%s %s " +
                         "/usr/local/cloud/systemvm/conf/%s \"%s\" " +

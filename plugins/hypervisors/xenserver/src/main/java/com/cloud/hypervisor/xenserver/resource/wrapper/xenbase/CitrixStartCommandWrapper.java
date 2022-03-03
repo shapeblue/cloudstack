@@ -189,14 +189,14 @@ public final class CitrixStartCommandWrapper extends CommandWrapper<StartCommand
                 }
             }
 
-            String result2 = citrixResourceBase.connect(conn, vmName, controlIp, 1000);
+            String result2 = citrixResourceBase.connect(conn, vmName, controlIp, 3921, 1000);
             if (StringUtils.isEmpty(result2)) {
                 s_logger.info(String.format("Connected to SystemVM: %s", vmName));
             }
 
             try {
                 citrixResourceBase.copyPatchFilesToVR(controlIp, "/home/cloud");
-                Thread.sleep(10000);
+//                Thread.sleep(10000);
             } catch (Exception e) {
                 String errMsg = "Failed to scp files to system VM. Patching of systemVM failed";
                 s_logger.error(errMsg, e);
