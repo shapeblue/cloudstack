@@ -191,13 +191,13 @@ public class VirtualRoutingResource {
     }
     private Answer execute(final SetupCertificateCommand cmd) {
         String routerName = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
-        if (!org.apache.commons.lang3.StringUtils.isEmpty(routerName) && (routerName.startsWith("s-") || routerName.startsWith("v-"))) {
-            try {
-                isPathPresent(cmd.getRouterAccessIp(), "/usr/local/cloud/systemvm/conf/", KeyStoreUtils.CERT_FILENAME, cmd.getCertificate());
-            } catch (InterruptedException e) {
-                throw new CloudRuntimeException(String.format("Failed to scp certificate file to %s due to %s", routerName, e.getLocalizedMessage()));
-            }
-        }
+//        if (!org.apache.commons.lang3.StringUtils.isEmpty(routerName) && (routerName.startsWith("s-") || routerName.startsWith("v-"))) {
+//            try {
+//                isPathPresent(cmd.getRouterAccessIp(), "/usr/local/cloud/systemvm/conf/", KeyStoreUtils.CERT_FILENAME, cmd.getCertificate());
+//            } catch (InterruptedException e) {
+//                throw new CloudRuntimeException(String.format("Failed to scp certificate file to %s due to %s", routerName, e.getLocalizedMessage()));
+//            }
+//        }
         final String args = String.format("/usr/local/cloud/systemvm/conf/agent.properties %s " +
                         "/usr/local/cloud/systemvm/conf/%s %s " +
                         "/usr/local/cloud/systemvm/conf/%s \"%s\" " +

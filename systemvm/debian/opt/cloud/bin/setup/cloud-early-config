@@ -54,7 +54,8 @@ patch() {
   fi
 
   eval $(validate_checksums $md5file $oldpatchfile)
-  if [ "$oldmd5" == "$newmd5" ] && [ -d /usr/local/cloud/systemvm ] && [ "$(ls -A /usr/local/cloud/systemvm)" ]; then
+  #if [ "$oldmd5" == "$newmd5" ] && [ -d /usr/local/cloud/systemvm/conf ] && [ "$(ls -A /usr/local/cloud/systemvm/conf)" ]; then
+  if [ "$oldmd5" == "$newmd5" ] && [ -d /usr/local/cloud/systemvm/conf ] && [[ -f /opt/cloud/bin/keystore-cert-import ]]; then
     log_it "Checksum matches, no need to patch"
     return 0
   fi
