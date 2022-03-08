@@ -47,7 +47,7 @@
               :checked="$store.getters.usebrowsertimezone" />
           </a>
         </a-menu-item>
-        <a-menu-item class="user-menu-item" key="2" disabled>
+        <a-menu-item class="user-menu-item" key="2">
           <a :href="$config.docBase" target="_blank">
             <a-icon class="user-menu-item-icon" type="question-circle-o"></a-icon>
             <span class="user-menu-item-name">{{ $t('label.help') }}</span>
