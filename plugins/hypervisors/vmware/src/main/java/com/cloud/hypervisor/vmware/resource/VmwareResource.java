@@ -2579,7 +2579,11 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
                     String homeDir = System.getProperty("user.home");
                     File pemFile = new File(homeDir + "/.ssh/id_rsa");
                     FileUtil.scpPatchFiles(controlIp, "/home/cloud", DefaultDomRSshPort, pemFile, systemVmPatchFiles, BASEPATH);
-//                    Thread.sleep(10000);
+                    if (!_vrResource.isSystemVMSetup(vmInternalCSName, controlIp)) {
+                        String errMsg = "Failed to patch systemVM";
+                        s_logger.error(errMsg);
+                        return new StartAnswer(cmd, errMsg);
+                    }
                 } catch (Exception e) {
                     String errMsg = "Failed to scp files to system VM. Patching of systemVM failed";
                     s_logger.error(errMsg, e);

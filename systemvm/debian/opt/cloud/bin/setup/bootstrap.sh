@@ -38,8 +38,9 @@ patch_systemvm() {
     mkdir -p $backupfolder
     cp -r /usr/local/cloud/systemvm/conf/* $backupfolder/
   fi
-#  rm /usr/local/cloud/systemvm -rf
-  find /usr/local/cloud/systemvm -type f -delete
+
+  rm /usr/local/cloud/systemvm -rf
+#  find /usr/local/cloud/systemvm -type f -delete
   mkdir -p /usr/local/cloud/systemvm
   ls -lrt $patchfile
 

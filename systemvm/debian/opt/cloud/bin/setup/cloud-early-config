@@ -72,7 +72,6 @@ patch() {
         if [ "$oldmd5" != "$newmd5" ] && [ -f ${patchfile} ] && [ "$newmd5" != "" ]
         then
           tar xzf $patchfile -C /
-          ls -lrt /opt/cloud/bin/keystore*
           echo ${newmd5} > ${md5file}
           log_it "Patched scripts using $patchfile"
           touch /var/cache/cloud/patch.required

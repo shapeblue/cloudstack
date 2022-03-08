@@ -22,7 +22,6 @@ set -x
 function configure_misc() {
   rm -fv /home/cloud/*.sh
   echo "cloud:`openssl rand -base64 32`" | chpasswd
-  mkdir -p /usr/local/cloud/systemvm/conf/
 }
 
 function configure_rundisk_size() {

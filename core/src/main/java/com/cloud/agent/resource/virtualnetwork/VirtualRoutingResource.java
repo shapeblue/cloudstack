@@ -243,7 +243,7 @@ public class VirtualRoutingResource {
         return applyConfigToVR(routerAccessIp, c, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
     }
 
-    private ExecutionResult applyConfigToVR(String routerAccessIp, ConfigItem c, Duration timeout) {
+    public ExecutionResult applyConfigToVR(String routerAccessIp, ConfigItem c, Duration timeout) {
         if (c instanceof FileConfigItem) {
             FileConfigItem configItem = (FileConfigItem)c;
             return _vrDeployer.createFileInVR(routerAccessIp, configItem.getFilePath(), configItem.getFileName(), configItem.getFileContents());
@@ -606,5 +606,24 @@ public class VirtualRoutingResource {
             }
         }
         return new Answer(cmd, false, "Fail to recognize aggregation action " + action.toString());
+    }
+
+    public boolean isSystemVMSetup(String vmName, String controlIp) throws InterruptedException {
+        if (vmName.startsWith("s-") || vmName.startsWith("v-")) {
+            ScriptConfigItem scriptConfigItem = new ScriptConfigItem(VRScripts.SYSTEM_VM_PATCHED, "/opt/cloud/bin/keystore*");
+            ExecutionResult result = new ExecutionResult(false, "");
+            int retries = 0;
+            while (!result.isSuccess() && retries < 600) {
+                result = applyConfigToVR(controlIp, scriptConfigItem, VRScripts.VR_SCRIPT_EXEC_TIMEOUT);
+                if (result.isSuccess()) {
+                    return true;
+                }
+                s_logger.info("PEARL - patching not done");
+                retries++;
+                Thread.sleep(1000);
+            }
+            return false;
+        }
+        return true;
     }
 }
