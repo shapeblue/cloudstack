@@ -33,7 +33,7 @@ import org.apache.cloudstack.utils.security.KeyStoreUtils;
  */
 public interface ServerResource extends Manager {
 
-    String[] systemVmPatchFiles = new String[] { "agent.zip", "cloud-scripts.tgz", "patch-sysvms.sh" };
+    String[] systemVmPatchFiles = new String[] { "agent.zip", "cloud-scripts.tgz"};
     String[] certificateFiles = new String[] {KeyStoreUtils.CERT_FILENAME, KeyStoreUtils.CACERT_FILENAME, KeyStoreUtils.PKEY_FILENAME};
 
     String SSHKEYSPATH = "/root/.ssh";

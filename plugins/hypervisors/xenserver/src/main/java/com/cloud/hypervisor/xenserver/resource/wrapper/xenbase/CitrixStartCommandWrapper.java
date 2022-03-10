@@ -196,7 +196,7 @@ public final class CitrixStartCommandWrapper extends CommandWrapper<StartCommand
             }
 
             try {
-                citrixResourceBase.copyPatchFilesToVR(controlIp, "/home/cloud");
+                citrixResourceBase.copyPatchFilesToVR(controlIp, "/tmp/");
                 VirtualRoutingResource vrResource = citrixResourceBase.getVirtualRoutingResource();
                 if (!vrResource.isSystemVMSetup(vmName, controlIp)) {
                     String errMsg = "Failed to patch systemVM";

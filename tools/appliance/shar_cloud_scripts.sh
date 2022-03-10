@@ -38,7 +38,6 @@ cd ${TEMP_DIR}
 mkdir cloud_scripts
 mkdir -p cloud_scripts/opt/cloudstack
 cp -r ${CLOUDSTACK_DIR}/systemvm/debian/* cloud_scripts/
-#cp ${CLOUDSTACK_DIR}/scripts/util/keystore* cloud_scripts/opt/cloud/bin/
 
 mkdir -p cloud_scripts/usr/share/cloud
 cd ${CLOUDSTACK_DIR}/systemvm/debian
@@ -46,7 +45,6 @@ tar -cf ${TEMP_DIR}/cloud_scripts/usr/share/cloud/cloud-scripts.tar *
 
 cd ${TEMP_DIR}
 shar `find . -print` > "${CURR_DIR}"/cloud_scripts_shar_archive.sh
-#shar `find ${CLOUDSTACK_DIR}/scripts/util/keystore* -print ` >> "${CURR_DIR}"/cloud_scripts_shar_archive.sh
 
 cd ${CURR_DIR}
 rm -rf ${TEMP_DIR}
