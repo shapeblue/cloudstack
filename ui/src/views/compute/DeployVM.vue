@@ -881,6 +881,8 @@ export default {
             issystem: false,
             page: 1,
             pageSize: 10,
+            listall: true,
+            isrecursive: !this.isNormalAndDomainUser,
             keyword: undefined
           }
         },
