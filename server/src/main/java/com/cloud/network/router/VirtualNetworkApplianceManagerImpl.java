@@ -1215,10 +1215,10 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
             return;
         }
 
-        String alertMessage = "Health checks failed: " + failingChecks.size() + " failing checks on router " + router.getUuid();
+        String alertMessage = String.format("%s health check(s) failed on router %s ( %s )",failingChecks.size(), router.getName(), router.getUuid());
         _alertMgr.sendAlert(AlertType.ALERT_TYPE_DOMAIN_ROUTER, router.getDataCenterId(), router.getPodIdToDeployIn(),
                 alertMessage, alertMessage);
-        s_logger.warn(alertMessage + ". Checking failed health checks to see if router needs recreate");
+        s_logger.warn(alertMessage + ". Checking failed health checks to see if router needs recreation");
 
         String checkFailsToRecreateVr = RouterHealthChecksFailuresToRecreateVr.valueIn(router.getDataCenterId());
         StringBuilder failingChecksEvent = new StringBuilder();
@@ -1227,7 +1227,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
             String failedCheck = failingChecks.get(i);
             if (i == 0) {
                 failingChecksEvent.append("Router ")
-                        .append(router.getUuid())
+                        .append(router.getName() + "(" + router.getUuid() + ")")
                         .append(" has failing checks: ");
             }
 
