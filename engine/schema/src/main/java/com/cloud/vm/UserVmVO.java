@@ -44,6 +44,9 @@ public class UserVmVO extends VMInstanceVO implements UserVm {
     @Basic(fetch = FetchType.LAZY)
     private String userData;
 
+    @Column(name = "user_data_id", nullable = true, length = 17)
+    private Long userDataId = null;
+
     @Column(name = "display_name", updatable = true, nullable = true)
     private String displayName;
 
@@ -98,6 +101,16 @@ public class UserVmVO extends VMInstanceVO implements UserVm {
     @Override
     public String getUserData() {
         return userData;
+    }
+
+    @Override
+    public void setUserDataId(Long userDataId) {
+        this.userDataId = userDataId;
+    }
+
+    @Override
+    public Long getUserDataId() {
+        return userDataId;
     }
 
     @Override

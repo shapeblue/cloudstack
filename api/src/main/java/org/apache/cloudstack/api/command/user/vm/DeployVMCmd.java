@@ -47,6 +47,7 @@ import org.apache.cloudstack.api.response.ProjectResponse;
 import org.apache.cloudstack.api.response.SecurityGroupResponse;
 import org.apache.cloudstack.api.response.ServiceOfferingResponse;
 import org.apache.cloudstack.api.response.TemplateResponse;
+import org.apache.cloudstack.api.response.UserDataResponse;
 import org.apache.cloudstack.api.response.UserVmResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
@@ -154,6 +155,17 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
             length = 1048576)
     private String userData;
 
+    @Parameter(name = ApiConstants.USER_DATA_ID, type = CommandType.UUID, entityType = UserDataResponse.class, description = "the ID of the ssh keypair", since = "4.18")
+    private Long userdataId;
+
+    @Parameter(name = ApiConstants.USER_DATA_POLICY,
+            description = "the ID of the template for the virtual machine", since = "4.18")
+    private String userdataPolicy;
+
+    @Parameter(name = ApiConstants.USER_DATA_DETAILS, type = CommandType.MAP, description = "used to specify the custom parameters. 'extraconfig' is not allowed to be passed in details", since = "4.18")
+    private Map userdataDetails;
+
+    @Deprecated
     @Parameter(name = ApiConstants.SSH_KEYPAIR, type = CommandType.STRING, description = "name of the ssh key pair used to login to the virtual machine")
     private String sshKeyPairName;
 
@@ -411,6 +423,18 @@ public class DeployVMCmd extends BaseAsyncCreateCustomIdCmd implements SecurityG
 
     public String getUserData() {
         return userData;
+    }
+
+    public String getUserdataPolicy() {
+        return userdataPolicy;
+    }
+
+    public Long getUserdataId() {
+        return userdataId;
+    }
+
+    public Map getUserdataDetails() {
+        return userdataDetails;
     }
 
     public Long getZoneId() {

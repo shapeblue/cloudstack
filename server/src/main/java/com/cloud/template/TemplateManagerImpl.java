@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.user.UserData;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseListTemplateOrIsoPermissionsCmd;
@@ -54,6 +55,7 @@ import org.apache.cloudstack.api.command.user.template.ListTemplatePermissionsCm
 import org.apache.cloudstack.api.command.user.template.RegisterTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.UpdateTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.UpdateTemplatePermissionsCmd;
+import org.apache.cloudstack.api.command.user.userdata.LinkUserDataToTemplateCmd;
 import org.apache.cloudstack.api.response.GetUploadParamsResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
@@ -2265,4 +2267,28 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         return _tmpltSvr.getTemplateDatadisksOnImageStore(templateObject, configurationId);
     }
 
+    @Override
+    public VirtualMachineTemplate linkUserDataToTemplate(LinkUserDataToTemplateCmd cmd) {
+        Long templateId = cmd.getTemplateId();
+        Long userDataId = cmd.getUserdataId();
+        UserData.UserDataOverridePolicy overridePolicy = cmd.getUserdataPolicy();
+        Account caller = CallContext.current().getCallingAccount();
+
+        VMTemplateVO template = _tmpltDao.findById(templateId);
+        if (template == null) {
+            throw new InvalidParameterValueException(String.format("unable to find template with id %s", templateId));
+        }
+
+        if (template.getUserDataId() != null) {
+            throw new InvalidParameterValueException(String.format("template %s has already userdata linked to it", templateId));
+        }
+
+        _accountMgr.checkAccess(caller, AccessType.OperateEntry, true, template);
+
+        template.setUserDataId(userDataId);
+        template.setUserDataLinkPolicy(overridePolicy);
+        _tmpltDao.update(templateId, template);
+
+        return _tmpltDao.findById(templateId);
+    }
 }
