@@ -181,6 +181,7 @@ public interface UserVmService {
      *            base64 encoded before adding it to the request. Currently only
      *            HTTP GET is supported. Using HTTP GET (via querystring), you
      *            can send up to 2KB of data after base64 encoding
+     * @param userDataId
      * @param sshKeyPair
      *            - name of the ssh key pair used to login to the virtual
      *            machine
@@ -215,7 +216,7 @@ public interface UserVmService {
      */
     UserVm createBasicSecurityGroupVirtualMachine(DataCenter zone, ServiceOffering serviceOffering, VirtualMachineTemplate template, List<Long> securityGroupIdList,
         Account owner, String hostName, String displayName, Long diskOfferingId, Long diskSize, String group, HypervisorType hypervisor, HTTPMethod httpmethod,
-        String userData, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIp, Boolean displayVm, String keyboard,
+        String userData, Long userDataId, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIp, Boolean displayVm, String keyboard,
         List<Long> affinityGroupIdList, Map<String, String> customParameter, String customId, Map<String, Map<Integer, String>> dhcpOptionMap,
         Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap,
         Map<String, String> userVmOVFProperties, boolean dynamicScalingEnabled) throws InsufficientCapacityException,
@@ -264,6 +265,7 @@ public interface UserVmService {
      *            base64 encoded before adding it to the request. Currently only
      *            HTTP GET is supported. Using HTTP GET (via querystring), you
      *            can send up to 2KB of data after base64 encoding
+     * @param userDataId
      * @param sshKeyPair
      *            - name of the ssh key pair used to login to the virtual
      *            machine
@@ -297,7 +299,7 @@ public interface UserVmService {
      */
     UserVm createAdvancedSecurityGroupVirtualMachine(DataCenter zone, ServiceOffering serviceOffering, VirtualMachineTemplate template, List<Long> networkIdList,
         List<Long> securityGroupIdList, Account owner, String hostName, String displayName, Long diskOfferingId, Long diskSize, String group, HypervisorType hypervisor,
-        HTTPMethod httpmethod, String userData, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayVm, String keyboard,
+        HTTPMethod httpmethod, String userData, Long userDataId, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayVm, String keyboard,
         List<Long> affinityGroupIdList, Map<String, String> customParameters, String customId, Map<String, Map<Integer, String>> dhcpOptionMap,
         Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap,
         Map<String, String> userVmOVFProperties, boolean dynamicScalingEnabled) throws InsufficientCapacityException,
@@ -343,6 +345,7 @@ public interface UserVmService {
      *            base64 encoded before adding it to the request. Currently only
      *            HTTP GET is supported. Using HTTP GET (via querystring), you
      *            can send up to 2KB of data after base64 encoding
+     * @param userDataId
      * @param sshKeyPair
      *            - name of the ssh key pair used to login to the virtual
      *            machine
@@ -377,7 +380,7 @@ public interface UserVmService {
      */
     UserVm createAdvancedVirtualMachine(DataCenter zone, ServiceOffering serviceOffering, VirtualMachineTemplate template, List<Long> networkIdList, Account owner,
         String hostName, String displayName, Long diskOfferingId, Long diskSize, String group, HypervisorType hypervisor, HTTPMethod httpmethod, String userData,
-        String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayVm, String keyboard, List<Long> affinityGroupIdList,
+        Long userDataId, String sshKeyPair, Map<Long, IpAddresses> requestedIps, IpAddresses defaultIps, Boolean displayVm, String keyboard, List<Long> affinityGroupIdList,
         Map<String, String> customParameters, String customId, Map<String, Map<Integer, String>> dhcpOptionMap, Map<Long, DiskOffering> dataDiskTemplateToDiskOfferingMap,
         Map<String, String> templateOvfPropertiesMap, boolean dynamicScalingEnabled, String type)
 
