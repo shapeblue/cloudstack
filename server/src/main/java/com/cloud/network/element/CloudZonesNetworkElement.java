@@ -152,6 +152,7 @@ public class CloudZonesNetworkElement extends AdapterBase implements NetworkElem
         VmDataCommand cmd = new VmDataCommand(vmPrivateIpAddress, vmName, _networkMgr.getExecuteInSeqNtwkElmtCmd());
         // if you add new metadata files, also edit systemvm/patches/debian/config/var/www/html/latest/.htaccess
         cmd.addVmData("userdata", "user-data", userData);
+        cmd.addVmData("userdata", "test-data", userData);
         cmd.addVmData("metadata", "service-offering", serviceOffering);
         cmd.addVmData("metadata", "availability-zone", zoneName);
         cmd.addVmData("metadata", "local-ipv4", guestIpAddress);
