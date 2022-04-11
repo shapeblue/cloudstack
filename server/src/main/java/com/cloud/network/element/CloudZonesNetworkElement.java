@@ -147,18 +147,30 @@ public class CloudZonesNetworkElement extends AdapterBase implements NetworkElem
         return capabilities;
     }
 
-    private VmDataCommand generateVmDataCommand(String vmPrivateIpAddress, String userData, String serviceOffering, String zoneName, String guestIpAddress,
-        String vmName, String vmInstanceName, long vmId, String vmUuid, String publicKey, String hostname) {
+    private VmDataCommand generateVmDataCommand(String vmPrivateIpAddress, String userData, String userDataDetails, String serviceOffering, String zoneName, String guestIpAddress,
+                                                String vmName, String vmInstanceName, long vmId, String vmUuid, String publicKey, String hostname) {
         VmDataCommand cmd = new VmDataCommand(vmPrivateIpAddress, vmName, _networkMgr.getExecuteInSeqNtwkElmtCmd());
         // if you add new metadata files, also edit systemvm/patches/debian/config/var/www/html/latest/.htaccess
         cmd.addVmData("userdata", "user-data", userData);
-        cmd.addVmData("userdata", "test-data", userData);
         cmd.addVmData("metadata", "service-offering", serviceOffering);
         cmd.addVmData("metadata", "availability-zone", zoneName);
         cmd.addVmData("metadata", "local-ipv4", guestIpAddress);
         cmd.addVmData("metadata", "local-hostname", vmName);
         cmd.addVmData("metadata", "public-ipv4", guestIpAddress);
         cmd.addVmData("metadata", "public-hostname", guestIpAddress);
+
+        if(userDataDetails != null && !userDataDetails.isEmpty()) {
+            userDataDetails = userDataDetails.substring(1, userDataDetails.length()-1);
+            String[] keyValuePairs = userDataDetails.split(",");
+            for(String pair : keyValuePairs)
+            {
+                String[] entry = pair.split("=");
+                String key = entry[0].trim();
+                String value = entry[1].trim();
+                cmd.addVmData("metadata", key, value);
+            }
+        }
+
         if (vmUuid == null) {
             setVmInstanceId(vmInstanceName, vmId, cmd);
         } else {
@@ -210,6 +222,7 @@ public class CloudZonesNetworkElement extends AdapterBase implements NetworkElem
             _userVmDao.loadDetails(uservm);
             String password = (String)vm.getParameter(VirtualMachineProfile.Param.VmPassword);
             String userData = uservm.getUserData();
+            String userDataDetails = uservm.getUserDataDetails();
             String sshPublicKey = uservm.getDetail("SSH.PublicKey");
 
             Commands cmds = new Commands(Command.OnError.Continue);
@@ -222,7 +235,7 @@ public class CloudZonesNetworkElement extends AdapterBase implements NetworkElem
             String destHostname = VirtualMachineManager.getHypervisorHostname(dest.getHost() != null ? dest.getHost().getName() : "");
             cmds.addCommand(
                 "vmdata",
-                generateVmDataCommand(nic.getIPv4Address(), userData, serviceOffering, zoneName, nic.getIPv4Address(), uservm.getHostName(), uservm.getInstanceName(),
+                generateVmDataCommand(nic.getIPv4Address(), userData, userDataDetails, serviceOffering, zoneName, nic.getIPv4Address(), uservm.getHostName(), uservm.getInstanceName(),
                     uservm.getId(), uservm.getUuid(), sshPublicKey, destHostname));
             try {
                 _agentManager.send(dest.getHost().getId(), cmds);
