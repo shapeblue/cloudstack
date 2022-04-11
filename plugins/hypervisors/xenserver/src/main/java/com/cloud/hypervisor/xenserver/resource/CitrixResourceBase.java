@@ -913,14 +913,11 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         }
     }
 
-    public String connect(final Connection conn, final String vmname, final String ipAddress, int sleep) {
-        return connect(conn, vmname, ipAddress, DEFAULTDOMRSSHPORT, sleep);
+    public String connect(final Connection conn, final String vmname, final String ipAddress) {
+        return connect(conn, vmname, ipAddress, DEFAULTDOMRSSHPORT);
     }
 
-    public String connect(final Connection conn, final String vmName, final String ipAddress, final int port, int sleep) {
-        if (sleep == 0) {
-            sleep = _sleep;
-        }
+    public String connect(final Connection conn, final String vmName, final String ipAddress, final int port) {
 
         for (int i = 0; i <= _retry; i++) {
             try {
@@ -942,7 +939,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
                 return null;
             }
             try {
-                Thread.sleep(sleep);
+                Thread.sleep(_sleep);
             } catch (final InterruptedException e) {
             }
         }

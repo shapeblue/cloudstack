@@ -191,7 +191,7 @@ public final class CitrixStartCommandWrapper extends CommandWrapper<StartCommand
                     }
                 }
 
-                String result2 = citrixResourceBase.connect(conn, vmName, controlIp, 1000);
+                String result2 = citrixResourceBase.connect(conn, vmName, controlIp);
                 if (StringUtils.isEmpty(result2)) {
                     s_logger.info(String.format("Connected to SystemVM: %s", vmName));
                 }
