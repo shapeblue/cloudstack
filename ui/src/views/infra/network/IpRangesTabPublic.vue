@@ -63,14 +63,19 @@
             :danger="true"
             @onClick="() => handleUpdateIpRangeModal(record)"
             :disabled="!('updateVlanIpRange' in $store.getters.apis)" />
-          <tooltip-button
+          <a-popconfirm
+            :title="$t('message.confirm.remove.ip.range')"
+            @confirm="handleDeleteIpRange(record.id)"
+            :okText="$t('label.yes')"
+            :cancelText="$t('label.no')" >
+            <tooltip-button
             tooltipPlacement="bottom"
             :tooltip="$t('label.remove.ip.range')"
             icon="delete-outlined"
             type="primary"
             :danger="true"
-            @onClick="handleDeleteIpRange(record.id)"
             :disabled="!('deleteVlanIpRange' in $store.getters.apis)" />
+        </a-popconfirm>
         </div>
       </template>
     </a-table>
