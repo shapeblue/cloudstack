@@ -2035,6 +2035,7 @@
 "label.sharedmountpoint": "SharedMountPoint",
 "label.sharewith": "Share With",
 "label.show.ingress.rule": "Show Ingress Rule",
+"label.show.registered.userdata": "Show registered Userdata",
 "label.showing": "Showing",
 "label.shrinkok": "Shrink OK",
 "label.shutdown.provider": "Shutdown provider",

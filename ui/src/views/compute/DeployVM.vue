@@ -542,30 +542,41 @@
                           @change="val => { dynamicscalingenabled = val }"/>
                       </a-form-item>
                     </a-form-item>
-                    <a-form-item :label="$t('label.userdata')">
-                      <a-textarea
-                        v-decorator="['userdata']">
-                      </a-textarea>
-                    </a-form-item>
-                    <a-step
-                      v-if="isUserAllowedToListUserDatas"
-                      :title="this.$t('label.user.data')"
-                      :status="zoneSelected ? 'process' : 'wait'">
-                      <template #description>
-                        <div v-if="zoneSelected">
-                          <user-data-selection
-                            :items="options.userDatas"
-                            :row-count="rowCount.userDatas"
-                            :zoneId="zoneId"
-                            :value="userData ? userData.id : ''"
-                            :loading="loading.userDatas"
-                            :preFillContent="dataPreFill"
-                            @select-user-data-item="($event) => updateUserDatas($event)"
-                            @handle-search-filter="($event) => handleSearchFilter('userData', $event)"
-                          />
-                        </div>
-                      </template>
-                    </a-step>
+                    <span>
+                      {{ $t('label.show.registered.userdata') }}
+                      <a-switch v-model:checked="showRegisteredUserdata" style="margin-left: 10px"/>
+                    </span>
+                    <div style="margin-top: 15px" v-show="!showRegisteredUserdata">
+                      <a-form-item name="userdata" ref="userdata" >
+                        <a-textarea
+                          placeholder="Userdata"
+                          v-model:value="form.userdata">
+                        </a-textarea>
+                      </a-form-item>
+                    </div>
+                    <div style="margin-top: 15px" v-show="showRegisteredUserdata">
+                      <a-card>
+                        <a-step
+                          v-if="isUserAllowedToListUserDatas"
+                          :title="this.$t('label.userdata')"
+                          :status="zoneSelected ? 'process' : 'wait'">
+                          <template #description>
+                            <div v-if="zoneSelected">
+                              <user-data-selection
+                                :items="options.userDatas"
+                                :row-count="rowCount.userDatas"
+                                :zoneId="zoneId"
+                                :value="userData ? userData.id : ''"
+                                :loading="loading.userDatas"
+                                :preFillContent="dataPreFill"
+                                @select-user-data-item="($event) => updateUserDatas($event)"
+                                @handle-search-filter="($event) => handleSearchFilter('userData', $event)"
+                              />
+                            </div>
+                          </template>
+                        </a-step>
+                      </a-card>
+                    </div>
                     <a-form-item :label="this.$t('label.affinity.groups')">
                       <affinity-group-selection
                         :items="options.affinityGroups"
@@ -750,6 +761,8 @@ export default {
       zoneSelected: false,
       startvm: true,
       dynamicscalingenabled: true,
+      templateKey: 0,
+      showRegisteredUserdata: true,
       vm: {
         name: null,
         zoneid: null,
@@ -1149,7 +1162,7 @@ export default {
       this.affinityGroups = _.filter(this.options.affinityGroups, (option) => _.includes(instanceConfig.affinitygroupids, option.id))
       this.networks = _.filter(this.options.networks, (option) => _.includes(instanceConfig.networkids, option.id))
       this.sshKeyPair = _.find(this.options.sshKeyPairs, (option) => option.name === instanceConfig.keypair)
-      this.userData = _.find(this.options.userDatas, (option) => option.name === instanceConfig.userdataid)
+      this.userData = _.find(this.options.userDatas, (option) => option.id === instanceConfig.userdataid)
 
       if (this.zone) {
         this.vm.zoneid = this.zone.id
