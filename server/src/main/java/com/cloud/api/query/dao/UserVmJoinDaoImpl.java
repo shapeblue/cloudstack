@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import com.cloud.user.dao.UserDataDao;
 import org.apache.cloudstack.affinity.AffinityGroupResponse;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
@@ -88,6 +89,9 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
     private AnnotationDao annotationDao;
     @Inject
     UserStatisticsDao userStatsDao;
+
+    @Inject
+    private UserDataDao _userDataDao;
 
     private final SearchBuilder<UserVmJoinVO> VmDetailSearch;
     private final SearchBuilder<UserVmJoinVO> activeVmByIsoSearch;
@@ -377,6 +381,13 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
             userVmResponse.setDynamicallyScalable(false);
         } else {
             userVmResponse.setDynamicallyScalable(userVm.isDynamicallyScalable());
+        }
+
+        if (userVm.getUserDataId() != null) {
+            userVmResponse.setUserDataId(userVm.getUserDataUUid());
+            userVmResponse.setUserDataName(userVm.getUserDataName());
+            userVmResponse.setUserDataDetails(userVm.getUserDataDetails());
+            userVmResponse.setUserDataPolicy(userVm.getUserDataPolicy());
         }
 
         addVmRxTxDataToResponse(userVm, userVmResponse);

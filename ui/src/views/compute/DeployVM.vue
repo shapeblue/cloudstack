@@ -572,6 +572,21 @@
                                 @select-user-data-item="($event) => updateUserDatas($event)"
                                 @handle-search-filter="($event) => handleSearchFilter('userData', $event)"
                               />
+                              <div v-if="userDataParams.length > 0">
+                                <a-input-group>
+                                  <a-table
+                                    size="small"
+                                    style="overflow-y: auto"
+                                    :columns="userDataParamCols"
+                                    :dataSource="userDataParams"
+                                    :pagination="false"
+                                    :rowKey="record => record.key">
+                                    <template #value>
+                                      <a-input v-model:value="form.params" />
+                                    </template>
+                                  </a-table>
+                                </a-input-group>
+                              </div>
                             </div>
                           </template>
                         </a-step>
@@ -837,6 +852,19 @@ export default {
       zone: {},
       sshKeyPair: {},
       userData: {},
+      userDataParams: [],
+      userDataParamCols: [
+        {
+          title: this.$t('label.key'),
+          dataIndex: 'key'
+        },
+        {
+          title: this.$t('label.value'),
+          dataIndex: 'value',
+          slots: { customRender: 'value' }
+        }
+      ],
+      overrideDiskOffering: {},
       templateFilter: [
         'featured',
         'community',
@@ -1576,6 +1604,22 @@ export default {
         return
       }
       this.form.userdataid = id
+      api('listUserData', { id: id }).then(json => {
+        const resp = json?.listuserdataresponse?.userdata || []
+        if (resp) {
+          var params = resp[0].params
+          if (params) {
+            var dataParams = params.split(',')
+          }
+          var that = this
+          dataParams.forEach(function (val, index) {
+            that.userDataParams.push({
+              id: index,
+              key: val
+            })
+          })
+        }
+      })
     },
     escapePropertyKey (key) {
       return key.split('.').join('\\002E')

@@ -66,7 +66,7 @@ export default {
         return fields
       },
       searchFilters: ['name', 'zoneid', 'domainid', 'account', 'tags'],
-      details: ['displayname', 'name', 'id', 'state', 'ipaddress', 'ip6address', 'templatename', 'ostypename', 'serviceofferingname', 'isdynamicallyscalable', 'haenable', 'hypervisor', 'boottype', 'bootmode', 'account', 'domain', 'zonename'],
+      details: ['displayname', 'name', 'id', 'state', 'ipaddress', 'ip6address', 'templatename', 'ostypename', 'serviceofferingname', 'isdynamicallyscalable', 'haenable', 'hypervisor', 'boottype', 'bootmode', 'account', 'domain', 'zonename', 'userdataid', 'userdataname', 'userdataparams', 'userdatapolicy'],
       tabs: [{
         component: () => import('@/views/compute/InstanceTab.vue')
       }],
@@ -640,7 +640,7 @@ export default {
     {
       name: 'userdata',
       title: 'label.user.data',
-      icon: 'paper-clip-outlined',
+      icon: 'solution-outlined',
       docHelp: 'adminguide/virtual_machines.html#using-ssh-keys-for-authentication',
       permission: ['listUserData'],
       columns: () => {
