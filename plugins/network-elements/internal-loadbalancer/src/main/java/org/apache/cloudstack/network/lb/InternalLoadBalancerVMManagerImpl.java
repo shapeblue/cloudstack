@@ -26,6 +26,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.utils.validation.ChecksumUtil;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
@@ -220,6 +221,9 @@ public class InternalLoadBalancerVMManagerImpl extends ManagerBase implements In
             }
             String msPublicKey = _configDao.getValue("ssh.publickey");
             buf.append(" authorized_key=").append(VirtualMachineGuru.getEncodedMsPublicKey(msPublicKey));
+            if (profile.getHypervisorType() != HypervisorType.Simulator) {
+                buf.append(" script_checksum=").append(ChecksumUtil.calculateCurrentChecksum(profile.getVirtualMachine().getHostName(), "vms/cloud-scripts.tgz"));
+            }
         }
 
         if (controlNic == null) {

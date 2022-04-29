@@ -31,6 +31,7 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 import com.cloud.utils.PasswordGenerator;
+import com.cloud.utils.validation.ChecksumUtil;
 import org.apache.cloudstack.agent.lb.IndirectAgentLB;
 import org.apache.cloudstack.ca.CAManager;
 import org.apache.cloudstack.context.CallContext;
@@ -1095,7 +1096,9 @@ public class SecondaryStorageManagerImpl extends ManagerBase implements Secondar
         buf.append(" workers=").append(_configDao.getValue("workers"));
         String msPublicKey = _configDao.getValue("ssh.publickey");
         buf.append(" authorized_key=").append(VirtualMachineGuru.getEncodedMsPublicKey(msPublicKey));
-
+        if (profile.getHypervisorType() != HypervisorType.Simulator) {
+            buf.append(" script_checksum=").append(ChecksumUtil.calculateCurrentChecksum(profile.getVirtualMachine().getHostName(), "vms/cloud-scripts.tgz"));
+        }
         if (_configDao.isPremium()) {
             s_logger.debug("VMWare hypervisor was configured, informing secondary storage VM to load the PremiumSecondaryStorageResource.");
             buf.append(" resource=com.cloud.storage.resource.PremiumSecondaryStorageResource");

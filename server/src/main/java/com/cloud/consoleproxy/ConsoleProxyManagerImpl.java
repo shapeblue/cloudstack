@@ -30,6 +30,7 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 import com.cloud.utils.PasswordGenerator;
+import com.cloud.utils.validation.ChecksumUtil;
 import org.apache.cloudstack.agent.lb.IndirectAgentLB;
 import org.apache.cloudstack.ca.CAManager;
 import org.apache.cloudstack.context.CallContext;
@@ -1238,7 +1239,9 @@ public class ConsoleProxyManagerImpl extends ManagerBase implements ConsoleProxy
 
         String msPublicKey = configurationDao.getValue("ssh.publickey");
         buf.append(" authorized_key=").append(VirtualMachineGuru.getEncodedMsPublicKey(msPublicKey));
-
+        if (profile.getHypervisorType() != HypervisorType.Simulator) {
+            buf.append(" script_checksum=").append(ChecksumUtil.calculateCurrentChecksum(profile.getVirtualMachine().getHostName(), "vms/cloud-scripts.tgz"));
+        }
         boolean externalDhcp = false;
         String externalDhcpStr = configurationDao.getValue("direct.attach.network.externalIpAllocator.enabled");
         if (externalDhcpStr != null && externalDhcpStr.equalsIgnoreCase("true")) {

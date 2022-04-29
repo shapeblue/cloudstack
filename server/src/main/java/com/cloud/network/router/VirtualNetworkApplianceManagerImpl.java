@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.utils.validation.ChecksumUtil;
 import org.apache.cloudstack.alert.AlertService;
 import org.apache.cloudstack.alert.AlertService.AlertType;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -1959,7 +1960,9 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
         }
         String msPublicKey = _configDao.getValue("ssh.publickey");
         buf.append(" authorized_key=").append(VirtualMachineGuru.getEncodedMsPublicKey(msPublicKey));
-
+        if (profile.getHypervisorType() != HypervisorType.Simulator) {
+            buf.append(" script_checksum=").append(ChecksumUtil.calculateCurrentChecksum(profile.getVirtualMachine().getHostName(), "vms/cloud-scripts.tgz"));
+        }
         NicProfile controlNic = null;
         String defaultDns1 = null;
         String defaultDns2 = null;

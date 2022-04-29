@@ -466,6 +466,7 @@ export default {
               }
             } else {
               if (this.selectedItems.length === 0) {
+                this.$router.push({ path: '/template' })
                 this.fetchData()
               }
             }

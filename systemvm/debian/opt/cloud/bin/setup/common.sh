@@ -885,6 +885,9 @@ parse_cmd_line() {
         privatekey)
           export PRIVATEKEY=$VALUE
           ;;
+        script_checksum)
+          export SCRIPT_CHECKSUM=$VALUE
+          ;;
       esac
   done
   echo -e "\n\t}\n}" >> ${CHEF_TMP_FILE}
