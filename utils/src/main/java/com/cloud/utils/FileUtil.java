@@ -46,6 +46,7 @@ public class FileUtil {
         String[] newSrcFiles = srcFiles.toArray(new String[0]);
         for (int retries = 3; retries > 0; retries--) {
             try {
+                s_logger.info("PEARL - trying to scp file: " + newSrcFiles);
                 SshHelper.scpTo(controlIp, sshPort, "root", pemFile, null,
                         destPath, newSrcFiles, "0755");
                 return;

@@ -1797,6 +1797,21 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
             s_logger.debug("Ping command port succeeded for vm " + vmName);
         }
 
+        try {
+            String homeDir = System.getProperty("user.home");
+            File pemFile = new File(homeDir + "/.ssh/id_rsa");
+            FileUtil.scpPatchFiles(privateIp, VRScripts.CONFIG_CACHE_LOCATION, DefaultDomRSshPort, pemFile, systemVmPatchFiles, BASEPATH);
+            if (!_vrResource.isSystemVMSetup(vmName, privateIp)) {
+                String errMsg = "SSH successful, but failed to patch systemVM";
+                s_logger.error(errMsg);
+                return new CheckSshAnswer(cmd, errMsg);
+            }
+        } catch (Exception e) {
+            String errMsg = "Failed to scp files to system VM. Patching of systemVM failed";
+            s_logger.error(errMsg, e);
+            return new CheckSshAnswer(cmd, String.format("%s due to: %s", errMsg, e.getMessage()));
+        }
+
         if (VirtualMachineName.isValidRouterName(vmName)) {
             if (s_logger.isDebugEnabled()) {
                 s_logger.debug("Execute network usage setup command on " + vmName);
@@ -2564,32 +2579,6 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
             StartAnswer startAnswer = new StartAnswer(cmd);
 
             startAnswer.setIqnToData(iqnToData);
-
-            if (vmSpec.getType() != VirtualMachine.Type.User) {
-                String controlIp = getControlIp(nics);
-                // check if the router is up?
-                for (int count = 0; count < 60; count++) {
-                    final boolean result = _vrResource.connect(controlIp, 1, 5000);
-                    if (result) {
-                        break;
-                    }
-                }
-
-                try {
-                    String homeDir = System.getProperty("user.home");
-                    File pemFile = new File(homeDir + "/.ssh/id_rsa");
-                    FileUtil.scpPatchFiles(controlIp, VRScripts.CONFIG_CACHE_LOCATION, DefaultDomRSshPort, pemFile, systemVmPatchFiles, BASEPATH);
-                    if (!_vrResource.isSystemVMSetup(vmInternalCSName, controlIp)) {
-                        String errMsg = "Failed to patch systemVM";
-                        s_logger.error(errMsg);
-                        return new StartAnswer(cmd, errMsg);
-                    }
-                } catch (Exception e) {
-                    String errMsg = "Failed to scp files to system VM. Patching of systemVM failed";
-                    s_logger.error(errMsg, e);
-                    return new StartAnswer(cmd, String.format("%s due to: %s", errMsg, e.getMessage()));
-                }
-            }
 
             // Since VM was successfully powered-on, if there was an existing VM in a different cluster that was unregistered, delete all the files associated with it.
             if (existingVmName != null && existingVmFileLayout != null) {
