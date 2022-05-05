@@ -567,9 +567,10 @@
                                 :row-count="rowCount.userDatas"
                                 :zoneId="zoneId"
                                 :value="userData ? userData.id : ''"
+                                :disabled="template.userdatapolicy === 'denyoverride'"
                                 :loading="loading.userDatas"
                                 :preFillContent="dataPreFill"
-                                @select-user-data-item="($event) => updateUserDatas($event)"
+                                @select-user-data-item="($event) => updateUserData($event)"
                                 @handle-search-filter="($event) => handleSearchFilter('userData', $event)"
                               />
                               <div v-if="userDataParams.length > 0">
@@ -581,9 +582,8 @@
                                     :dataSource="userDataParams"
                                     :pagination="false"
                                     :rowKey="record => record.key">
-                                    <template #value>
-                                      <a-input v-model:value="form.params" />
-                                    </template>
+                                    <template #value="{ record }">
+                                      <a-input v-model:value="userDataValues[record.key]" />                                    </template>
                                   </a-table>
                                 </a-input-group>
                               </div>
@@ -864,6 +864,7 @@ export default {
           slots: { customRender: 'value' }
         }
       ],
+      userDataValues: {},
       overrideDiskOffering: {},
       templateFilter: [
         'featured',
@@ -1190,7 +1191,6 @@ export default {
       this.affinityGroups = _.filter(this.options.affinityGroups, (option) => _.includes(instanceConfig.affinitygroupids, option.id))
       this.networks = _.filter(this.options.networks, (option) => _.includes(instanceConfig.networkids, option.id))
       this.sshKeyPair = _.find(this.options.sshKeyPairs, (option) => option.name === instanceConfig.keypair)
-      this.userData = _.find(this.options.userDatas, (option) => option.id === instanceConfig.userdataid)
 
       if (this.zone) {
         this.vm.zoneid = this.zone.id
@@ -1231,6 +1231,10 @@ export default {
         this.vm.templatename = this.template.displaytext
         this.vm.ostypeid = this.template.ostypeid
         this.vm.ostypename = this.template.ostypename
+
+        if (this.template.userdataid) {
+          instanceConfig.userdataid = this.template.userdataid
+        }
       }
 
       if (this.iso) {
@@ -1242,7 +1246,13 @@ export default {
         if (this.hypervisor) {
           this.vm.hypervisor = this.hypervisor
         }
+
+        if (this.iso.userdataid) {
+          instanceConfig.userdataid = this.iso.userdataid
+        }
       }
+
+      this.userData = _.find(this.options.userDatas, (option) => option.id === instanceConfig.userdataid)
 
       if (this.serviceOffering) {
         this.vm.serviceofferingid = this.serviceOffering.id
@@ -1598,12 +1608,13 @@ export default {
         keypair: name
       })
     },
-    updateUserDatas (id) {
+    updateUserData (id) {
       if (id === '0') {
         this.form.userdataid = undefined
         return
       }
       this.form.userdataid = id
+      this.userDataParams = []
       api('listUserData', { id: id }).then(json => {
         const resp = json?.listuserdataresponse?.userdata || []
         if (resp) {
@@ -1850,6 +1861,16 @@ export default {
 
         deployVmData = Object.fromEntries(
           Object.entries(deployVmData).filter(([key, value]) => value !== undefined))
+
+        if (this.userDataValues) {
+          var idx = 0
+          for (const [key, value] of Object.entries(this.userDataValues)) {
+            console.log(this.userDataValues)
+            console.log(key, value)
+            deployVmData['userdatadetails[' + idx + '].' + `${key}`] = value
+            idx++
+          }
+        }
 
         api('deployVirtualMachine', {}, 'POST', deployVmData).then(response => {
           const jobId = response.deployvirtualmachineresponse.jobid
