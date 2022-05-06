@@ -359,9 +359,17 @@
               <template #label>
                 <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
               </template>
-              <a-input
+              <a-select
                 v-model:value="userdatapolicy"
-                :placeholder="linkUserDataParams.userdatapolicy.description" />
+                :placeholder="linkUserDataParams.userdatapolicy.description"
+                optionFilterProp="label"
+                :filterOption="(input, option) => {
+                  return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                }" >
+                <a-select-option v-for="opt in userdatapolicylist.opts" :key="opt.id">
+                  {{ opt.id || opt.description }}
+                </a-select-option>
+              </a-select>
             </a-form-item>
           </a-col>
         </a-row>
@@ -464,6 +472,7 @@ export default {
       userdata: {},
       userdataid: null,
       userdatapolicy: null,
+      userdatapolicylist: {},
       defaultOsId: null,
       xenServerProvider: false,
       hyperKVMShow: false,
@@ -513,6 +522,7 @@ export default {
       this.fetchZone()
       this.fetchOsTypes()
       this.fetchUserData()
+      this.fetchUserdataPolicy()
       if (Object.prototype.hasOwnProperty.call(store.getters.apis, 'listConfigurations')) {
         this.fetchXenServerProvider()
       }
@@ -835,6 +845,24 @@ export default {
       }
       this.$set(this.format, 'opts', format)
     },
+
+    fetchUserdataPolicy () {
+      const userdataPolicy = []
+      userdataPolicy.push({
+        id: 'allowoverride',
+        description: 'allowoverride'
+      })
+      userdataPolicy.push({
+        id: 'append',
+        description: 'append'
+      })
+      userdataPolicy.push({
+        id: 'denyoverride',
+        description: 'denyoverride'
+      })
+      this.userdatapolicylist.opts = userdataPolicy
+    },
+
     handlerSelectZone (value) {
       if (!Array.isArray(value)) {
         value = [value]
