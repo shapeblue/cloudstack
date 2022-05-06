@@ -334,6 +334,38 @@
           </a-select>
         </a-form-item>
         <a-row :gutter="12">
+          <a-col :md="24" :lg="12">
+            <a-form-item
+              name="userdataid"
+              ref="userdataid"
+              :label="$t('label.userdata')">
+              <a-select
+                showSearch
+                optionFilterProp="label"
+                :filterOption="(input, option) => {
+                  return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                }"
+                v-model:value="userdataid"
+                :placeholder="linkUserDataParams.userdataid.description"
+                :loading="userdata.loading">
+                <a-select-option v-for="opt in userdata.opts" :key="opt.id">
+                  {{ opt.name || opt.description }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :md="24" :lg="12">
+            <a-form-item ref="userdatapolicy" name="userdatapolicy">
+              <template #label>
+                <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
+              </template>
+              <a-input
+                v-model:value="userdatapolicy"
+                :placeholder="linkUserDataParams.userdatapolicy.description" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="12">
           <a-col :md="24" :lg="24">
             <a-form-item>
               <a-checkbox-group
@@ -396,6 +428,7 @@ import { api } from '@/api'
 import store from '@/store'
 import { axios } from '../../utils/request'
 import ResourceIcon from '@/components/view/ResourceIcon'
+import TooltipLabel from '@/components/widgets/TooltipLabel'
 
 export default {
   name: 'RegisterOrUploadTemplate',
@@ -410,7 +443,8 @@ export default {
     }
   },
   components: {
-    ResourceIcon
+    ResourceIcon,
+    TooltipLabel
   },
   data () {
     return {
@@ -427,6 +461,9 @@ export default {
       format: {},
       osTypes: {},
       defaultOsType: '',
+      userdata: {},
+      userdataid: null,
+      userdatapolicy: null,
       defaultOsId: null,
       xenServerProvider: false,
       hyperKVMShow: false,
@@ -447,6 +484,7 @@ export default {
   beforeCreate () {
     this.form = this.$form.createForm(this)
     this.apiParams = this.$getApiParams('registerTemplate')
+    this.linkUserDataParams = this.$getApiParams('linkUserDataToTemplate')
   },
   created () {
     this.$set(this.zones, 'loading', false)
@@ -474,6 +512,7 @@ export default {
     fetchData () {
       this.fetchZone()
       this.fetchOsTypes()
+      this.fetchUserData()
       if (Object.prototype.hasOwnProperty.call(store.getters.apis, 'listConfigurations')) {
         this.fetchXenServerProvider()
       }
@@ -588,6 +627,20 @@ export default {
         this.defaultOsId = this.osTypes.opts[1].id
       }).finally(() => {
         this.osTypes.loading = false
+      })
+    },
+    fetchUserData () {
+      const params = {}
+      params.listAll = true
+
+      this.userdata.opts = []
+      this.userdata.loading = true
+
+      api('listUserData', params).then(json => {
+        const listUserdata = json.listuserdataresponse.userdata
+        this.userdata.opts = listUserdata
+      }).finally(() => {
+        this.userdata.loading = false
       })
     },
     fetchXenServerProvider () {
@@ -888,6 +941,9 @@ export default {
         if (this.currentForm === 'Create') {
           this.loading = true
           api('registerTemplate', params).then(json => {
+            if (this.userdataid !== null) {
+              this.linkUserdataToTemplate(this.userdataid, json.registertemplateresponse.template[0].id, this.userdatapolicy)
+            }
             this.$notification.success({
               message: this.$t('label.register.template'),
               description: `${this.$t('message.success.register.template')} ${params.name}`
@@ -911,6 +967,9 @@ export default {
           api('getUploadParamsForTemplate', params).then(json => {
             this.uploadParams = (json.postuploadtemplateresponse && json.postuploadtemplateresponse.getuploadparams) ? json.postuploadtemplateresponse.getuploadparams : ''
             this.handleUpload()
+            if (this.userdataid !== null) {
+              this.linkUserdataToTemplate(this.userdataid, json.postuploadtemplateresponse.template[0].id)
+            }
           }).catch(error => {
             this.$notifyError(error)
           }).finally(() => {
@@ -935,6 +994,22 @@ export default {
     },
     closeAction () {
       this.$emit('close-action')
+    },
+    linkUserdataToTemplate (userdataid, templateid, userdatapolicy) {
+      this.loading = true
+      const params = {}
+      params.userdataid = userdataid
+      params.templateid = templateid
+      if (userdatapolicy) {
+        params.userdatapolicy = userdatapolicy
+      }
+      api('linkUserDataToTemplate', params).then(json => {
+        this.closeAction()
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.loading = false
+      })
     },
     resetSelect () {
       this.form.setFieldsValue({

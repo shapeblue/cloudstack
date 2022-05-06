@@ -66,7 +66,7 @@ export default {
         return fields
       },
       searchFilters: ['name', 'zoneid', 'domainid', 'account', 'tags'],
-      details: ['displayname', 'name', 'id', 'state', 'ipaddress', 'ip6address', 'templatename', 'ostypename', 'serviceofferingname', 'isdynamicallyscalable', 'haenable', 'hypervisor', 'boottype', 'bootmode', 'account', 'domain', 'zonename', 'userdataid', 'userdataname', 'userdataparams', 'userdatapolicy'],
+      details: ['displayname', 'name', 'id', 'state', 'ipaddress', 'ip6address', 'templatename', 'ostypename', 'serviceofferingname', 'isdynamicallyscalable', 'haenable', 'hypervisor', 'boottype', 'bootmode', 'account', 'domain', 'zonename', 'userdataid', 'userdataname', 'userdataparams', 'userdatadetails', 'userdatapolicy'],
       tabs: [{
         component: () => import('@/views/compute/InstanceTab.vue')
       }],
