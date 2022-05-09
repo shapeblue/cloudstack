@@ -778,6 +778,9 @@ export default {
       dynamicscalingenabled: true,
       templateKey: 0,
       showRegisteredUserdata: true,
+      doUserdataOverride: false,
+      doUserdataAppend: false,
+      userdataDefaultOverridePolicy: 'allowoverride',
       vm: {
         name: null,
         zoneid: null,
@@ -865,6 +868,18 @@ export default {
         }
       ],
       userDataValues: {},
+      templateUserDataCols: [
+        {
+          title: this.$t('label.userdata'),
+          dataIndex: 'userdata'
+        },
+        {
+          title: this.$t('label.userdatapolicy'),
+          dataIndex: 'userdataoverridepolicy'
+        }
+      ],
+      templateUserDataParams: [],
+      templateUserDataValues: {},
       overrideDiskOffering: {},
       templateFilter: [
         'featured',
@@ -883,6 +898,7 @@ export default {
       networkConfig: [],
       dataNetworkCreated: [],
       tabKey: 'templateid',
+      userdataTabKey: 'userdataregistered',
       dataPreFill: {},
       showDetails: false,
       showRootDiskSizeChanger: false,
@@ -1133,6 +1149,19 @@ export default {
           tab: this.$t('label.isos')
         }]
       }
+
+      return tabList
+    },
+    userdataTabList () {
+      let tabList = []
+      tabList = [{
+        key: 'userdataregistered',
+        tab: this.$t('label.userdata.registered')
+      },
+      {
+        key: 'userdatatext',
+        tab: this.$t('label.userdata.text')
+      }]
 
       return tabList
     },
@@ -1530,6 +1559,8 @@ export default {
         if (template) {
           var size = template.size / (1024 * 1024 * 1024) || 0 // bytes to GB
           this.dataPreFill.minrootdisksize = Math.ceil(size)
+          this.updateTemplateLinkedUserData(this.template.userdataid)
+          this.userdataDefaultOverridePolicy = this.template.userdatapolicy
         }
       } else if (name === 'isoid') {
         this.templateConfigurations = []
@@ -1625,6 +1656,30 @@ export default {
           var that = this
           dataParams.forEach(function (val, index) {
             that.userDataParams.push({
+              id: index,
+              key: val
+            })
+          })
+        }
+      })
+    },
+    updateTemplateLinkedUserData (id) {
+      if (id === '0') {
+        return
+      }
+      this.templateUserDataParams = []
+
+      api('listUserData', { id: id }).then(json => {
+        const resp = json?.listuserdataresponse?.userdata || []
+        if (resp) {
+          var params = resp[0].params
+          if (params) {
+            var dataParams = params.split(',')
+          }
+          var that = this
+          that.templateUserDataParams = []
+          dataParams.forEach(function (val, index) {
+            that.templateUserDataParams.push({
               id: index,
               key: val
             })
@@ -1862,11 +1917,15 @@ export default {
         deployVmData = Object.fromEntries(
           Object.entries(deployVmData).filter(([key, value]) => value !== undefined))
 
+        var idx = 0
+        if (this.templateUserDataValues) {
+          for (const [key, value] of Object.entries(this.templateUserDataValues)) {
+            deployVmData['userdatadetails[' + idx + '].' + `${key}`] = value
+            idx++
+          }
+        }
         if (this.userDataValues) {
-          var idx = 0
           for (const [key, value] of Object.entries(this.userDataValues)) {
-            console.log(this.userDataValues)
-            console.log(key, value)
             deployVmData['userdatadetails[' + idx + '].' + `${key}`] = value
             idx++
           }
@@ -2150,6 +2209,9 @@ export default {
       if (key === 'isoid') {
         this.fetchAllIsos()
       }
+    },
+    onUserdataTabChange (key, type) {
+      this[type] = key
     },
     sanitizeReverse (value) {
       const reversedValue = value
