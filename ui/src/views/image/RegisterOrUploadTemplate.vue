@@ -779,7 +779,6 @@ export default {
       }
       this.format.opts = format
     },
-
     fetchUserdataPolicy () {
       const userdataPolicy = []
       userdataPolicy.push({
