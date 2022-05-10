@@ -845,7 +845,6 @@ export default {
       }
       this.$set(this.format, 'opts', format)
     },
-
     fetchUserdataPolicy () {
       const userdataPolicy = []
       userdataPolicy.push({
