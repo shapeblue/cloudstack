@@ -252,6 +252,17 @@ export default {
       var fieldValue = this.resource[field]
       if (fieldValue) {
         this.form.getFieldDecorator(field, { initialValue: fieldValue })
+        switch (field) {
+          case 'userdataid':
+            this.userdataid = fieldValue
+            break
+          case 'userdatapolicy':
+            this.userdatapolicy = fieldValue
+            break
+          default:
+            this.form[field] = fieldValue
+            break
+        }
       }
     }
     const resourceDetailsFields = []
