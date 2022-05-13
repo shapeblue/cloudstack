@@ -560,7 +560,7 @@
                           <a-text type="primary">
                               Userdata "{{ $t(this.template.userdataname) }}" is linked with template "{{ $t(this.template.name) }}" with override policy "{{ $t(this.template.userdatapolicy) }}"
                           </a-text><br/><br/>
-                          <div v-if="templateUserDataParams.length > 0">
+                          <div v-if="templateUserDataParams.length > 0 && !doUserdataOverride">
                             <a-text type="primary" v-if="this.template && this.template.userdataid && templateUserDataParams.length > 0">
                                 Enter the values for the variables in userdata
                             </a-text>
@@ -1316,7 +1316,6 @@ export default {
         this.vm.ostypename = this.template.ostypename
 
           if (this.template.userdataid) {
-            instanceConfig.userdataid = this.template.userdataid
             this.doUserdataOverride = false
             this.doUserdataAppend = false
           }
@@ -1333,27 +1332,24 @@ export default {
         }
 
           if (this.iso.userdataid) {
-            instanceConfig.userdataid = this.iso.userdataid
             this.doUserdataOverride = false
             this.doUserdataAppend = false
           }
         }
 
-      this.userData = _.find(this.options.userDatas, (option) => option.id === instanceConfig.userdataid)
-
-      if (this.serviceOffering) {
-        this.vm.serviceofferingid = this.serviceOffering.id
-        this.vm.serviceofferingname = this.serviceOffering.displaytext
-        if (this.serviceOffering.cpunumber) {
-          this.vm.cpunumber = this.serviceOffering.cpunumber
+        if (this.serviceOffering) {
+          this.vm.serviceofferingid = this.serviceOffering.id
+          this.vm.serviceofferingname = this.serviceOffering.displaytext
+          if (this.serviceOffering.cpunumber) {
+            this.vm.cpunumber = this.serviceOffering.cpunumber
+          }
+          if (this.serviceOffering.cpuspeed) {
+            this.vm.cpuspeed = this.serviceOffering.cpuspeed
+          }
+          if (this.serviceOffering.memory) {
+            this.vm.memory = this.serviceOffering.memory
+          }
         }
-        if (this.serviceOffering.cpuspeed) {
-          this.vm.cpuspeed = this.serviceOffering.cpuspeed
-        }
-        if (this.serviceOffering.memory) {
-          this.vm.memory = this.serviceOffering.memory
-        }
-      }
 
       if (!this.template.deployasis && this.template.childtemplates && this.template.childtemplates.length > 0) {
         this.vm.diskofferingid = ''
