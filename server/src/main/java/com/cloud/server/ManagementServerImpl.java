@@ -919,8 +919,6 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     @Inject
     private VpcDao _vpcDao;
     @Inject
-    private AnnotationDao annotationDao;
-    @Inject
     private DomainVlanMapDao _domainVlanMapDao;
     @Inject
     private NicDao nicDao;
@@ -932,6 +930,8 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     protected UserDataDao _userDataDao;
     @Inject
     protected VMTemplateDao _templateDao;
+    @Inject
+    protected AnnotationDao annotationDao;
 
     private LockControllerListener _lockControllerListener;
     private final ScheduledExecutorService _eventExecutor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("EventChecker"));
