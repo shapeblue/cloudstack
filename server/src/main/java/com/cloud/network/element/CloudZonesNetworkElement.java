@@ -159,6 +159,19 @@ public class CloudZonesNetworkElement extends AdapterBase implements NetworkElem
         cmd.addVmData("metadata", "public-ipv4", guestIpAddress);
         cmd.addVmData("metadata", "public-hostname", guestIpAddress);
 
+        addUserDataDetailsToCommand(cmd, userDataDetails);
+
+        if (vmUuid == null) {
+            setVmInstanceId(vmInstanceName, vmId, cmd);
+        } else {
+            setVmInstanceId(vmUuid, cmd);
+        }
+        cmd.addVmData("metadata", "public-keys", publicKey);
+        cmd.addVmData("metadata", "hypervisor-host-name", hostname);
+        return cmd;
+    }
+
+    protected void addUserDataDetailsToCommand(VmDataCommand cmd, String userDataDetails) {
         if(userDataDetails != null && !userDataDetails.isEmpty()) {
             userDataDetails = userDataDetails.substring(1, userDataDetails.length()-1);
             String[] keyValuePairs = userDataDetails.split(",");
@@ -170,15 +183,6 @@ public class CloudZonesNetworkElement extends AdapterBase implements NetworkElem
                 cmd.addVmData("metadata", key, value);
             }
         }
-
-        if (vmUuid == null) {
-            setVmInstanceId(vmInstanceName, vmId, cmd);
-        } else {
-            setVmInstanceId(vmUuid, cmd);
-        }
-        cmd.addVmData("metadata", "public-keys", publicKey);
-        cmd.addVmData("metadata", "hypervisor-host-name", hostname);
-        return cmd;
     }
 
     private void setVmInstanceId(String vmUuid, VmDataCommand cmd) {
