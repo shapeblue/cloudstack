@@ -51,8 +51,6 @@ import javax.naming.ConfigurationException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.ParserConfigurationException;
 
-import com.cloud.user.UserData;
-import com.cloud.user.dao.UserDataDao;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
@@ -327,8 +325,10 @@ import com.cloud.user.VmDiskStatisticsVO;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.user.dao.SSHKeyPairDao;
 import com.cloud.user.dao.UserDao;
+import com.cloud.user.dao.UserDataDao;
 import com.cloud.user.dao.UserStatisticsDao;
 import com.cloud.user.dao.VmDiskStatisticsDao;
+import com.cloud.user.UserData;
 import com.cloud.uservm.UserVm;
 import com.cloud.utils.DateUtil;
 import com.cloud.utils.Journal;
@@ -5640,12 +5640,12 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     }
                 case allowoverride:
                     if (userDataId != null) {
-                        if (userData != null) {
+                        if (StringUtils.isNoneEmpty(userData)) {
                             s_logger.info("Both userdata and userdata ID are provided, precedence goes to userdata ID");
                         }
                         UserData apiUserDataVO = _userDataDao.findById(userDataId);
                         return apiUserDataVO.getUserData();
-                    } else if (userData != null) {
+                    } else if (StringUtils.isNoneEmpty(userData)) {
                         return userData;
                     } else {
                         UserData templateUserDataVO = _userDataDao.findById(template.getUserDataId());
@@ -5662,12 +5662,12 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                         throw new CloudRuntimeException(msg);
                     }
                     if (userDataId != null) {
-                        if (userData != null) {
+                        if (StringUtils.isNoneEmpty(userData)) {
                             s_logger.info("Both userdata and userdata ID are provided, precedence goes to userdata ID");
                         }
                         UserData apiUserDataVO = _userDataDao.findById(userDataId);
                         return doConcateUserDatas(templateUserDataVO.getUserData(), apiUserDataVO.getUserData());
-                    } else if (userData != null) {
+                    } else if (StringUtils.isNoneEmpty(userData)) {
                         return doConcateUserDatas(templateUserDataVO.getUserData(), userData);
                     } else {
                         return templateUserDataVO.getUserData();
@@ -5677,12 +5677,12 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     throw new CloudRuntimeException(msg);            }
         } else {
             if (userDataId != null) {
-                if (userData != null) {
+                if (StringUtils.isNoneEmpty(userData)) {
                     s_logger.info("Both userdata and userdata ID are provided, precedence goes to userdata ID");
                 }
                 UserData apiUserDataVO = _userDataDao.findById(userDataId);
                 return apiUserDataVO.getUserData();
-            } else if (userData != null) {
+            } else if (StringUtils.isNoneEmpty(userData)) {
                 return userData;
             }
         }
