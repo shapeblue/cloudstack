@@ -4293,7 +4293,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
 
         annotationDao.removeByEntityType(AnnotationService.EntityType.USER_DATA.name(), userData.getUuid());
 
-        return _userDataDao.expunge(userData.getId());
+        return _userDataDao.remove(userData.getId());
     }
 
     @Override
