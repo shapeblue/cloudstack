@@ -557,6 +557,8 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     @Autowired
     @Qualifier("networkHelper")
     protected NetworkHelper nwHelper;
+    @Inject
+    private UserDataDao userDataDao;
 
     private ScheduledExecutorService _executor = null;
     private ScheduledExecutorService _vmIpFetchExecutor = null;
@@ -5609,43 +5611,41 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (StringUtils.isEmpty(userData) && userDataId == null && (template == null || template.getUserDataId() == null)) {
             return null;
         }
+
+        if (userDataId != null && StringUtils.isNotEmpty(userData)) {
+            throw new InvalidParameterValueException("Both userdata and userdata ID inputs are not allowed, please provide only one");
+        }
         if (template != null && template.getUserDataId() != null) {
             switch (template.getUserDataOverridePolicy()) {
-                case denyoverride:
+                case DENYOVERRIDE:
                     if (StringUtils.isNotEmpty(userData) || userDataId != null) {
                         String msg = String.format("UserData input is not allowed here since template %s is configured to deny any userdata", template.getName());
                         throw new CloudRuntimeException(msg);
                     }
-                case allowoverride:
+                case ALLOWOVERRIDE:
                     if (userDataId != null) {
-                        if (StringUtils.isNoneEmpty(userData)) {
-                            s_logger.info("Both userdata and userdata ID are provided, precedence goes to userdata ID");
-                        }
-                        UserData apiUserDataVO = _userDataDao.findById(userDataId);
+                        UserData apiUserDataVO = userDataDao.findById(userDataId);
                         return apiUserDataVO.getUserData();
-                    } else if (StringUtils.isNoneEmpty(userData)) {
+                    } else if (StringUtils.isNotEmpty(userData)) {
                         return userData;
                     } else {
-                        UserData templateUserDataVO = _userDataDao.findById(template.getUserDataId());
+                        UserData templateUserDataVO = userDataDao.findById(template.getUserDataId());
                         if (templateUserDataVO == null) {
                             String msg = String.format("UserData linked to the template %s is not found", template.getName());
                             throw new CloudRuntimeException(msg);
                         }
                         return templateUserDataVO.getUserData();
                     }
-                case append:
-                    UserData templateUserDataVO = _userDataDao.findById(template.getUserDataId());
+                case APPEND:
+                    UserData templateUserDataVO = userDataDao.findById(template.getUserDataId());
                     if (templateUserDataVO == null) {
                         String msg = String.format("UserData linked to the template %s is not found", template.getName());
                         throw new CloudRuntimeException(msg);
                     }
                     if (userDataId != null) {
-                        if (StringUtils.isNoneEmpty(userData)) {
-                            s_logger.info("Both userdata and userdata ID are provided, precedence goes to userdata ID");
-                        }
-                        UserData apiUserDataVO = _userDataDao.findById(userDataId);
+                        UserData apiUserDataVO = userDataDao.findById(userDataId);
                         return doConcateUserDatas(templateUserDataVO.getUserData(), apiUserDataVO.getUserData());
-                    } else if (StringUtils.isNoneEmpty(userData)) {
+                    } else if (StringUtils.isNotEmpty(userData)) {
                         return doConcateUserDatas(templateUserDataVO.getUserData(), userData);
                     } else {
                         return templateUserDataVO.getUserData();
@@ -5655,12 +5655,9 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     throw new CloudRuntimeException(msg);            }
         } else {
             if (userDataId != null) {
-                if (StringUtils.isNoneEmpty(userData)) {
-                    s_logger.info("Both userdata and userdata ID are provided, precedence goes to userdata ID");
-                }
-                UserData apiUserDataVO = _userDataDao.findById(userDataId);
+                UserData apiUserDataVO = userDataDao.findById(userDataId);
                 return apiUserDataVO.getUserData();
-            } else if (StringUtils.isNoneEmpty(userData)) {
+            } else if (StringUtils.isNotEmpty(userData)) {
                 return userData;
             }
         }
@@ -5674,8 +5671,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         System.arraycopy(userdata1Bytes, 0, finalUserDataBytes, 0, userdata1Bytes.length);
         System.arraycopy(userdata2Bytes, 0, finalUserDataBytes, userdata1Bytes.length, userdata2Bytes.length);
 
-        String finalUserData = Base64.encodeBase64String(finalUserDataBytes);
-        return finalUserData;
+        return Base64.encodeBase64String(finalUserDataBytes);
     }
 
     @Override

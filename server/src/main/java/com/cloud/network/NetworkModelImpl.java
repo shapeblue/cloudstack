@@ -2442,17 +2442,7 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel, Confi
         vmData.add(new String[]{METATDATA_DIR, LOCAL_HOSTNAME_FILE, StringUtils.unicodeEscape(vmHostName)});
         vmData.add(new String[]{METATDATA_DIR, LOCAL_IPV4_FILE, guestIpAddress});
 
-        if(userDataDetails != null && !userDataDetails.isEmpty()) {
-            userDataDetails = userDataDetails.substring(1, userDataDetails.length()-1);
-            String[] keyValuePairs = userDataDetails.split(",");
-            for(String pair : keyValuePairs)
-            {
-                String[] entry = pair.split("=");
-                String key = entry[0].trim();
-                String value = entry[1].trim();
-                vmData.add(new String[]{METATDATA_DIR, key, StringUtils.unicodeEscape(value)});
-            }
-        }
+        addUserDataDetailsToCommand(vmData, userDataDetails);
 
         String publicIpAddress = guestIpAddress;
         String publicHostName = StringUtils.unicodeEscape(vmHostName);
@@ -2512,6 +2502,20 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel, Confi
         }
         vmData.add(new String[]{METATDATA_DIR, HYPERVISOR_HOST_NAME_FILE, hostname});
         return vmData;
+    }
+
+    protected void addUserDataDetailsToCommand(List<String[]> vmData, String userDataDetails) {
+        if(userDataDetails != null && !userDataDetails.isEmpty()) {
+            userDataDetails = userDataDetails.substring(1, userDataDetails.length()-1);
+            String[] keyValuePairs = userDataDetails.split(",");
+            for(String pair : keyValuePairs)
+            {
+                String[] entry = pair.split("=");
+                String key = entry[0].trim();
+                String value = entry[1].trim();
+                vmData.add(new String[]{METATDATA_DIR, key, StringUtils.unicodeEscape(value)});
+            }
+        }
     }
 
     @Override
