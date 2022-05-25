@@ -59,7 +59,7 @@ public class CitrixPatchSystemVmCommandWrapper extends CommandWrapper<PatchSyste
         }
 
         String scriptChecksum = lines[1].trim();
-        String checksum = ChecksumUtil.calculateCurrentChecksum(sysVMName, "vms/cloud-scripts.tgz").trim();
+        String checksum = ChecksumUtil.calculateCurrentChecksum(sysVMName, new String[] {"vms/cloud-scripts.tgz"}).trim();
         if (!StringUtils.isEmpty(checksum) && checksum.equals(scriptChecksum) && !command.isForced()) {
             String msg = String.format("No change in the scripts checksum, not patching systemVM %s", sysVMName);
             s_logger.info(msg);

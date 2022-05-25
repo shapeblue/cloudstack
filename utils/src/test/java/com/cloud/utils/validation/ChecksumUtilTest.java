@@ -41,7 +41,7 @@ public class ChecksumUtilTest {
         PowerMockito.mockStatic(Script.class);
         Mockito.when(Script.findScript(Mockito.anyString(), Mockito.anyString())).thenReturn(null);
         try {
-            ChecksumUtil.calculateCurrentChecksum(Mockito.anyString(), Mockito.anyString());
+            ChecksumUtil.calculateCurrentChecksum(Mockito.anyString(), Mockito.any(String[].class));
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Unable to find cloudScripts path, cannot update SystemVM"));
         }
@@ -54,7 +54,7 @@ public class ChecksumUtilTest {
         Mockito.when(Script.findScript(Mockito.anyString(), Mockito.anyString())).thenReturn("/dummyPath");
         Mockito.when(DigestHelper.calculateChecksum(Mockito.any(File.class))).thenReturn("dummy-checksum");
         try {
-            ChecksumUtil.calculateCurrentChecksum(Mockito.anyString(), Mockito.anyString());
+            ChecksumUtil.calculateCurrentChecksum(Mockito.anyString(), Mockito.any(String[].class));
         } catch (Exception e) {
             fail("Failed to generate checksum");
         }

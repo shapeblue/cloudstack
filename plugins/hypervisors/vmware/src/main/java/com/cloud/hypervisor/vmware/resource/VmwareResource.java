@@ -676,7 +676,7 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
         }
 
         String scriptChecksum = lines[1].trim();
-        String checksum = ChecksumUtil.calculateCurrentChecksum(sysVMName, "vms/cloud-scripts.tgz").trim();
+        String checksum = ChecksumUtil.calculateCurrentChecksum(sysVMName, new String[] {"vms/cloud-scripts.tgz"}).trim();
 
         if (!org.apache.commons.lang3.StringUtils.isEmpty(checksum) && checksum.equals(scriptChecksum) && !cmd.isForced()) {
             String msg = String.format("No change in the scripts checksum, not patching systemVM %s", sysVMName);

@@ -29,6 +29,12 @@ import javax.inject.Inject;
 
 import com.cloud.utils.validation.ChecksumUtil;
 import org.apache.cloudstack.api.ApiConstants;
+<<<<<<< Updated upstream
+=======
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+
+>>>>>>> Stashed changes
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.ConfigKey;
@@ -281,6 +287,10 @@ public class NetworkHelperImpl implements NetworkHelper {
         }
         final long dcid = router.getDataCenterId();
         String routerVersion = CloudStackVersion.trimRouterVersion(router.getTemplateVersion());
+<<<<<<< Updated upstream
+=======
+        String currentCheckSum = ChecksumUtil.calculateCurrentChecksum(router.getName(), new String[] {"vms/cloud-scripts.tgz", "systemvm/dist/cloud-scripts.tgz"});
+>>>>>>> Stashed changes
         String routerChecksum = router.getScriptsVersion() == null ? "" : router.getScriptsVersion();
         boolean routerVersionMatch = CloudStackVersion.compare(routerVersion, NetworkOrchestrationService.MinVRVersion.valueIn(dcid)) >= 0;
         if (routerVersionMatch) {

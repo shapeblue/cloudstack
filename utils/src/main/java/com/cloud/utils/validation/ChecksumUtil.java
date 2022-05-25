@@ -23,12 +23,15 @@ import org.apache.cloudstack.utils.security.DigestHelper;
 import java.io.File;
 
 public class ChecksumUtil {
-    public static String calculateCurrentChecksum(String name, String path) {
-        String cloudScriptsPath = Script.findScript("", path);
-        if (cloudScriptsPath == null) {
-            throw new CloudRuntimeException(String.format("Unable to find cloudScripts path, cannot update SystemVM %s", name));
+    public static String calculateCurrentChecksum(String name, String[] paths) {
+        for (String path : paths) {
+            String cloudScriptsPath = Script.findScript("", path);
+            if (cloudScriptsPath == null) {
+                continue;
+            }
+            String md5sum = DigestHelper.calculateChecksum(new File(cloudScriptsPath));
+            return md5sum;
         }
-        String md5sum = DigestHelper.calculateChecksum(new File(cloudScriptsPath));
-        return md5sum;
+        throw new CloudRuntimeException(String.format("Unable to find cloud-scripts path, cannot patch SystemVM %s", name));
     }
 }
