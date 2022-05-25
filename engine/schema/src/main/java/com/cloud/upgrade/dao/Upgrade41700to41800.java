@@ -14,11 +14,10 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
 package com.cloud.upgrade.dao;
 
-import com.cloud.storage.GuestOSHypervisorMapping;
 import com.cloud.upgrade.GuestOsMapper;
+import com.cloud.upgrade.RolePermissionChecker;
 import com.cloud.upgrade.SystemVmTemplateRegistration;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.log4j.Logger;
@@ -26,20 +25,23 @@ import org.apache.log4j.Logger;
 import java.io.InputStream;
 import java.sql.Connection;
 
-public class Upgrade41600to41610 implements DbUpgrade, DbUpgradeSystemVmTemplate {
-
-    final static Logger LOG = Logger.getLogger(Upgrade41600to41610.class);
+public class Upgrade41700to41800 implements DbUpgrade, DbUpgradeSystemVmTemplate{
+    final static Logger LOG = Logger.getLogger(Upgrade41700to41800.class);
     private SystemVmTemplateRegistration systemVmTemplateRegistration;
+    private RolePermissionChecker rolePermissionChecker = new RolePermissionChecker();
     private GuestOsMapper guestOsMapper = new GuestOsMapper();
+
+    public Upgrade41700to41800() {
+    }
 
     @Override
     public String[] getUpgradableVersionRange() {
-        return new String[] {"4.16.0.0", "4.16.1.0"};
+        return new String[] {"4.17.0.0", "4.18.0.0"};
     }
 
     @Override
     public String getUpgradedVersion() {
-        return "4.16.1.0";
+        return "4.18.0.0";
     }
 
     @Override
@@ -49,7 +51,7 @@ public class Upgrade41600to41610 implements DbUpgrade, DbUpgradeSystemVmTemplate
 
     @Override
     public InputStream[] getPrepareScripts() {
-        final String scriptFile = "META-INF/db/schema-41600to41610.sql";
+        final String scriptFile = "META-INF/db/schema-41700to41800.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
@@ -60,26 +62,32 @@ public class Upgrade41600to41610 implements DbUpgrade, DbUpgradeSystemVmTemplate
 
     @Override
     public void performDataMigration(Connection conn) {
-        correctGuestOsIdsInHypervisorMapping(conn);
     }
 
-    private void correctGuestOsIdsInHypervisorMapping(final Connection conn) {
-        LOG.debug("Correcting guest OS ids in hypervisor mappings");
-        guestOsMapper.updateGuestOsIdInHypervisorMapping(conn, 10, "Ubuntu 20.04 LTS", new GuestOSHypervisorMapping("Xenserver", "8.2.0", "Ubuntu Focal Fossa 20.04"));
+    private void initSystemVmTemplateRegistration() {
+        systemVmTemplateRegistration = new SystemVmTemplateRegistration();
+    }
+
+    @Override
+    @SuppressWarnings("serial")
+    public void updateSystemVmTemplates(final Connection conn) {
+        LOG.debug("Updating System Vm template IDs");
+        initSystemVmTemplateRegistration();
+        try {
+            systemVmTemplateRegistration.updateSystemVmTemplates(conn);
+        } catch (Exception e) {
+            throw new CloudRuntimeException("Failed to find / register SystemVM template(s)");
+        }
     }
 
     @Override
     public InputStream[] getCleanupScripts() {
-        final String scriptFile = "META-INF/db/schema-41600to41610-cleanup.sql";
+        final String scriptFile = "META-INF/db/schema-41700to41800-cleanup.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
         }
 
         return new InputStream[] {script};
-    }
-
-    @Override
-    public void updateSystemVmTemplates(Connection conn) {
     }
 }

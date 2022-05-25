@@ -129,20 +129,9 @@ public class Upgrade41520to41600 implements DbUpgrade, DbUpgradeSystemVmTemplate
         }
     }
 
-    private void initSystemVmTemplateRegistration() {
-        systemVmTemplateRegistration = new SystemVmTemplateRegistration();
-    }
-
     @Override
     @SuppressWarnings("serial")
     public void updateSystemVmTemplates(final Connection conn) {
-        LOG.debug("Updating System Vm template IDs");
-        initSystemVmTemplateRegistration();
-        try {
-            systemVmTemplateRegistration.updateSystemVmTemplates(conn);
-        } catch (Exception e) {
-            throw new CloudRuntimeException("Failed to find / register SystemVM template(s)");
-        }
     }
 
     @Override
