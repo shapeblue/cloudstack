@@ -370,6 +370,17 @@ export default {
           }
         },
         {
+          api: 'resetUserDataForVirtualMachine',
+          icon: 'solution-outlined',
+          label: 'label.reset.userdata.on.vm',
+          message: 'message.desc.reset.userdata',
+          docHelp: 'adminguide/virtual_machines.html#resetting-userdata',
+          dataView: true,
+          show: (record) => { return ['Stopped'].includes(record.state) },
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/compute/ResetUserData')))
+        },
+        {
           api: 'assignVirtualMachine',
           icon: 'user-add',
           label: 'label.assign.instance.another',
