@@ -410,6 +410,10 @@ export default {
     fetchUserdataPolicy () {
       const userdataPolicy = []
       userdataPolicy.push({
+        id: '',
+        description: ''
+      })
+      userdataPolicy.push({
         id: 'allowoverride',
         description: 'allowoverride'
       })
@@ -432,7 +436,23 @@ export default {
 
       api('listUserData', params).then(json => {
         const listUserdata = json.listuserdataresponse.userdata
-        this.userdata.opts = listUserdata
+        console.log(listUserdata)
+
+        const userdataIdAndName = []
+        const userdataOpts = json.listuserdataresponse.userdata
+        userdataIdAndName.push({
+          id: '',
+          name: ''
+        })
+
+        Object.values(userdataOpts).forEach(userdata => {
+          userdataIdAndName.push({
+            id: userdata.id,
+            name: userdata.name
+          })
+        })
+
+        this.userdata.opts = userdataIdAndName
       }).finally(() => {
         this.userdata.loading = false
       })
@@ -477,7 +497,9 @@ export default {
     linkUserdataToTemplate (userdataid, templateid, userdatapolicy) {
       this.loading = true
       const params = {}
-      params.userdataid = userdataid
+      if (userdataid && userdataid.length > 0) {
+        params.userdataid = userdataid
+      }
       params.templateid = templateid
       if (userdatapolicy) {
         params.userdatapolicy = userdatapolicy

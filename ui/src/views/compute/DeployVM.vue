@@ -600,8 +600,8 @@
                                 </template>
                               </a-table>
                             </a-input-group>
-                          </div><br/><br/>
-                        </div>
+                          </div>
+                        </div><br/><br/>
                         <div v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE' || userdataDefaultOverridePolicy === 'APPEND' || !userdataDefaultOverridePolicy">
                           <span v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE'" >
                             {{ $t('label.userdata.do.override') }}
