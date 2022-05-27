@@ -435,9 +435,6 @@ export default {
       this.userdata.loading = true
 
       api('listUserData', params).then(json => {
-        const listUserdata = json.listuserdataresponse.userdata
-        console.log(listUserdata)
-
         const userdataIdAndName = []
         const userdataOpts = json.listuserdataresponse.userdata
         userdataIdAndName.push({
