@@ -196,7 +196,7 @@
                   <a-select-option v-for="(opt, optIndex) in this.associatedNetworks" :key="optIndex" :label="opt.name || opt.description" :value="opt.id">
                     <span>
                       <resource-icon v-if="opt && opt.icon" :image="opt.icon.base64image" size="1x" style="margin-right: 5px"/>
-                      <user-outlined style="margin-right: 5px" />
+                      <apartment-outlined style="margin-right: 5px" />
                       {{ opt.name || opt.description }}
                     </span>
                   </a-select-option>
@@ -378,6 +378,7 @@ import RoutersTab from './RoutersTab'
 import VpcTiersTab from './VpcTiersTab'
 import EventsTab from '@/components/view/EventsTab'
 import AnnotationsTab from '@/components/view/AnnotationsTab'
+import ResourceIcon from '@/components/view/ResourceIcon'
 
 export default {
   name: 'VpcTab',
@@ -388,7 +389,8 @@ export default {
     RoutersTab,
     VpcTiersTab,
     EventsTab,
-    AnnotationsTab
+    AnnotationsTab,
+    ResourceIcon
   },
   mixins: [mixinDevice],
   props: {
