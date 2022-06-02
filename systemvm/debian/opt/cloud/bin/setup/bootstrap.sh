@@ -97,6 +97,7 @@ bootstrap() {
   config_sysctl
 
   log_it "Configuring systemvm type=$TYPE"
+  sed -i 's/3921/3922/g' /etc/ssh/sshd_config
   if [ -f "/opt/cloud/bin/setup/$TYPE.sh" ]; then
       /opt/cloud/bin/setup/$TYPE.sh
   else

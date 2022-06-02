@@ -236,6 +236,7 @@ def createFileInDomr(session, args):
     dst_path = args['dstfilepath']
     domrip = args['domrip']
     cleanup = 'true' if 'cleanup' not in args else args['cleanup']
+    port = '3922' if 'port' not in args else args['port']
     txt=""
     try:
         target = "root@" + domrip + ":" + dst_path

@@ -113,7 +113,7 @@ public final class LibvirtStartCommandWrapper extends CommandWrapper<StartComman
                     final VirtualRoutingResource virtRouterResource = libvirtComputingResource.getVirtRouterResource();
                     // check if the router is up?
                     for (int count = 0; count < 60; count++) {
-                        final boolean result = virtRouterResource.connect(controlIp, 1, 5000);
+                        final boolean result = virtRouterResource.connect(controlIp, 3921, 1, 5000);
                         if (result) {
                             break;
                         }
@@ -121,7 +121,7 @@ public final class LibvirtStartCommandWrapper extends CommandWrapper<StartComman
 
                     try {
                         File pemFile = new File(LibvirtComputingResource.SSHPRVKEYPATH);
-                        FileUtil.scpPatchFiles(controlIp, VRScripts.CONFIG_CACHE_LOCATION, Integer.parseInt(LibvirtComputingResource.DEFAULTDOMRSSHPORT), pemFile, LibvirtComputingResource.systemVmPatchFiles, LibvirtComputingResource.BASEPATH);
+                        FileUtil.scpPatchFiles(controlIp, VRScripts.CONFIG_CACHE_LOCATION,3921, pemFile, LibvirtComputingResource.systemVmPatchFiles, LibvirtComputingResource.BASEPATH);
                         if (!virtRouterResource.isSystemVMSetup(vmName, controlIp)) {
                             String errMsg = "Failed to patch systemVM";
                             s_logger.error(errMsg);

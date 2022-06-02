@@ -71,6 +71,8 @@ setup_router() {
   enable_fwding 1
   enable_rpsrfs 1
   enable_passive_ftp 1
+  cp /etc/iptables/iptables-router /etc/iptables/rules.v4
+  setup_sshd $ETH1_IP "eth1" 3922
   restore_ipv6
 
   # Only allow DNS service for current network

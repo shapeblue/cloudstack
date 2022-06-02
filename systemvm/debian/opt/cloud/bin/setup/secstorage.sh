@@ -33,8 +33,15 @@ setup_secstorage() {
   public_ip=`getPublicIp`
   echo "$public_ip $NAME" >> /etc/hosts
 
-  log_it "Applying iptables rules"
   cp /etc/iptables/iptables-secstorage /etc/iptables/rules.v4
+
+  log_it "Configuring sshd"
+  local hyp=$HYPERVISOR
+  if [ "$hyp" == "vmware" ] || [ "$hyp" == "hyperv" ]; then
+    setup_sshd $ETH1_IP "eth1" 3922
+  else
+    setup_sshd $ETH0_IP "eth0" 3922
+  fi
 
   log_it "Configuring apache2"
   setup_apache2 $ETH2_IP

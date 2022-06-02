@@ -192,13 +192,13 @@ public final class CitrixStartCommandWrapper extends CommandWrapper<StartCommand
                     }
                 }
 
-                String result2 = citrixResourceBase.connect(conn, vmName, controlIp, 1000);
+                String result2 = citrixResourceBase.connect(conn, vmName, controlIp, 3921, 1000);
                 if (StringUtils.isEmpty(result2)) {
                     s_logger.info(String.format("Connected to SystemVM: %s", vmName));
                 }
 
                 try {
-                    citrixResourceBase.copyPatchFilesToVR(controlIp, VRScripts.CONFIG_CACHE_LOCATION);
+                    citrixResourceBase.copyPatchFilesToVR(controlIp, VRScripts.CONFIG_CACHE_LOCATION, CitrixResourceBase.DEFAULTDOMRSSHPORT);
                     VirtualRoutingResource vrResource = citrixResourceBase.getVirtualRoutingResource();
                     if (!vrResource.isSystemVMSetup(vmName, controlIp)) {
                         String errMsg = "Failed to patch systemVM";

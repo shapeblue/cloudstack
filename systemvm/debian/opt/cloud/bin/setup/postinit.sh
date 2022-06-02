@@ -65,4 +65,9 @@ then
   ip6tables-restore < $ipv6
 fi
 
+echo '@include null' >> /etc/pam.d/systemd-user
+
+# Enable and Start SSH
+systemctl enable --now --no-block ssh
+
 date > /var/cache/cloud/boot_up_done

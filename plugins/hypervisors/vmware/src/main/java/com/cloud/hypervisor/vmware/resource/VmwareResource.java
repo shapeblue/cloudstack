@@ -2568,8 +2568,8 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
             if (vmSpec.getType() != VirtualMachine.Type.User) {
                 String controlIp = getControlIp(nics);
                 // check if the router is up?
-                for (int count = 0; count < 60; count++) {
-                    final boolean result = _vrResource.connect(controlIp, 1, 5000);
+                for (int count = 0; count < 100; count++) {
+                    final boolean result = _vrResource.connect(controlIp, 3921, 1, 5000);
                     if (result) {
                         break;
                     }
@@ -2578,7 +2578,7 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
                 try {
                     String homeDir = System.getProperty("user.home");
                     File pemFile = new File(homeDir + "/.ssh/id_rsa");
-                    FileUtil.scpPatchFiles(controlIp, VRScripts.CONFIG_CACHE_LOCATION, DefaultDomRSshPort, pemFile, systemVmPatchFiles, BASEPATH);
+                    FileUtil.scpPatchFiles(controlIp, VRScripts.CONFIG_CACHE_LOCATION, 3921, pemFile, systemVmPatchFiles, BASEPATH);
                     if (!_vrResource.isSystemVMSetup(vmInternalCSName, controlIp)) {
                         String errMsg = "Failed to patch systemVM";
                         s_logger.error(errMsg);

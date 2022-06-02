@@ -993,12 +993,12 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         return new ExecutionResult(rc.startsWith("succ#"), rc.substring(5));
     }
 
-    public ExecutionResult copyPatchFilesToVR(final String routerIp, final String path) {
+    public ExecutionResult copyPatchFilesToVR(final String routerIp, final String path, int port) {
         final Connection conn = getConnection();
         final String hostPath = "/opt/xensource/packages/resources/";
         String rc = "";
         for (String file: systemVmPatchFiles) {
-            rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", hostPath.concat(file), "dstfilepath", path, "cleanup", "false");
+            rc = callHostPlugin(conn, "vmops", "createFileInDomr", "domrip", routerIp, "srcfilepath", hostPath.concat(file), "dstfilepath", path, "cleanup", "false", "port", String.valueOf(port));
             if (rc.startsWith("fail#")) {
                 s_logger.error(String.format("Failed to scp file %s required for patching the systemVM", file));
                 break;

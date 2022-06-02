@@ -32,6 +32,16 @@ setup_console_proxy() {
   public_ip=`getPublicIp`
   echo "$public_ip $NAME" >> /etc/hosts
 
+  cp /etc/iptables/iptables-consoleproxy /etc/iptables/rules.v4
+
+  log_it "Configuring sshd"
+  local hyp=$HYPERVISOR
+  if [ "$hyp" == "vmware" ] || [ "$hyp" == "hyperv" ]; then
+    setup_sshd $ETH1_IP "eth1" 3922
+  else
+    setup_sshd $ETH0_IP "eth0" 3922
+  fi
+
   disable_rpfilter
   enable_fwding 0
   enable_irqbalance 0

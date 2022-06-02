@@ -148,7 +148,7 @@ config_guest() {
 }
 
 setup_interface_sshd() {
-
+  local port=$1
   if [ "$TYPE" != "cksnode" ]; then
     log_it "Applying iptables rules"
     if [ "$TYPE" != "dhcpsrvr" ]; then
@@ -156,6 +156,7 @@ setup_interface_sshd() {
     else
       cp /etc/iptables/iptables-router /etc/iptables/rules.v4
     fi
+    sed -i 's/3922/3921/g' /etc/iptables/rules.v4
   fi
 
   if [ "$TYPE" == "consoleproxy" ] || [ "$TYPE" == "secstorage" ]; then
@@ -163,9 +164,9 @@ setup_interface_sshd() {
     log_it "Configuring sshd"
     local hyp=$HYPERVISOR
     if [ "$hyp" == "vmware" ] || [ "$hyp" == "hyperv" ]; then
-      setup_sshd $ETH1_IP "eth1"
+      setup_sshd $ETH1_IP "eth1" $port
     else
-      setup_sshd $ETH0_IP "eth0"
+      setup_sshd $ETH0_IP "eth0" $port
     fi
 
   elif [ "$TYPE" == "router" ]; then
@@ -185,22 +186,22 @@ setup_interface_sshd() {
         done
       fi
     fi
-    setup_sshd $ETH1_IP "eth1"
+    setup_sshd $ETH1_IP "eth1" $port
 
   elif [ "$TYPE" == "vpcrouter" ]; then
     setup_interface "0" $ETH0_IP $ETH0_MASK $GW
-    setup_sshd $ETH0_IP "eth0"
+    setup_sshd $ETH0_IP "eth0" $port
 
   elif [ "$TYPE" == "ilbvm" ]; then
     setup_common eth0 eth1
-    setup_sshd $ETH1_IP "eth1"
+    setup_sshd $ETH1_IP "eth1" $port
 
   elif [ "$TYPE" == "elbvm" ] || [ "$TYPE" == "dhcpsrvr" ]; then
     setup_common eth0 eth1
     if [ "$SSHONGUEST" == "true" ]; then
-      setup_sshd $ETH0_IP "eth0"
+      setup_sshd $ETH0_IP "eth0" $port
     else
-      setup_sshd $ETH1_IP "eth1"
+      setup_sshd $ETH1_IP "eth1" $port
     fi
   elif [ "$TYPE" == "cksnode" ]; then
     setup_common eth0
@@ -219,4 +220,5 @@ log_it "Starting guest services for $HYPERVISOR"
 
 config_guest
 source /opt/cloud/bin/setup/common.sh
-setup_interface_sshd
+sed -i 's/3922/3921/g' /etc/ssh/sshd_config
+setup_interface_sshd 3921

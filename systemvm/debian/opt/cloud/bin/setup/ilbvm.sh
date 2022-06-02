@@ -31,7 +31,7 @@ setup_ilbvm() {
   echo "$ETH0_IP $NAME" >> /etc/hosts
 
   cp /etc/iptables/iptables-ilbvm /etc/iptables/rules.v4
-  setup_sshd $ETH1_IP "eth1"
+  setup_sshd $ETH1_IP "eth1" 3922
 
   enable_fwding 0
   enable_irqbalance 1

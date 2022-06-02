@@ -28,6 +28,7 @@ setup_dhcpsrvr() {
   setup_dnsmasq
   setup_apache2 $ETH0_IP
 
+  cp /etc/iptables/iptables-router /etc/iptables/rules.v4
   sed -i  /$NAME/d /etc/hosts
   [ $ETH0_IP ] && echo "$ETH0_IP $NAME" >> /etc/hosts
   [ $ETH0_IP6 ] && echo "$ETH0_IP6 $NAME" >> /etc/hosts
@@ -38,7 +39,12 @@ setup_dhcpsrvr() {
   #Only allow DNS service for current network
   sed -i "s/-A INPUT -i eth0 -p udp -m udp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p udp -m udp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
   sed -i "s/-A INPUT -i eth0 -p tcp -m tcp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p tcp -m tcp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
-
+  if [ "$SSHONGUEST" == "true" ]
+  then
+    setup_sshd $ETH0_IP "eth0" 3922
+  else
+    setup_sshd $ETH1_IP "eth1" 3922
+  fi
 }
 
 dhcpsrvr_svcs
