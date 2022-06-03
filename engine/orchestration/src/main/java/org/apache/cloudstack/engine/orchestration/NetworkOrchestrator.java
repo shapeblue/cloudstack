@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.server.ManagementServer;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
@@ -197,6 +196,7 @@ import com.cloud.offerings.dao.NetworkOfferingDao;
 import com.cloud.offerings.dao.NetworkOfferingDetailsDao;
 import com.cloud.offerings.dao.NetworkOfferingServiceMapDao;
 import com.cloud.resource.ResourceManager;
+import com.cloud.server.ManagementServer;
 import com.cloud.user.Account;
 import com.cloud.user.ResourceLimitService;
 import com.cloud.user.User;
@@ -1892,6 +1892,31 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
         final NicVO nic = _nicDao.findById(nicId);
 
         NicProfile profile = null;
+        String defaultIp4Dns1 = null;
+        String defaultIp4Dns2 = null;
+        String defaultIp6Dns1 = null;
+        String defaultIp6Dns2 = null;
+        if (Type.DomainRouter.equals(vmProfile.getType())) {
+            List<Long> networkIds = routerNetworkDao.getRouterNetworks(vmProfile.getId());
+            for (Long networkId : networkIds) {
+                NetworkVO routerNetwork = _networksDao.findById(networkId);
+                if (StringUtils.isNotBlank(routerNetwork.getDns1())) {
+                    defaultIp4Dns1 = routerNetwork.getDns1();
+                }
+                if (StringUtils.isNotBlank(routerNetwork.getDns2())) {
+                    defaultIp4Dns2 = routerNetwork.getDns2();
+                }
+                if (StringUtils.isNotBlank(routerNetwork.getIp6Dns1())) {
+                    defaultIp6Dns1 = routerNetwork.getIp6Dns1();
+                }
+                if (StringUtils.isNotBlank(routerNetwork.getIp6Dns2())) {
+                    defaultIp6Dns2 = routerNetwork.getIp6Dns2();
+                }
+                if (!StringUtils.isAllBlank(defaultIp4Dns1, defaultIp4Dns2, defaultIp6Dns1, defaultIp6Dns2)) {
+                    break;
+                }
+            }
+        }
         if (nic.getReservationStrategy() == Nic.ReservationStrategy.Start) {
             nic.setState(Nic.State.Reserving);
             nic.setReservationId(context.getReservationId());
@@ -1951,7 +1976,18 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
 
         profile.setSecurityGroupEnabled(_networkModel.isSecurityGroupSupportedInNetwork(network));
         guru.updateNicProfile(profile, network);
-
+        if (StringUtils.isNotBlank(defaultIp4Dns1)) {
+            profile.setIPv4Dns1(defaultIp4Dns1);
+        }
+        if (StringUtils.isNotBlank(defaultIp4Dns2)) {
+            profile.setIPv4Dns2(defaultIp4Dns2);
+        }
+        if (StringUtils.isNotBlank(defaultIp6Dns1)) {
+            profile.setIPv6Dns1(defaultIp6Dns1);
+        }
+        if (StringUtils.isNotBlank(defaultIp6Dns2)) {
+            profile.setIPv6Dns2(defaultIp6Dns2);
+        }
         configureExtraDhcpOptions(network, nicId);
         return profile;
     }
@@ -2430,7 +2466,8 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
         // create network for private gateway
         return createGuestNetwork(networkOfferingId, name, displayText, gateway, cidr, vlanId,
                 bypassVlanOverlapCheck, null, owner, null, pNtwk, pNtwk.getDataCenterId(), ACLType.Account, null,
-                vpcId, null, null, true, null, null, null, true, null, null);
+                vpcId, null, null, true, null, null, null, true, null, null,
+                null, null, null, null);
     }
 
     @Override
@@ -2438,18 +2475,21 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
     public Network createGuestNetwork(final long networkOfferingId, final String name, final String displayText, final String gateway, final String cidr, String vlanId,
                                       boolean bypassVlanOverlapCheck, String networkDomain, final Account owner, final Long domainId, final PhysicalNetwork pNtwk,
                                       final long zoneId, final ACLType aclType, Boolean subdomainAccess, final Long vpcId, final String ip6Gateway, final String ip6Cidr,
-                                      final Boolean isDisplayNetworkEnabled, final String isolatedPvlan, Network.PVlanType isolatedPvlanType, String externalId, String routerIp, String routerIpv6) throws ConcurrentOperationException, InsufficientCapacityException, ResourceAllocationException {
+                                      final Boolean isDisplayNetworkEnabled, final String isolatedPvlan, Network.PVlanType isolatedPvlanType, String externalId,
+                                      String routerIp, String routerIpv6, String ip4Dns1, String ip4Dns2, String ip6Dns1, String ip6Dns2) throws ConcurrentOperationException, InsufficientCapacityException, ResourceAllocationException {
         // create Isolated/Shared/L2 network
         return createGuestNetwork(networkOfferingId, name, displayText, gateway, cidr, vlanId, bypassVlanOverlapCheck,
                 networkDomain, owner, domainId, pNtwk, zoneId, aclType, subdomainAccess, vpcId, ip6Gateway, ip6Cidr,
-                isDisplayNetworkEnabled, isolatedPvlan, isolatedPvlanType, externalId, false, routerIp, routerIpv6);
+                isDisplayNetworkEnabled, isolatedPvlan, isolatedPvlanType, externalId, false, routerIp, routerIpv6, ip4Dns1, ip4Dns2, ip6Dns1, ip6Dns2);
     }
 
     @DB
     private Network createGuestNetwork(final long networkOfferingId, final String name, final String displayText, final String gateway, final String cidr, String vlanId,
                                        boolean bypassVlanOverlapCheck, String networkDomain, final Account owner, final Long domainId, final PhysicalNetwork pNtwk,
                                        final long zoneId, final ACLType aclType, Boolean subdomainAccess, final Long vpcId, final String ip6Gateway, final String ip6Cidr,
-                                       final Boolean isDisplayNetworkEnabled, final String isolatedPvlan, Network.PVlanType isolatedPvlanType, String externalId, final Boolean isPrivateNetwork, String routerIp, String routerIpv6) throws ConcurrentOperationException, InsufficientCapacityException, ResourceAllocationException {
+                                       final Boolean isDisplayNetworkEnabled, final String isolatedPvlan, Network.PVlanType isolatedPvlanType, String externalId,
+                                       final Boolean isPrivateNetwork, String routerIp, String routerIpv6, final String ip4Dns1, final String ip4Dns2,
+                                       final String ip6Dns1, final String ip6Dns2) throws ConcurrentOperationException, InsufficientCapacityException, ResourceAllocationException {
 
         final NetworkOfferingVO ntwkOff = _networkOfferingDao.findById(networkOfferingId);
         final DataCenterVO zone = _dcDao.findById(zoneId);
@@ -2722,6 +2762,21 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
 
                 if (StringUtils.isNotBlank(routerIpv6)) {
                     userNetwork.setRouterIpv6(routerIpv6);
+                }
+
+                if (!GuestType.L2.equals(userNetwork.getGuestType())) {
+                    if (StringUtils.isNotBlank(ip4Dns1)) {
+                        userNetwork.setDns1(ip4Dns1);
+                    }
+                    if (StringUtils.isNotBlank(ip4Dns2)) {
+                        userNetwork.setDns2(ip4Dns2);
+                    }
+                    if (StringUtils.isNotBlank(ip6Dns1)) {
+                        userNetwork.setIp6Dns1(ip6Dns1);
+                    }
+                    if (StringUtils.isNotBlank(ip6Dns2)) {
+                        userNetwork.setIp6Dns2(ip6Dns2);
+                    }
                 }
 
                 if (vlanIdFinal != null) {
