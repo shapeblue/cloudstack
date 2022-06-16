@@ -39,17 +39,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.agent.api.Answer;
-import com.cloud.agent.api.Command;
-import com.cloud.agent.api.to.IpAddressTO;
-import com.cloud.agent.manager.Commands;
-import com.cloud.alert.AlertManager;
-import com.cloud.network.NetworkServiceImpl;
-import com.cloud.network.router.CommandSetupHelper;
-import com.cloud.network.router.NetworkHelper;
-import com.cloud.vm.NicVO;
-import com.cloud.vm.VirtualMachine;
-import com.cloud.vm.dao.NicDao;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.alert.AlertService;
 import org.apache.cloudstack.annotation.AnnotationService;
@@ -70,7 +59,14 @@ import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.query.QueryService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.Command;
+import com.cloud.agent.api.to.IpAddressTO;
+import com.cloud.agent.manager.Commands;
+import com.cloud.alert.AlertManager;
 import com.cloud.api.query.dao.VpcOfferingJoinDao;
 import com.cloud.api.query.vo.VpcOfferingJoinVO;
 import com.cloud.configuration.Config;
@@ -104,6 +100,7 @@ import com.cloud.network.Network.Provider;
 import com.cloud.network.Network.Service;
 import com.cloud.network.NetworkModel;
 import com.cloud.network.NetworkService;
+import com.cloud.network.NetworkServiceImpl;
 import com.cloud.network.Networks.BroadcastDomainType;
 import com.cloud.network.Networks.TrafficType;
 import com.cloud.network.PhysicalNetwork;
@@ -116,6 +113,8 @@ import com.cloud.network.dao.NetworkVO;
 import com.cloud.network.element.NetworkElement;
 import com.cloud.network.element.StaticNatServiceProvider;
 import com.cloud.network.element.VpcProvider;
+import com.cloud.network.router.CommandSetupHelper;
+import com.cloud.network.router.NetworkHelper;
 import com.cloud.network.router.VpcVirtualNetworkApplianceManager;
 import com.cloud.network.vpc.VpcOffering.State;
 import com.cloud.network.vpc.dao.NetworkACLDao;
@@ -165,11 +164,12 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.exception.ExceptionUtil;
 import com.cloud.utils.net.NetUtils;
 import com.cloud.vm.DomainRouterVO;
+import com.cloud.vm.NicVO;
 import com.cloud.vm.ReservationContext;
 import com.cloud.vm.ReservationContextImpl;
+import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.DomainRouterDao;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.cloud.vm.dao.NicDao;
 
 public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvisioningService, VpcService {
     private static final Logger s_logger = Logger.getLogger(VpcManagerImpl.class);
@@ -254,8 +254,6 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     private AlertManager alertManager;
     @Inject
     CommandSetupHelper commandSetupHelper;
-    @Inject
-    NetworkDao networkDao;
     @Autowired
     @Qualifier("networkHelper")
     protected NetworkHelper networkHelper;
@@ -1259,10 +1257,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         if (success) {
             updateVpcMtu(ips,mtu);
             vpc.setPublicMtu(mtu);
-            List<NetworkVO> vpcTierNetworks = networkDao.listByVpc(vpcId);
+            List<NetworkVO> vpcTierNetworks = _ntwkDao.listByVpc(vpcId);
             for(NetworkVO network : vpcTierNetworks) {
                 network.setPublicIfaceMtu(mtu);
-                networkDao.update(network.getId(), network);
+                _ntwkDao.update(network.getId(), network);
             }
         } else {
             throw new CloudRuntimeException("Failed to update MTU on the network");

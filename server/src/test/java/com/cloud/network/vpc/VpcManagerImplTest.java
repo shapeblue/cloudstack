@@ -54,6 +54,8 @@ import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.UpdateNetworkCommand;
 import com.cloud.agent.api.to.IpAddressTO;
 import com.cloud.agent.manager.Commands;
+import com.cloud.dc.VlanVO;
+import com.cloud.dc.dao.VlanDao;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.ResourceAllocationException;
@@ -67,10 +69,10 @@ import com.cloud.network.PhysicalNetwork;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.NetworkDao;
+import com.cloud.network.dao.NetworkVO;
 import com.cloud.network.element.NetworkElement;
 import com.cloud.network.router.CommandSetupHelper;
 import com.cloud.network.router.NetworkHelper;
-import com.cloud.network.router.RouterControlHelper;
 import com.cloud.network.router.VirtualRouter;
 import com.cloud.network.vpc.dao.VpcDao;
 import com.cloud.network.vpc.dao.VpcOfferingServiceMapDao;
@@ -83,8 +85,11 @@ import com.cloud.user.AccountVO;
 import com.cloud.user.User;
 import com.cloud.utils.Pair;
 import com.cloud.utils.db.EntityManager;
+import com.cloud.utils.net.Ip;
 import com.cloud.vm.DomainRouterVO;
+import com.cloud.vm.NicVO;
 import com.cloud.vm.dao.DomainRouterDao;
+import com.cloud.vm.dao.NicDao;
 
 public class VpcManagerImplTest {
 
@@ -116,7 +121,9 @@ public class VpcManagerImplTest {
     @Mock
     NetworkHelper networkHelper;
     @Mock
-    RouterControlHelper routerControlHelper;
+    VlanDao vlanDao;
+    @Mock
+    NicDao nicDao;
 
     @Before
     public void setup()
@@ -135,6 +142,8 @@ public class VpcManagerImplTest {
         manager.routerDao = routerDao;
         manager.commandSetupHelper = commandSetupHelper;
         manager.networkHelper = networkHelper;
+        manager._vlanDao = vlanDao;
+        manager.nicDao = nicDao;
         CallContext.register(Mockito.mock(User.class), Mockito.mock(Account.class));
     }
 
@@ -290,12 +299,15 @@ public class VpcManagerImplTest {
         long vpcId = 1L;
         Integer publicMtu = 1450;
         Account accountMock = Mockito.mock(Account.class);
-        VpcVO vpcVO = Mockito.mock(VpcVO.class);
+        VpcVO vpcVO = new VpcVO();
 
         Answer answer = Mockito.mock(Answer.class);
         Mockito.when(answer.getResult()).thenReturn(true);
         VirtualRouter routerMock = Mockito.mock(VirtualRouter.class);
         List<IPAddressVO> ipAddresses = new ArrayList<>();
+        IPAddressVO ipAddressVO = Mockito.mock(IPAddressVO.class);
+        Mockito.when(ipAddressVO.getAddress()).thenReturn(Mockito.mock(Ip.class));
+        ipAddresses.add(ipAddressVO);
         List<IpAddressTO> ips = new ArrayList<>();
         List<DomainRouterVO> routers = new ArrayList<>();
         DomainRouterVO router = Mockito.mock(DomainRouterVO.class);
@@ -304,10 +316,13 @@ public class VpcManagerImplTest {
         IpAddressTO[] ipsToSend = ips.toArray(new IpAddressTO[0]);
 
         Mockito.when(callContextMock.getCallingAccount()).thenReturn(accountMock);
-        Mockito.when(vpcDao.findById(anyLong())).thenReturn(vpcVO);
+        Mockito.when(vpcDao.findById(vpcId)).thenReturn(vpcVO);
         Mockito.when(vpcDao.createForUpdate(anyLong())).thenReturn(vpcVO);
         Mockito.when(ipAddressDao.listByAssociatedVpc(anyLong(), nullable(Boolean.class))).thenReturn(ipAddresses);
         Mockito.when(routerDao.listByVpcId(anyLong())).thenReturn(routers);
+        VlanVO vlanVO = Mockito.mock(VlanVO.class);
+        Mockito.when(vlanVO.getVlanNetmask()).thenReturn("netmask");
+        Mockito.when(vlanDao.findById(anyLong())).thenReturn(vlanVO);
         Mockito.doAnswer((org.mockito.stubbing.Answer<Void>) invocation -> {
             Commands commands = (Commands)invocation.getArguments()[2];
             commands.addCommand("updateNetwork", new UpdateNetworkCommand(ipsToSend));
@@ -318,10 +333,15 @@ public class VpcManagerImplTest {
             commands.setAnswers(new Answer[]{answer});
             return true;
         }).when(networkHelper).sendCommandsToRouter(Mockito.any(), Mockito.any());
+        Mockito.when(nicDao.findByIpAddressAndVmType(anyString(), any())).thenReturn(Mockito.mock(NicVO.class));
+        Mockito.when(nicDao.update(anyLong(), any())).thenReturn(true);
+        Mockito.when(networkDao.listByVpc(vpcId)).thenReturn(List.of(Mockito.mock(NetworkVO.class)));
+        Mockito.when(networkDao.update(anyLong(), any())).thenReturn(true);
+        Mockito.when(vpcDao.update(vpcId, vpcVO)).thenReturn(true);
 
-        boolean result = manager.updateMtuOnVpcVr(1L, ips);
-        Assert.assertTrue(result);
-        //manager.updateVpc(vpcId, null, null, null, true, publicMtu);
+        manager.updateVpc(vpcId, null, null, null, true, publicMtu);
+
+        Assert.assertEquals(publicMtu, vpcVO.getPublicMtu());
 
     }
 }
