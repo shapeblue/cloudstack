@@ -20,6 +20,35 @@ package com.cloud.network.vpc;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.powermock.api.mockito.PowerMockito.when;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.cloudstack.acl.ControlledEntity;
+import org.apache.cloudstack.acl.SecurityChecker;
+import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.powermock.reflect.Whitebox;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.routing.UpdateNetworkCommand;
@@ -29,26 +58,22 @@ import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
+import com.cloud.network.Network;
+import com.cloud.network.Network.Capability;
+import com.cloud.network.Network.Provider;
+import com.cloud.network.Network.Service;
 import com.cloud.network.NetworkModel;
 import com.cloud.network.PhysicalNetwork;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.NetworkDao;
 import com.cloud.network.element.NetworkElement;
-
-import com.cloud.network.Network;
-import com.cloud.network.Network.Capability;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.cloud.network.router.CommandSetupHelper;
 import com.cloud.network.router.NetworkHelper;
+import com.cloud.network.router.RouterControlHelper;
 import com.cloud.network.router.VirtualRouter;
 import com.cloud.network.vpc.dao.VpcDao;
+import com.cloud.network.vpc.dao.VpcOfferingServiceMapDao;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.offerings.NetworkOfferingServiceMapVO;
 import com.cloud.offerings.dao.NetworkOfferingServiceMapDao;
@@ -60,33 +85,6 @@ import com.cloud.utils.Pair;
 import com.cloud.utils.db.EntityManager;
 import com.cloud.vm.DomainRouterVO;
 import com.cloud.vm.dao.DomainRouterDao;
-import org.apache.cloudstack.acl.ControlledEntity;
-import org.apache.cloudstack.acl.SecurityChecker;
-import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
-import org.apache.cloudstack.framework.events.Event;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-
-import com.cloud.network.Network.Provider;
-import com.cloud.network.Network.Service;
-import com.cloud.network.vpc.dao.VpcOfferingServiceMapDao;
-import org.mockito.invocation.InvocationOnMock;
-import org.powermock.reflect.Whitebox;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 public class VpcManagerImplTest {
 
@@ -117,6 +115,8 @@ public class VpcManagerImplTest {
     CommandSetupHelper commandSetupHelper;
     @Mock
     NetworkHelper networkHelper;
+    @Mock
+    RouterControlHelper routerControlHelper;
 
     @Before
     public void setup()
@@ -291,9 +291,9 @@ public class VpcManagerImplTest {
         Integer publicMtu = 1450;
         Account accountMock = Mockito.mock(Account.class);
         VpcVO vpcVO = Mockito.mock(VpcVO.class);
-        Commands cmds = Mockito.mock(Commands.class);
 
         Answer answer = Mockito.mock(Answer.class);
+        Mockito.when(answer.getResult()).thenReturn(true);
         VirtualRouter routerMock = Mockito.mock(VirtualRouter.class);
         List<IPAddressVO> ipAddresses = new ArrayList<>();
         List<IpAddressTO> ips = new ArrayList<>();
@@ -308,18 +308,20 @@ public class VpcManagerImplTest {
         Mockito.when(vpcDao.createForUpdate(anyLong())).thenReturn(vpcVO);
         Mockito.when(ipAddressDao.listByAssociatedVpc(anyLong(), nullable(Boolean.class))).thenReturn(ipAddresses);
         Mockito.when(routerDao.listByVpcId(anyLong())).thenReturn(routers);
-        Mockito.when(cmds.getAnswer("updateNetwork")).thenReturn(answer);
-        Mockito.doAnswer(new org.mockito.stubbing.Answer<Commands>() {
-                    @Override
-                    public Commands answer(InvocationOnMock invocation) throws Throwable {
-                        cmds.addCommand(new UpdateNetworkCommand(ipsToSend));
-                        return cmds;
-                    }
-                }).when(commandSetupHelper).setupUpdateNetworkCommands(routerMock, ips, cmds);
-        Mockito.when(networkHelper.sendCommandsToRouter(routerMock, cmds)).thenReturn(true);
+        Mockito.doAnswer((org.mockito.stubbing.Answer<Void>) invocation -> {
+            Commands commands = (Commands)invocation.getArguments()[2];
+            commands.addCommand("updateNetwork", new UpdateNetworkCommand(ipsToSend));
+            return null;
+        }).when(commandSetupHelper).setupUpdateNetworkCommands(Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doAnswer((org.mockito.stubbing.Answer<Boolean>) invocation -> {
+            Commands commands = (Commands)invocation.getArguments()[1];
+            commands.setAnswers(new Answer[]{answer});
+            return true;
+        }).when(networkHelper).sendCommandsToRouter(Mockito.any(), Mockito.any());
 
         boolean result = manager.updateMtuOnVpcVr(1L, ips);
-        manager.updateVpc(vpcId, null, null, null, true, publicMtu);
+        Assert.assertTrue(result);
+        //manager.updateVpc(vpcId, null, null, null, true, publicMtu);
 
     }
 }
