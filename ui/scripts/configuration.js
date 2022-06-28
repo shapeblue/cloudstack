@@ -552,6 +552,14 @@
                                                 id: 'Group of NVIDIA Corporation GK104GL [GRID K2] GPUs',
                                                 description: 'NVIDIA GRID K2'
                                             });
+                                            items.push({
+                                                id: 'Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs',
+                                                description: 'NVIDIA TESLA V100'
+                                            });
+                                            items.push({
+                                                id: 'Group of Nvidia Corporation TU104GL [Tesla T4] GPUs',
+                                                description: 'NVIDIA TESLA T4'    
+                                            });
                                             args.response.success({
                                                 data: items
                                             });
@@ -559,6 +567,8 @@
                                             var vGpuMap = {};
                                             vGpuMap['Group of NVIDIA Corporation GK107GL [GRID K1] GPUs'] = ['passthrough', 'GRID K100', 'GRID K120Q', 'GRID K140Q', 'GRID K160Q', 'GRID K180Q'];
                                             vGpuMap['Group of NVIDIA Corporation GK104GL [GRID K2] GPUs'] = ['passthrough', 'GRID K200', 'GRID K220Q', 'GRID K240Q', 'GRID K260Q', 'GRID K280Q'];
+                                            vGpuMap['Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs'] = ['passthrough', 'GRID V100D-32A', 'GRID V100D-8Q', 'GRID V100D-4A', 'GRID V100D-1B', 'GRID V100D-2Q', 'GRID V100D-4Q', 'GRID V100D-2A', 'GRID V100D-2B', 'GRID V100D-32Q', 'GRID V100D-16A', 'GRID V100D-1Q', 'GRID V100D-2B4', 'GRID V100D-16Q', 'GRID V100D-8A', 'GRID V100D-1A'];
+                                            vGpuMap['Group of Nvidia Corporation TU104GL [Tesla T4] GPUs'] = ['passthrough', 'GRID T4-16A', 'GRID T4-2B4', 'GRID T4-4Q', 'GRID T4-16Q', 'GRID T4-4A', 'GRID T4-1A', 'GRID T4-2Q', 'GRID T4-2B', 'GRID T4-8Q', 'GRID T4-2A', 'GRID T4-1B', 'GRID T4-1Q', 'GRID T4-8A'];
 
                                             args.$select.change(function() {
                                                 var gpu = $(this).val();
@@ -641,6 +651,118 @@
                                             items.push({
                                                 id: 'GRID K280Q',
                                                 description: 'GRID K280Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-32A',
+                                                description: 'GRID V100D-32A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-8Q',
+                                                description: 'GRID V100D-8Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-4A',
+                                                description: 'GRID V100D-4A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-1B',
+                                                description: 'GRID V100D-1B'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2Q',
+                                                description: 'GRID V100D-2Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-4Q',
+                                                description: 'GRID V100D-4Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2A',
+                                                description: 'GRID V100D-2A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2B',
+                                                description: 'GRID V100D-2B'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-32Q',
+                                                description: 'GRID V100D-32Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-16A',
+                                                description: 'GRID V100D-16A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-1Q',
+                                                description: 'GRID V100D-1Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-2B4',
+                                                description: 'GRID V100D-2B4'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-16Q',
+                                                description: 'GRID V100D-16Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-8A',
+                                                description: 'GRID V100D-8A'
+                                            });
+                                            items.push({
+                                                id: 'GRID V100D-1A',
+                                                description: 'GRID V100D-1A'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-16A',
+                                                description: 'GRID T4-16A'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-2B4',
+                                                description: 'GRID T4-2B4'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-4Q',
+                                                description: 'GRID T4-4Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-16Q',
+                                                description: 'GRID T4-16Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-4A',
+                                                description: 'GRID T4-4A'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-1A',
+                                                description: 'GRID T4-1A'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-2Q',
+                                                description: 'GRID T4-2Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-2B',
+                                                description: 'GRID T4-2B'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-8Q',
+                                                description: 'GRID T4-8Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-2A',
+                                                description: 'GRID T4-2A'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-1B',
+                                                description: 'GRID T4-1B'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-1Q',
+                                                description: 'GRID T4-1Q'
+                                            });
+                                            items.push({
+                                                id: 'GRID T4-8A',
+                                                description: 'GRID T4-8A'
                                             });
                                             args.response.success({
                                                 data: items
@@ -2182,6 +2304,7 @@
                                             args.$select.change(function() {
                                                 var $form = $(this).closest('form');
                                                 var $isCustomizedIops = $form.find('.form-item[rel=isCustomizedIops]');
+                                                var $isCustomized = $form.find('.form-item[rel=isCustomized]');
                                                 var $minIops = $form.find('.form-item[rel=minIops]');
                                                 var $maxIops = $form.find('.form-item[rel=maxIops]');
                                                 var $hypervisorSnapshotReserve = $form.find('.form-item[rel=hypervisorSnapshotReserve]');
@@ -2189,6 +2312,10 @@
                                                 var $diskBytesWriteRate = $form.find('.form-item[rel=diskBytesWriteRate]');
                                                 var $diskIopsReadRate = $form.find('.form-item[rel=diskIopsReadRate]');
                                                 var $diskIopsWriteRate = $form.find('.form-item[rel=diskIopsWriteRate]');
+                                                var $highestMinIops = $form.find('.form-item[rel=highestMinIops]');
+                                                var $highestMaxIops = $form.find('.form-item[rel=highestMaxIops]');
+                                                var $minIopsPerGb = $form.find('.form-item[rel=minIopsPerGb]');
+                                                var $maxIopsPerGb = $form.find('.form-item[rel=maxIopsPerGb]');
 
                                                 var qosId = $(this).val();
 
@@ -2199,6 +2326,11 @@
                                                     $diskIopsWriteRate.hide();
 
                                                     $isCustomizedIops.css('display', 'inline-block');
+
+                                                    $highestMinIops.css('display', 'inline-block');
+                                                    $highestMaxIops.css('display', 'inline-block');
+                                                    $minIopsPerGb.css('display', 'inline-block');
+                                                    $maxIopsPerGb.css('display', 'inline-block');
 
                                                     if ($isCustomizedIops.find('input[type=checkbox]').is(':checked')) {
                                                         $minIops.hide();
@@ -2213,6 +2345,11 @@
                                                     $isCustomizedIops.hide();
                                                     $minIops.hide();
                                                     $maxIops.hide();
+                                                    $highestMaxIops.hide();
+                                                    $highestMinIops.hide();
+                                                    $minIopsPerGb.hide();
+                                                    $maxIopsPerGb.hide();
+
                                                     $hypervisorSnapshotReserve.hide();
 
                                                     $diskBytesReadRate.css('display', 'inline-block');
@@ -2227,6 +2364,10 @@
                                                     $isCustomizedIops.hide();
                                                     $minIops.hide();
                                                     $maxIops.hide();
+                                                    $highestMaxIops.hide();
+                                                    $highestMinIops.hide();
+                                                    $minIopsPerGb.hide();
+                                                    $maxIopsPerGb.hide();
                                                     $hypervisorSnapshotReserve.hide();
                                                 }
                                             });
@@ -2252,6 +2393,38 @@
                                         label: 'label.disk.iops.max',
                                         docID: 'helpDiskOfferingDiskIopsMax',
                                         dependsOn: 'isCustomizedIops',
+                                        validation: {
+                                            required: false,
+                                            number: true
+                                        }
+                                    },
+                                    highestMinIops: {
+                                        label: 'label.disk.iops.highest.min',
+                                        docID: 'helpDiskOfferingHighestMinIops',
+                                        validation: {
+                                            required: false,
+                                            number: true
+                                        }
+                                    },
+                                    highestMaxIops: {
+                                        label: 'label.disk.iops.highest.max',
+                                        docID: 'helpDiskOfferingHighestMaxIops',
+                                        validation: {
+                                            required: false,
+                                            number: true
+                                        }
+                                    },
+                                    minIopsPerGb: {
+                                        label: 'label.disk.iops.pergb.min',
+                                        docID: 'helpDiskOfferingMinIopsPerGb',
+                                        validation: {
+                                            required: false,
+                                            number: true
+                                        }
+                                    },
+                                    maxIopsPerGb: {
+                                        label: 'label.disk.iops.pergb.max',
+                                        docID: 'helpDiskOfferingMaxIopsPerGb',
                                         validation: {
                                             required: false,
                                             number: true
@@ -2474,6 +2647,30 @@
                                                 maxiops: args.data.maxIops
                                             });
                                         }
+                                    }
+
+                                    if (args.data.highestMinIops != null && args.data.highestMinIops > 0) {
+                                        $.extend(data, {
+                                            highestminiops: args.data.highestMinIops
+                                        });
+                                    }
+
+                                    if (args.data.highestMaxIops != null && args.data.highestMaxIops > 0) {
+                                        $.extend(data, {
+                                            highestmaxiops: args.data.highestMaxIops
+                                        });
+                                    }
+
+                                    if (args.data.minIopsPerGb != null && args.data.minIopsPerGb > 0) {
+                                        $.extend(data, {
+                                            miniopspergb: args.data.minIopsPerGb
+                                        });
+                                    }
+
+                                    if (args.data.maxIopsPerGb != null && args.data.maxIopsPerGb > 0) {
+                                        $.extend(data, {
+                                            maxiopspergb: args.data.maxIopsPerGb
+                                        });
                                     }
 
                                     if (args.data.hypervisorSnapshotReserve != null && args.data.hypervisorSnapshotReserve.length > 0) {
@@ -2882,6 +3079,45 @@
                                     },
                                     diskIopsWriteRate: {
                                         label: 'label.disk.iops.write.rate'
+                                    },
+                                    miniopspergb: {
+                                        label: 'label.disk.iops.pergb.min',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+
+                                    },
+                                    maxiopspergb: {
+                                        label: 'label.disk.iops.pergb.max',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+
+                                    },
+                                    highestminiops: {
+                                        label: 'label.disk.iops.highest.min',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
+
+                                    },
+                                    highestmaxiops: {
+                                        label: 'label.disk.iops.highest.max',
+                                        converter: function(args) {
+                                            if (args > 0)
+                                                return args;
+                                            else
+                                                return "N/A";
+                                        }
                                     },
                                     cacheMode: {
                                         label: 'label.cache.mode'

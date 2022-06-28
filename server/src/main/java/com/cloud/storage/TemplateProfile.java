@@ -32,6 +32,7 @@ public class TemplateProfile {
     Boolean passwordEnabled;
     Boolean sshKeyEnbaled;
     Boolean requiresHvm;
+    String bootFilename;
     String url;
     Boolean isPublic;
     Boolean featured;
@@ -53,6 +54,7 @@ public class TemplateProfile {
     TemplateType templateType;
     Boolean directDownload;
     Long size;
+    private long zoneId;
 
     public TemplateProfile(Long templateId, Long userId, String name, String displayText, Integer bits, Boolean passwordEnabled, Boolean requiresHvm, String url,
                            Boolean isPublic, Boolean featured, Boolean isExtractable, ImageFormat format, Long guestOsId, List<Long> zoneIdList, HypervisorType hypervisorType,
@@ -92,36 +94,47 @@ public class TemplateProfile {
     }
 
     public TemplateProfile(Long templateId, Long userId, String name, String displayText, Integer bits, Boolean passwordEnabled, Boolean requiresHvm, String url,
-            Boolean isPublic, Boolean featured, Boolean isExtractable, ImageFormat format, Long guestOsId, List<Long> zoneId,
+                           Boolean isPublic, Boolean featured, Boolean isExtractable, ImageFormat format, Long guestOsId, List<Long> zoneId,
 
-            HypervisorType hypervisorType, String accountName, Long domainId, Long accountId, String chksum, Boolean bootable, String templateTag, Map details,
-            Boolean sshKeyEnabled, Long imageStoreId, Boolean isDynamicallyScalable, TemplateType templateType, Boolean directDownload) {
+                           HypervisorType hypervisorType, String accountName, Long domainId, Long accountId, String chksum, Boolean bootable, String templateTag, Map details,
+                           Boolean sshKeyEnabled, Long imageStoreId, Boolean isDynamicallyScalable, TemplateType templateType, Boolean directDownload) {
         this(templateId,
-            userId,
-            name,
-            displayText,
-            bits,
-            passwordEnabled,
-            requiresHvm,
-            url,
-            isPublic,
-            featured,
-            isExtractable,
-            format,
-            guestOsId,
-            zoneId,
-            hypervisorType,
-            accountName,
-            domainId,
-            accountId,
-            chksum,
-            bootable,
-            details,
-            sshKeyEnabled);
+                userId,
+                name,
+                displayText,
+                bits,
+                passwordEnabled,
+                requiresHvm,
+                url,
+                isPublic,
+                featured,
+                isExtractable,
+                format,
+                guestOsId,
+                zoneId,
+                hypervisorType,
+                accountName,
+                domainId,
+                accountId,
+                chksum,
+                bootable,
+                details,
+                sshKeyEnabled);
         this.templateTag = templateTag;
         this.isDynamicallyScalable = isDynamicallyScalable;
         this.templateType = templateType;
         this.directDownload = directDownload;
+    }
+
+    public TemplateProfile(Long templateId, Long userId, String name, String displayText, Integer bits, Boolean passwordEnabled, Boolean requiresHvm, String url,
+                           Boolean isPublic, Boolean featured, Boolean isExtractable, ImageFormat format, Long guestOsId, List<Long> zoneId,
+                           HypervisorType hypervisorType, String accountName, Long domainId, Long accountId, String chksum, Boolean bootable, String templateTag, Map details,
+                           Boolean sshKeyEnabled, Long imageStoreId, Boolean isDynamicallyScalable, TemplateType templateType, Boolean directDownload, String bootFilename) {
+        this(templateId, userId, name, displayText, bits, passwordEnabled, requiresHvm, url,
+                isPublic, featured, isExtractable, format, guestOsId, zoneId,
+                hypervisorType, accountName, domainId, accountId, chksum, bootable, templateTag, details,
+                sshKeyEnabled, imageStoreId, isDynamicallyScalable, templateType, directDownload);
+        this.bootFilename = bootFilename;
     }
 
     public Long getTemplateId() {
@@ -178,6 +191,14 @@ public class TemplateProfile {
 
     public void setRequiresHVM(Boolean hvm) {
         this.requiresHvm = hvm;
+    }
+
+    public String getBootFilename() {
+        return bootFilename;
+    }
+
+    public void setBootFilename(String bootFilename) {
+        this.bootFilename = bootFilename;
     }
 
     public String getUrl() {
@@ -330,5 +351,9 @@ public class TemplateProfile {
 
     public void setSize(Long size) {
         this.size = size;
+    }
+
+    public long getZoneId() {
+        return zoneId;
     }
 }

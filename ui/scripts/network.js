@@ -2328,7 +2328,35 @@
                                     complete: function(args) {
                                         var msg;
                                         if (args.remoteaccessvpn.state == "Running") {
-                                            msg = _l('message.enabled.vpn') + ' ' + args.remoteaccessvpn.publicip + '.' + '<br/>' + _l('message.enabled.vpn.ip.sec') + '<br/>' + args.remoteaccessvpn.presharedkey;
+                                            var pskOrCert = '';
+                                            if (args.remoteaccessvpn.type === 'ikev2') {
+                                                var cert = args.remoteaccessvpn.certificate;
+                                                pskOrCert = _l('message.enabled.vpn.ca.certificate');
+
+                                                $('.message > a.download-certificate').live('click', function(event) {
+                                                    event.stopPropagation();
+                                                    event.preventDefault();
+
+                                                    var blob = new Blob([cert], {type: 'application/x-x509-ca-cert'});
+                                                    var filename = args.remoteaccessvpn.publicip + "-server-key.pem";
+                                                    if(window.navigator.msSaveOrOpenBlob) {
+                                                        window.navigator.msSaveBlob(blob, filename);
+                                                    } else{
+                                                        var elem = window.document.createElement('a');
+                                                        elem.href = window.URL.createObjectURL(blob);
+                                                        elem.download = filename;
+                                                        document.body.appendChild(elem)
+                                                        elem.click();
+                                                        document.body.removeChild(elem);
+                                                    }
+
+                                                    $('.message > a.download-certificate').die();
+                                                });
+                                            } else if (args.remoteaccessvpn.type === 'l2tp') {
+                                                pskOrCert = _l('message.enabled.vpn.ip.sec') + '<br/>' + args.remoteaccessvpn.presharedkey;
+                                            }
+
+                                            msg = _l('message.enabled.vpn') + ' <b>' + args.remoteaccessvpn.publicip + '</b><br/>' + pskOrCert;
                                         } else {
                                             msg = _l('message.network.remote.access.vpn.configuration');
                                         }
@@ -4335,28 +4363,53 @@
                                 title: 'label.vpn',
                                 custom: function(args) {
                                     var ipAddress = args.context.ipAddresses[0].ipaddress;
-                                    var psk = "";
-                                    if (args.context.ipAddresses[0].remoteaccessvpn != null)
-                                        psk = args.context.ipAddresses[0].remoteaccessvpn.presharedkey;
+                                    var remotevpnobj = args.context.ipAddresses[0].remoteaccessvpn;
+                                    var $pskOrCert;
+
+                                    if (remotevpnobj != null && remotevpnobj.type === 'ikev2') {
+                                        var cert = remotevpnobj.certificate;
+                                        // CERT
+                                        $pskOrCert = $('<li>')
+                                            .addClass('cert')
+                                            .append(_l('message.enabled.vpn.ca.certificate'));
+
+                                        $($pskOrCert).find('a.download-certificate').click(function(event) {
+                                                event.stopPropagation();
+                                                event.preventDefault();
+
+                                                var blob = new Blob([cert], {type: 'application/x-x509-ca-cert'});
+                                                var filename = remotevpnobj.publicip + "-server-key.pem";
+                                                if(window.navigator.msSaveOrOpenBlob) {
+                                                    window.navigator.msSaveBlob(blob, filename);
+                                                } else{
+                                                    var elem = window.document.createElement('a');
+                                                    elem.href = window.URL.createObjectURL(blob);
+                                                    elem.download = filename;
+                                                    document.body.appendChild(elem)
+                                                    elem.click();
+                                                    document.body.removeChild(elem);
+                                                }
+                                            });
+                                    } else if (remotevpnobj != null && remotevpnobj.type === 'l2tp') {
+                                        var psk = remotevpnobj.presharedkey;
+                                        // PSK
+                                        $pskOrCert = $('<li>')
+                                            .addClass('psk')
+                                            .html(_l('message.enabled.vpn.ip.sec') + ' ')
+                                            .append($('<strong>').html(psk))
+                                    }
 
                                     return $('<div>')
                                         .append(
-                                        $('<ul>').addClass('info')
+                                            $('<ul>').addClass('info')
                                             .append(
-                                            // VPN IP
-                                            $('<li>').addClass('ip').html(_l('message.enabled.vpn') + ' ')
+                                                // VPN IP
+                                                $('<li>').addClass('ip').html(_l('message.enabled.vpn') + ' ')
                                                 .append($('<strong>').html(ipAddress))
-                                        )
-                                            .append(
-                                            // PSK
-                                            $('<li>').addClass('psk').html(_l('message.enabled.vpn.ip.sec') + ' ')
-                                                .append($('<strong>').html(psk))
-                                        )
-                                            .append(
-                                                //Note
-                                                $('<li>').html(_l('message.enabled.vpn.note'))
+                                                .append('&nbsp;')
                                             )
-                                    )
+                                            .append($pskOrCert)
+                                    );
                                 }
                             }
                         }
@@ -5230,6 +5283,93 @@
                                                 }
                                             });
                                         }
+                                    },
+                                    networkbootip: {
+                                        label: 'label.network.boot.ip',
+                                        docID: 'helpVPCNetworkBootIP',
+                                        validation: {
+                                            ipv4AndIpv6AddressValidator: true
+                                        }
+                                    },
+                                    nuageusedomaintemplate: {
+                                        label: 'label.nuage.vpc.usedomaintemplate',
+                                        isBoolean: true,
+                                        isChecked: false,
+                                        isHidden: function(args){
+                                            var cache=args.context.domainTemplateMap;
+                                            return !(cache && cache[args.zoneid] && cache[args.zoneid].length);
+                                        }
+                                    },
+                                    nuagedomaintemplatelist: {
+                                        label: 'label.nuage.vpc.domaintemplatelist',
+                                        isHidden: true,
+                                        dependsOn: ["nuageusedomaintemplate","zoneid"],
+                                        select: function(args) {
+                                            if(!args.context.domainTemplateMap){//create array if it does not exist.
+                                                args.context.domainTemplateMap = [];
+                                                args.context.globalDomainTemplateUsed = [];
+                                            }
+
+                                            $.ajax({
+                                                url: createURL('listNuageVspDomainTemplates'),
+                                                dataType: "json",
+                                                data: {
+                                                    zoneid: args.zoneid
+                                                },
+                                                async: true,
+                                                error: function(XMLHttpRequest, textStatus, errorThrown) {
+                                                    args.response.success({});
+                                                },
+                                                success: function (json) {
+                                                    $.ajax({
+                                                        url: createURL('listNuageVspGlobalDomainTemplate'),
+                                                        dataType: "json",
+                                                        data: {
+                                                            name: "nuagevsp.vpc.domaintemplate.name"
+                                                        },
+                                                        async: true,
+                                                        success: function(PDTjson){
+                                                            var domaintemplates = json.listnuagevspdomaintemplatesresponse.domaintemplates ? json.listnuagevspdomaintemplatesresponse.domaintemplates : [];
+                                                            var preConfiguredDomainTemplate = PDTjson.listnuagevspglobaldomaintemplateresponse.count == 1 ? PDTjson.listnuagevspglobaldomaintemplateresponse.domaintemplates[0].name : "";
+
+                                                            if (!domaintemplates.length) {
+                                                                args.$form.find("[rel=nuageusedomaintemplate]").hide();
+                                                            }
+
+                                                            var index = -1;
+                                                            $.each(domaintemplates, function(key,value) {
+                                                                if (preConfiguredDomainTemplate == value.name) {
+                                                                    index = key;
+                                                                }
+                                                            });
+
+                                                            //Set global pre configured DT as the default by placing it to the top of the drop down list.
+                                                            if (index != -1) {
+                                                                domaintemplates.unshift(domaintemplates[index]);
+                                                                domaintemplates.splice(index + 1, 1);
+                                                                args.$form.find("[rel=nuageusedomaintemplate]").show();
+                                                                args.$form.find("[rel=nuagedomaintemplatelist]").show();
+                                                                args.$form.find("[rel=nuageusedomaintemplate]").find("input").attr('checked', true);
+                                                                args.context.globalDomainTemplateUsed[args.zoneid] = true;
+                                                            } else {
+                                                                args.context.globalDomainTemplateUsed[args.zoneid] = false;
+                                                            }
+
+                                                            args.context.domainTemplateMap[args.zoneid] = domaintemplates;
+                                                            args.response.success({
+                                                                data: $.map(domaintemplates, function (dt) {
+                                                                    return {
+                                                                        id: dt.name,
+                                                                        description: dt.description
+                                                                    };
+                                                                })
+                                                            });
+                                                        }
+                                                    });
+
+                                                }
+                                            });
+                                        }
                                     }
                                 }
                             },
@@ -5240,7 +5380,8 @@
                                     displaytext: args.data.displaytext,
                                     zoneid: args.data.zoneid,
                                     cidr: args.data.cidr,
-                                    vpcofferingid: args.data.vpcoffering
+                                    vpcofferingid: args.data.vpcoffering,
+                                    networkbootip: args.data.networkbootip
                                 };
 
                                 if (args.data.networkdomain != null && args.data.networkdomain.length > 0)
@@ -5307,7 +5448,8 @@
                                         data: {
                                             id: args.context.vpc[0].id,
                                             name: args.data.name,
-                                            displaytext: args.data.displaytext
+                                            displaytext: args.data.displaytext,
+                                            networkbootip: args.data.networkbootip
                                         },
                                         success: function(json) {
                                             var jid = json.updatevpcresponse.jobid;
@@ -5356,6 +5498,8 @@
 
                                         args.$form.find('.form-item[rel=cleanup]').find('input').attr('checked', 'checked'); //checked
                                         args.$form.find('.form-item[rel=cleanup]').css('display', 'inline-block'); //shown
+                                        args.$form.find('.form-item[rel=migratevpn]').find('input').attr('checked', 'checked'); //checked
+                                        args.$form.find('.form-item[rel=migratevpn]').css('display', 'inline-block'); //shown
                                         args.$form.find('.form-item[rel=makeredundant]').find('input').attr('checked', 'checked'); //checked
                                         args.$form.find('.form-item[rel=makeredundant]').css('display', 'inline-block'); //shown
 
@@ -5369,6 +5513,10 @@
                                         cleanup: {
                                             label: 'label.clean.up',
                                             isBoolean: true
+                                        },
+                                        migratevpn: {
+                                     	   label: 'label.migrate.vpn',
+                                     	   isBoolean: true
                                         },
                                         makeredundant: {
                                             label: 'label.make.redundant',
@@ -5391,6 +5539,7 @@
                                         data: {
                                             id: args.context.vpc[0].id,
                                             cleanup: (args.data.cleanup == "on"),
+                                            migratevpn: (args.data.migratevpn == "on"),
                                             makeredundant: (args.data.makeredundant == "on")
                                         },
                                         success: function(json) {
@@ -5522,7 +5671,12 @@
                                     },
                                     id: {
                                         label: 'label.id'
-                                    }
+                                    },
+                                    networkbootip: {
+                                        label: 'label.network.boot.ip',
+                                        docID: 'helpVPCNetworkBootIP',
+                                        isEditable: true
+                                    },
                                 }],
 
                                 tags: cloudStack.api.tags({

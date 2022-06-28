@@ -40,7 +40,7 @@ public class ListVPCsCmdByAdmin extends ListVPCsCmd {
         Pair<List<? extends Vpc>, Integer> vpcs =
                 _vpcService.listVpcs(getId(), getVpcName(), getDisplayText(), getSupportedServices(), getCidr(), getVpcOffId(), getState(), getAccountName(), getDomainId(),
                         getKeyword(), getStartIndex(), getPageSizeVal(), getZoneId(), isRecursive(), listAll(), getRestartRequired(), getTags(),
-                        getProjectId(), getDisplay());
+                        getProjectId(), getDisplay(), getNetworkBootIp());
         ListResponse<VpcResponse> response = new ListResponse<VpcResponse>();
         List<VpcResponse> vpcResponses = new ArrayList<VpcResponse>();
         for (Vpc vpc : vpcs.first()) {

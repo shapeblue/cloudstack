@@ -88,6 +88,12 @@ function install_packages() {
     ${apt_get} install libuuid1:i386 libc6:i386
   fi
 
+  ## Hyperv  kvp daemon - 64bit only
+  ## Download the hv kvp daemon
+  #wget http://people.apache.org/~rajeshbattala/hv-kvp-daemon_3.1_amd64.deb
+  #dpkg -i hv-kvp-daemon_3.1_amd64.deb
+  #rm -f hv-kvp-daemon_3.1_amd64.deb
+
   # Install xenserver guest utilities as debian repos don't have it
   wget https://mirrors.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
   dpkg -i xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb

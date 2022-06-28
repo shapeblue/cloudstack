@@ -26,12 +26,12 @@ import XenAPI
 import collections
 import distutils.util
 
-logger = logging.getLogger(__name__)
-logger_handler = logging.FileHandler('/var/tmp/{}.log'.format(__name__))
-logger_formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-logger_handler.setFormatter(logger_formatter)
-logger.addHandler(logger_handler)
-logger.setLevel(logging.INFO)
+logger = logging.getLogger('myapp')
+hdlr = logging.FileHandler('/var/tmp/syed.log')
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.setLevel(logging.WARNING)
 
 # All tests inherit from cloudstackTestCase
 from marvin.cloudstackTestCase import cloudstackTestCase
@@ -41,22 +41,18 @@ from nose.plugins.attrib import attr
 # Import Integration Libraries
 
 # base - contains all resources as entities and defines create, delete, list operations on them
-from marvin.lib.base import (Account, DiskOffering, ServiceOffering,
-                             StoragePool, User, VirtualMachine, Volume)
+from marvin.lib.base import Account, DiskOffering, ServiceOffering, StoragePool, User, VirtualMachine, Volume
 
 # common - commonly used methods for all tests are listed here
-from marvin.lib.common import (get_domain, get_template, get_zone,
-                               list_clusters, list_hosts,
-                               list_virtual_machines,
-                               list_volumes, list_disk_offering)
+from marvin.lib.common import get_domain, get_template, get_zone, list_clusters, list_hosts, list_virtual_machines, \
+    list_volumes, list_disk_offering
 
 # utils - utility classes for common cleanup, external library wrappers, etc.
 from marvin.lib.utils import cleanup_resources
 
 from marvin.cloudstackAPI import resizeVolume
 
-#from dfs_sdk import DateraApi
-from dfs_sdk import get_api
+from dfs_sdk import DateraApi
 
 
 class TestData():
@@ -96,11 +92,11 @@ class TestData():
     def __init__(self):
         self.testdata = {
             TestData.Datera: {
-                TestData.mvip: "172.19.2.214",
+                TestData.mvip: "192.168.22.100",
                 TestData.login: "admin",
                 TestData.password: "password",
                 TestData.port: 80,
-                TestData.url: "https://172.19.2.214:443"
+                TestData.url: "https://192.168.22.100:443"
             },
             TestData.xenServer: {
                 TestData.username: "root",
@@ -130,10 +126,10 @@ class TestData():
             TestData.primaryStorage: {
                 "name": "Datera-%d" % random.randint(0, 100),
                 TestData.scope: "ZONE",
-                "url": "MVIP=172.19.2.214;SVIP=172.28.214.9;" +
+                "url": "MVIP=192.168.22.100;SVIP=192.168.100.2;" +
                        "clusterAdminUsername=admin;clusterAdminPassword=password;" +
                        "clusterDefaultMinIops=10000;clusterDefaultMaxIops=15000;" +
-                       "numReplicas=3;",
+                       "numReplicas=1;",
                 TestData.provider: "Datera",
                 TestData.tags: TestData.storageTag,
                 TestData.capacityIops: 4500000,
@@ -142,14 +138,14 @@ class TestData():
             },
             TestData.virtualMachine: {
                 "name": "TestVM",
-                "displayname": "TestVM",
+                "displayname": "Test VM",
                 "privateport": 22,
                 "publicport": 22,
                 "protocol": "tcp"
             },
             TestData.virtualMachine2: {
                 "name": "TestVM2",
-                "displayname": "TestVM2",
+                "displayname": "Test VM 2",
                 "privateport": 22,
                 "publicport": 22,
                 "protocol": "tcp"
@@ -178,7 +174,6 @@ class TestData():
                 "miniops": "10000",
                 "maxiops": "15000",
                 "hypervisorsnapshotreserve": 200,
-                "tags": TestData.storageTag
             },
 
             TestData.diskOffering: {
@@ -265,7 +260,7 @@ class TestData():
             TestData.volume_2: {
                 TestData.diskName: "test-volume-2",
             },
-            TestData.templateName: "tiny linux kvm",  # TODO
+            TestData.templateName: "tiny linux xenserver",  # TODO
             TestData.zoneId: 1,
             TestData.clusterId: 1,
             TestData.domainId: 1,
@@ -323,7 +318,7 @@ class TestVolumes(cloudstackTestCase):
 
     @classmethod
     def setUpKVM(cls):
-        logger.info("Setting up KVM")
+
         # KVM doesn't support root disks
         cls.compute_offering = ServiceOffering.create(
             cls.apiClient,
@@ -334,14 +329,6 @@ class TestVolumes(cloudstackTestCase):
 
     @classmethod
     def setUpClass(cls):
-        """
-        1. Init ACS API and DB connection
-        2. Init Datera API connection
-        3. Create ACS Primary storage
-        4. Create ACS compute and disk offering.
-        5. Create ACS data disk without attaching to a VM 
-        """
-        logger.info("Setting up Class")
 
         # Set up API client
         testclient = super(TestVolumes, cls).getClsTestClient()
@@ -362,11 +349,10 @@ class TestVolumes(cloudstackTestCase):
 
         # Set up datera connection
         datera = cls.testdata[TestData.Datera]
-        cls.dt_client = get_api(
+        cls.dt_client = DateraApi(
             username=datera[TestData.login],
             password=datera[TestData.password],
-            hostname=datera[TestData.mvip],
-            version="v2"
+            hostname=datera[TestData.mvip]
         )
 
         # Create test account
@@ -416,7 +402,6 @@ class TestVolumes(cloudstackTestCase):
         if cls.cluster.hypervisortype.lower() == 'kvm':
             cls.setUpKVM()
 
-        # Create 1 data volume_1
         cls.volume = Volume.create(
             cls.apiClient,
             cls.testdata[TestData.volume_1],
@@ -438,7 +423,6 @@ class TestVolumes(cloudstackTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        logger.info("Tearing Down Class")
         try:
             cleanup_resources(cls.apiClient, cls._cleanup)
 
@@ -450,62 +434,31 @@ class TestVolumes(cloudstackTestCase):
             logging.debug("Exception in tearDownClass(cls): %s" % e)
 
     def setUp(self):
-        logger.info("Setup test")
         self.attached = False
         self.cleanup = []
 
     def tearDown(self):
-        logger.info("Tearing Down test")
         cleanup_resources(self.apiClient, self.cleanup)
 
-    @classmethod
-    def _set_supports_resign(cls, val):
+    @attr(hypervisor='XenServer')
+    def test_00_check_template_cache(self):
 
-        supports_resign = str(val).lower()
-        cls.supports_resign = val
+        if not self.supports_resign:
+            self.skipTest("Resignature not supported, skipping")
 
-        # make sure you can connect to MySQL: https://teamtreehouse.com/community/cant-connect-remotely-to-mysql-server-with-mysql-workbench
+        dt_volumes = self._get_dt_volumes()
 
-        sql_query = "Update host_details Set value = '" + supports_resign + "' Where name = 'supportsResign'"
-        cls.dbConnection.execute(sql_query)
+        template_volume_name = self._get_app_instance_name_from_cs_volume(self.template, vol_type='TEMPLATE')
 
-        sql_query = "Update cluster_details Set value = '" + supports_resign + "' Where name = 'supportsResign'"
-        cls.dbConnection.execute(sql_query)
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, template_volume_name)
 
-    @classmethod
-    def _get_supports_resign(cls):
+        initiator_group_name = self._get_initiator_group_name()
 
-        sql_query = "SELECT value from cluster_details Where name='supportsResign' AND cluster_id=%d" % cls.testdata[
-            TestData.clusterId]
-
-        sql_result = cls.dbConnection.execute(sql_query)
-        logger.warn(sql_result)
-
-        if len(sql_result) < 1:
-            return False
-
-        return bool(distutils.util.strtobool(sql_result[0][0].lower()))
-
-    def _get_cs_storage_pool_db_id(self, storage_pool):
-        return self._get_db_id("storage_pool", storage_pool)
-
-    def _get_db_id(self, table, db_obj):
-        sql_query = "Select id From " + table + " Where uuid = '" + str(db_obj.id) + "'"
-        sql_result = self.dbConnection.execute(sql_query)
-        return sql_result[0][0]
-
-    @classmethod
-    def _purge_datera_volumes(cls):
-        logger.warn("Deleting all volumes")
-        for ai in cls.dt_client.app_instances.get().values():
-            logger.warn(ai)
-            if 'CS-T' in ai['name']:
-                ai.set(admin_state="offline")
-                ai.delete()
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
 
     def test_01_attach_new_volume_to_stopped_VM(self):
-
         '''Attach a volume to a stopped virtual machine, then start VM'''
+
         # Create VM and volume for tests
         virtual_machine = VirtualMachine.create(
             self.apiClient,
@@ -518,14 +471,9 @@ class TestVolumes(cloudstackTestCase):
             startvm=True,
             mode='advanced'
         )
-        self.cleanup.append(virtual_machine)
+	self.cleanup.append(virtual_machine)
 
-        template_volume_name = \
-            self._get_app_instance_name_from_cs_volume(self.template,
-                                                       vol_type='TEMPLATE')
-        dt_volume = self._check_and_get_dt_volume(template_volume_name)
-
-        virtual_machine.stop(self.apiClient, forced=True)
+        virtual_machine.stop(self.apiClient)
 
         new_volume = Volume.create(
             self.apiClient,
@@ -567,9 +515,11 @@ class TestVolumes(cloudstackTestCase):
 
         iqn = self._get_iqn(newvolume)
 
+        dt_volumes = self._get_dt_volumes()
+
         dt_new_volname = self._get_app_instance_name_from_cs_volume(newvolume)
 
-        dt_volume = self._check_and_get_dt_volume(dt_new_volname)
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_new_volname)
 
         self._check_size_and_iops(dt_volume, newvolume, dt_volume_size)
 
@@ -578,11 +528,12 @@ class TestVolumes(cloudstackTestCase):
         self._check_initiator_group(dt_volume, initiator_group_name)
 
         self._check_hypervisor(iqn)
-        logger.info("Detach volume from the VM")
+
         virtual_machine.detach_volume(
             self.apiClient,
             new_volume
         )
+
 
     def test_02_attach_detach_attach_volume(self):
         '''Attach, detach, and attach volume to a running VM'''
@@ -599,7 +550,7 @@ class TestVolumes(cloudstackTestCase):
             startvm=True,
             mode='advanced'
         )
-        self.cleanup.append(virtual_machine)
+	self.cleanup.append(virtual_machine)
 
         self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
 
@@ -639,7 +590,9 @@ class TestVolumes(cloudstackTestCase):
 
         dt_volume_name = self._get_app_instance_name_from_cs_volume(self.volume)
 
-        dt_volume = self._check_and_get_dt_volume(dt_volume_name)
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
 
         self._check_initiator_group(dt_volume, initiator_group_name)
 
@@ -676,7 +629,9 @@ class TestVolumes(cloudstackTestCase):
             str(vm.state)
         )
 
-        dt_volume = self._check_and_get_dt_volume(dt_volume_name)
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
 
         self._check_initiator_group(dt_volume, initiator_group_name, False)
 
@@ -712,11 +667,14 @@ class TestVolumes(cloudstackTestCase):
             TestVolumes._vm_not_in_running_state_err_msg
         )
 
-        dt_volume = self._check_and_get_dt_volume(dt_volume_name)
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
 
         self._check_initiator_group(dt_volume, initiator_group_name)
 
         self._check_hypervisor(iqn)
+
 
     def test_03_attached_volume_reboot_VM(self):
         '''Attach volume to running VM, then reboot.'''
@@ -732,7 +690,7 @@ class TestVolumes(cloudstackTestCase):
             startvm=True,
             mode='advanced'
         )
-        self.cleanup.append(virtual_machine)
+	self.cleanup.append(virtual_machine)
 
         self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
 
@@ -773,7 +731,9 @@ class TestVolumes(cloudstackTestCase):
 
         volume_size_gb = self._get_volume_size_with_hsr(self.volume)
 
-        dt_volume = self._check_and_get_dt_volume(dt_volume_name)
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
 
         self._check_size_and_iops(dt_volume, vol, volume_size_gb)
 
@@ -796,7 +756,9 @@ class TestVolumes(cloudstackTestCase):
 
         dt_volume_size = self._get_volume_size_with_hsr(self.volume)
 
-        dt_volume = self._check_and_get_dt_volume(dt_volume_name)
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
 
         self._check_size_and_iops(dt_volume, vol, dt_volume_size)
 
@@ -804,21 +766,984 @@ class TestVolumes(cloudstackTestCase):
 
         self._check_hypervisor(iqn)
 
-    def _check_if_device_visible_in_vm(self, vm, dev_name):
 
-        try:
-            ssh_client = vm.get_ssh_client()
-        except Exception as e:
-            self.fail("SSH failed for virtual machine: %s - %s" %
-                      (vm.ipaddress, e))
+    def test_04_detach_volume_reboot(self):
+        '''Detach volume from a running VM, then reboot.'''
 
-        cmd = "iostat | grep %s" % dev_name
-        res = ssh_client.execute(cmd)
-        logger.warn(cmd)
-        logger.warn(res)
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
 
-        if not res:
-            self.fail("Device %s not found on VM: %s" % (dev_name, vm.ipaddress))
+
+
+        self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        #######################################
+        #######################################
+        # STEP 1: Attach volume to running VM #
+        #######################################
+        #######################################
+
+        self.volume = virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol)
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        iqn = self._get_iqn(self.volume)
+
+        dt_volume_size = self._get_volume_size_with_hsr(self.volume)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        self._check_hypervisor(iqn)
+
+        #########################################
+        #########################################
+        # STEP 2: Detach volume from running VM #
+        #########################################
+        #########################################
+
+        self.volume = virtual_machine.detach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = False
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            None,
+            "The volume should not be attached to a VM."
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+        #######################################
+        #######################################
+        # STEP 3: Reboot VM with detached vol #
+        #######################################
+        #######################################
+
+        virtual_machine.reboot(self.apiClient)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+
+    def test_05_detach_vol_stopped_VM_start(self):
+        '''Detach volume from a stopped VM, then start.'''
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
+
+
+        self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        #######################################
+        #######################################
+        # STEP 1: Attach volume to running VM #
+        #######################################
+        #######################################
+
+        self.volume = virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        iqn = self._get_iqn(self.volume)
+
+        dt_volume_size = self._get_volume_size_with_hsr(self.volume)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(self.volume)
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        self._check_hypervisor(iqn)
+
+        #########################################
+        #########################################
+        # STEP 2: Detach volume from stopped VM #
+        #########################################
+        #########################################
+
+        virtual_machine.stop(self.apiClient)
+
+        self.volume = virtual_machine.detach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = False
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            None,
+            "The volume should not be attached to a VM."
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'stopped',
+            TestVolumes._vm_not_in_stopped_state_err_msg
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+        #######################################
+        #######################################
+        # STEP 3: Start VM with detached vol  #
+        #######################################
+        #######################################
+
+        virtual_machine.start(self.apiClient)
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+
+    def test_06_attach_volume_to_stopped_VM(self):
+        '''Attach a volume to a stopped virtual machine, then start VM'''
+
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
+
+        virtual_machine.stop(self.apiClient)
+
+        self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        #######################################
+        #######################################
+        # STEP 1: Attach volume to stopped VM #
+        #######################################
+        #######################################
+
+        self.volume = virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'stopped',
+            TestVolumes._vm_not_in_stopped_state_err_msg
+        )
+
+        dt_volume_size = self._get_volume_size_with_hsr(self.volume)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(self.volume)
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        virtual_machine.start(self.apiClient)
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        iqn = self._get_iqn(self.volume)
+
+        dt_volume_size = self._get_volume_size_with_hsr(self.volume)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        self._check_initiator_group(dt_volume, initiator_group_name)
+
+        self._check_hypervisor(iqn)
+
+
+    def test_07_destroy_expunge_VM_with_volume(self):
+        '''Destroy and expunge VM with attached volume'''
+
+        #######################################
+        #######################################
+        # STEP 1: Create VM and attach volume #
+        #######################################
+        #######################################
+
+        test_virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine2],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+
+        self.volume = test_virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(test_virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        dt_volume_size = self._get_volume_size_with_hsr(self.volume)
+
+        iqn = self._get_iqn(self.volume)
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(self.volume)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        self._check_hypervisor(iqn)
+
+        #######################################
+        #######################################
+        #   STEP 2: Destroy and Expunge VM    #
+        #######################################
+        #######################################
+
+        test_virtual_machine.delete(self.apiClient, True)
+
+        self.attached = False
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            None,
+            "Check if attached to virtual machine"
+        )
+
+        self.assertEqual(
+            vol.vmname,
+            None,
+            "Check if VM was expunged"
+        )
+
+        list_virtual_machine_response = list_virtual_machines(
+            self.apiClient,
+            id=test_virtual_machine.id
+        )
+
+        self.assertEqual(
+            list_virtual_machine_response,
+            None,
+            "Check if VM was actually expunged"
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+    def test_08_delete_volume_was_attached(self):
+        '''Delete volume that was attached to a VM and is detached now'''
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
+
+        #######################################
+        #######################################
+        # STEP 1: Create vol and attach to VM #
+        #######################################
+        #######################################
+
+        new_volume = Volume.create(
+            self.apiClient,
+            self.testdata[TestData.volume_2],
+            account=self.account.name,
+            domainid=self.domain.id,
+            zoneid=self.zone.id,
+            diskofferingid=self.disk_offering.id
+        )
+
+        volume_to_delete_later = new_volume
+
+        self._check_and_get_cs_volume(new_volume.id, self.testdata[TestData.volume_2][TestData.diskName])
+
+        new_volume = virtual_machine.attach_volume(
+            self.apiClient,
+            new_volume
+        )
+
+        vol = self._check_and_get_cs_volume(new_volume.id, self.testdata[TestData.volume_2][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            "Check if attached to virtual machine"
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            str(vm.state)
+        )
+
+        dt_volume_size = self._get_volume_size_with_hsr(new_volume)
+
+        iqn = self._get_iqn(new_volume)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol)
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        self._check_hypervisor(iqn)
+
+        #######################################
+        #######################################
+        #  STEP 2: Detach and delete volume   #
+        #######################################
+        #######################################
+
+        new_volume = virtual_machine.detach_volume(
+            self.apiClient,
+            new_volume
+        )
+
+        vol = self._check_and_get_cs_volume(new_volume.id, self.testdata[TestData.volume_2][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            None,
+            "Check if attached to virtual machine"
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            str(vm.state)
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+        volume_to_delete_later.delete(self.apiClient)
+
+        list_volumes_response = list_volumes(
+            self.apiClient,
+            id=new_volume.id
+        )
+
+        self.assertEqual(
+            list_volumes_response,
+            None,
+            "Check volume was deleted"
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        self._check_and_get_dt_volume(dt_volumes, dt_volume_name, False)
+
+
+    def test_09_attach_more_than_one_disk_to_VM(self):
+        '''Attach more than one disk to a VM'''
+
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
+
+
+
+        volume_2 = Volume.create(
+            self.apiClient,
+            self.testdata[TestData.volume_2],
+            zoneid=self.zone.id,
+            account=self.account.name,
+            domainid=self.domain.id,
+            diskofferingid=self.disk_offering.id
+        )
+
+        self.cleanup.append(volume_2)
+
+        self._check_and_get_cs_volume(volume_2.id, self.testdata[TestData.volume_2][TestData.diskName])
+
+        #######################################
+        #######################################
+        #    Step 1: Attach volumes to VM     #
+        #######################################
+        #######################################
+
+        virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        virtual_machine.attach_volume(
+            self.apiClient,
+            volume_2
+        )
+
+        vol_2 = self._check_and_get_cs_volume(volume_2.id, self.testdata[TestData.volume_2][TestData.diskName])
+
+        dt_volume_size = self._get_volume_size_with_hsr(self.volume)
+
+        dt_volume_2_size = self._get_volume_size_with_hsr(volume_2)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol)
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, dt_volume_size)
+
+        iqn = self._get_iqn(self.volume)
+
+        self._check_hypervisor(iqn)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        self._check_initiator_group(dt_volume, initiator_group_name)
+
+        dt_volume_2 = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol_2)
+
+        self._check_size_and_iops(dt_volume_2, vol_2, dt_volume_2_size)
+
+        iqn2 = self._get_iqn(volume_2)
+
+        self._check_hypervisor(iqn2)
+
+        self._check_initiator_group(dt_volume_2, initiator_group_name)
+
+        virtual_machine.detach_volume(self.apiClient, volume_2)
+
+
+    def test_10_live_migrate_vm_with_volumes(self):
+        '''
+	Live migrate a VM while it has volumes attached within a cluster
+	'''
+        #######################################
+        #######################################
+        # STEP 1: Attach volume to running VM #
+        #######################################
+        #######################################
+
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
+
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vm = self._get_vm(virtual_machine.id)
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        iqn = self._get_iqn(self.volume)
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_initiator_group(dt_volume, initiator_group_name)
+
+        cs_volume_size = self._get_cs_volume_size_with_hsr(vol)
+
+        self._check_size_and_iops(dt_volume, vol, cs_volume_size)
+
+        self._check_hypervisor(iqn)
+
+        self._check_if_device_visible_in_vm(virtual_machine, self.device_name)
+
+        #########################################
+        #########################################
+        # STEP 2: Migrate the VM to other host  #
+        #########################################
+        #########################################
+
+        hosts = list_hosts(self.apiClient, clusterid=self.testdata[TestData.clusterId])
+
+        if len(hosts) < 2:
+            self.skipTest("At least two hosts should be present in the zone for migration")
+
+        current_host_id = virtual_machine.hostid
+        other_host = None
+        for host in hosts:
+            if host.id != current_host_id:
+                other_host = host
+                break
+
+        self.assertNotEqual(other_host, None, "Destination host not found")
+
+        # Start dd on the volume
+        self._start_device_io(virtual_machine, self.device_name)
+        time.sleep(5)
+        bytes_written_1 = self._get_bytes_written(virtual_machine, self.device_name)
+
+        virtual_machine.migrate(self.apiClient, other_host.id)
+
+        list_vm_response = VirtualMachine.list(self.apiClient, id=virtual_machine.id)
+
+        self.assertNotEqual(
+            list_vm_response,
+            None,
+            "Check virtual machine is listed"
+        )
+
+        vm_response = list_vm_response[0]
+
+        self.assertEqual(vm_response.id, virtual_machine.id, "Check virtual machine ID of migrated VM")
+
+        self.assertEqual(vm_response.hostid, other_host.id, "Check destination hostID of migrated VM")
+
+        self._stop_device_io(virtual_machine, self.device_name)
+        time.sleep(5)
+        bytes_written_2 = self._get_bytes_written(virtual_machine, self.device_name)
+
+        self.assertGreater(bytes_written_2, bytes_written_1, "Unable to write to device")
+
+        #########################################
+        #########################################
+        # STEP 3: Detach volume from running VM #
+        #########################################
+        #########################################
+
+        self.volume = virtual_machine.detach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = False
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            None,
+            "The volume should not be attached to a VM."
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            str(vm.state)
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+
+    def test_11_detach_resize_volume_attach(self):
+        '''
+        Detach and resize a volume and the attach it again
+        '''
+
+        #######################################
+        #######################################
+        # STEP 1: Attach volume to running VM #
+        #######################################
+        #######################################
+
+        # Create VM and volume for tests
+        virtual_machine = VirtualMachine.create(
+            self.apiClient,
+            self.testdata[TestData.virtualMachine],
+            accountid=self.account.name,
+            zoneid=self.zone.id,
+            serviceofferingid=self.compute_offering.id,
+            templateid=self.template.id,
+            domainid=self.domain.id,
+            startvm=True,
+            mode='advanced'
+        )
+	self.cleanup.append(virtual_machine)
+
+        initiator_group_name = self._get_initiator_group_name()
+
+        virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vm = self._get_vm(virtual_machine.id)
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        iqn = self._get_iqn(self.volume)
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_initiator_group(dt_volume, initiator_group_name)
+
+        cs_volume_size = self._get_cs_volume_size_with_hsr(vol)
+
+        self._check_size_and_iops(dt_volume, vol, cs_volume_size)
+
+        self._check_hypervisor(iqn)
+
+        #########################################
+        #########################################
+        # STEP 2: Detach volume from running VM #
+        #########################################
+        #########################################
+
+        self.volume = virtual_machine.detach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = False
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName])
+
+        vm = self._get_vm(virtual_machine.id)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            None,
+            "The volume should not be attached to a VM."
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            str(vm.state)
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_initiator_group(dt_volume, initiator_group_name, False)
+
+        self._check_hypervisor(iqn, False)
+
+        #########################################
+        #########################################
+        #        STEP 3: Resize the volume      #
+        #########################################
+        #########################################
+
+        self._resize_volume(self.volume, self.disk_offering_new)
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName],
+                                            self.disk_offering_new)
+
+        cs_volume_size = self._get_cs_volume_size_with_hsr(vol)
+
+        dt_volume_name = self._get_app_instance_name_from_cs_volume(vol)
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        self._check_size_and_iops(dt_volume, vol, cs_volume_size)
+
+        #########################################
+        #########################################
+        #        STEP 4: Attach the volume      #
+        #########################################
+        #########################################
+
+        virtual_machine.attach_volume(
+            self.apiClient,
+            self.volume
+        )
+
+        self.attached = True
+
+        vm = self._get_vm(virtual_machine.id)
+
+        vol = self._check_and_get_cs_volume(self.volume.id, self.testdata[TestData.volume_1][TestData.diskName],
+                                            self.disk_offering_new)
+
+        self.assertEqual(
+            vol.virtualmachineid,
+            vm.id,
+            TestVolumes._volume_vm_id_and_vm_id_do_not_match_err_msg
+        )
+
+        self.assertEqual(
+            vm.state.lower(),
+            'running',
+            TestVolumes._vm_not_in_running_state_err_msg
+        )
+
+        dt_volumes = self._get_dt_volumes()
+
+        dt_volume = self._check_and_get_dt_volume(dt_volumes, dt_volume_name)
+
+        iqn = self._get_iqn(self.volume)
+
+        self._check_initiator_group(dt_volume, initiator_group_name)
+
+        self._check_hypervisor(iqn)
+
 
     def _check_list(self, in_list, expected_size_of_list, err_msg):
         self.assertEqual(
@@ -910,23 +1835,11 @@ class TestVolumes(cloudstackTestCase):
         return cs_volume
 
     def _get_app_instance_name_from_cs_volume(self, cs_volume, vol_type='VOLUME'):
-        """
-        Get Datera app_instance name based on ACS data object types
-        Eg. CS-V-test-volume-7XWJ5Q-dfc41254-371a-40b3-b410-129eb79893c0
-        """
-        app_inst_prefix = 'CS'
-
-        if vol_type == 'VOLUME':
-            vol_type_char = 'V'
-            uuid = cs_volume.id
-            name = cs_volume.name
-            app_instance_name = app_inst_prefix + '-' + vol_type_char + '-' + name + '-' + uuid
+        app_instance_name = 'Cloudstack-' + vol_type + '-' + cs_volume.id
 
         if vol_type == 'TEMPLATE':
-            vol_type_char = 'T'
-            uuid = cs_volume.id
-            primary_storage_db_id = str(self._get_cs_storage_pool_db_id(self.primary_storage))
-            app_instance_name = app_inst_prefix + '-' + vol_type_char + '-' + uuid + '-' + primary_storage_db_id
+            primary_storage_db_id = self._get_cs_storage_pool_db_id(self.primary_storage)
+            app_instance_name += '-' + str(primary_storage_db_id)
 
         return app_instance_name
 
@@ -970,8 +1883,8 @@ class TestVolumes(cloudstackTestCase):
         return volume_size_gb
 
     def _get_initiator_group_name(self):
-        init_group_prefix = 'CS-InitiatorGroup'
-        initiator_group_name = init_group_prefix + '-' + self.cluster.id
+
+        initiator_group_name = 'Cloudstack-InitiatorGroup-' + self.cluster.id
         self.dt_client.initiator_groups.get(initiator_group_name)
         return initiator_group_name
 
@@ -985,9 +1898,8 @@ class TestVolumes(cloudstackTestCase):
 
         return list_vms_response[0]
 
-    def _check_and_get_dt_volume(self, dt_volume_name, should_exist=True):
+    def _check_and_get_dt_volume(self, dt_volumes, dt_volume_name, should_exist=True):
         dt_volume = None
-        dt_volumes = self._get_dt_volumes()
 
         for volume in dt_volumes.values():
             if volume['name'] == dt_volume_name:
@@ -1065,6 +1977,67 @@ class TestVolumes(cloudstackTestCase):
             xen_sr = self.xen_session.xenapi.SR.get_by_name_label(xen_sr_name)
 
             self._check_list(xen_sr, 0, TestVolumes._list_should_be_empty)
+
+    @classmethod
+    def _set_supports_resign(cls, val):
+
+        supports_resign = str(val).lower()
+        cls.supports_resign = val
+
+        # make sure you can connect to MySQL: https://teamtreehouse.com/community/cant-connect-remotely-to-mysql-server-with-mysql-workbench
+
+        sql_query = "Update host_details Set value = '" + supports_resign + "' Where name = 'supportsResign'"
+        cls.dbConnection.execute(sql_query)
+
+        sql_query = "Update cluster_details Set value = '" + supports_resign + "' Where name = 'supportsResign'"
+        cls.dbConnection.execute(sql_query)
+
+    @classmethod
+    def _get_supports_resign(cls):
+
+        sql_query = "SELECT value from cluster_details Where name='supportsResign' AND cluster_id=%d" % cls.testdata[
+            TestData.clusterId]
+
+        sql_result = cls.dbConnection.execute(sql_query)
+        logger.warn(sql_result)
+
+        if len(sql_result) < 1:
+            return False
+
+        return bool(distutils.util.strtobool(sql_result[0][0].lower()))
+
+    def _get_cs_storage_pool_db_id(self, storage_pool):
+        return self._get_db_id("storage_pool", storage_pool)
+
+    def _get_db_id(self, table, db_obj):
+        sql_query = "Select id From " + table + " Where uuid = '" + str(db_obj.id) + "'"
+        sql_result = self.dbConnection.execute(sql_query)
+        return sql_result[0][0]
+
+    @classmethod
+    def _purge_datera_volumes(cls):
+        logger.warn("Deleting all volumes")
+        for ai in cls.dt_client.app_instances.get().values():
+            logger.warn(ai)
+            if 'TEMPLATE' in ai['name']:
+                ai.set(admin_state="offline")
+                ai.delete()
+
+    def _check_if_device_visible_in_vm(self, vm, dev_name):
+
+        try:
+            ssh_client = vm.get_ssh_client()
+        except Exception as e:
+            self.fail("SSH failed for virtual machine: %s - %s" %
+                      (vm.ipaddress, e))
+
+        cmd = "iostat | grep %s" % dev_name
+        res = ssh_client.execute(cmd)
+        logger.warn(cmd)
+        logger.warn(res)
+
+        if not res:
+            self.fail("Device %s not found on VM: %s" % (dev_name, vm.ipaddress))
 
     def _check_if_device_removed_in_vm(self, vm, dev_name):
 

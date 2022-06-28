@@ -22,6 +22,7 @@ import org.apache.cloudstack.api.response.DiskOfferingResponse;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
+
 import com.cloud.api.query.vo.DiskOfferingJoinVO;
 import com.cloud.offering.DiskOffering;
 import com.cloud.offering.ServiceOffering;
@@ -82,6 +83,10 @@ public class DiskOfferingJoinDaoImpl extends GenericDaoBase<DiskOfferingJoinVO, 
         diskOfferingResponse.setDiskSize(offering.getDiskSize() / (1024 * 1024 * 1024));
         diskOfferingResponse.setMinIops(offering.getMinIops());
         diskOfferingResponse.setMaxIops(offering.getMaxIops());
+        diskOfferingResponse.setMinIopsPerGb(offering.getMinIopsPerGb());
+        diskOfferingResponse.setMaxIopsPerGb(offering.getMaxIopsPerGb());
+        diskOfferingResponse.setHighestMinIops(offering.getHighestMinIops());
+        diskOfferingResponse.setHighestMaxIops(offering.getHighestMaxIops());
 
         diskOfferingResponse.setDisplayOffering(offering.isDisplayOffering());
         diskOfferingResponse.setDomainId(offering.getDomainUuid());

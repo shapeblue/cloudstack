@@ -1727,6 +1727,59 @@ div.list-view td.state.notsuitable-storage-migration-required span {
   color: #506273;
 }
 
+.ui-tabs ul.ui-tabs-subnav li {
+  display: block;
+  float: left;
+}
+
+.ui-tabs li a {
+  float: left;
+  padding: 15px 10px;
+  min-width: 91px;
+  text-align: center;
+  font-size: 11px;
+  margin-right: 5px;
+  color: #4E6070;
+  text-decoration: none;
+  /*+placement:shift 0px 2px;*/
+  position: relative;
+  left: 0px;
+  top: 2px;
+}
+
+.ui-tabs li a.download-certificate {
+  float: none;
+  padding: 0;
+  min-width: 0;
+  text-align: left;
+  font-size: 11px;
+  margin-right: 0;
+  color: #0B84DC;
+  text-decoration: none;
+  position: relative;
+  left: 0;
+  top: 0;
+}
+.ui-tabs li a.download-certificate:hover {
+	color: #000000;
+	text-decoration: underline;
+}
+
+.ui-tabs li {
+  float: left;
+}
+
+.ui-tabs ul li.ui-state-default a {
+  padding-bottom: 10px;
+  border: 1px solid #D9D9D9;
+  /*+border-radius:4px 4px 0 0;*/
+  -moz-border-radius: 4px 4px 0 0;
+  -webkit-border-radius: 4px 4px 0 0;
+  -khtml-border-radius: 4px 4px 0 0;
+  border-radius: 4px 4px 0 0;
+  background: #F0F0F0;
+}
+
 .project-view .ui-tabs ul li.ui-state-default a {
   box-shadow: inset -1px -2px 12px #596066;
   /*+box-shadow:inset -1px -2px 12px #596066;*/

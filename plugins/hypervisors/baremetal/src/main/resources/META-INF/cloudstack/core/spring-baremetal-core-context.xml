@@ -27,15 +27,21 @@
                       http://www.springframework.org/schema/context/spring-context.xsd"
                       >
 
+    <bean id="MaasManager" class="org.apache.cloudstack.compute.maas.MaasManagerImpl" />
+
     <bean id="BaremetalManager" class="com.cloud.baremetal.manager.BaremetalManagerImpl" />
     <bean id="BaremetalVlanManager" class="com.cloud.baremetal.manager.BaremetalVlanManagerImpl" >
        <property name="backends">
            <map>
                <entry key="Force10" value-ref="Force10BaremetalSwitchBackend"/>
+               <entry key="Brocade" value-ref="BrocadeFastIronBaremetalSwitchBackend"/>
+               <entry key="Juniper" value-ref="JuniperBaremetalSwitchBackend"/>
            </map>
        </property>
     </bean>
     <bean id="Force10BaremetalSwitchBackend" class="com.cloud.baremetal.networkservice.Force10BaremetalSwitchBackend" />
+    <bean id="BrocadeFastIronBaremetalSwitchBackend" class="com.cloud.baremetal.networkservice.BrocadeFastIronBaremetalSwitchBackend" />
+    <bean id="JuniperBaremetalSwitchBackend" class="com.cloud.baremetal.networkservice.JuniperBaremetalSwitchBackend" />
 
     <bean id="BaremetalKickStartPxeService"
         class="com.cloud.baremetal.networkservice.BaremetalKickStartServiceImpl" />

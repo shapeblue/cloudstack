@@ -470,6 +470,7 @@ setup_dnsmasq() {
   else
       echo 0 > /var/cache/cloud/dnsmasq_managed_lease
   fi
+
 }
 
 setup_sshd(){

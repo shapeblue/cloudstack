@@ -196,15 +196,19 @@ public class SolidFireHostListener implements HypervisorHostListener {
                 if (instanceId != null) {
                     VMInstanceVO vmInstance = vmDao.findById(instanceId);
 
-                    Long hostIdForVm = vmInstance.getHostId() != null ? vmInstance.getHostId() : vmInstance.getLastHostId();
+                    Long hostIdForVm = null;
+                    if(vmInstance != null) {
+                        hostIdForVm = vmInstance.getHostId() != null ? vmInstance.getHostId() : vmInstance.getLastHostId();
+                        if (hostIdForVm != null) {
+                            HostVO hostForVm = hostDao.findById(hostIdForVm);
 
-                    if (hostIdForVm != null) {
-                        HostVO hostForVm = hostDao.findById(hostIdForVm);
-
-                        if (hostForVm != null && hostForVm.getClusterId().equals(clusterId)) {
-                            storagePaths.add(volume.get_iScsiName());
+                            if (hostForVm != null && hostForVm.getClusterId().equals(clusterId)) {
+                                storagePaths.add(volume.get_iScsiName());
+                            }
                         }
+
                     }
+                    LOGGER.debug("Adding storage path with instance id " + instanceId + "for vm instance host id " + hostIdForVm);
                 }
             }
         }

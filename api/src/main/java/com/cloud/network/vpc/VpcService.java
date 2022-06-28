@@ -47,7 +47,7 @@ public interface VpcService {
      * @return
      * @throws ResourceAllocationException TODO
      */
-    public Vpc createVpc(long zoneId, long vpcOffId, long vpcOwnerId, String vpcName, String displayText, String cidr, String networkDomain, Boolean displayVpc)
+    public Vpc createVpc(long zoneId, long vpcOffId, long vpcOwnerId, String vpcName, String displayText, String cidr, String networkDomain, Boolean displayVpc, String networkBootIp)
             throws ResourceAllocationException;
 
     /**
@@ -71,7 +71,7 @@ public interface VpcService {
      * @param displayVpc TODO
      * @return
      */
-    public Vpc updateVpc(long vpcId, String vpcName, String displayText, String customId, Boolean displayVpc);
+    public Vpc updateVpc(long vpcId, String vpcName, String displayText, String customId, Boolean displayVpc, String networkBootip);
 
     /**
      * Lists VPC(s) based on the parameters passed to the method call
@@ -94,12 +94,12 @@ public interface VpcService {
      * @param tags TODO
      * @param projectId TODO
      * @param display TODO
-     * @param vpc
+     * @param networkBootIp
      * @return
      */
     public Pair<List<? extends Vpc>, Integer> listVpcs(Long id, String vpcName, String displayText, List<String> supportedServicesStr, String cidr, Long vpcOffId, String state,
             String accountName, Long domainId, String keyword, Long startIndex, Long pageSizeVal, Long zoneId, Boolean isRecursive, Boolean listAll, Boolean restartRequired,
-            Map<String, String> tags, Long projectId, Boolean display);
+            Map<String, String> tags, Long projectId, Boolean display, String networkBootIp);
 
     /**
      * Starts VPC which includes starting VPC provider and applying all the neworking rules on the backend
@@ -129,10 +129,11 @@ public interface VpcService {
      * @param id
      * @param cleanUp
      * @param makeredundant
+     * @param migrateVpn
      * @return
      * @throws InsufficientCapacityException
      */
-    boolean restartVpc(long id, boolean cleanUp, boolean makeredundant) throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException;
+    boolean restartVpc(long id, boolean cleanUp, boolean makeredundant, boolean migrateVpn) throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException;
 
     /**
      * Returns a Private gateway found in the VPC by id
@@ -256,4 +257,11 @@ public interface VpcService {
      */
     public boolean applyStaticRoute(long routeId) throws ResourceUnavailableException;
 
+    /**
+     *
+     * @param vpcId
+     * @return
+     * @throws InsufficientAddressCapacityException
+     */
+    boolean updateVpcSourceNAT(final long vpcId) throws InsufficientCapacityException, ResourceUnavailableException;
 }

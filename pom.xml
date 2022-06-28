@@ -279,6 +279,11 @@
                 <version>${cs.aws.sdk.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.bettercloud</groupId>
+                <artifactId>vault-java-driver</artifactId>
+                <version>3.1.0</version>
+            </dependency>
+            <dependency>
                 <groupId>com.globo.globodns</groupId>
                 <artifactId>globodns-client</artifactId>
                 <version>${cs.globodns-client.version}</version>
@@ -419,7 +424,7 @@
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
                 <version>${cs.mysql.version}</version>
-                <scope>provided,test</scope>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>net.sf.ehcache</groupId>

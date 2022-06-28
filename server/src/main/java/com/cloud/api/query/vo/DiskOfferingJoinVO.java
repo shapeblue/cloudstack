@@ -159,6 +159,18 @@ public class DiskOfferingJoinVO extends BaseViewVO implements InternalIdentity, 
     @Column(name = "state")
     DiskOffering.State state;
 
+    @Column(name = "min_iops_per_gb")
+    Long minIopsPerGb;
+
+    @Column(name = "max_iops_per_gb")
+    Long maxIopsPerGb;
+
+    @Column(name = "highest_min_iops")
+    Long highestMinIops;
+
+    @Column(name = "highest_max_iops")
+    Long highestMaxIops;
+
     public DiskOfferingJoinVO() {
     }
 
@@ -342,5 +354,21 @@ public class DiskOfferingJoinVO extends BaseViewVO implements InternalIdentity, 
 
     public void setState(DiskOffering.State state) {
         this.state = state;
+    }
+
+    public Long getMinIopsPerGb() {
+        return minIopsPerGb;
+    }
+
+    public Long getMaxIopsPerGb() {
+        return maxIopsPerGb;
+    }
+
+    public Long getHighestMinIops() {
+        return highestMinIops;
+    }
+
+    public Long getHighestMaxIops() {
+        return highestMaxIops;
     }
 }

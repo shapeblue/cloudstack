@@ -3205,15 +3205,16 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
                 ex.addProxyObject(template.getUuid(), "templateId");
                 throw ex;
             }
-            if (!template.isPublicTemplate() && caller.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
-                Account template_acc = _accountMgr.getAccount(template.getAccountId());
-                DomainVO domain = _domainDao.findById(template_acc.getDomainId());
-                _accountMgr.checkAccess(caller, domain);
-            }
 
             // if template is not public, perform permission check here
-            else if (!template.isPublicTemplate() && caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
-                _accountMgr.checkAccess(caller, null, false, template);
+            if (!template.isPublicTemplate()) {
+                if (caller.getType() == Account.ACCOUNT_TYPE_DOMAIN_ADMIN) {
+                    Account template_acc = _accountMgr.getAccount(template.getAccountId());
+                    DomainVO domain = _domainDao.findById(template_acc.getDomainId());
+                    _accountMgr.checkAccess(caller, domain);
+                } else if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
+                    _accountMgr.checkAccess(caller, null, false, template);
+                }
             }
 
             // if templateId is specified, then we will just use the id to
@@ -3378,6 +3379,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
                 SearchCriteria<TemplateJoinVO> readySc = _templateJoinDao.createSearchCriteria();
                 readySc.addOr("state", SearchCriteria.Op.EQ, TemplateState.Ready);
                 readySc.addOr("format", SearchCriteria.Op.EQ, ImageFormat.BAREMETAL);
+                readySc.addOr("format", SearchCriteria.Op.EQ, ImageFormat.PXEBOOT);
                 SearchCriteria<TemplateJoinVO> isoPerhostSc = _templateJoinDao.createSearchCriteria();
                 isoPerhostSc.addAnd("format", SearchCriteria.Op.EQ, ImageFormat.ISO);
                 isoPerhostSc.addAnd("templateType", SearchCriteria.Op.EQ, TemplateType.PERHOST);

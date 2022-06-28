@@ -273,7 +273,6 @@ class OvmVm(OvmObject):
                     doCmd(['umount', '-f', isoMountPath])
                 errmsg = fmt_err_msg(e)
                 raise Exception(errmsg)
-        
         try:
             vm = toOvmVm(jsonString)
             logger.debug(OvmVm.create, "creating vm, spec:%s"%jsonString)

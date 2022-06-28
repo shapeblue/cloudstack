@@ -2416,6 +2416,7 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
         volumeDetails.put(DiskTO.STORAGE_PORT, String.valueOf(storagePoolVO.getPort()));
         volumeDetails.put(DiskTO.IQN, volumeVO.get_iScsiName());
 
+        volumeDetails.put(DiskTO.PATH, volumeVO.getPath());
         volumeDetails.put(DiskTO.VOLUME_SIZE, String.valueOf(volumeVO.getSize()));
         volumeDetails.put(DiskTO.SCSI_NAA_DEVICE_ID, getVolumeProperty(volumeInfo.getId(), DiskTO.SCSI_NAA_DEVICE_ID));
 

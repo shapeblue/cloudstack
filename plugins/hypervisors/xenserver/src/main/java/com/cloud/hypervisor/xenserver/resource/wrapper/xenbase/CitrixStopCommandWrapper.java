@@ -25,6 +25,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import com.xensource.xenapi.VBD;
+import com.xensource.xenapi.VDI;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Answer;
@@ -133,6 +135,19 @@ public final class CitrixStopCommandWrapper extends CommandWrapper<StopCommand, 
                             if (vGPUs != null && !vGPUs.isEmpty()) {
                                 final HashMap<String, HashMap<String, VgpuTypesInfo>> groupDetails = citrixResourceBase.getGPUGroupDetails(conn);
                                 command.setGpuDevice(new GPUDeviceTO(null, null, groupDetails));
+                            }
+
+                            if (CitrixResourceBase.SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value())) {
+                                Set<VBD> vbds = vm.getVBDs(conn);
+                                for (VBD vbd : vbds) {
+                                    VDI vdi = vbd.getVDI(conn);
+                                    if (!vdi.isNull()) {
+                                        SR sr = vdi.getSR(conn);
+                                        if (sr.getType(conn).equals(CitrixResourceBase.SRType.VDILUN.toString())) {
+                                            vdi.forget(conn);
+                                        }
+                                    }
+                                }
                             }
 
                             final Set<VIF> vifs = vm.getVIFs(conn);

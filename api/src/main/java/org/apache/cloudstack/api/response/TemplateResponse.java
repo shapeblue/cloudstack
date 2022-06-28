@@ -201,6 +201,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Param(description = "true if template requires HVM enabled, false otherwise")
     private Boolean requiresHvm;
 
+    @SerializedName(ApiConstants.BOOT_FILENAME)
+    @Param(description = "The boot file name to use when pxe booting.")
+    private String bootFilename;
+
     public TemplateResponse() {
         tags = new LinkedHashSet<>();
     }
@@ -401,5 +405,13 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
 
     public void setRequiresHvm(Boolean requiresHvm) {
         this.requiresHvm = requiresHvm;
+    }
+
+    public String getBootFilename() {
+        return bootFilename;
+    }
+
+    public void setBootFilename(String bootFilename) {
+        this.bootFilename = bootFilename;
     }
 }

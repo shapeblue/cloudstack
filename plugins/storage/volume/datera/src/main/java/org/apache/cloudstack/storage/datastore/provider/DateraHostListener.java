@@ -18,6 +18,23 @@
  */
 package org.apache.cloudstack.storage.datastore.provider;
 
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.inject.Inject;
+
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
+import org.apache.cloudstack.engine.subsystem.api.storage.HypervisorHostListener;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
+import org.apache.cloudstack.storage.datastore.util.DateraObject;
+import org.apache.cloudstack.storage.datastore.util.DateraUtil;
+import org.apache.log4j.Logger;
+
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.ModifyStoragePoolAnswer;
@@ -41,21 +58,6 @@ import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
-import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
-import org.apache.cloudstack.engine.subsystem.api.storage.HypervisorHostListener;
-import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
-import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
-import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-import org.apache.cloudstack.storage.datastore.util.DateraObject;
-import org.apache.cloudstack.storage.datastore.util.DateraUtil;
-import org.apache.log4j.Logger;
-
-import javax.inject.Inject;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class DateraHostListener implements HypervisorHostListener {
     private static final Logger s_logger = Logger.getLogger(DateraHostListener.class);
@@ -82,10 +84,6 @@ public class DateraHostListener implements HypervisorHostListener {
 
         HostVO host = _hostDao.findById(hostId);
 
-        if (host == null) {
-            s_logger.error("Failed to add host by HostListener as host was not found with id : " + hostId);
-            return false;
-        }
         StoragePoolHostVO storagePoolHost = storagePoolHostDao.findByPoolHost(storagePoolId, hostId);
 
         if (storagePoolHost == null) {
@@ -98,7 +96,6 @@ public class DateraHostListener implements HypervisorHostListener {
             handleXenServer(host.getClusterId(), host.getId(), storagePoolId);
         }
         else if (host.getHypervisorType().equals(HypervisorType.KVM)) {
-            //handleKVM(host.getClusterId(), host.getId(), storagePoolId);
             handleKVM(hostId, storagePoolId);
         }
 
@@ -213,20 +210,6 @@ public class DateraHostListener implements HypervisorHostListener {
         }
     }
 
-    private void handleKVM(long clusterId, long hostId, long storagePoolId) {
-        List<String> storagePaths = getStoragePaths(clusterId, storagePoolId);
-
-        StoragePool storagePool = (StoragePool)_dataStoreMgr.getDataStore(storagePoolId, DataStoreRole.Primary);
-
-        for (String storagePath : storagePaths) {
-            ModifyStoragePoolCommand cmd = new ModifyStoragePoolCommand(true, storagePool);
-
-            cmd.setStoragePath(storagePath);
-
-            sendModifyStoragePoolCommand(cmd, storagePool, hostId);
-        }
-    }
-
     private void handleKVM(long hostId, long storagePoolId) {
         StoragePool storagePool = (StoragePool)_dataStoreMgr.getDataStore(storagePoolId, DataStoreRole.Primary);
 
@@ -250,10 +233,10 @@ public class DateraHostListener implements HypervisorHostListener {
 
                     Long hostIdForVm = vmInstance.getHostId() != null ? vmInstance.getHostId() : vmInstance.getLastHostId();
 
-                    if (hostIdForVm != null ) {
+                    if (hostIdForVm != null) {
                         HostVO hostForVm = _hostDao.findById(hostIdForVm);
 
-                        if (hostForVm.getClusterId().equals(clusterId)) {
+                        if (hostForVm != null && hostForVm.getClusterId().equals(clusterId)) {
                             storagePaths.add(volume.get_iScsiName());
                         }
                     }
@@ -295,7 +278,7 @@ public class DateraHostListener implements HypervisorHostListener {
             _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, storagePool.getDataCenterId(), storagePool.getPodId(), msg, msg);
 
             throw new CloudRuntimeException("Unable to establish a connection from agent to storage pool " + storagePool.getId() + " due to " + answer.getDetails() +
-                " (" + storagePool.getId() + ")");
+                    " (" + storagePool.getId() + ")");
         }
 
         assert (answer instanceof ModifyStoragePoolAnswer) : "ModifyStoragePoolAnswer expected ; Pool = " + storagePool.getId() + " Host = " + hostId;

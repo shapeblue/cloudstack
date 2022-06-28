@@ -449,6 +449,9 @@ public class EventTypes {
     public static final String EVENT_VPC_OFFERING_UPDATE = "VPC.OFFERING.UPDATE";
     public static final String EVENT_VPC_OFFERING_DELETE = "VPC.OFFERING.DELETE";
 
+    // VPC source NAT
+    public static final String EVENT_VPC_SOURCE_NAT_UPDATE = "VPC.SOURCE.NAT.UPDATE";
+
     // Private gateway
     public static final String EVENT_PRIVATE_GATEWAY_CREATE = "PRIVATE.GATEWAY.CREATE";
     public static final String EVENT_PRIVATE_GATEWAY_DELETE = "PRIVATE.GATEWAY.DELETE";

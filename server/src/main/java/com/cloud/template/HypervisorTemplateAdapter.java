@@ -179,16 +179,18 @@ public class HypervisorTemplateAdapter extends TemplateAdapterBase {
     @Override
     public TemplateProfile prepare(RegisterTemplateCmd cmd) throws ResourceAllocationException {
         TemplateProfile profile = super.prepare(cmd);
-        String url = profile.getUrl();
-        UriUtils.validateUrl(cmd.getFormat(), url);
-        if (cmd.isDirectDownload()) {
-            DigestHelper.validateChecksumString(cmd.getChecksum());
-            Long templateSize = performDirectDownloadUrlValidation(url);
-            profile.setSize(templateSize);
+        if(profile.getFormat() != ImageFormat.PXEBOOT) {
+            String url = profile.getUrl();
+            UriUtils.validateUrl(cmd.getFormat(), url);
+            if (cmd.isDirectDownload()) {
+                DigestHelper.validateChecksumString(cmd.getChecksum());
+                Long templateSize = performDirectDownloadUrlValidation(url);
+                profile.setSize(templateSize);
+            }
+            profile.setUrl(url);
+            // Check that the resource limit for secondary storage won't be exceeded
+            _resourceLimitMgr.checkResourceLimit(_accountMgr.getAccount(cmd.getEntityOwnerId()), ResourceType.secondary_storage, UriUtils.getRemoteSize(url));
         }
-        profile.setUrl(url);
-        // Check that the resource limit for secondary storage won't be exceeded
-        _resourceLimitMgr.checkResourceLimit(_accountMgr.getAccount(cmd.getEntityOwnerId()), ResourceType.secondary_storage, UriUtils.getRemoteSize(url));
         return profile;
     }
 
@@ -222,10 +224,9 @@ public class HypervisorTemplateAdapter extends TemplateAdapterBase {
             List<Long> zones = profile.getZoneIdList();
 
             //zones is null when this template is to be registered to all zones
-            if (zones == null){
+            if (zones == null) {
                 createTemplateWithinZone(null, profile, template);
-            }
-            else {
+            } else {
                 for (Long zId : zones) {
                     createTemplateWithinZone(zId, profile, template);
                 }

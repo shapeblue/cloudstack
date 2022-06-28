@@ -29,19 +29,14 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
-import javax.net.ssl.SSLEngine;
-
 import org.apache.cloudstack.framework.ca.Certificate;
-import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.utils.security.CertUtils;
-import org.apache.cloudstack.utils.security.SSLUtils;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -126,21 +121,21 @@ public class RootCAProviderTest {
         Assert.assertTrue(provider.revokeCertificate(CertUtils.generateRandomBigInt(), "anyString"));
     }
 
-    @Test
-    public void testCreateSSLEngineWithoutAuthStrictness() throws Exception {
-        provider.rootCAAuthStrictness = Mockito.mock(ConfigKey.class);
-        Mockito.when(provider.rootCAAuthStrictness.value()).thenReturn(Boolean.FALSE);
-        final SSLEngine e = provider.createSSLEngine(SSLUtils.getSSLContext(), "/1.2.3.4:5678", null);
-        Assert.assertFalse(e.getNeedClientAuth());
-    }
-
-    @Test
-    public void testCreateSSLEngineWithAuthStrictness() throws Exception {
-        provider.rootCAAuthStrictness = Mockito.mock(ConfigKey.class);
-        Mockito.when(provider.rootCAAuthStrictness.value()).thenReturn(Boolean.TRUE);
-        final SSLEngine e = provider.createSSLEngine(SSLUtils.getSSLContext(), "/1.2.3.4:5678", null);
-        Assert.assertTrue(e.getNeedClientAuth());
-    }
+//    @Test
+//    public void testCreateSSLEngineWithoutAuthStrictness() throws Exception {
+//        provider.rootCAAuthStrictness = Mockito.mock(ConfigKey.class);
+//        Mockito.when(provider.rootCAAuthStrictness.value()).thenReturn(Boolean.FALSE);
+//        final SSLEngine e = provider.createSSLEngine(SSLUtils.getSSLContext(), "/1.2.3.4:5678", null);
+//        Assert.assertFalse(e.getNeedClientAuth());
+//    }
+//
+//    @Test
+//    public void testCreateSSLEngineWithAuthStrictness() throws Exception {
+//        provider.rootCAAuthStrictness = Mockito.mock(ConfigKey.class);
+//        Mockito.when(provider.rootCAAuthStrictness.value()).thenReturn(Boolean.TRUE);
+//        final SSLEngine e = provider.createSSLEngine(SSLUtils.getSSLContext(), "/1.2.3.4:5678", null);
+//        Assert.assertTrue(e.getNeedClientAuth());
+//    }
 
     @Test
     public void testGetProviderName() throws Exception {

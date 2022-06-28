@@ -19,7 +19,7 @@
 set -e
 set -x
 
-CLOUDSTACK_RELEASE=4.11.3
+CLOUDSTACK_RELEASE=4.12.0.0-cca-SNAPSHOT
 
 function configure_apache2() {
    # Enable ssl, rewrite and auth

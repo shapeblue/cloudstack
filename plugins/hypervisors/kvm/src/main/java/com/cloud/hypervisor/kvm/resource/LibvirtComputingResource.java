@@ -1993,9 +1993,12 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     public long[] getVPCNetworkStats(final String privateIP, final String publicIp, final String option) {
-        final String result = configureVPCNetworkUsage(privateIP, publicIp, option, null);
+        String result = configureVPCNetworkUsage(privateIP, publicIp, option, null);
         final long[] stats = new long[2];
         if (result != null) {
+            if (result.contains(",")) {
+                result = result.split(",")[0];
+            }
             final String[] splitResult = result.split(":");
             int i = 0;
             while (i < splitResult.length - 1) {

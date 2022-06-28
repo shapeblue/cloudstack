@@ -696,8 +696,15 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
 
     @DB
     public PublicIp fetchNewPublicIp(final long dcId, final Long podId, final List<Long> vlanDbIds, final Account owner, final VlanType vlanUse, final Long guestNetworkId,
-            final boolean sourceNat, final boolean assign, final String requestedIp, final boolean isSystem, final Long vpcId, final Boolean displayIp, final boolean forSystemVms)
-                    throws InsufficientAddressCapacityException {
+                                     final boolean sourceNat, final boolean assign, final String requestedIp, final boolean isSystem, final Long vpcId, final Boolean displayIp, final boolean forSystemVms)
+            throws InsufficientAddressCapacityException {
+        return fetchNewPublicIp(dcId, podId, vlanDbIds, owner, vlanUse, guestNetworkId, sourceNat, assign, requestedIp, isSystem, vpcId, displayIp, forSystemVms, null);
+    }
+
+    @DB
+    public PublicIp fetchNewPublicIp(final long dcId, final Long podId, final List<Long> vlanDbIds, final Account owner, final VlanType vlanUse, final Long guestNetworkId,
+                                     final boolean sourceNat, final boolean assign, final String requestedIp, final boolean isSystem, final Long vpcId, final Boolean displayIp, final boolean forSystemVms, String ignoreIp)
+            throws InsufficientAddressCapacityException {
         IPAddressVO addr = Transaction.execute(new TransactionCallbackWithException<IPAddressVO, InsufficientAddressCapacityException>() {
             @Override
             public IPAddressVO doInTransaction(TransactionStatus status) throws InsufficientAddressCapacityException {
@@ -818,36 +825,10 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
                     }
                 }
 
-                IPAddressVO finalAddr = null;
-                for (final IPAddressVO possibleAddr: addrs) {
-                    if (possibleAddr.getState() != IpAddress.State.Free) {
-                        continue;
-                    }
-                    final IPAddressVO addr = possibleAddr;
-                    addr.setSourceNat(sourceNat);
-                    addr.setAllocatedTime(new Date());
-                    addr.setAllocatedInDomainId(owner.getDomainId());
-                    addr.setAllocatedToAccountId(owner.getId());
-                    addr.setSystem(isSystem);
+                IPAddressVO finalAddr = getIpAddressVO(addrs, sourceNat, owner, isSystem, displayIp, vlanUse, guestNetworkId, vpcId, ignoreIp);
 
-                    if (displayIp != null) {
-                        addr.setDisplay(displayIp);
-                    }
-
-                    if (vlanUse != VlanType.DirectAttached) {
-                        addr.setAssociatedWithNetworkId(guestNetworkId);
-                        addr.setVpcId(vpcId);
-                    }
-                    if (_ipAddressDao.lockRow(possibleAddr.getId(), true) != null) {
-                        final IPAddressVO userIp = _ipAddressDao.findById(addr.getId());
-                        if (userIp.getState() == IpAddress.State.Free) {
-                            addr.setState(IpAddress.State.Allocating);
-                            if (_ipAddressDao.update(addr.getId(), addr)) {
-                                finalAddr = addr;
-                                break;
-                            }
-                        }
-                    }
+                if(finalAddr == null && ignoreIp != null) {
+                    finalAddr = getIpAddressVO(addrs, sourceNat, owner, isSystem, displayIp, vlanUse, guestNetworkId, vpcId, null);
                 }
 
                 if (finalAddr == null) {
@@ -874,6 +855,46 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
         }
 
         return PublicIp.createFromAddrAndVlan(addr, _vlanDao.findById(addr.getVlanId()));
+    }
+
+    private IPAddressVO getIpAddressVO(List<IPAddressVO> addrs, boolean sourceNat, Account owner, boolean isSystem, Boolean displayIp, VlanType vlanUse, Long guestNetworkId, Long vpcId, String ignoreIp) {
+        IPAddressVO finalAddr = null;
+        for (final IPAddressVO possibleAddr: addrs) {
+            if(ignoreIp != null && ignoreIp.equals(possibleAddr.getAddress().addr())) {
+                continue;
+            }
+
+            if (possibleAddr.getState() != State.Free) {
+                continue;
+            }
+
+            final IPAddressVO addr = possibleAddr;
+            addr.setSourceNat(sourceNat);
+            addr.setAllocatedTime(new Date());
+            addr.setAllocatedInDomainId(owner.getDomainId());
+            addr.setAllocatedToAccountId(owner.getId());
+            addr.setSystem(isSystem);
+
+            if (displayIp != null) {
+                addr.setDisplay(displayIp);
+            }
+
+            if (vlanUse != VlanType.DirectAttached) {
+                addr.setAssociatedWithNetworkId(guestNetworkId);
+                addr.setVpcId(vpcId);
+            }
+            if (_ipAddressDao.lockRow(possibleAddr.getId(), true) != null) {
+                final IPAddressVO userIp = _ipAddressDao.findById(addr.getId());
+                if (userIp.getState() == State.Free) {
+                    addr.setState(State.Allocating);
+                    if (_ipAddressDao.update(addr.getId(), addr)) {
+                        finalAddr = addr;
+                        break;
+                    }
+                }
+            }
+        }
+        return finalAddr;
     }
 
     @DB
@@ -943,7 +964,13 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
     @Override
     public PublicIp assignDedicateIpAddress(Account owner, final Long guestNtwkId, final Long vpcId, final long dcId, final boolean isSourceNat)
             throws ConcurrentOperationException, InsufficientAddressCapacityException {
+        return assignDedicateIpAddress(owner, guestNtwkId, vpcId, dcId, isSourceNat, null);
+    }
 
+    @DB
+    @Override
+    public PublicIp assignDedicateIpAddress(Account owner, final Long guestNtwkId, final Long vpcId, final long dcId, final boolean isSourceNat, String ignoreIp)
+            throws ConcurrentOperationException, InsufficientAddressCapacityException {
         final long ownerId = owner.getId();
 
         PublicIp ip = null;
@@ -970,7 +997,7 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
                         VpcVO vpc = _vpcDao.findById(vpcId);
                         displayIp = vpc.isDisplay();
                     }
-                    return fetchNewPublicIp(dcId, null, null, owner, VlanType.VirtualNetwork, guestNtwkId, isSourceNat, true, null, false, vpcId, displayIp, false);
+                    return fetchNewPublicIp(dcId, null, null, owner, VlanType.VirtualNetwork, guestNtwkId, isSourceNat, true, null, false, vpcId, displayIp, false, ignoreIp);
                 }
             });
             if (ip.getState() != State.Allocated) {

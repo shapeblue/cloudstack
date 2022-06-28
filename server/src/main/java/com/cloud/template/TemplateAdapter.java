@@ -81,4 +81,8 @@ public interface TemplateAdapter extends Adapter {
         Boolean bootable, String templateTag, Account templateOwner, Map details, Boolean sshKeyEnabled, String imageStoreUuid, Boolean isDynamicallyScalable,
         TemplateType templateType, boolean directDownload) throws ResourceAllocationException;
 
+    public TemplateProfile prepare(boolean isIso, long userId, String name, String displayText, Integer bits, Boolean passwordEnabled, Boolean requiresHVM, String url,
+       Boolean isPublic, Boolean featured, Boolean isExtractable, String format, Long guestOSId, List<Long> zoneId, HypervisorType hypervisorType, String chksum,
+       Boolean bootable, String templateTag, Account templateOwner, Map details, Boolean sshKeyEnabled, String imageStoreUuid, Boolean isDynamicallyScalable,
+       TemplateType templateType, boolean directDownload, String bootFilename) throws ResourceAllocationException;
 }

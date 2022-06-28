@@ -33,7 +33,8 @@ public class Storage {
         VMDK(true, true, false, "vmdk"),
         VDI(true, true, false, "vdi"),
         TAR(false, false, false, "tar"),
-        DIR(false, false, false, "dir");
+        DIR(false, false, false, "dir"),
+        PXEBOOT(false, false, false, "PXEBOOT");
 
         private final boolean supportThinProvisioning;
         private final boolean supportSparse;

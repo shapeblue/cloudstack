@@ -749,7 +749,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                                                                 + "Assuming something went wrong and persisting it. Router: " + answerFinal.getRouterName() + " Reported: "
                                                                 + answerFinal.getBytesReceived() + " Stored: " + stats.getCurrentBytesReceived());
                                                     }
-                                                    stats.setNetBytesReceived(stats.getNetBytesReceived() + stats.getCurrentBytesReceived());
+                                                    stats.setNetBytesReceived(0);
                                                 }
                                                 stats.setCurrentBytesReceived(answerFinal.getBytesReceived());
                                                 if (stats.getCurrentBytesSent() > answerFinal.getBytesSent()) {
@@ -758,7 +758,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                                                                 + "Assuming something went wrong and persisting it. Router: " + answerFinal.getRouterName() + " Reported: "
                                                                 + answerFinal.getBytesSent() + " Stored: " + stats.getCurrentBytesSent());
                                                     }
-                                                    stats.setNetBytesSent(stats.getNetBytesSent() + stats.getCurrentBytesSent());
+                                                    stats.setNetBytesSent(0);
                                                 }
                                                 stats.setCurrentBytesSent(answerFinal.getBytesSent());
                                                 if (!_dailyOrHourly) {
@@ -2474,7 +2474,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                                             s_logger.debug("Received # of bytes that's less than the last one.  " + "Assuming something went wrong and persisting it. Router: "
                                                     + answerFinal.getRouterName() + " Reported: " + answerFinal.getBytesReceived() + " Stored: " + stats.getCurrentBytesReceived());
                                         }
-                                        stats.setNetBytesReceived(stats.getNetBytesReceived() + stats.getCurrentBytesReceived());
+                                        stats.setNetBytesReceived(0);
                                     }
                                     stats.setCurrentBytesReceived(answerFinal.getBytesReceived());
                                     if (stats.getCurrentBytesSent() > answerFinal.getBytesSent()) {
@@ -2482,7 +2482,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
                                             s_logger.debug("Received # of bytes that's less than the last one.  " + "Assuming something went wrong and persisting it. Router: "
                                                     + answerFinal.getRouterName() + " Reported: " + answerFinal.getBytesSent() + " Stored: " + stats.getCurrentBytesSent());
                                         }
-                                        stats.setNetBytesSent(stats.getNetBytesSent() + stats.getCurrentBytesSent());
+                                        stats.setNetBytesSent(0);
                                     }
                                     stats.setCurrentBytesSent(answerFinal.getBytesSent());
                                     if (!_dailyOrHourly) {

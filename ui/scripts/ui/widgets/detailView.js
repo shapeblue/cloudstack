@@ -244,9 +244,10 @@
                                         }
 
                                         if (messages.complete) {
-                                            if( messages.complete(args2.data) != null && messages.complete(args2.data).length > 0) {
+                                            var msg = messages.complete(args2.data);
+                                            if( msg != null && msg.length > 0) {
                                                  cloudStack.dialog.notice({
-                                                     message: messages.complete(args2.data)
+                                                     message: msg
                                                  });
                                             }
                                         }

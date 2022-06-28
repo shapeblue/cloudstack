@@ -3544,7 +3544,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         // Check templates permissions
-        _accountMgr.checkAccess(owner, AccessType.UseEntry, false, template);
+        Account templateOwner = _accountMgr.getAccount(template.getAccountId());
+        if(caller.getAccountId() != templateOwner.getAccountId()){
+            _accountMgr.checkAccess(owner, AccessType.UseEntry, false, template);
+        }
 
         // check if the user data is correct
         userData = validateUserData(userData, httpmethod);
@@ -4077,7 +4080,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                                             "Assuming something went wrong and persisting it. Host: " + host.getName() + " . VM: " + vmNetworkStat.getVmName() +
                                             " Reported: " + vmNetworkStat.getBytesSent() + " Stored: " + vmNetworkStat_lock.getCurrentBytesSent());
                                 }
-                                vmNetworkStat_lock.setNetBytesSent(vmNetworkStat_lock.getNetBytesSent() + vmNetworkStat_lock.getCurrentBytesSent());
+                                vmNetworkStat_lock.setNetBytesSent(0);
                             }
                             vmNetworkStat_lock.setCurrentBytesSent(vmNetworkStat.getBytesSent());
 
@@ -4087,7 +4090,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                                             "Assuming something went wrong and persisting it. Host: " + host.getName() + " . VM: " + vmNetworkStat.getVmName() +
                                             " Reported: " + vmNetworkStat.getBytesReceived() + " Stored: " + vmNetworkStat_lock.getCurrentBytesReceived());
                                 }
-                                vmNetworkStat_lock.setNetBytesReceived(vmNetworkStat_lock.getNetBytesReceived() + vmNetworkStat_lock.getCurrentBytesReceived());
+                                vmNetworkStat_lock.setNetBytesReceived(0);
                             }
                             vmNetworkStat_lock.setCurrentBytesReceived(vmNetworkStat.getBytesReceived());
 

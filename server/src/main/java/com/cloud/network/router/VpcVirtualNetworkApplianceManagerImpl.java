@@ -26,6 +26,10 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.log4j.Logger;
+import org.springframework.stereotype.Component;
+
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.Command.OnError;
@@ -34,6 +38,7 @@ import com.cloud.agent.api.PlugNicCommand;
 import com.cloud.agent.api.SetupGuestNetworkCommand;
 import com.cloud.agent.api.routing.AggregationControlCommand;
 import com.cloud.agent.api.routing.AggregationControlCommand.Action;
+import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.agent.manager.Commands;
 import com.cloud.dc.DataCenter;
 import com.cloud.deploy.DeployDestination;
@@ -42,6 +47,9 @@ import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.OperationTimedoutException;
 import com.cloud.exception.ResourceUnavailableException;
+import com.cloud.hypervisor.Hypervisor;
+import com.cloud.hypervisor.HypervisorGuru;
+import com.cloud.hypervisor.HypervisorGuruManager;
 import com.cloud.network.IpAddress;
 import com.cloud.network.Network;
 import com.cloud.network.Network.Provider;
@@ -88,13 +96,6 @@ import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.VirtualMachineProfile;
 import com.cloud.vm.VirtualMachineProfile.Param;
 import com.cloud.vm.dao.VMInstanceDao;
-import com.cloud.agent.api.to.VirtualMachineTO;
-import com.cloud.hypervisor.Hypervisor;
-import com.cloud.hypervisor.HypervisorGuru;
-import com.cloud.hypervisor.HypervisorGuruManager;
-
-import org.apache.log4j.Logger;
-import org.springframework.stereotype.Component;
 
 @Component
 public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplianceManagerImpl implements VpcVirtualNetworkApplianceManager {
@@ -120,6 +121,8 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
     private EntityManager _entityMgr;
     @Inject
     protected HypervisorGuruManager _hvGuruMgr;
+    @Inject
+    private ConfigurationDao configDao;
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
@@ -208,7 +211,7 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
     protected boolean setupVpcGuestNetwork(final Network network, final VirtualRouter router, final boolean add, final NicProfile guestNic) throws ConcurrentOperationException,
     ResourceUnavailableException {
 
-        boolean result = true;
+       boolean result = true;
         if (router.getState() == State.Running) {
             final SetupGuestNetworkCommand setupCmd = _commandSetupHelper.createSetupGuestNetworkCommand((DomainRouterVO) router, add, guestNic);
 
@@ -275,6 +278,10 @@ public class VpcVirtualNetworkApplianceManagerImpl extends VirtualNetworkApplian
                     s_logger.debug("Set privategateway field in cmd_line.json to " + ip4Address);
                 } else {
                     buf.append(" privategateway=None");
+                }
+                final String vpcWhitelistCidr = configDao.getValue("vpc.usage.whitelist.cidr");
+                if (vpcWhitelistCidr != null && vpcWhitelistCidr.length() > 0) {
+                    buf.append(" vpcusagewhitelist=").append(vpcWhitelistCidr);
                 }
             }
         }

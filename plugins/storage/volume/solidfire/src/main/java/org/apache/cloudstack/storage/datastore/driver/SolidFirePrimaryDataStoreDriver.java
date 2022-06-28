@@ -173,9 +173,11 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
         try {
             List<HostVO> hosts = hostDao.findByClusterId(clusterId);
 
+            String clusterUuId = clusterDao.findById(clusterId).getUuid();
+
             SolidFireUtil.SolidFireConnection sfConnection = SolidFireUtil.getSolidFireConnection(storagePoolId, storagePoolDetailsDao);
 
-            SolidFireUtil.placeVolumeInVolumeAccessGroups(sfConnection, sfVolumeId, hosts);
+            SolidFireUtil.placeVolumeInVolumeAccessGroups(sfConnection, sfVolumeId, hosts, clusterUuId);
 
             return true;
         }
@@ -691,7 +693,7 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
 
     private SolidFireUtil.SolidFireVolume createClone(SolidFireUtil.SolidFireConnection sfConnection, long dataObjectId, VolumeInfo volumeInfo, long sfAccountId,
             long storagePoolId, DataObjectType dataObjectType) {
-        String sfNewVolumeName = volumeInfo.getName();
+        String sfNewVolumeName = SolidFireUtil.getSolidFireVolumeName(volumeInfo.getName());
 
         long sfVolumeId = Long.MIN_VALUE;
         long sfSnapshotId = Long.MIN_VALUE;
@@ -892,7 +894,7 @@ public class SolidFirePrimaryDataStoreDriver implements PrimaryDataStoreDriver {
             else {
                 // We are supposed to create a new SolidFire volume to serve as the back-end for our CloudStack volume snapshot.
 
-                String sfNewVolumeName = volumeInfo.getName() + "-" + snapshotInfo.getUuid();
+                String sfNewVolumeName = SolidFireUtil.getSolidFireVolumeName(volumeInfo.getName() + "-" + snapshotInfo.getUuid());
 
                 final Iops iops = getIops(MIN_IOPS_FOR_SNAPSHOT_VOLUME, MAX_IOPS_FOR_SNAPSHOT_VOLUME, storagePoolId);
 

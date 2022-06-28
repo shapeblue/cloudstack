@@ -26,7 +26,12 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import com.cloud.storage.Storage;
+import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.dao.VMTemplateDao;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.cloudstack.pki.PkiManager;
+import org.apache.cloudstack.resourcedetail.dao.RemoteAccessVpnDetailsDao;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -82,9 +87,11 @@ import com.cloud.network.VpnUser;
 import com.cloud.network.VpnUserVO;
 import com.cloud.network.dao.FirewallRulesDao;
 import com.cloud.network.dao.IPAddressDao;
+import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.NetworkDao;
 import com.cloud.network.dao.NetworkVO;
-import com.cloud.network.dao.IPAddressVO;
+import com.cloud.network.dao.RemoteAccessVpnDao;
+import com.cloud.network.dao.RemoteAccessVpnVO;
 import com.cloud.network.dao.Site2SiteCustomerGatewayDao;
 import com.cloud.network.dao.Site2SiteCustomerGatewayVO;
 import com.cloud.network.dao.Site2SiteVpnGatewayDao;
@@ -177,7 +184,12 @@ public class CommandSetupHelper {
     private VlanDao _vlanDao;
     @Inject
     private IPAddressDao _ipAddressDao;
-
+    @Inject
+    private RemoteAccessVpnDetailsDao remoteAccessVpnDetailsDao;
+    @Inject
+    private RemoteAccessVpnDao remoteAccessVpnDao;
+    @Inject
+    private VMTemplateDao _templateDao;
     @Inject
     private RouterControlHelper _routerControlHelper;
 
@@ -205,7 +217,9 @@ public class CommandSetupHelper {
             }
         }
 
-        final VpnUsersCfgCommand cmd = new VpnUsersCfgCommand(addUsers, removeUsers);
+        RemoteAccessVpnVO vpnVO = remoteAccessVpnDao.findByAccountAndVpc(router.getAccountId(), router.getVpcId());
+
+        final VpnUsersCfgCommand cmd = new VpnUsersCfgCommand(addUsers, removeUsers, vpnVO.getVpnType());
         cmd.setAccessDetail(NetworkElementCommand.ACCOUNT_ID, String.valueOf(router.getAccountId()));
         cmd.setAccessDetail(NetworkElementCommand.ROUTER_IP, _routerControlHelper.getRouterControlIp(router.getId()));
         cmd.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
@@ -239,6 +253,18 @@ public class CommandSetupHelper {
         dhcpCommand.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());
         dhcpCommand.setAccessDetail(NetworkElementCommand.ROUTER_GUEST_IP, _routerControlHelper.getRouterIpInNetwork(nic.getNetworkId(), router.getId()));
         dhcpCommand.setAccessDetail(NetworkElementCommand.ZONE_NETWORK_TYPE, dcVo.getNetworkType().toString());
+
+        VMTemplateVO template = _templateDao.findById(vm.getTemplateId());
+        if(template != null && template.getFormat().equals(Storage.ImageFormat.PXEBOOT)) {
+            if (org.apache.commons.lang.StringUtils.isNotBlank(template.getBootFilename())) {
+                dhcpCommand.setBootFilename(template.getBootFilename());
+            }
+
+            final Vpc vpc = _entityMgr.findById(Vpc.class, router.getVpcId());
+            if (org.apache.commons.lang.StringUtils.isNotBlank(vpc.getNetworkBootIp())) {
+                dhcpCommand.setNetworkBootIp(vpc.getNetworkBootIp());
+            }
+        }
 
         cmds.addCommand("dhcp", dhcpCommand);
     }
@@ -582,8 +608,21 @@ public class CommandSetupHelper {
             cidr = network.getCidr();
         }
 
-        final RemoteAccessVpnCfgCommand startVpnCmd = new RemoteAccessVpnCfgCommand(isCreate, ip.getAddress().addr(), vpn.getLocalIp(), vpn.getIpRange(),
-                vpn.getIpsecPresharedKey(), vpn.getVpcId() != null);
+        // read additional details from DB and fill them up in RemoteAccessVpnVO
+        final Map<String, String> vpnDetials = remoteAccessVpnDetailsDao.getDetails(vpn.getId());
+        final String vpnType = vpn.getVpnType();
+
+        final RemoteAccessVpnCfgCommand startVpnCmd = new RemoteAccessVpnCfgCommand(
+                isCreate,
+                ip.getAddress().addr(),
+                vpn.getLocalIp(),
+                vpn.getIpRange(),
+                vpn.getIpsecPresharedKey(),
+                vpn.getVpcId() != null,
+                vpnType,
+                vpnDetials.get(PkiManager.CREDENTIAL_ISSUING_CA),
+                vpnDetials.get(PkiManager.CREDENTIAL_CERTIFICATE),
+                vpnDetials.get(PkiManager.CREDENTIAL_PRIVATE_KEY));
         startVpnCmd.setLocalCidr(cidr);
         startVpnCmd.setAccessDetail(NetworkElementCommand.ROUTER_IP, _routerControlHelper.getRouterControlIp(router.getId()));
         startVpnCmd.setAccessDetail(NetworkElementCommand.ROUTER_NAME, router.getInstanceName());

@@ -79,13 +79,17 @@ public final class XenServer56NetworkUsageCommandWrapper extends CommandWrapper<
             }
 
             final ExecutionResult result = xenServer56.executeInVR(command.getPrivateIP(), "vpc_netusage.sh", args);
-            final String detail = result.getDetails();
+            String detail = result.getDetails();
             if (!result.isSuccess()) {
                 throw new Exception(" vpc network usage plugin call failed ");
             }
+
             if (option.equals("get") || option.equals("vpn")) {
                 final long[] stats = new long[2];
                 if (detail != null) {
+                    if (detail.contains(",")) {
+                        detail = detail.split(",")[0];
+                    }
                     final String[] splitResult = detail.split(":");
                     int i = 0;
                     while (i < splitResult.length - 1) {

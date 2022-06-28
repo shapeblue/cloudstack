@@ -63,12 +63,18 @@ public final class CitrixDeleteStoragePoolCommandWrapper extends CommandWrapper<
 
             return answer;
         } catch (final Exception e) {
-            final String msg = "DeleteStoragePoolCommand XenAPIException:" + e.getMessage() + " host:" + citrixResourceBase.getHost().getUuid() +
-                    " pool: " + poolTO.getHost() + poolTO.getPath();
+            // if error is "Can not see storage pool" return "success" it most
+            // probably has been already removed, otherwise throw an actual error.
+            if (e.getMessage().contains("Can not see storage pool")) {
+                return new Answer(command, true, "success");
+            } else {
+                final String msg = "DeleteStoragePoolCommand XenAPIException:" + e.getMessage() + " host:" + citrixResourceBase.getHost().getUuid() +
+                        " pool: " + poolTO.getHost() + poolTO.getPath();
 
-            s_logger.error(msg, e);
+                s_logger.error(msg, e);
 
-            return new Answer(command, false, msg);
+                return new Answer(command, false, msg);
+            }
         }
     }
 }

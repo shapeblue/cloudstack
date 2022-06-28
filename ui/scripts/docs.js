@@ -228,6 +228,18 @@ cloudStack.docs = {
         desc: 'The vCenter datacenter that the cluster is in. For example, cloud.dc.VM',
         externalLink: ''
     },
+    helpClusterBaremetalMaaSHost: {
+    	desc: 'The hostname or IP address of the MaaS server',
+    	externalLink: ''
+    },
+    helpClusterBaremetalMaaSKey: {
+    	desc: 'Administrator API key to access MaaS server',
+    	externalLink: ''
+    },
+    helpClusterBaremetalMaaSPool: {
+        desc: 'Pool name in MaaS server to correspond this cluster with',
+        externalLink: ''
+    },
     // Add compute offering
     helpComputeOfferingName: {
         desc: 'Any desired name for the offering',
@@ -376,6 +388,22 @@ cloudStack.docs = {
     },
     helpDiskOfferingDiskIopsMax: {
         desc: 'Appears only if Custom IOPS is not selected. Define the maximum volume IOPS.',
+        externalLink: ''
+    },
+    helpDiskOfferingHighestMinIops: {
+        desc: 'The highest minIOPS setting that can be set by the user for this offering. Applicable for custom IOPS and rate based IOPS',
+        externalLink: ''
+    },
+    helpDiskOfferingHighestMaxIops: {
+        desc: 'The highest maxIOPS setting that can be set by the user for this offering. Applicable for custom IOPS and rate based IOPS',
+        externalLink: ''
+    },
+    helpDiskOfferingMinIopsPerGb: {
+        desc: 'Rate at which min IOPS changes with size of the volume. minIops = minIopsPerGb  * volumeSize. Applicable for custom size disk offerings',
+        externalLink: ''
+    },
+    helpDiskOfferingMaxIopsPerGb: {
+        desc: 'Rate at which max IOPS changes with size of the volume. maxIops = maxIopsPerGb  * volumeSize. Applicable for custom size disk offerings',
         externalLink: ''
     },
     helpDiskOfferingHypervisorSnapshotReserve: {
@@ -1082,6 +1110,10 @@ cloudStack.docs = {
         desc: 'If you want to assign a special domain name to this VPC\'s guest VM network, specify the DNS suffix',
         externalLink: ''
     },
+    helpVPCNetworkBootIP: {
+        desc: 'If you want to assign a network boot ip to this VPC\'s guest VM network',
+        externalLink: ''
+    },
     // Add VPC gateway
     helpVPCGatewayPhysicalNetwork: {
         desc: 'Name of a physical network that has been created in the zone',
@@ -1284,6 +1316,10 @@ cloudStack.docs = {
     },
     helpRegisterTemplateHvm: {
         desc: 'Check this if the template requires hvm.',
+        externalLink: ''
+    },
+    helpBootFilename: {
+        desc: 'A name for the file that should be used during the boot.',
         externalLink: ''
     },
     // Upload volume

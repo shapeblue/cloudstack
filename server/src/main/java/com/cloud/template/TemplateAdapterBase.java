@@ -261,6 +261,20 @@ public abstract class TemplateAdapterBase extends AdapterBase implements Templat
 
     }
 
+    public TemplateProfile prepare(boolean isIso, long userId, String name, String displayText, Integer bits, Boolean passwordEnabled, Boolean requiresHVM, String url,
+                                   Boolean isPublic, Boolean featured, Boolean isExtractable, String format, Long guestOSId, List<Long> zoneId, HypervisorType hypervisorType, String chksum,
+                                   Boolean bootable, String templateTag, Account templateOwner, Map details, Boolean sshKeyEnabled, String imageStoreUuid, Boolean isDynamicallyScalable,
+                                   TemplateType templateType, boolean directDownload, String bootFilename) throws ResourceAllocationException {
+        TemplateProfile templateProfile = prepare(isIso, userId, name, displayText, bits, passwordEnabled, requiresHVM, url,
+                isPublic, featured, isExtractable, format, guestOSId, zoneId, hypervisorType, chksum,
+                bootable, templateTag, templateOwner, details, sshKeyEnabled, imageStoreUuid, isDynamicallyScalable,
+                templateType, directDownload);
+
+        templateProfile.setBootFilename(bootFilename);
+        return templateProfile;
+    }
+
+
     @Override
     public TemplateProfile prepare(RegisterTemplateCmd cmd) throws ResourceAllocationException {
         //check if the caller can operate with the template owner
@@ -285,7 +299,7 @@ public abstract class TemplateAdapterBase extends AdapterBase implements Templat
 
         return prepare(false, CallContext.current().getCallingUserId(), cmd.getTemplateName(), cmd.getDisplayText(), cmd.getBits(), cmd.isPasswordEnabled(), cmd.getRequiresHvm(),
                 cmd.getUrl(), cmd.isPublic(), cmd.isFeatured(), cmd.isExtractable(), cmd.getFormat(), cmd.getOsTypeId(), zoneId, hypervisorType, cmd.getChecksum(), true,
-                cmd.getTemplateTag(), owner, cmd.getDetails(), cmd.isSshKeyEnabled(), null, cmd.isDynamicallyScalable(), isRouting ? TemplateType.ROUTING : TemplateType.USER, cmd.isDirectDownload());
+                cmd.getTemplateTag(), owner, cmd.getDetails(), cmd.isSshKeyEnabled(), null, cmd.isDynamicallyScalable(), isRouting ? TemplateType.ROUTING : TemplateType.USER, cmd.isDirectDownload(), cmd.getBootFilename());
 
     }
 
@@ -367,11 +381,15 @@ public abstract class TemplateAdapterBase extends AdapterBase implements Templat
             new VMTemplateVO(profile.getTemplateId(), profile.getName(), profile.getFormat(), profile.isPublic(), profile.isFeatured(), profile.isExtractable(),
                 profile.getTemplateType(), profile.getUrl(), profile.isRequiresHVM(), profile.getBits(), profile.getAccountId(), profile.getCheckSum(),
                 profile.getDisplayText(), profile.isPasswordEnabled(), profile.getGuestOsId(), profile.isBootable(), profile.getHypervisorType(),
-                profile.getTemplateTag(), profile.getDetails(), profile.isSshKeyEnabled(), profile.IsDynamicallyScalable(), profile.isDirectDownload());
+                profile.getTemplateTag(), profile.getDetails(), profile.isSshKeyEnabled(), profile.IsDynamicallyScalable(), profile.isDirectDownload(), profile.getBootFilename());
         template.setState(initialState);
 
         if (profile.isDirectDownload()) {
             template.setSize(profile.getSize());
+        }
+
+        if(profile.getFormat() == ImageFormat.PXEBOOT) {
+            template.setSize(0L);
         }
 
         if (zoneIdList == null) {

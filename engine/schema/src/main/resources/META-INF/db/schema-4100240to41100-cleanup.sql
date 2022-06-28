@@ -16,7 +16,7 @@
 -- under the License.
 
 --;
--- Schema upgrade cleanup from 4.10.0.0 to 4.11.0.0
+-- Schema upgrade cleanup from 4.10.0.240 to 4.11.0.0;
 --;
 
 DELETE FROM `cloud`.`configuration` WHERE name='snapshot.backup.rightafter';

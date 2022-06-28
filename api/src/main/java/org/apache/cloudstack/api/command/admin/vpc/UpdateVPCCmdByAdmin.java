@@ -34,7 +34,7 @@ public class UpdateVPCCmdByAdmin extends UpdateVPCCmd {
 
     @Override
     public void execute(){
-        Vpc result = _vpcService.updateVpc(getId(), getVpcName(), getDisplayText(), getCustomId(), isDisplayVpc());
+        Vpc result = _vpcService.updateVpc(getId(), getVpcName(), getDisplayText(), getCustomId(), isDisplayVpc(), getNetworkBootIp());
         if (result != null) {
             VpcResponse response = _responseGenerator.createVpcResponse(ResponseView.Full, result);
             response.setResponseName(getCommandName());

@@ -36,7 +36,7 @@ setup_dhcpsrvr() {
   enable_irqbalance 0
   enable_fwding 0
 
-  cp /etc/iptables/iptables-router /etc/iptables/rules.v4
+  cp /etc/iptables/iptables-dhcpsrvr /etc/iptables/rules.v4
 
   #Only allow DNS service for current network
   sed -i "s/-A INPUT -i eth0 -p udp -m udp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p udp -m udp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
@@ -48,6 +48,10 @@ setup_dhcpsrvr() {
   else
     setup_sshd $ETH1_IP "eth1"
   fi
+
+  #disable and stop rpcbind service on DHCP server
+  chkconfig rpcbind off
+  service rpcbind stop 
 }
 
 dhcpsrvr_svcs

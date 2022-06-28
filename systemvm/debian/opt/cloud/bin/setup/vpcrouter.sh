@@ -112,6 +112,10 @@ EOF
   if [ -f /etc/cron.daily/logrotate ]; then
     mv -n /etc/cron.daily/logrotate /etc/cron.hourly 2>&1
   fi
+
+  #disable and stop rpcbind service on VPC VR
+  chkconfig rpcbind off
+  service rpcbind stop
 }
 
 routing_svcs

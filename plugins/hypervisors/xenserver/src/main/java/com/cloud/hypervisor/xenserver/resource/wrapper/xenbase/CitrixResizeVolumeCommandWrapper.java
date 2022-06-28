@@ -57,9 +57,11 @@ public final class CitrixResizeVolumeCommandWrapper extends CommandWrapper<Resiz
                 resizeSr(conn, command);
             }
 
-            VDI vdi = citrixResourceBase.getVDIbyUuid(conn, volId);
+            VDI vdi = citrixResourceBase.getVDIbyUuid(conn, volId, false);
 
-            vdi.resize(conn, newSize);
+            if (vdi != null) {
+                vdi.resize(conn, newSize);
+            }
 
             return new ResizeVolumeAnswer(command, true, "success", newSize);
         } catch (Exception ex) {

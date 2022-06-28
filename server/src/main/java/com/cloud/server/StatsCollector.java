@@ -888,7 +888,7 @@ public class StatsCollector extends ManagerBase implements ComponentMethodInterc
                                                     + host.getName() + " . VM: " + vmNetworkStat.getVmName() + " Reported: " + vmNetworkStat.getBytesSent() + " Stored: "
                                                     + vmNetworkStat_lock.getCurrentBytesSent());
                                         }
-                                        vmNetworkStat_lock.setNetBytesSent(vmNetworkStat_lock.getNetBytesSent() + vmNetworkStat_lock.getCurrentBytesSent());
+                                        vmNetworkStat_lock.setNetBytesSent(0);
                                     }
                                     vmNetworkStat_lock.setCurrentBytesSent(vmNetworkStat.getBytesSent());
 
@@ -898,7 +898,7 @@ public class StatsCollector extends ManagerBase implements ComponentMethodInterc
                                                     + host.getName() + " . VM: " + vmNetworkStat.getVmName() + " Reported: " + vmNetworkStat.getBytesReceived() + " Stored: "
                                                     + vmNetworkStat_lock.getCurrentBytesReceived());
                                         }
-                                        vmNetworkStat_lock.setNetBytesReceived(vmNetworkStat_lock.getNetBytesReceived() + vmNetworkStat_lock.getCurrentBytesReceived());
+                                        vmNetworkStat_lock.setNetBytesReceived(0);
                                     }
                                     vmNetworkStat_lock.setCurrentBytesReceived(vmNetworkStat.getBytesReceived());
 

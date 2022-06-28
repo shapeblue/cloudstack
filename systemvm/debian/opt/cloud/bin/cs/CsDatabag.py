@@ -97,6 +97,12 @@ class CsCmdLine(CsDataBag):
         else:
             return "unknown"
 
+    def get_vpcusagewhitelist(self):
+        if "vpcusagewhitelist" in self.idata():
+            return self.idata()['vpcusagewhitelist'].split(",")
+        else:
+            return []
+
     def get_eth2_ip(self):
         if "eth2ip" in self.idata():
             return self.idata()['eth2ip']

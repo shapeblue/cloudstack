@@ -61,7 +61,14 @@ remove_usage_rules () {
 }
 
 get_usage () {
-  iptables -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null
+  all_traffic=$(iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep -v whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null)
+  whitelist=$(iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "-%s:", $2}'; > /dev/null)
+  echo "${all_traffic}${whitelist},"
+  return 0
+}
+
+get_usage_whitelist () {
+  iptables -w -L NETWORK_STATS_$ethDev -n -v -x 2> /dev/null | grep whitelist | awk '$1 ~ /^[0-9]+$/ { printf "%s:", $2}'; > /dev/null
   return 0
 }
 
@@ -91,8 +98,9 @@ lflag=
 vflag=
 nflag=
 dflag=
+wflag=
 
-while getopts 'cgndrl:v:' OPTION
+while getopts 'cgndrwl:v:' OPTION
 do
   case $OPTION in
   c)	cflag=1
@@ -106,6 +114,8 @@ do
         ;;
   v)    vflag=1
         vcidr="$OPTARG"
+        ;;
+  w)    wflag=1
         ;;
   n)	nflag=1
 	;;
@@ -133,6 +143,12 @@ fi
 if [ "$gflag" == "1" ]
 then
   get_usage
+  unlock_exit $? $lock $locked
+fi
+
+if [ "$wflag" == "1" ]
+then
+  get_usage_whitelist
   unlock_exit $? $lock $locked
 fi
 

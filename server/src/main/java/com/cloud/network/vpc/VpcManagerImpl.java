@@ -108,6 +108,7 @@ import com.cloud.network.vpc.dao.VpcOfferingDao;
 import com.cloud.network.vpc.dao.VpcOfferingDetailsDao;
 import com.cloud.network.vpc.dao.VpcOfferingServiceMapDao;
 import com.cloud.network.vpc.dao.VpcServiceMapDao;
+import com.cloud.network.vpn.RemoteAccessVpnService;
 import com.cloud.network.vpn.Site2SiteVpnManager;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.offerings.NetworkOfferingServiceMapVO;
@@ -201,6 +202,8 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     @Inject
     Site2SiteVpnManager _s2sVpnMgr;
     @Inject
+    RemoteAccessVpnService remoteVpnMgr;
+    @Inject
     VlanDao _vlanDao = null;
     @Inject
     ResourceLimitService _resourceLimitMgr;
@@ -245,6 +248,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         hTypes.add(HypervisorType.LXC);
         hTypes.add(HypervisorType.Hyperv);
         hTypes.add(HypervisorType.Ovm3);
+        hTypes.add(HypervisorType.BareMetal);
     }
 
     @Override
@@ -945,9 +949,37 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     }
 
     @Override
+    @ActionEvent(eventType = EventTypes.EVENT_VPC_SOURCE_NAT_UPDATE, eventDescription = "updating vpc source nat")
+    public boolean updateVpcSourceNAT(final long id) throws InsufficientCapacityException, ResourceUnavailableException {
+        CallContext.current().setEventDetails(" ID: " + id);
+
+        // Verify input parameters
+        final VpcVO vpcToUpdate = _vpcDao.findById(id);
+        if (vpcToUpdate == null) {
+            throw new InvalidParameterValueException("Unable to find vpc " + id);
+        }
+
+        final Account caller = CallContext.current().getCallingAccount();
+        final Account owner = _accountMgr.getAccount(vpcToUpdate.accountId);
+
+        // Verify that caller can perform actions in behalf of vpc owner
+        _accountMgr.checkAccess(caller, null, false, owner);
+
+        IpAddress ipAddress = getExistingSourceNatInVpc(owner.getId(), vpcToUpdate.getId());
+        if(ipAddress == null) {
+            throw new InvalidParameterValueException("Can't find source nat ip for vpc " + id);
+        }
+
+        _ipAddrMgr.disassociatePublicIpAddress(ipAddress.getId(), CallContext.current().getCallingUserId(), owner);
+        assignSourceNatIpAddressToVpc(owner, vpcToUpdate, ipAddress.getAddress().addr());
+
+        return restartVpc(vpcToUpdate.getId(), false, false, false);
+    }
+
+    @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_CREATE, eventDescription = "creating vpc", create = true)
     public Vpc createVpc(final long zoneId, final long vpcOffId, final long vpcOwnerId, final String vpcName, final String displayText, final String cidr, String networkDomain,
-            final Boolean displayVpc) throws ResourceAllocationException {
+            final Boolean displayVpc, final String networkBootIp) throws ResourceAllocationException {
         final Account caller = CallContext.current().getCallingAccount();
         final Account owner = _accountMgr.getAccount(vpcOwnerId);
 
@@ -1001,7 +1033,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
         final boolean useDistributedRouter = vpcOff.isSupportsDistributedRouter();
         final VpcVO vpc = new VpcVO(zoneId, vpcName, displayText, owner.getId(), owner.getDomainId(), vpcOffId, cidr, networkDomain, useDistributedRouter, isRegionLevelVpcOff,
-                vpcOff.isRedundantRouter());
+                vpcOff.isRedundantRouter(), networkBootIp);
 
         return createVpc(displayVpc, vpc);
     }
@@ -1147,7 +1179,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_UPDATE, eventDescription = "updating vpc")
-    public Vpc updateVpc(final long vpcId, final String vpcName, final String displayText, final String customId, final Boolean displayVpc) {
+    public Vpc updateVpc(final long vpcId, final String vpcName, final String displayText, final String customId, final Boolean displayVpc, final String networkBootIp) {
         CallContext.current().setEventDetails(" Id: " + vpcId);
         final Account caller = CallContext.current().getCallingAccount();
 
@@ -1177,6 +1209,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
             vpc.setDisplay(displayVpc);
         }
 
+        if (networkBootIp != null) {
+            vpc.setNetworkBootIp(networkBootIp);
+        }
+
         if (_vpcDao.update(vpcId, vpc)) {
             s_logger.debug("Updated VPC id=" + vpcId);
             return _vpcDao.findById(vpcId);
@@ -1189,7 +1225,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     public Pair<List<? extends Vpc>, Integer> listVpcs(final Long id, final String vpcName, final String displayText, final List<String> supportedServicesStr, final String cidr,
             final Long vpcOffId, final String state, final String accountName, Long domainId, final String keyword, final Long startIndex, final Long pageSizeVal,
             final Long zoneId, Boolean isRecursive, final Boolean listAll, final Boolean restartRequired, final Map<String, String> tags, final Long projectId,
-            final Boolean display) {
+            final Boolean display, final String networkBootIp) {
         final Account caller = CallContext.current().getCallingAccount();
         final List<Long> permittedAccounts = new ArrayList<Long>();
         final Ternary<Long, Boolean, ListProjectResourcesCriteria> domainIdRecursiveListProject = new Ternary<Long, Boolean, ListProjectResourcesCriteria>(domainId, isRecursive,
@@ -1212,6 +1248,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         sb.and("restartRequired", sb.entity().isRestartRequired(), SearchCriteria.Op.EQ);
         sb.and("cidr", sb.entity().getCidr(), SearchCriteria.Op.EQ);
         sb.and("display", sb.entity().isDisplay(), SearchCriteria.Op.EQ);
+        sb.and("networkBootIp", sb.entity().getNetworkBootIp(), SearchCriteria.Op.EQ);
 
         if (tags != null && !tags.isEmpty()) {
             final SearchBuilder<ResourceTagVO> tagSearch = _resourceTagDao.createSearchBuilder();
@@ -1280,6 +1317,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
         if (restartRequired != null) {
             sc.addAnd("restartRequired", SearchCriteria.Op.EQ, restartRequired);
+        }
+
+        if (networkBootIp != null) {
+            sc.addAnd("networkBootIp", SearchCriteria.Op.EQ, networkBootIp);
         }
 
         final List<VpcVO> vpcs = _vpcDao.search(sc, searchFilter);
@@ -1699,7 +1740,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_VPC_RESTART, eventDescription = "restarting vpc")
-    public boolean restartVpc(final long vpcId, final boolean cleanUp, final boolean makeRedundant) throws ConcurrentOperationException, ResourceUnavailableException,
+    public boolean restartVpc(final long vpcId, final boolean cleanUp, final boolean makeRedundant, final boolean migrateVpn) throws ConcurrentOperationException, ResourceUnavailableException,
     InsufficientCapacityException {
 
         final Account callerAccount = CallContext.current().getCallingAccount();
@@ -1743,6 +1784,9 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
                     s_logger.warn("Failed to execute a rolling restart as a part of VPC " + vpc + " restart process");
                     restartRequired = true;
                     return false;
+                }
+                if (migrateVpn) {
+                    remoteVpnMgr.migrateRemoteAccessVpn(vpc.getAccountId(), vpc.getId());
                 }
                 return true;
             }
@@ -2634,6 +2678,10 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
 
     @Override
     public PublicIp assignSourceNatIpAddressToVpc(final Account owner, final Vpc vpc) throws InsufficientAddressCapacityException, ConcurrentOperationException {
+        return assignSourceNatIpAddressToVpc(owner, vpc, null);
+    }
+
+    private PublicIp assignSourceNatIpAddressToVpc(final Account owner, final Vpc vpc, String ignoreIp) throws InsufficientAddressCapacityException, ConcurrentOperationException {
         final long dcId = vpc.getZoneId();
 
         final IPAddressVO sourceNatIp = getExistingSourceNatInVpc(owner.getId(), vpc.getId());

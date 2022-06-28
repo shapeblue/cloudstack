@@ -144,9 +144,14 @@ public class TemplateJoinDaoImpl extends GenericDaoBaseWithTagInformation<Templa
         templateResponse.setDisplayText(template.getDisplayText());
         templateResponse.setPublic(template.isPublicTemplate());
         templateResponse.setCreated(template.getCreatedOnStore());
+
         if (template.getFormat() == Storage.ImageFormat.BAREMETAL) {
             // for baremetal template, we didn't download, but is ready to use.
             templateResponse.setReady(true);
+        } else if (template.getFormat() == Storage.ImageFormat.PXEBOOT) {
+            // For PXEBOOT we don't need to download, but it's ready to use.
+            templateResponse.setReady(true);
+            templateResponse.setBootFilename(template.getBootFilename());
         } else {
             templateResponse.setReady(template.getState() == ObjectInDataStoreStateMachine.State.Ready);
         }

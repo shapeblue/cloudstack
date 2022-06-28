@@ -400,7 +400,10 @@ class CsIP:
         self.fw.append(["filter", "", "-A INPUT -d 225.0.0.50/32 -j ACCEPT"])
         self.fw.append(["filter", "", "-A INPUT -i %s -m state --state RELATED,ESTABLISHED -j ACCEPT" %
                         self.dev])
-        self.fw.append(["filter", "", "-A INPUT -p icmp -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -m u32 --u32 \"6&0xFF=1 && 17&0xFF=68\" -j DROP"])
+        self.fw.append(["filter", "", "-A INPUT -p icmp -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -i lo -j ACCEPT"])
 
         if self.get_type() in ["guest"]:
@@ -476,6 +479,14 @@ class CsIP:
             self.fw.append(["", "front", "-A NETWORK_STATS_%s -o %s -s %s" %
                             ("eth1", "eth1", guestNetworkCidr)])
 
+            # Add rules for network traffic we want to track separately
+            vpccidr = self.config.cmdline().get_vpccidr()
+            for whitelistcidr in self.config.cmdline().get_vpcusagewhitelist():
+                self.fw.append(["", "", "-A NETWORK_STATS_%s -o %s -d %s -s %s -m comment --comment whitelist" %
+                            ("eth1", "eth1", whitelistcidr, vpccidr)])
+                self.fw.append(["", "", "-A NETWORK_STATS_%s -i %s -s %s -d %s -m comment --comment whitelist" %
+                            ("eth1", "eth1", whitelistcidr, vpccidr)])
+
             if self.address["source_nat"]:
                 self.fw.append(["nat", "front",
                                 "-A POSTROUTING -o %s -j SNAT --to-source %s" %
@@ -503,7 +514,10 @@ class CsIP:
         self.fw.append(["filter", "", "-A INPUT -d 224.0.0.18/32 -j ACCEPT"])
         self.fw.append(["filter", "", "-A INPUT -d 225.0.0.50/32 -j ACCEPT"])
 
-        self.fw.append(["filter", "", "-A INPUT -p icmp -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT"])
+        self.fw.append(["filter", "front", "-A INPUT -m u32 --u32 \"6&0xFF=1 && 17&0xFF=68\" -j DROP"])
+        self.fw.append(["filter", "", "-A INPUT -p icmp -j DROP"])
         self.fw.append(["filter", "", "-A INPUT -i lo -j ACCEPT"])
 
         self.fw.append(["filter", "", "-A INPUT -i eth0 -p tcp -m tcp --dport 3922 -m state --state NEW,ESTABLISHED -j ACCEPT"])

@@ -37,6 +37,9 @@ public class DhcpEntryCommand extends NetworkElementCommand {
     boolean executeInSequence = false;
     boolean remove;
 
+    private String bootFilename;
+    private String networkBootIp;
+
     public boolean isRemove() {
         return remove;
     }
@@ -151,5 +154,21 @@ public class DhcpEntryCommand extends NetworkElementCommand {
 
     public void setDefault(boolean isDefault) {
         this.isDefault = isDefault;
+    }
+
+    public String getBootFilename() {
+        return bootFilename;
+    }
+
+    public void setBootFilename(String bootFilename) {
+        this.bootFilename = bootFilename;
+    }
+
+    public String getNetworkBootIp() {
+        return networkBootIp;
+    }
+
+    public void setNetworkBootIp(String networkBootIp) {
+        this.networkBootIp = networkBootIp;
     }
 }

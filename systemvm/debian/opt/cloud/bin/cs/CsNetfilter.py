@@ -282,11 +282,11 @@ class CsNetfilter(object):
         return self.rule
 
     def to_str(self, delete=False):
-        """ Convert the rule back into aynactically correct iptables command """
+        """ Convert the rule back into syntactically correct iptables command """
         # Order is important
-        order = ['-A', '-s', '-d', '!_-d', '-i', '!_-i', '-p', '-m', '-m2', '--icmp-type', '--state',
+        order = ['-A', '-s', '-d', '!_-d', '-i', '!_-i', '-p', '-m', '-m2', '--u32', '--icmp-type', '--state',
                  '--dport', '--destination-port', '-o', '!_-o', '-j', '--set-xmark', '--checksum',
-                 '--to-source', '--to-destination', '--mark']
+                 '--to-source', '--to-destination', '--mark', '--comment']
         str = ''
         for k in order:
             if k in self.rule.keys():

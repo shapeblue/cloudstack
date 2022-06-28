@@ -224,6 +224,7 @@ public abstract class HypervisorGuruBase extends AdapterBase implements Hypervis
         to.setConfigDriveIsoFile(vmProfile.getConfigDriveIsoFile());
         to.setState(vm.getState());
 
+        to.setFormat(vmProfile.getTemplate().getFormat());
         return to;
     }
 

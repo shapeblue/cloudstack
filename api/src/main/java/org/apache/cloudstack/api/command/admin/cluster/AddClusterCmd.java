@@ -110,10 +110,22 @@ public class AddClusterCmd extends BaseCmd {
 
     @Parameter(name = ApiConstants.OVM3_POOL, type = CommandType.STRING, required = false, description = "Ovm3 native pooling enabled for cluster")
     private String ovm3pool;
+
     @Parameter(name = ApiConstants.OVM3_CLUSTER, type = CommandType.STRING, required = false, description = "Ovm3 native OCFS2 clustering enabled for cluster")
     private String ovm3cluster;
+
     @Parameter(name = ApiConstants.OVM3_VIP, type = CommandType.STRING, required = false,  description = "Ovm3 vip to use for pool (and cluster)")
     private String ovm3vip;
+
+    @Parameter(name = ApiConstants.BAREMETAL_MAAS_HOST, type = CommandType.STRING, required = false,  description = "The hostname or IP address of the MaaS server")
+    private String baremetalMaasHost;
+
+    @Parameter(name = ApiConstants.BAREMETAL_MAAS_KEY, type = CommandType.STRING, required = false,  description = "Administrator API key to access MaaS server")
+    private String baremetalMaasKey;
+
+    @Parameter(name = ApiConstants.BAREMETAL_MAAS_POOL, type = CommandType.STRING, required = false,  description = "Pool name in MaaS server to correspond this cluster with")
+    private String baremetalMaasPool;
+
     public String getOvm3Pool() {
          return ovm3pool;
     }
@@ -204,6 +216,18 @@ public class AddClusterCmd extends BaseCmd {
 
     public void setAllocationState(String allocationState) {
         this.allocationState = allocationState;
+    }
+
+    public String getBaremetalMaasHost() {
+        return baremetalMaasHost;
+    }
+
+    public String getBaremetalMaasKey() {
+        return baremetalMaasKey;
+    }
+
+    public String getBaremetalMaasPool() {
+        return baremetalMaasPool;
     }
 
     @Override

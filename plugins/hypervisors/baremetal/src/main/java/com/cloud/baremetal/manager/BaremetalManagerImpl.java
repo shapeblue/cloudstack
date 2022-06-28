@@ -32,6 +32,8 @@ import com.cloud.utils.fsm.StateMachine2;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.BaremetalProvisionDoneNotificationCmd;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.AddBaremetalHostCmd;
@@ -45,13 +47,19 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.Event;
 import com.cloud.vm.VirtualMachine.State;
 
-public class BaremetalManagerImpl extends ManagerBase implements BaremetalManager, StateListener<State, VirtualMachine.Event, VirtualMachine> {
+public class BaremetalManagerImpl extends ManagerBase implements BaremetalManager, StateListener<State, VirtualMachine.Event, VirtualMachine>, Configurable {
     private static final Logger s_logger = Logger.getLogger(BaremetalManagerImpl.class);
 
     @Inject
     protected HostDao _hostDao;
     @Inject
     protected VMInstanceDao vmDao;
+
+    public static final ConfigKey<Integer> diskEraseOnDestroy = new ConfigKey<Integer>(Integer.class, "baremetal.disk.erase.destroy", "Advanced", String.valueOf(0),
+            "Erase disk on destroy baremetal VM (0=No erase, 1=Quick erase, 2=Full erase)", false, ConfigKey.Scope.Global, null);
+
+    public static final ConfigKey<Integer> pxeVlan = new ConfigKey<Integer>(Integer.class, "baremetal.pxe.vlan", "Advanced", null,
+            "VLAN of the PXE network", false, ConfigKey.Scope.Global, null);
 
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
@@ -93,7 +101,7 @@ public class BaremetalManagerImpl extends ManagerBase implements BaremetalManage
 
       HostVO host = _hostDao.findById(vo.getHostId());
       if (host == null) {
-        s_logger.debug("Skip oldState " + oldState + " to " + "newState " + newState + " transimtion");
+        s_logger.debug("Skip state transition from " + oldState + " to " + newState);
         return true;
       }
       _hostDao.loadDetails(host);
@@ -152,5 +160,15 @@ public class BaremetalManagerImpl extends ManagerBase implements BaremetalManage
         vmDao.update(vm.getId(), vm);
         s_logger.debug(String.format("received baremetal provision done notification for vm[id:%s name:%s] running on host[mac:%s, ip:%s]",
                 vm.getId(), vm.getInstanceName(), host.getPrivateMacAddress(), host.getPrivateIpAddress()));
+    }
+
+    @Override
+    public String getConfigComponentName() {
+        return BaremetalManager.class.getSimpleName();
+    }
+
+    @Override
+    public ConfigKey<?>[] getConfigKeys() {
+        return new ConfigKey<?>[] {diskEraseOnDestroy, pxeVlan};
     }
 }

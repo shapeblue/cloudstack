@@ -125,27 +125,6 @@
                                 docID: 'helpNetworkOfferingName',
                                 preFilter: cloudStack.preFilter.createTemplate,
                                 fields: {
-                                    url: {
-                                        label: 'label.url',
-                                        docID: 'helpRegisterTemplateURL',
-                                        validation: {
-                                            required: true
-                                        }
-                                    },
-                                    name: {
-                                        label: 'label.name',
-                                        docID: 'helpRegisterTemplateName',
-                                        validation: {
-                                            required: true
-                                        }
-                                    },
-                                    description: {
-                                        label: 'label.description',
-                                        docID: 'helpRegisterTemplateDescription',
-                                        validation: {
-                                            required: true
-                                        }
-                                    },
                                     zone: {
                                         label: 'label.zone',
                                         docID: 'helpRegisterTemplateZone',
@@ -477,6 +456,10 @@
                                                     id: 'VHD',
                                                     description: 'VHD'
                                                 });
+                                                items.push({
+                                                    id: 'PXEBOOT',
+                                                    description: 'PXE BOOT'
+                                                });
                                             } else if (args.hypervisor == "VMware") {
                                                 //formatSelect.append("<option value='OVA'>OVA</option>");
                                                 items.push({
@@ -529,9 +512,22 @@
                                                     description: 'VHDX'
                                                 });
                                             }
+                                            args.$select.change(function() {
+                                                var $form = $(this).closest('form');
+                                                if ($(this).val() == "PXEBOOT") {
+                                                    $form.find('.form-item[rel=bootfilename]').css('display', 'inline-block')
+                                                    $form.find('.form-item[rel=url]').hide();
+                                                } else {
+                                                    $form.find('.form-item[rel=url]').css('display', 'inline-block')
+                                                    $form.find('.form-item[rel=bootfilename]').hide();
+                                                }
+                                            });
+
                                             args.response.success({
                                                 data: items
                                             });
+
+                                            args.$select.trigger('change');
                                         }
                                     },
 
@@ -552,7 +548,36 @@
                                             });
                                         }
                                     },
-
+                                    url: {
+                                        label: 'label.url',
+                                        docID: 'helpRegisterTemplateURL',
+                                        isHidden: false,
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
+                                    bootfilename: {
+                                        label: 'label.boot.filename',
+                                        docID: 'helpBootFilename',
+                                        isHidden: true,
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
+                                    name: {
+                                        label: 'label.name',
+                                        docID: 'helpRegisterTemplateName',
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
+                                    description: {
+                                        label: 'label.description',
+                                        docID: 'helpRegisterTemplateDescription',
+                                        validation: {
+                                            required: true
+                                        }
+                                    },
                                     isExtractable: {
                                         label: "label.extractable",
                                         docID: 'helpRegisterTemplateExtractable',
@@ -611,6 +636,7 @@
                                     name: args.data.name,
                                     displayText: args.data.description,
                                     url: args.data.url,
+                                    bootfilename: args.data.bootfilename,
                                     zoneids: zones,
                                     format: args.data.format,
                                     isextractable: (args.data.isExtractable == "on"),
@@ -1337,7 +1363,8 @@
                                         displaytext: args.data.displaytext,
                                         ostypeid: args.data.ostypeid,
                                         passwordenabled: (args.data.passwordenabled == "on"),
-                                        isdynamicallyscalable: (args.data.isdynamicallyscalable == "on")
+                                        isdynamicallyscalable: (args.data.isdynamicallyscalable == "on"),
+                                        bootfilename: args.data.bootfilename
                                     };
                                     $.ajax({
                                         url: createURL('updateTemplate'),
@@ -1347,7 +1374,6 @@
                                             //API returns an incomplete embedded object  (some properties are missing in the embedded template object)
                                         }
                                     });
-
 
                                     //***** updateTemplatePermissions *****
                                     var data = {
@@ -1385,6 +1411,7 @@
                                             isextractable: false
                                         });
                                     }
+
                                     $.ajax({
                                         url: createURL('updateTemplatePermissions'),
                                         data: data,
@@ -2020,7 +2047,11 @@
 
                                     id: {
                                         label: 'label.id'
-                                    }
+                                    },
+                                    bootfilename: {
+                                        label: 'label.boot.filename',
+                                        isEditable: true,
+                                    },
                                 }],
 
                                 tags: cloudStack.api.tags({
@@ -2452,8 +2483,11 @@
 
                                                 templatetype: {
                                                     label: 'label.type'
-                                                }
-
+                                                },
+                                                bootfilename: {
+                                                    label: 'label.boot.filename',
+                                                    isEditable: true
+                                                },
                                             }],
 
                                             tags: cloudStack.api.tags({
