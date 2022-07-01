@@ -1,0 +1,384 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+image: khos2ow/ci-cd-tools:latest
+
+# Define CI stages
+stages:
+  - test
+  - archive
+  - integration
+  - deploy
+
+# Global Variables
+variables:
+  GIT_DEPTH: "40"
+  MAVEN_OPTS: '-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=INFO 
+               -Dorg.slf4j.simpleLogger.showDateTime=true 
+               -Djava.awt.headless=true 
+               -Dmaven.repo.local=/root/.m2/repository'
+
+.load_rpm_swift_function: &LOAD_REPO_SWIFT |
+  function load_swift() {
+    export OS_USERNAME=cloudops-pdion
+    export OS_TENANT_NAME=cloudops-jenkins-swift
+    export OS_PASSWORD=Vr8ySJw8PosU6s1V
+    export OS_AUTH_URL=https://auth-qc.cloud.ca/v2.0
+    export OS_REGION_NAME=east
+  }
+
+.load_template_swift_function: &LOAD_TEMPLATE_SWIFT |
+  function load_swift() {
+    export OS_USERNAME=cloudops-pdion
+    export OS_TENANT_NAME=cloudops-jenkins
+    export OS_PASSWORD=Vr8ySJw8PosU6s1V
+    export OS_AUTH_URL=https://auth-qc.cloud.ca/v2.0
+    export OS_REGION_NAME=east
+  }
+
+.yum_repo_path_function: &YUM_REPO_PATH |
+  function yum_repo_path() {
+    if [ "${CI_PROJECT_NAMESPACE}" = "dev" ]; then
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        local version=$(cd ${CI_PROJECT_DIR}; mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+        local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
+        local os_target="centos7"
+
+        case "$version" in
+          *"-SNAPSHOT") local stable_prefix="unstable" ;;
+          *)            local stable_prefix="stable"   ;;
+        esac
+
+        echo "${stable_prefix}/${major_version}/${os_target}"
+      elif [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_4.10" ]; then
+        local version=$(cd ${CI_PROJECT_DIR}; mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+        local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
+        local os_target="centos7"
+
+        case "$version" in
+          *"-SNAPSHOT") local stable_prefix="unstable" ;;
+          *)            local stable_prefix="stable"   ;;
+        esac
+
+        echo "${stable_prefix}/${major_version}/${os_target}"
+      else
+        echo "dev/${CI_COMMIT_REF_NAME}"
+      fi
+    else
+      echo "dev/${CI_COMMIT_REF_NAME}"
+    fi
+  }
+
+.template_path_function: &TEMPLATE_PATH |
+  function template_path() {
+    if [ "${CI_PROJECT_NAMESPACE}" = "dev" ]; then
+      if [ "${CI_COMMIT_REF_NAME}" = "cca_4.12" -o "${CI_COMMIT_REF_NAME}" = "cca_4.11" -o "${CI_COMMIT_REF_NAME}" = "cca_4.10" ]; then
+        local version=$(cd ${CI_PROJECT_DIR}; mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+        local major_version=`echo ${version} | cut -d. -f1`.`echo ${version} | cut -d. -f2`
+
+        case "$version" in
+          *"-SNAPSHOT") local stable_prefix="unstable" ;;
+          *)            local stable_prefix="stable"   ;;
+        esac
+
+        echo "${stable_prefix}/${major_version}"
+      else
+        echo "dev/${CI_COMMIT_REF_NAME}"
+      fi
+    else
+      echo "dev/${CI_COMMIT_REF_NAME}"
+    fi
+  }
+
+# RAT checks
+Audit:
+  image:
+    name: khos2ow/cloudstack-rpm-builder:centos7
+    entrypoint: ["/bin/bash", "-l", "-c"]
+  stage: test
+  before_script:
+    - environment-info.sh
+  script:
+    - mvn --activate-profiles developer,systemvm -Dsimulator --projects='org.apache.cloudstack:cloudstack' clean org.apache.rat:apache-rat-plugin:0.12:check
+  artifacts:
+    name: "audit_report_${CI_BUILD_REF_SLUG}"
+    paths:
+      - "target/rat.txt"
+    when: on_failure
+    expire_in: 1 day
+  only:
+    - branches
+  tags:
+    - java
+
+# Archive RPMs to object storage
+RPM:
+  image:
+    name: khos2ow/cloudstack-rpm-builder:centos7
+    entrypoint: ["/bin/bash", "-l", "-c"]
+  stage: archive
+  before_script:
+    - environment-info.sh
+    - pip3 install python-swiftclient
+    - pip3 install python-keystoneclient
+    - *LOAD_REPO_SWIFT
+    - *YUM_REPO_PATH
+  script:
+    # worksaround for SSLHandshakeException issue, https://github.com/apache/cloudstack/issues/2682#issuecomment-392973706
+    - cat ${CI_PROJECT_DIR}/client/conf/java.security.ciphers.in >> /usr/lib/jvm/java-1.8.0-openjdk/jre/lib/security/java.security
+
+    # download required vhd-util file, if it doesn't exist
+    - wget http://download.cloudstack.org/tools/vhd-util --directory-prefix=${CI_PROJECT_DIR}/scripts/vm/hypervisor/xenserver
+
+    # do the packaging and creating RPMs
+    - /usr/local/bin/docker-entrypoint.sh --workspace-path ${CI_PROJECT_DIR} --distribution centos7 --use-timestamp
+
+    # upload RPMs to swift object storage
+    - |
+      load_swift
+
+      swift_path=`yum_repo_path`
+      namespace="cloudstack"
+
+      # upload to swift
+      swift post ${namespace} -r '.r:*,.rlistings'
+      swift upload ${namespace} --object-name ${swift_path} ${CI_PROJECT_DIR}/dist/rpmbuild/RPMS
+
+      mkdir -p ${CI_PROJECT_DIR}/target/rpms
+
+      # fix repo metadata
+      if [ -n "${swift_path}" ]; then
+        swift download ${namespace} --prefix ${swift_path} --output-dir=${CI_PROJECT_DIR}/target/rpms
+        createrepo --update ${CI_PROJECT_DIR}/target/rpms/${swift_path}
+        swift delete ${namespace} --prefix ${swift_path}/repodata
+        swift upload ${namespace} --object-name ${swift_path}/repodata/ ${CI_PROJECT_DIR}/target/rpms/${swift_path}/repodata/
+      fi
+  artifacts:
+    name: "test_report_${CI_BUILD_REF_SLUG}"
+    paths:
+      - "*/target/surefire-reports"
+      - "*/*/target/surefire-reports"
+      - "*/*/*/target/surefire-reports"
+      - "*/*/*/*/target/surefire-reports"
+
+      - "*/target/checkstyle-result.xml"
+      - "*/*/target/checkstyle-result.xml"
+      - "*/*/*/target/checkstyle-result.xml"
+      - "*/*/*/*/target/checkstyle-result.xml"
+    when: on_failure
+    expire_in: 1 day
+  only:
+    - branches
+  tags:
+    - java
+
+# Archive SystemVM Template to object storage
+SysVM Template:
+  stage: archive
+  when: manual
+  variables:
+    MAVEN_OPTS: '-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=INFO 
+                 -Dorg.slf4j.simpleLogger.showDateTime=true 
+                 -Djava.awt.headless=true 
+                 -Dmaven.repo.local=~/maven-repo/repository'
+  before_script:
+    - *LOAD_TEMPLATE_SWIFT
+    - *TEMPLATE_PATH
+  script:
+    - |
+      export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+      # get the version before going any further
+      VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+      TIMESTAMP=$(date +%s)
+
+      # clear out BUILD_NUMBER to not be shown in system vm template file name
+      BUILD_NUMBER=""
+      MAJOR_VERSION=`echo ${VERSION} | cut -d. -f1`.`echo ${VERSION} | cut -d. -f2`
+
+      cd ${CI_PROJECT_DIR}/tools/appliance
+
+      build_appliance="systemvmtemplate"
+      build_version=$(echo $VERSION | sed 's/\-SNAPSHOT/\-'${TIMESTAMP}'/g')
+      build_branch=
+
+      chmod +x build.sh
+      ./build.sh "$build_appliance" "$build_version" "$build_branch"
+
+    # upload templates to swift object storage
+    - |
+      load_swift
+
+      swift_path=`template_path`
+      namespace="systemvm"
+
+      # move file to end destination
+      mkdir -p ${CI_PROJECT_DIR}/target/templates
+      mv ${CI_PROJECT_DIR}/tools/appliance/dist/*-xen.vhd.bz2 ${CI_PROJECT_DIR}/target/templates
+      mv ${CI_PROJECT_DIR}/tools/appliance/dist/*-kvm.qcow2.bz2 ${CI_PROJECT_DIR}/target/templates
+
+      # create md5sum file
+      full_name=`basename ${CI_PROJECT_DIR}/target/templates/*.qcow2.bz2 | sed 's/\-kvm\.qcow2\.bz2//g'`
+      partial_name=$(echo ${full_name} | sed 's/systemvmtemplate\-//g' | sed 's/systemvm64template\-//g')
+      md5sum=$(cd ${CI_PROJECT_DIR}/target/templates; md5sum * > ${full_name}.md5sum; cat ${full_name}.md5sum)
+
+      # upload to swift
+      swift post ${namespace} -r '.r:*,.rlistings'
+      swift upload ${namespace} --object-name ${swift_path} ${CI_PROJECT_DIR}/target/templates | xargs -n1 swift stat -v ${namespace} | grep URL | sort | sed 's/URL\://g' | tr -d ' '
+  after_script:
+    - git clean -fdx
+  only:
+    - branches
+  tags:
+    - systemvm
+
+# Run integration tests against live build
+Integration Test:
+  stage: integration
+  when: manual
+  before_script:
+    - environment-info.sh
+  script:
+    - echo "TODO"
+  only:
+    - branches
+  except:
+    - master
+    - cca_4.10
+    - cca_4.11
+    - cca_4.12
+
+.deploy: &DEPLOY
+  stage: deploy
+  when: manual
+  before_script:
+    - environment-info.sh
+    - *YUM_REPO_PATH
+  script:
+    - |
+      mkdir -p ~/.ssh
+
+      echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+      chmod 700 ~/.ssh/id_rsa
+
+      ssh-keyscan ${LAB_ENV_IP} >> ~/.ssh/known_hosts
+      chmod 644 ~/.ssh/known_hosts
+
+      export REPO_BASE="https://objects-east.cloud.ca/v1/a8286006ae394ede8bc081f586ae048d/cloudstack/"
+      export REPO_PATH="`yum_repo_path`"
+
+      ssh -T ${SSH_USER}@${LAB_ENV_IP} << EOF
+        sudo su -
+
+        set -e
+
+        # stop services
+        echo -e "stopping chef-client...\n"
+        systemctl stop chef-client
+
+        echo -e "stopping cloudstack-usage...\n"
+        systemctl stop cloudstack-usage
+
+        echo -e "stopping cloudstack-management...\n"
+        systemctl stop cloudstack-management
+
+        # update yum repo
+        echo -e "updating /etc/yum.repos.d/cloudstack.repo...\n"
+
+        sed -i "s|^baseurl=${REPO_BASE}.*|baseurl=${REPO_BASE}${REPO_PATH}|gI" /etc/yum.repos.d/cloudstack.repo
+        sed -i "s/^enabled=0/enabled=1/gI" /etc/yum.repos.d/cloudstack.repo
+
+        cat /etc/yum.repos.d/cloudstack.repo
+        echo ""
+
+        # upgrade cloudstack
+        echo -e "updating cloudstack rpm...\n"
+        yum clean metadata
+        yum upgrade --assumeyes cloudstack-*
+
+        # start services
+        echo -e "starting cloudstack-management...\n"
+        systemctl start cloudstack-management
+
+        echo -e "starting cloudstack-usage...\n"
+        systemctl start cloudstack-usage
+
+        echo -e "starting chef-client...\n"
+        systemctl start chef-client
+      EOF
+  environment:
+    name: ${LAB_ENV_NAME}
+
+ccd-r1-acs1-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-acs1-acs01"
+    LAB_ENV_IP: "10.218.184.158"
+
+ccd-r1-acs2-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-acs2-acs01"
+    LAB_ENV_IP: "10.218.184.40"
+
+ccd-r1-bm1-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-bm1-acs01"
+    LAB_ENV_IP: "10.218.184.74"
+
+ccd-r1-dev1-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-dev1-acs01"
+    LAB_ENV_IP: "10.218.184.249"
+
+ccd-r1-dev2-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-dev2-acs01"
+    LAB_ENV_IP: "10.218.184.116"
+
+ccd-r1-stg-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-stg-acs01"
+    LAB_ENV_IP: "10.218.184.166"
+
+ccd-r1-stg-acs02:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-stg-acs02"
+    LAB_ENV_IP: "10.218.184.207"
+
+cca-r1-beta02-mtg02:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "cca-r1-beta02-mtg02"
+    LAB_ENV_IP: "172.27.2.119"
+
+ccd-r1-acs3-acs01:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-acs3-acs01"
+    LAB_ENV_IP: "10.218.184.156"
+
+ccd-r1-acs4:
+  <<: *DEPLOY
+  variables:
+    LAB_ENV_NAME: "ccd-r1-acs4-acs01"
+    LAB_ENV_IP: "10.218.184.142"

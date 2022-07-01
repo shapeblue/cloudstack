@@ -130,6 +130,18 @@ public class DiskOfferingVO implements DiskOffering {
     private Long iopsWriteRateMaxLength;
 
 
+    @Column(name = "min_iops_per_gb")
+    Long minIopsPerGb;
+
+    @Column(name = "max_iops_per_gb")
+    Long maxIopsPerGb;
+
+    @Column(name = "highest_min_iops")
+    Long highestMinIops;
+
+    @Column(name = "highest_max_iops")
+    Long highestMaxIops;
+
     @Column(name = "cache_mode", updatable = true, nullable = false)
     @Enumerated(value = EnumType.STRING)
     private DiskCacheMode cacheMode;
@@ -556,6 +568,46 @@ public class DiskOfferingVO implements DiskOffering {
     @Override
     public void setIopsWriteRateMaxLength(Long iopsWriteRateMaxLength) {
         this.iopsWriteRateMaxLength = iopsWriteRateMaxLength;
+    }
+
+    @Override
+    public Long getMinIopsPerGb() {
+        return this.minIopsPerGb;
+    }
+
+    @Override
+    public void setMinIopsPerGb(Long minIopsPerGb) {
+        this.minIopsPerGb = minIopsPerGb;
+    }
+
+    @Override
+    public Long getMaxIopsPerGb() {
+        return maxIopsPerGb;
+    }
+
+    @Override
+    public void setMaxIopsPerGb(Long maxIopsPerGb) {
+        this.maxIopsPerGb = maxIopsPerGb;
+    }
+
+    @Override
+    public Long getHighestMinIops() {
+        return this.highestMinIops;
+    }
+
+    @Override
+    public void setHighestMinIops(Long highestMinIops) {
+        this.highestMinIops = highestMinIops;
+    }
+
+    @Override
+    public Long getHighestMaxIops() {
+        return this.highestMaxIops;
+    }
+
+    @Override
+    public void setHighestMaxIops(Long highestMaxIops) {
+        this.highestMaxIops = highestMaxIops;
     }
 
     @Override

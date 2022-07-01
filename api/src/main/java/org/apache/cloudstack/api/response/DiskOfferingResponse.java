@@ -159,6 +159,22 @@ public class DiskOfferingResponse extends BaseResponseWithAnnotations {
     @Param(description = "To allow or disallow the resize operation on the disks created from this disk offering, if the flag is true then resize is not allowed", since = "4.17")
     private Boolean diskSizeStrictness;
 
+    @SerializedName(ApiConstants.MIN_IOPS_PER_GB)
+    @Param(description = "IOPS/GB rate for min IOPS. miniops = size * miniopspergb")
+    private Long minIopsPerGb;
+
+    @SerializedName(ApiConstants.MAX_IOPS_PER_GB)
+    @Param(description = "IOPS/GB rate for max IOPS. miniops = size * miniopspergb")
+    private Long maxIopsPerGb;
+
+    @SerializedName(ApiConstants.HIGHEST_MIN_IOPS)
+    @Param(description = "Highest Min IOPS value that is allowed for this offering")
+    private Long highestMinIops;
+
+    @SerializedName(ApiConstants.HIGHEST_MAX_IOPS)
+    @Param(description = "Highest Max IOPS value that is allowed for this offering")
+    private Long highestMaxIops;
+
     public Boolean getDisplayOffering() {
         return displayOffering;
     }
@@ -282,6 +298,38 @@ public class DiskOfferingResponse extends BaseResponseWithAnnotations {
 
     public Integer getHypervisorSnapshotReserve() {
         return hypervisorSnapshotReserve;
+    }
+
+    public Long getMinIopsPerGb() {
+        return minIopsPerGb;
+    }
+
+    public void setMinIopsPerGb(Long minIopsPerGb) {
+        this.minIopsPerGb = minIopsPerGb;
+    }
+
+    public Long getMaxIopsPerGb() {
+        return maxIopsPerGb;
+    }
+
+    public void setMaxIopsPerGb(Long maxIopsPerGb) {
+        this.maxIopsPerGb = maxIopsPerGb;
+    }
+
+    public Long getHighestMinIops() {
+        return highestMinIops;
+    }
+
+    public void setHighestMinIops(Long highestMinIops) {
+        this.highestMinIops = highestMinIops;
+    }
+
+    public Long getHighestMaxIops() {
+        return highestMaxIops;
+    }
+
+    public void setHighestMaxIops(Long highestMaxIops) {
+        this.highestMaxIops = highestMaxIops;
     }
 
     public void setHypervisorSnapshotReserve(Integer hypervisorSnapshotReserve) {

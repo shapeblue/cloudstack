@@ -65,13 +65,41 @@ import com.cloud.upgrade.dao.Upgrade306to307;
 import com.cloud.upgrade.dao.Upgrade307to410;
 import com.cloud.upgrade.dao.Upgrade30to301;
 import com.cloud.upgrade.dao.Upgrade40to41;
-import com.cloud.upgrade.dao.Upgrade41000to41100;
+import com.cloud.upgrade.dao.Upgrade41000to4100226;
+import com.cloud.upgrade.dao.Upgrade4100226to4100227;
+import com.cloud.upgrade.dao.Upgrade4100227to4100228;
+import com.cloud.upgrade.dao.Upgrade4100228to4100229;
+import com.cloud.upgrade.dao.Upgrade4100229to4100230;
+import com.cloud.upgrade.dao.Upgrade4100230to4100231;
+import com.cloud.upgrade.dao.Upgrade4100231to4100232;
+import com.cloud.upgrade.dao.Upgrade4100232to4100233;
+import com.cloud.upgrade.dao.Upgrade4100233to4100234;
+import com.cloud.upgrade.dao.Upgrade4100234to4100235;
+import com.cloud.upgrade.dao.Upgrade4100235to4100236;
+import com.cloud.upgrade.dao.Upgrade4100236to4100237;
+import com.cloud.upgrade.dao.Upgrade4100237to4100238;
+import com.cloud.upgrade.dao.Upgrade4100238to4100239;
+import com.cloud.upgrade.dao.Upgrade4100239to4100240;
+import com.cloud.upgrade.dao.Upgrade4100240to41100;
 import com.cloud.upgrade.dao.Upgrade410to420;
 import com.cloud.upgrade.dao.Upgrade41100to41110;
 import com.cloud.upgrade.dao.Upgrade41110to41120;
 import com.cloud.upgrade.dao.Upgrade41120to41130;
-import com.cloud.upgrade.dao.Upgrade41120to41200;
-import com.cloud.upgrade.dao.Upgrade41200to41300;
+import com.cloud.upgrade.dao.Upgrade41130to41200;
+import com.cloud.upgrade.dao.Upgrade41200to41201;
+import com.cloud.upgrade.dao.Upgrade41213to41300;
+import com.cloud.upgrade.dao.Upgrade41201to41202;
+import com.cloud.upgrade.dao.Upgrade41202to41203;
+import com.cloud.upgrade.dao.Upgrade41203to41204;
+import com.cloud.upgrade.dao.Upgrade41204to41205;
+import com.cloud.upgrade.dao.Upgrade41205to41206;
+import com.cloud.upgrade.dao.Upgrade41206to41207;
+import com.cloud.upgrade.dao.Upgrade41207to41208;
+import com.cloud.upgrade.dao.Upgrade41208to41209;
+import com.cloud.upgrade.dao.Upgrade41209to412010;
+import com.cloud.upgrade.dao.Upgrade41210to412011;
+import com.cloud.upgrade.dao.Upgrade41211to412012;
+import com.cloud.upgrade.dao.Upgrade41212to412013;
 import com.cloud.upgrade.dao.Upgrade41300to41310;
 import com.cloud.upgrade.dao.Upgrade41310to41400;
 import com.cloud.upgrade.dao.Upgrade41400to41500;
@@ -192,12 +220,40 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                 .next("4.9.2.0" , new Upgrade4920to4930())
                 .next("4.9.3.0" , new Upgrade4930to41000())
                 .next("4.9.3.1" , new Upgrade4930to41000())
-                .next("4.10.0.0", new Upgrade41000to41100())
+                .next("4.10.0.0", new Upgrade41000to4100226())
+                .next("4.10.0.226", new Upgrade4100226to4100227())
+                .next("4.10.0.227", new Upgrade4100227to4100228())
+                .next("4.10.0.228", new Upgrade4100228to4100229())
+                .next("4.10.0.229", new Upgrade4100229to4100230())
+                .next("4.10.0.230", new Upgrade4100230to4100231())
+                .next("4.10.0.231", new Upgrade4100231to4100232())
+                .next("4.10.0.232", new Upgrade4100232to4100233())
+                .next("4.10.0.233", new Upgrade4100233to4100234())
+                .next("4.10.0.234", new Upgrade4100234to4100235())
+                .next("4.10.0.235", new Upgrade4100235to4100236())
+                .next("4.10.0.236", new Upgrade4100236to4100237())
+                .next("4.10.0.237", new Upgrade4100237to4100238())
+                .next("4.10.0.238", new Upgrade4100238to4100239())
+                .next("4.10.0.239", new Upgrade4100239to4100240())
+                .next("4.10.0.240", new Upgrade4100240to41100())
                 .next("4.11.0.0", new Upgrade41100to41110())
                 .next("4.11.1.0", new Upgrade41110to41120())
                 .next("4.11.2.0", new Upgrade41120to41130())
-                .next("4.11.3.0", new Upgrade41120to41200())
-                .next("4.12.0.0", new Upgrade41200to41300())
+                .next("4.11.3.0", new Upgrade41130to41200())
+                .next("4.12.0.0", new Upgrade41200to41201())
+                .next("4.12.0.1", new Upgrade41201to41202())
+                .next("4.12.0.2", new Upgrade41202to41203())
+                .next("4.12.0.3", new Upgrade41203to41204())
+                .next("4.12.0.4", new Upgrade41204to41205())
+                .next("4.12.0.5", new Upgrade41205to41206())
+                .next("4.12.0.6", new Upgrade41206to41207())
+                .next("4.12.0.7", new Upgrade41207to41208())
+                .next("4.12.0.8", new Upgrade41208to41209())
+                .next("4.12.0.9", new Upgrade41209to412010())
+                .next("4.12.0.10", new Upgrade41210to412011())
+                .next("4.12.0.11", new Upgrade41211to412012())
+                .next("4.12.0.12", new Upgrade41212to412013())
+                .next("4.12.0.0", new Upgrade41213to41300())
                 .next("4.13.0.0", new Upgrade41300to41310())
                 .next("4.13.1.0", new Upgrade41310to41400())
                 .next("4.14.0.0", new Upgrade41400to41500())
@@ -285,7 +341,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version;
             s_logger.debug("Running upgrade " + upgrade.getClass().getSimpleName() + " to upgrade from " + upgrade.getUpgradableVersionRange()[0] + "-" + upgrade
-                .getUpgradableVersionRange()[1] + " to " + upgrade.getUpgradedVersion());
+                    .getUpgradableVersionRange()[1] + " to " + upgrade.getUpgradedVersion());
             TransactionLegacy txn = TransactionLegacy.open("Upgrade");
             txn.start();
             try {
@@ -322,7 +378,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
             txn = TransactionLegacy.open("Cleanup");
             try {
                 s_logger.info("Cleanup upgrade " + upgrade.getClass().getSimpleName() + " to upgrade from " + upgrade.getUpgradableVersionRange()[0] + "-" + upgrade
-                    .getUpgradableVersionRange()[1] + " to " + upgrade.getUpgradedVersion());
+                        .getUpgradableVersionRange()[1] + " to " + upgrade.getUpgradedVersion());
 
                 txn.start();
                 Connection conn;

@@ -215,6 +215,9 @@ public class HypervisorTemplateAdapter extends TemplateAdapterBase {
     @Override
     public TemplateProfile prepare(RegisterTemplateCmd cmd) throws ResourceAllocationException {
         TemplateProfile profile = super.prepare(cmd);
+        if(ImageFormat.PXEBOOT.equals(profile.getFormat())) {
+            return profile;
+        }
         String url = profile.getUrl();
         UriUtils.validateUrl(cmd.getFormat(), url, cmd.isDirectDownload());
         if (cmd.isDirectDownload()) {
@@ -258,10 +261,9 @@ public class HypervisorTemplateAdapter extends TemplateAdapterBase {
             List<Long> zones = profile.getZoneIdList();
 
             //zones is null when this template is to be registered to all zones
-            if (zones == null){
+            if (zones == null) {
                 createTemplateWithinZone(null, profile, template);
-            }
-            else {
+            } else {
                 for (Long zId : zones) {
                     createTemplateWithinZone(zId, profile, template);
                 }

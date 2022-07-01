@@ -121,6 +121,7 @@ import com.cloud.agent.api.StopCommand;
 import com.cloud.agent.api.UnPlugNicAnswer;
 import com.cloud.agent.api.UnPlugNicCommand;
 import com.cloud.agent.api.UnregisterVMCommand;
+import com.cloud.agent.api.baremetal.DestroyCommand;
 import com.cloud.agent.api.routing.NetworkElementCommand;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.DpdkTO;
@@ -486,7 +487,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 }
 
                 String rootVolumeName = String.format("ROOT-%s", vmFinal.getId());
-                if (template.getFormat() == ImageFormat.ISO) {
+                if (template.getFormat() == ImageFormat.ISO || template.getFormat() == ImageFormat.PXEBOOT) {
                     volumeMgr.allocateRawVolume(Type.ROOT, rootVolumeName, rootDiskOfferingInfo.getDiskOffering(), rootDiskOfferingInfo.getSize(),
                             rootDiskOfferingInfo.getMinIops(), rootDiskOfferingInfo.getMaxIops(), vmFinal, template, owner, null);
                 } else if (template.getFormat() == ImageFormat.BAREMETAL) {
@@ -1013,6 +1014,11 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         final Account account = cctxt.getCallingAccount();
         final User caller = cctxt.getCallingUser();
 
+        long startTime, endTime;
+
+        startTime = System.currentTimeMillis();
+        s_logger.info("[OrchestrateStart] Start");
+
         VMInstanceVO vm = _vmDao.findByUuid(vmUuid);
 
         final VirtualMachineGuru vmGuru = getVmGuru(vm);
@@ -1172,11 +1178,17 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     throw new ConcurrentOperationException(e1.getMessage());
                 }
 
+                endTime = System.currentTimeMillis();
+                s_logger.info(String.format("[OrchestrateStart] got a plan %d", endTime - startTime));
+
                 try {
                     resetVmNicsDeviceId(vm.getId());
                     _networkMgr.prepare(vmProfile, dest, ctx);
                     if (vm.getHypervisorType() != HypervisorType.BareMetal) {
+                        startTime = System.currentTimeMillis();
                         volumeMgr.prepare(vmProfile, dest);
+                        endTime = System.currentTimeMillis();
+                        s_logger.info(String.format("[OrchestrateStart] volume prepare %d", endTime - startTime));
                     }
 
                     if (!reuseVolume) {
@@ -1184,6 +1196,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     }
 
                     vmGuru.finalizeVirtualMachineProfile(vmProfile, dest, ctx);
+                    startTime = System.currentTimeMillis();
 
                     final VirtualMachineTO vmTO = hvGuru.implement(vmProfile);
 
@@ -1215,6 +1228,9 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     _workDao.updateStep(work, Step.Started);
 
                     startAnswer = cmds.getAnswer(StartAnswer.class);
+                    endTime = System.currentTimeMillis();
+                    s_logger.info(String.format("[OrchestrateStart] hypervisor prepare %d", endTime - startTime));
+
                     if (startAnswer != null && startAnswer.getResult()) {
                         handlePath(vmTO.getDisks(), startAnswer.getIqnToData());
 
@@ -2155,6 +2171,24 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
         deleteVMSnapshots(vm, expunge);
 
+        // if it is a baremetal VM, send destroy command to the host for cleaning up
+        if (vm.getHypervisorType().equals(HypervisorType.BareMetal)) {
+            final Long hostId = vm.getLastHostId();
+            final VirtualMachineTO vmTO = toVmTOforBaremetal(vm);
+
+            DestroyCommand destroyCommand = new DestroyCommand(vmTO, getExecuteInSequence(vm.getHypervisorType()));
+            HostVO host = _hostDao.findById(hostId);
+
+            if (host != null) {
+                Answer answer = _agentMgr.send(hostId, destroyCommand);
+
+                if (!answer.getResult()) {
+                    String errMesg = "Unable to destroy VM " + vm.getId() + " " + answer.getDetails();
+                    throw new CloudRuntimeException(errMesg);
+                }
+            }
+        }
+
         Transaction.execute(new TransactionCallbackWithExceptionNoReturn<CloudRuntimeException>() {
             @Override
             public void doInTransactionWithoutResult(final TransactionStatus status) throws CloudRuntimeException {
@@ -2199,6 +2233,29 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 _vmSnapshotMgr.deleteVMSnapshotsFromDB(vm.getId(), false);
             }
         }
+    }
+
+    private VirtualMachineTO toVmTOforBaremetal(VMInstanceVO vm) {
+        VirtualMachineProfile profile = new VirtualMachineProfileImpl(vm);
+        VirtualMachineTO vmTO = toVmTO(profile);
+        List<NicTO> nicTOs = new ArrayList<NicTO>();
+
+        for (NicVO nicVO: _nicsDao.listByVmId(vm.getId())) {
+            NicTO nicTO = new NicTO();
+            nicTO.setMac(nicVO.getMacAddress());
+            nicTO.setDefaultNic(nicVO.isDefaultNic());
+            nicTO.setBroadcastUri(nicVO.getBroadcastUri());
+            Network nw = _networkDao.findById(nicVO.getNetworkId());
+            if (nw != null) {
+                nicTO.setNetworkUuid(nw.getUuid());
+            }
+
+            nicTOs.add(nicTO);
+        }
+
+        vmTO.setNics(nicTOs.toArray(new NicTO[nicTOs.size()]));
+
+        return vmTO;
     }
 
     protected boolean checkVmOnHost(final VirtualMachine vm, final long hostId) throws AgentUnavailableException, OperationTimedoutException {

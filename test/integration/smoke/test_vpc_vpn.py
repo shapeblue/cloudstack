@@ -47,6 +47,7 @@ from marvin.lib.common import (get_zone,
 from nose.plugins.attrib import attr
 
 import logging
+import subprocess
 import time
 
 

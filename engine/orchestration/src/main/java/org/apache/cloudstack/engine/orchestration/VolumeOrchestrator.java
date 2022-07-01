@@ -564,7 +564,7 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
     }
 
     protected DiskProfile createDiskCharacteristics(VolumeInfo volume, VirtualMachineTemplate template, DataCenter dc, DiskOffering diskOffering) {
-        if (volume.getVolumeType() == Type.ROOT && Storage.ImageFormat.ISO != template.getFormat()) {
+        if (volume.getVolumeType() == Type.ROOT && Storage.ImageFormat.ISO != template.getFormat() && ImageFormat.PXEBOOT != template.getFormat()) {
             TemplateDataStoreVO ss = _vmTemplateStoreDao.findByTemplateZoneDownloadStatus(template.getId(), dc.getId(), VMTemplateStorageResourceAssoc.Status.DOWNLOADED);
             if (ss == null) {
                 throw new CloudRuntimeException("Template " + template.getName() + " has not been completely downloaded to zone " + dc.getId());
@@ -620,7 +620,8 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
         StoragePool pool = null;
 
         DiskProfile dskCh = null;
-        if (volume.getVolumeType() == Type.ROOT && Storage.ImageFormat.ISO != template.getFormat()) {
+        if (volume.getVolumeType() == Type.ROOT && Storage.ImageFormat.ISO != template.getFormat() &&
+                !ImageFormat.PXEBOOT.equals(template.getFormat())) {
             dskCh = createDiskCharacteristics(volume, template, dc, diskOffering);
             storageMgr.setDiskProfileThrottling(dskCh, offering, diskOffering);
         } else {

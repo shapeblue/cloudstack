@@ -91,6 +91,11 @@ setup_router() {
 
   # Load modules to support NAT traversal in VR
   modprobe nf_nat_pptp
+#=======
+#  #disable and stop rpcbind service on VR
+#  chkconfig rpcbind off
+#  service rpcbind stop
+#>>>>>>> ak-ht-rebase-4.13
 }
 
 routing_svcs

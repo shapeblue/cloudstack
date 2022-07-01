@@ -43,6 +43,8 @@ import com.xensource.xenapi.Network;
 import com.xensource.xenapi.SR;
 import com.xensource.xenapi.Types.VmPowerState;
 import com.xensource.xenapi.Types.XenAPIException;
+import com.xensource.xenapi.VBD;
+import com.xensource.xenapi.VDI;
 import com.xensource.xenapi.VGPU;
 import com.xensource.xenapi.VIF;
 import com.xensource.xenapi.VM;
@@ -136,6 +138,19 @@ public final class CitrixStopCommandWrapper extends CommandWrapper<StopCommand, 
                             if (vGPUs != null && !vGPUs.isEmpty()) {
                                 final HashMap<String, HashMap<String, VgpuTypesInfo>> groupDetails = citrixResourceBase.getGPUGroupDetails(conn);
                                 command.setGpuDevice(new GPUDeviceTO(null, null, groupDetails));
+                            }
+
+                            if (CitrixResourceBase.SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value())) {
+                                Set<VBD> vbds = vm.getVBDs(conn);
+                                for (VBD vbd : vbds) {
+                                    VDI vdi = vbd.getVDI(conn);
+                                    if (!vdi.isNull()) {
+                                        SR sr = vdi.getSR(conn);
+                                        if (sr.getType(conn).equals(CitrixResourceBase.SRType.VDILUN.toString())) {
+                                            vdi.forget(conn);
+                                        }
+                                    }
+                                }
                             }
 
                             final Set<VIF> vifs = vm.getVIFs(conn);

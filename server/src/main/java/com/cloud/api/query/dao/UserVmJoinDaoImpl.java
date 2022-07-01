@@ -370,6 +370,13 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
                     resourceDetails.remove(key.trim());
                 }
             }
+            // Remove blacklisted settings if user is not admin
+            if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
+                String[] userVmSettingsToHide = QueryService.UserVMBlacklistedDetails.value().split(",");
+                for (String key : userVmSettingsToHide) {
+                    resourceDetails.remove(key.trim());
+                }
+            }
             userVmResponse.setDetails(resourceDetails);
             if (caller.getType() != Account.Type.ADMIN) {
                 userVmResponse.setReadOnlyDetails(QueryService.UserVMReadOnlyDetails.value());

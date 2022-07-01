@@ -68,6 +68,9 @@ public class VpcVO implements Vpc {
     @Column(name = "vpc_offering_id")
     long vpcOfferingId;
 
+    @Column(name ="network_boot_ip")
+    String networkBootIp;
+
     @Column(name = GenericDao.REMOVED_COLUMN)
     Date removed;
 
@@ -98,7 +101,7 @@ public class VpcVO implements Vpc {
 
     public VpcVO(final long zoneId, final String name, final String displayText, final long accountId, final long domainId,
             final long vpcOffId, final String cidr, final String networkDomain, final boolean useDistributedRouter,
-            final boolean regionLevelVpc, final boolean isRedundant) {
+            final boolean regionLevelVpc, final boolean isRedundant, final String networkBootIp) {
         this.zoneId = zoneId;
         this.name = name;
         this.displayText = displayText;
@@ -112,6 +115,7 @@ public class VpcVO implements Vpc {
         usesDistributedRouter = useDistributedRouter;
         this.regionLevelVpc = regionLevelVpc;
         redundant = isRedundant;
+        this.networkBootIp = networkBootIp;
     }
 
     @Override
@@ -166,6 +170,10 @@ public class VpcVO implements Vpc {
     public void setVpcOfferingId(final long vpcOfferingId) {
         this.vpcOfferingId = vpcOfferingId;
     }
+
+    public String getNetworkBootIp() { return networkBootIp; }
+
+    public void setNetworkBootIp(String networkBootIp) { this.networkBootIp = networkBootIp; }
 
     public Date getRemoved() {
         return removed;

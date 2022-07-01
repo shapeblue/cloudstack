@@ -72,6 +72,10 @@ public class VpcResponse extends BaseResponseWithAnnotations implements Controll
     @Param(description = "vpc offering name the VPC is created from", since = "4.13.2")
     private String vpcOfferingName;
 
+    @SerializedName(ApiConstants.NETWORK_BOOT_IP)
+    @Param(description = "The network boot ip of VPC")
+    private String networkBootIp;
+
     @SerializedName(ApiConstants.CREATED)
     @Param(description = "the date this VPC was created")
     private Date created;
@@ -204,6 +208,8 @@ public class VpcResponse extends BaseResponseWithAnnotations implements Controll
     public void setVpcOfferingName(final String vpcOfferingName) {
         this.vpcOfferingName = vpcOfferingName;
     }
+
+    public void setNetworkBootIp(String networkBootIp) { this.networkBootIp = networkBootIp; }
 
     public List<NetworkResponse> getNetworks() {
         return networks;

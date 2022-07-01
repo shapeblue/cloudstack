@@ -22,7 +22,8 @@
 import sys, os, subprocess, errno, re
 from os.path import exists
 
-TOOl_PATH = "/usr/bin/ipmitool"
+TOOL_PATH = "/usr/bin/ipmitool"
+IPMI_INTERFACE = "lanplus" # IPMI v2.0
 
 try:
     from subprocess import check_call
@@ -79,7 +80,7 @@ class Command:
 ipmitool = Command("ipmitool")
 
 def check_tool():
-    if exists(TOOl_PATH) == False:
+    if exists(TOOL_PATH) == False:
         print "Can not find ipmitool"
         return False
 
@@ -92,7 +93,7 @@ def ping(args):
         print "No hostname"
         return 1
 
-    o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "status")
+    o = ipmitool("-I", IPMI_INTERFACE, "-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "status")
     if o.ret:
         print o.stderr
         return 1
@@ -114,7 +115,7 @@ def boot_dev(args):
         print "No boot device specified"
         return 1
 
-    o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "bootdev", dev)
+    o = ipmitool("-I", IPMI_INTERFACE, "-H", hostname, "-U", usrname, "-P", password, "chassis", "bootdev", dev)
     if o.ret:
         print o.stderr
         return 1
@@ -130,14 +131,14 @@ def reboot(args):
         print "No hostname"
         return 1
 
-    o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "status")
+    o = ipmitool("-I", IPMI_INTERFACE, "-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "status")
     if o.ret:
         print o.stderr
         return 1
 
 
     if "is on" in o.stdout:
-        o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "cycle")
+        o = ipmitool("-I", IPMI_INTERFACE, "-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "cycle")
     else:
         o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "reset")
 
@@ -157,7 +158,7 @@ def power(args):
         print "No hostname"
         return 1
 
-    o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "power", action)
+    o = ipmitool("-I", IPMI_INTERFACE, "-H", hostname, "-U", usrname, "-P", password, "chassis", "power", action)
     if o.ret:
         print o.stderr
         return 1
@@ -168,7 +169,7 @@ def boot_or_reboot(args):
     hostname = args.get("hostname")
     usrname = args.get("usrname")
     password = args.get("password")
-    o = ipmitool("-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "status")
+    o = ipmitool("-I", IPMI_INTERFACE, "-H", hostname, "-U", usrname, "-P", password, "chassis", "power", "status")
     if o.ret:
         print o.stderr
         return 1

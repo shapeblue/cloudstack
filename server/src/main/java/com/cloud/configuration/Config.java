@@ -1730,6 +1730,20 @@ public enum Config {
             "5",
             "ipmi interface will be temporary out of order after power opertions(e.g. cycle, on), it leads following commands fail immediately. The value specifies retry times before accounting it as real failure",
             null),
+    BaremetalIpmiRetryDelay("Advanced",
+            ManagementServer.class,
+            String.class,
+            "baremetal.ipmi.fail.retry.delay",
+            "1",
+            "The value specifies retry time delay in seconds between each retry",
+            null),
+    BaremetalIpmiTimeout("Advanced",
+            ManagementServer.class,
+            String.class,
+            "baremetal.ipmi.fail.timeout",
+            "0",
+            "The value specifies the time to wait when doing an ipmi call in milliseconds.",
+            null),
 
     ApiLimitEnabled("Advanced", ManagementServer.class, Boolean.class, "api.throttling.enabled", "false", "Enable/disable Api rate limit", null),
     ApiLimitInterval("Advanced", ManagementServer.class, Integer.class, "api.throttling.interval", "1", "Time interval (in seconds) to reset API count", null),
@@ -1808,7 +1822,9 @@ public enum Config {
     // StatsCollector
     StatsOutPutGraphiteHost("Advanced", ManagementServer.class, String.class, "stats.output.uri", "", "URI to additionally send StatsCollector statistics to", null),
 
-    SSVMPSK("Hidden", ManagementServer.class, String.class, "upload.post.secret.key", "", "PSK with SSVM", null);
+    SSVMPSK("Hidden", ManagementServer.class, String.class, "upload.post.secret.key", "", "PSK with SSVM", null),
+
+    VPCUsageWhiteListCIDR("Network", ManagementServer.class, String.class, "vpc.usage.whitelist.cidr", null, "List of CIDRs to track usage separately in VPCs", "routes");
 
     private final String _category;
     private final Class<?> _componentClass;

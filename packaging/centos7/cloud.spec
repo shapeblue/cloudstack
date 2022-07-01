@@ -212,6 +212,15 @@ if [ \"%{_temp}\" != "" ]; then
     FLAGS="$FLAGS `rpm --eval %{?_temp}`"
 fi
 
+if [ "%{_tests}" == "SKIP" ] ; then
+    echo "Adding skipTests flag to the maven build"
+    FLAGS="$FLAGS -DskipTests"
+fi
+
+# Installing missing deps
+curl -L https://github.com/Juniper/netconf-java/releases/download/1.0.0/Netconf.jar --output netconf-java.jar
+mvn install:install-file -Dfile=netconf-java.jar -DgroupId=net.juniper.netconf -DartifactId=netconf-juniper -Dversion=1.0 -Dpackaging=jar
+
 mvn -Psystemvm,developer $FLAGS clean package
 cd ui && npm install && npm run build && cd ..
 

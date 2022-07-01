@@ -109,6 +109,24 @@ public class HAProxyConfiguratorTest {
         assertTrue("'send-proxy' should result if protocol is 'tcp-proxy'", result.contains("send-proxy"));
     }
 
+    /**
+     * Test method for {@link com.cloud.network.HAProxyConfigurator#generateConfiguration(com.cloud.agent.api.routing.LoadBalancerConfigCommand)}.
+     */
+    @Test
+    public void testGenerateConfigurationLoadBalancerProxyProtocolV2ConfigCommand() {
+        final List<LbDestination> dests = new ArrayList<>();
+        dests.add(new LbDestination(443, 8443, "10.1.10.2", false));
+        dests.add(new LbDestination(443, 8443, "10.1.10.2", true));
+        LoadBalancerTO lb = new LoadBalancerTO("1", "10.2.0.1", 443, "tcp", "http", false, false, false, dests);
+        lb.setLbProtocol("tcp-proxy-v2");
+        LoadBalancerTO[] lba = new LoadBalancerTO[1];
+        lba[0] = lb;
+        HAProxyConfigurator hpg = new HAProxyConfigurator();
+        LoadBalancerConfigCommand cmd = new LoadBalancerConfigCommand(lba, "10.0.0.1", "10.1.0.1", "10.1.1.1", null, 1L, "12", false);
+        String result = genConfig(hpg, cmd);
+        assertTrue("'send-proxy-v2' should result if protocol is 'tcp-proxy'", result.contains("send-proxy-v2"));
+    }
+
     private String genConfig(HAProxyConfigurator hpg, LoadBalancerConfigCommand cmd) {
         String[] sa = hpg.generateConfiguration(cmd);
         StringBuilder sb = new StringBuilder();

@@ -183,6 +183,10 @@ public class TemplateServiceImpl implements TemplateService {
         // update template_store_ref and template state
         try {
             templateOnStore.processEvent(ObjectInDataStoreStateMachine.Event.CreateOnlyRequested);
+            if(template.getFormat().equals(ImageFormat.PXEBOOT)) {
+                templateOnStore.processEvent(ObjectInDataStoreStateMachine.Event.OperationSuccessed);
+                templateOnStore.setSize(0L);
+            }
         } catch (Exception e) {
             TemplateApiResult result = new TemplateApiResult(templateOnStore);
             result.setResult(e.toString());
@@ -798,7 +802,7 @@ public class TemplateServiceImpl implements TemplateService {
         String templateName = dataDiskTemplate.isIso() ? dataDiskTemplate.getPath().substring(dataDiskTemplate.getPath().lastIndexOf(File.separator) + 1) : template.getName() + suffix + diskCount;
         VMTemplateVO templateVO = new VMTemplateVO(templateId, templateName, format, false, false, false, ttype, template.getUrl(),
                 template.requiresHvm(), template.getBits(), template.getAccountId(), null, templateName, false, guestOsId, false, template.getHypervisorType(), null,
-                null, false, false, false, false);
+                null, false, false, false, false, template.getBootFilename());
         if (dataDiskTemplate.isIso()){
             templateVO.setUniqueName(templateName);
         }

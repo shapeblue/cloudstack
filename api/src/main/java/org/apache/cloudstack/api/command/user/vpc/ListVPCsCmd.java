@@ -19,8 +19,6 @@ package org.apache.cloudstack.api.command.user.vpc;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.cloud.server.ResourceIcon;
-import com.cloud.server.ResourceTag;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -36,6 +34,8 @@ import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.log4j.Logger;
 
 import com.cloud.network.vpc.Vpc;
+import com.cloud.server.ResourceIcon;
+import com.cloud.server.ResourceTag;
 import com.cloud.utils.Pair;
 
 
@@ -66,6 +66,9 @@ public class ListVPCsCmd extends BaseListTaggedResourcesCmd implements UserCmd {
 
     @Parameter(name = ApiConstants.VPC_OFF_ID, type = CommandType.UUID, entityType = VpcOfferingResponse.class, description = "list by ID of the VPC offering")
     private Long VpcOffId;
+
+    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, description = "the network boot ip of the VPC.")
+    private String networkBootIp;
 
     @Parameter(name = ApiConstants.SUPPORTED_SERVICES, type = CommandType.LIST, collectionType = CommandType.STRING, description = "list VPC supporting certain services")
     private List<String> supportedServices;
@@ -107,6 +110,8 @@ public class ListVPCsCmd extends BaseListTaggedResourcesCmd implements UserCmd {
         return VpcOffId;
     }
 
+    public String getNetworkBootIp() { return networkBootIp; }
+
     public Long getId() {
         return id;
     }
@@ -144,7 +149,7 @@ public class ListVPCsCmd extends BaseListTaggedResourcesCmd implements UserCmd {
         Pair<List<? extends Vpc>, Integer> vpcs =
             _vpcService.listVpcs(getId(), getVpcName(), getDisplayText(), getSupportedServices(), getCidr(), getVpcOffId(), getState(), getAccountName(), getDomainId(),
                 getKeyword(), getStartIndex(), getPageSizeVal(), getZoneId(), isRecursive(), listAll(), getRestartRequired(), getTags(),
-                getProjectId(), getDisplay());
+                getProjectId(), getDisplay(), getNetworkBootIp());
         ListResponse<VpcResponse> response = new ListResponse<VpcResponse>();
         List<VpcResponse> vpcResponses = new ArrayList<VpcResponse>();
         for (Vpc vpc : vpcs.first()) {

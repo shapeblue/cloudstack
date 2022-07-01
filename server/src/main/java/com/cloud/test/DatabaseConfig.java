@@ -1020,6 +1020,18 @@ public class DatabaseConfig {
         Long iopsWriteRate = Long.parseLong(_currentObjectParams.get("iopsWriteRate"));
         if (iopsWriteRate != null && (iopsWriteRate > 0))
             diskOffering.setIopsWriteRate(iopsWriteRate);
+        Long minIopsPerGb = Long.parseLong(_currentObjectParams.get("minIopsPerGb"));
+        if (minIopsPerGb > 0)
+            diskOffering.setMinIopsPerGb(minIopsPerGb);
+        Long maxIopsPerGb = Long.parseLong(_currentObjectParams.get("maxIopsPerGb"));
+        if (maxIopsPerGb > 0)
+            diskOffering.setMaxIopsPerGb(maxIopsPerGb);
+        Long highestMinIops = Long.parseLong(_currentObjectParams.get("highestMinIops"));
+        if (highestMinIops > 0)
+            diskOffering.setHighestMinIops(highestMinIops);
+        Long highestMaxIops = Long.parseLong(_currentObjectParams.get("highestMaxIops"));
+        if (highestMaxIops > 0)
+            diskOffering.setHighestMaxIops(highestMaxIops);
 
         DiskOfferingDaoImpl offering = ComponentContext.inject(DiskOfferingDaoImpl.class);
         try {

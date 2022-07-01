@@ -162,6 +162,7 @@ public class BaremetalPingPxeResource extends BaremetalPxeResourceBase {
             if (!SSHCmdHelper.sshExecuteCmd(sshConnection, script)) {
                 return new PreparePxeServerAnswer(cmd, "prepare PING at " + _ip + " failed, command:" + script);
             }
+
             s_logger.debug("Prepare Ping PXE server successfully");
 
             return new PreparePxeServerAnswer(cmd);
@@ -190,6 +191,7 @@ public class BaremetalPingPxeResource extends BaremetalPxeResourceBase {
             if (!SSHCmdHelper.sshExecuteCmd(sshConnection, script)) {
                 return new Answer(cmd, false, "prepare for creating template failed, command:" + script);
             }
+
             s_logger.debug("Prepare for creating template successfully");
 
             return new Answer(cmd, true, "Success");

@@ -22,7 +22,6 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.utils.NumbersUtil;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.log4j.Logger;
 
@@ -46,9 +45,13 @@ import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.offering.ServiceOffering;
 import com.cloud.org.Cluster;
 import com.cloud.resource.ResourceManager;
+import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.component.AdapterBase;
+import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineProfile;
+import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.base.Strings;
 
 public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
     private static final Logger s_logger = Logger.getLogger(BareMetalPlanner.class);
@@ -68,6 +71,8 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
     protected ResourceManager _resourceMgr;
     @Inject
     protected ClusterDetailsDao _clusterDetailsDao;
+    @Inject
+    protected VMInstanceDao _vmDao;
 
     @Override
     public DeployDestination plan(VirtualMachineProfile vmProfile, DeploymentPlan plan, ExcludeList avoid) throws InsufficientServerCapacityException {
@@ -104,8 +109,7 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
             hosts = _resourceMgr.listAllUpAndEnabledHosts(Host.Type.Routing, cluster.getId(), cluster.getPodId(), cluster.getDataCenterId());
             if (hostTag != null) {
                 for (HostVO h : hosts) {
-                    _hostDao.loadDetails(h);
-                    if (h.getDetail("hostTag") != null && h.getDetail("hostTag").equalsIgnoreCase(hostTag)) {
+                    if (hasHostCorrectTag(h, hostTag)) {
                         target = h;
                         break;
                     }
@@ -137,7 +141,9 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
                 Float cpuOvercommitRatio = Float.parseFloat(cluster_detail_cpu.getValue());
                 Float memoryOvercommitRatio = Float.parseFloat(cluster_detail_ram.getValue());
 
-                if (_capacityMgr.checkIfHostHasCapacity(h.getId(), cpu_requested, ram_requested, false, cpuOvercommitRatio, memoryOvercommitRatio, true)) {
+                if (hasHostCorrectTag(h, hostTag) && _capacityMgr.checkIfHostHasCapacity(h.getId(),
+                        cpu_requested, ram_requested, false,
+                        cpuOvercommitRatio, memoryOvercommitRatio, true) && isHostAvailable(h)) {
                     s_logger.debug("Find host " + h.getId() + " has enough capacity");
                     DataCenter dc = _dcDao.findById(h.getDataCenterId());
                     Pod pod = _podDao.findById(h.getPodId());
@@ -148,6 +154,26 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
 
         s_logger.warn(String.format("Cannot find enough capacity(requested cpu=%1$s memory=%2$s)", cpu_requested, NumbersUtil.toHumanReadableSize(ram_requested)));
         return null;
+    }
+
+    private boolean isHostAvailable(HostVO h) {
+        List<VMInstanceVO> vmsRunningOnHost = _vmDao.listByHostId(h.getId());
+        List<VMInstanceVO> vmsStoppedOnHost = _vmDao.listByLastHostId(h.getId());
+        return vmsRunningOnHost.isEmpty() && vmsStoppedOnHost.isEmpty();
+    }
+
+    private boolean hasHostCorrectTag(HostVO h, String tag) {
+        _hostDao.loadDetails(h);
+        if (Strings.isNullOrEmpty(tag)) {
+            return true;
+        }
+        if (Strings.isNullOrEmpty(h.getDetail("hostTag"))) {
+            return false;
+        }
+        if (h.getDetail("hostTag").equalsIgnoreCase(tag)) {
+            return true;
+        }
+        return false;
     }
 
     @Override

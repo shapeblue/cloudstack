@@ -1274,7 +1274,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
             ActionEventUtils.onActionEvent(User.UID_SYSTEM, Account.ACCOUNT_ID_SYSTEM,
                     Domain.ROOT_DOMAIN, EventTypes.EVENT_ROUTER_HEALTH_CHECKS,
                     "Recreating router " + router.getUuid() + " by restarting VPC " + router.getVpcUuid(), router.getId(), ApiCommandResourceType.DomainRouter.toString());
-            return vpcService.restartVpc(router.getVpcId(), true, false, false, user);
+            return vpcService.restartVpc(router.getVpcId(), true, false, false, user, false);
         } catch (Exception e) {
             s_logger.error("Failed to restart VPC for router recreation " +
                     router.getVpcName() + " ,router " + router.getUuid(), e);

@@ -35,6 +35,7 @@ Optional arguments:
    -r, --release integer                   Set the package release version (default is 1 for normal and prereleases, empty for SNAPSHOT)
    -s, --simulator string                  Build package for Simulator ("default"|"DEFAULT"|"simulator"|"SIMULATOR") (default "default")
    -b, --brand string                      Set branding to be used in package name (it will override any branding string in POM version)
+   -S, --skip-tests                        Set the flag to skip unit tests (if not provided tests will be executed)
    -T, --use-timestamp                     Use epoch timestamp instead of SNAPSHOT in the package name (if not provided, use "SNAPSHOT")
    -t --templates                          Passes necessary flag to package the required templates. Comma separated string - kvm,xen,vmware,ovm,hyperv
 
@@ -77,6 +78,9 @@ function packaging() {
         INDICATOR="$NOW"
     else
         INDICATOR="SNAPSHOT"
+    fi
+    if [ "$SKIP_TESTS" == "true" ]; then
+        DEFTESTS="-D_tests SKIP"
     fi
 
     DISTRO=$3
@@ -173,7 +177,7 @@ function packaging() {
     echo ". executing rpmbuild"
     cp "$PWD/$DISTRO/cloud.spec" "$RPMDIR/SPECS"
 
-    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFFULLVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFTEMP+"$DEFTEMP"} -bb SPECS/cloud.spec)
+    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFFULLVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFTESTS+"$DEFTESTS"} -bb SPECS/cloud.spec)
     if [ $? -ne 0 ]; then
         if [ "$USE_TIMESTAMP" == "true" ]; then
             (cd $PWD/../; git reset --hard)
@@ -194,6 +198,7 @@ SIM=""
 PACKAGEVAL=""
 RELEASE=""
 BRANDING=""
+SKIP_TESTS="false"
 USE_TIMESTAMP="false"
 
 unrecognized_flags=""
@@ -251,6 +256,11 @@ while [ -n "$1" ]; do
         -b | --brand)
             BRANDING=$2
             shift 2
+            ;;
+
+        -S | --skip-tests)
+            SKIP_TESTS="true"
+            shift 1
             ;;
 
         -T | --use-timestamp)

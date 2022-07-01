@@ -17,6 +17,7 @@
 import CsHelper
 import logging
 import os
+import re
 from netaddr import *
 from random import randint
 from CsGuestNetwork import CsGuestNetwork
@@ -27,7 +28,6 @@ LEASES = "/var/lib/misc/dnsmasq.leases"
 DHCP_HOSTS = "/etc/dhcphosts.txt"
 DHCP_OPTS = "/etc/dhcpopts.txt"
 CLOUD_CONF = "/etc/dnsmasq.d/cloud.conf"
-
 
 class CsDhcp(CsDataBag):
     """ Manage dhcp entries """

@@ -135,6 +135,7 @@ public class StoragePoolMonitor implements Listener {
                         _storageManager.connectHostToSharedPool(hostId, pool.getId());
                         _storageManager.createCapacityEntry(pool.getId());
                     } catch (Exception e) {
+                        s_logger.error(e.getMessage(), e);
                         throw new ConnectionException(true, "Unable to connect host " + hostId + " to storage pool id " + pool.getId() + " due to " + e.toString(), e);
                     }
                 }

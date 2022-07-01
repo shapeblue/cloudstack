@@ -171,6 +171,7 @@ import com.cloud.utils.Ternary;
 import com.cloud.utils.UriUtils;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.ManagerBase;
+import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericSearchBuilder;
@@ -202,6 +203,7 @@ import com.cloud.vm.VirtualMachineProfileImpl;
 import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.UserVmDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 
 @Component
@@ -497,7 +499,6 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
 
         final Discoverer discoverer = getMatchingDiscover(hypervisorType);
         if (discoverer == null) {
-
             throw new InvalidParameterValueException("Could not find corresponding resource manager for " + cmd.getHypervisor());
         }
 
@@ -533,6 +534,14 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
                 details.put("ovm3vip", allParams.get("ovm3vip"));
                 details.put("ovm3pool", allParams.get("ovm3pool"));
                 details.put("ovm3cluster", allParams.get("ovm3cluster"));
+            }
+            else if (hypervisorType == HypervisorType.BareMetal) {
+                if (cmd.getBaremetalMaasHost() != null && cmd.getBaremetalMaasKey() != null && cmd.getBaremetalMaasPool() != null) {
+                    details.put("baremetalType", "MaaS");
+                    details.put("baremetalMaasHost", cmd.getBaremetalMaasHost());
+                    details.put("baremetalMaaSKey", DBEncryptionUtil.encrypt(cmd.getBaremetalMaasKey()));
+                    details.put("baremetalMaasPool", cmd.getBaremetalMaasPool());
+                }
             }
             details.put("cpuOvercommitRatio", CapacityManager.CpuOverprovisioningFactor.value().toString());
             details.put("memoryOvercommitRatio", CapacityManager.MemOverprovisioningFactor.value().toString());
@@ -2202,7 +2211,7 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         host.setStorageMacAddress(startup.getStorageMacAddress());
         host.setStorageNetmask(startup.getStorageNetmask());
         host.setVersion(startup.getVersion());
-        host.setName(startup.getName());
+        host.setName(Strings.isNullOrEmpty(startup.getName()) ? resource.getName() : startup.getName());
         host.setManagementServerId(_nodeId);
         host.setStorageUrl(startup.getIqn());
         host.setLastPinged(System.currentTimeMillis() >> 10);

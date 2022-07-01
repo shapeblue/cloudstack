@@ -51,11 +51,12 @@ import javax.naming.ConfigurationException;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import com.cloud.resource.ServerResourceBase;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.diagnostics.CopyToSecondaryStorageAnswer;
 import org.apache.cloudstack.diagnostics.CopyToSecondaryStorageCommand;
 import org.apache.cloudstack.diagnostics.DiagnosticsService;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.hypervisor.xenserver.ExtraConfigurationUtility;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
@@ -122,6 +123,7 @@ import com.cloud.network.Networks;
 import com.cloud.network.Networks.BroadcastDomainType;
 import com.cloud.network.Networks.TrafficType;
 import com.cloud.resource.ServerResource;
+import com.cloud.resource.ServerResourceBase;
 import com.cloud.resource.hypervisor.HypervisorResource;
 import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.StoragePoolType;
@@ -180,12 +182,12 @@ import com.xensource.xenapi.XenAPIObject;
  * before you do any changes in this code here.
  *
  */
-public abstract class CitrixResourceBase extends ServerResourceBase implements ServerResource, HypervisorResource, VirtualRouterDeployer {
+public abstract class CitrixResourceBase extends ServerResourceBase implements ServerResource, HypervisorResource, VirtualRouterDeployer, Configurable {
     /**
      * used to describe what type of resource a storage device is of
      */
     public enum SRType {
-        EXT, ISO, LVM, LVMOHBA, LVMOISCSI,
+        EXT, ISO, LVM, LVMOHBA, LVMOISCSI, VHDOISCSI, VDILUN,
         /**
          * used for resigning metadata (like SR UUID and VDI UUID when a
          * particular storage manager is installed on a XenServer host (for back-end snapshots to work))
@@ -297,6 +299,13 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
     protected String _configDriveIsopath = "/opt/xensource/packages/configdrive_iso/";
     protected String _configDriveSRName = "ConfigDriveISOs";
     public String _attachIsoDeviceNum = "3";
+
+    public static final ConfigKey<String> XenServerManagedStorageSrType = new ConfigKey<>("Advanced", String.class,
+            "xenserver.managedstorage.srtype",
+            "lvmoiscsi",
+            "The type of SR to use when using managed storage for VDI-per-LUN (lvmoiscsi or vdilun)",
+            true,
+            ConfigKey.Scope.Zone);
 
     protected XenServerUtilitiesHelper xenServerUtilitiesHelper = new XenServerUtilitiesHelper();
 
@@ -1218,7 +1227,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         return vbd;
     }
 
-    public VDI createVdi(final SR sr, final String vdiNameLabel, final Long volumeSize) throws Types.XenAPIException, XmlRpcException {
+    public VDI createVdi(final SR sr, final String vdiNameLabel, final Long volumeSize, Map<String, String> smConfig) throws Types.XenAPIException, XmlRpcException {
         final Connection conn = getConnection();
 
         final VDI.Record vdir = new VDI.Record();
@@ -1231,6 +1240,10 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         final long unavailableSrSpace = sr.getPhysicalUtilisation(conn);
         final long availableSrSpace = totalSrSpace - unavailableSrSpace;
 
+        if (smConfig != null) {
+            vdir.smConfig = smConfig;
+        }
+
         if (availableSrSpace < volumeSize) {
             throw new CloudRuntimeException("Available space for SR cannot be less than " + volumeSize + ".");
         }
@@ -1238,6 +1251,31 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         vdir.virtualSize = volumeSize;
 
         return VDI.create(conn, vdir);
+    }
+
+    public VDI introduceVDI(final SR sr, final String vdiNameLabel, final Long volumeSize, String uuid, String iqn) throws Types.XenAPIException, XmlRpcException {
+
+        final Connection conn = getConnection();
+        Map<String, String> smConfig = new HashMap<>();
+
+        smConfig.put("targetIQN", iqn);
+
+        if (uuid == null) {
+            uuid = UUID.randomUUID().toString();
+        }
+        try {
+            return VDI.introduce(conn, uuid, vdiNameLabel, vdiNameLabel, sr, Types.VdiType.USER,
+                    false, false, new HashMap<String, String>(), uuid, new HashMap<String, String>(),
+                    smConfig, false, volumeSize, volumeSize, null, false, new Date(0), null);
+        } catch (Types.XenAPIException e) {
+            if (e.shortDescription.contains("VDI could not be found") || ((e instanceof Types.InternalError) && ((Types.InternalError)e).message.contains("Vdi_does_not_exist"))) {
+                // We could not find a VDI, this can happen when we try to attach a newly created
+                // We return null here. For all other exceptions, we raise them
+                return null;
+            }
+            s_logger.error("Error introducing VDI " + e.getMessage());
+            throw new CloudRuntimeException(e.getMessage());
+        }
     }
 
     public void createVGPU(final Connection conn, final StartCommand cmd, final VM vm, final GPUDeviceTO gpuDevice) throws XenAPIException, XmlRpcException {
@@ -1367,6 +1405,10 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
                 xenstoreData.put(XENSTORE_DATA_NETMASK, mgmtNic.getNetmask().toString().trim());
                 vmr.xenstoreData = xenstoreData;
             }
+        }
+
+        if(vmSpec.getFormat().equals(Storage.ImageFormat.PXEBOOT)) {
+            vmr.HVMBootParams.put("order", "ndc");
         }
 
         final VM vm = VM.create(conn, vmr);
@@ -1941,6 +1983,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
                 final Map<String, String> platform = com.cloud.utils.StringUtils.stringToMap(platformstring);
                 syncPlatformAndCoresPerSocketSettings(coresPerSocket, platform);
                 vm.setPlatform(conn, platform);
+                calculateCorePerSocket(vm, conn, vmSpec);
             } else {
                 final String timeoffset = details.get(VmDetailConstants.TIME_OFFSET);
                 if (timeoffset != null) {
@@ -1948,9 +1991,13 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
                     platform.put(VmDetailConstants.TIME_OFFSET, timeoffset);
                     vm.setPlatform(conn, platform);
                 }
-                if (coresPerSocket != null) {
+
+                calculateCorePerSocket(vm, conn, vmSpec);
+
+                final String nestedHvm = details.get("nested.hvm");
+                if (nestedHvm != null) {
                     final Map<String, String> platform = vm.getPlatform(conn);
-                    syncPlatformAndCoresPerSocketSettings(coresPerSocket, platform);
+                    platform.put("exp-nested-hvm", nestedHvm);
                     vm.setPlatform(conn, platform);
                 }
             }
@@ -1986,6 +2033,18 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         vm.setPlatform(conn, platform);
     }
 
+    private void calculateCorePerSocket(final VM vm, final Connection conn, final VirtualMachineTO vmSpec) throws XmlRpcException, XenAPIException {
+        int coresPerSocketCalculated;
+        int cpus = vmSpec.getCpus();
+        if (cpus % 2 == 1) {
+            coresPerSocketCalculated = 1;
+        } else {
+            coresPerSocketCalculated = cpus / 2;
+        }
+        final Map<String, String> platform = vm.getPlatform(conn);
+        platform.put("cores-per-socket", Integer.toString(coresPerSocketCalculated));
+        vm.setPlatform(conn, platform);
+    }
     /**
      * This method just creates a XenServer network following the tunnel network
      * naming convention
@@ -2495,6 +2554,61 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
                 throw new CloudRuntimeException(msg, e);
             }
         }
+    }
+
+    public SR getVdiLunSr(Connection conn, String storageHost) {
+        try {
+            final Map<String, String> deviceConfig = new HashMap<String, String>();
+            final Set<SR> srs = SR.getAll(conn);
+            for (final SR sr : srs) {
+                if (!(SRType.VDILUN.equals(sr.getType(conn)))) {
+                    continue;
+                }
+                final Set<PBD> pbds = sr.getPBDs(conn);
+                if (pbds.isEmpty()) {
+                    continue;
+                }
+
+                final PBD pbd = pbds.iterator().next();
+                final Map<String, String> dc = pbd.getDeviceConfig(conn);
+                if (dc == null) {
+                    continue;
+                }
+                if (dc.get("target") == null) {
+                    continue;
+                }
+
+                if (storageHost.equals(dc.get("target"))) {
+                    return sr;
+                }
+            }
+
+            // came here, could not find an SR, create one
+            deviceConfig.put("target", storageHost);
+            String srNameLabel = "Cloudstack-VDILUN-SR-" + storageHost;
+            final Host host = Host.getByUuid(conn, _host.getUuid());
+            return SR.create(conn, host, deviceConfig, new Long(0), srNameLabel, srNameLabel, SRType.VDILUN.toString(),
+                    "user", true, new HashMap<String, String>());
+        } catch (Exception e) {
+            String mesg = "Unable to find/create VDILUN SR due to: " + e.getMessage();
+            s_logger.warn(mesg);
+            throw new CloudRuntimeException(mesg);
+        }
+    }
+
+    public String getTargetIqn(String iqnPath) {
+        if (iqnPath.endsWith("/")) {
+            iqnPath = iqnPath.substring(0, iqnPath.length() - 1);
+        }
+
+        final String tmp[] = iqnPath.split("/");
+        if (tmp.length != 3) {
+            final String msg = "Wrong iscsi path " + iqnPath + " it should be /targetIQN/LUN";
+            s_logger.warn(msg);
+            throw new CloudRuntimeException(msg);
+        }
+        final String targetiqn = tmp[1].trim();
+        return targetiqn;
     }
 
     private SR introduceAndPlugIscsiSr(Connection conn, String pooluuid, String srNameLabel, String type, Map<String, String> smConfig, Map<String, String> deviceConfig,
@@ -3586,10 +3700,24 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         return n.getChildNodes().item(0).getNodeValue();
     }
 
-    public void handleSrAndVdiDetach(final String iqn, final Connection conn) throws Exception {
-        final SR sr = getStorageRepository(conn, iqn);
+    public void handleManagedSrAndVdiDetach(final String iqn, final String storageHost, final Connection conn) throws Exception {
+        SR sr = null;
+        if (SRType.VDILUN.equals(XenServerManagedStorageSrType.value())) {
+            sr = getVdiLunSr(conn, storageHost);
+            String targetIqn = getTargetIqn(iqn);
+            VDI vdi = getVDIbyLocationandSR(conn, targetIqn, sr);
+            if (vdi != null){
+                vdi.forget(conn);
+            }
 
-        removeSR(conn, sr);
+        } else {
+            sr = getStorageRepository(conn, iqn);
+            removeSR(conn, sr);
+        }
+    }
+
+    public void handleManagedSrRemove() {
+
     }
 
     protected void destroyUnattachedVBD(Connection conn, VM vm) {
@@ -4234,6 +4362,14 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
             return null;
         }
 
+        // TODO for VDILUN sr, we need to first find the SR by the target IP (not by IQN)
+        // then if such an SR exists, we have to look at its sm_config map to see if
+        // a VDI exists which matches the given IQN. If we find such a VDI, we return it,
+        // else, we *introduce* that VDI into the SR, this will ensure that the data on
+        // the LUN is not zeroed out (VDI create does that). Now there is a caveat, if the
+        // volume is cloned, we need to introduce it, if it is a fresh volume, we need to
+        // create it (as the LUN will not have the VDI inside it yet)
+
         final String iqn = details.get(DiskTO.IQN);
 
         final Set<SR> srNameLabels = SR.getByNameLabel(conn, iqn);
@@ -4244,7 +4380,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
 
         final String vdiNameLabel = Volume.Type.ROOT.equals(disk.getType()) ? ("ROOT-" + vmId) : (vmName + "-DATA");
 
-        return prepareManagedStorage(conn, details, null, vdiNameLabel);
+        return prepareManagedStorage(conn, details, disk.getPath(), vdiNameLabel);
     }
 
     protected SR prepareManagedSr(final Connection conn, final Map<String, String> details) {
@@ -4261,6 +4397,8 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
             final String volumedesc = storageHost + ":" + mountpoint;
 
             return getNfsSR(conn, poolid, namelable, storageHost, mountpoint, volumedesc);
+        } else if (SRType.VDILUN.equals(XenServerManagedStorageSrType.value())) {
+            return getVdiLunSr(conn, storageHost);
         } else {
             return getIscsiSR(conn, iScsiName, storageHost, iScsiName, chapInitiatorUsername, chapInitiatorSecret, false, SRType.LVMOISCSI.toString(), true);
         }
@@ -4271,16 +4409,28 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
 
         VDI vdi = getVDIbyUuid(conn, path, false);
         final Long volumeSize = Long.parseLong(details.get(DiskTO.VOLUME_SIZE));
+        Map<String, String> smConfig = new HashMap<>();
+        String iqn = getTargetIqn(details.get(DiskTO.IQN));
+        smConfig.put("targetIQN", iqn);
 
         Set<VDI> vdisInSr = sr.getVDIs(conn);
 
-        // If a VDI already exists in the SR (in case we cloned from a template cache), use that.
-        if (vdisInSr.size() == 1) {
-            vdi = vdisInSr.iterator().next();
+        if (SRType.VDILUN.equals(XenServerManagedStorageSrType.value())) {
+
+            vdi = getVDIbyLocationandSR(conn, iqn, sr);
+            if (vdi == null) {
+                vdi = introduceVDI(sr, vdiNameLabel, volumeSize, path, iqn);
+            }
+
+        } else {
+            // If a VDI already exists in the SR (in case we cloned from a template cache), use that.
+            if (vdisInSr.size() == 1) {
+                vdi = vdisInSr.iterator().next();
+            }
         }
 
         if (vdi == null) {
-            vdi = createVdi(sr, vdiNameLabel, volumeSize);
+            vdi = createVdi(sr, vdiNameLabel, volumeSize, smConfig);
         } else {
             // If vdi is not null, it must have already been created, so check whether a resize of the volume was performed.
             // If true, resize the VDI to the volume size.
@@ -4707,6 +4857,14 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
             // vm.addToVCPUsParamsLive(conn, "weight",
             // Integer.toString(cpuWeight));
             callHostPlugin(conn, "vmops", "add_to_VCPUs_params_live", "key", "weight", "value", Integer.toString(cpuWeight), "vmname", vmSpec.getName());
+
+            // Recalculating cores per socket
+            final VM.Record vmr = vm.getRecord(conn);
+            try {
+                finalizeVmMetaData(vm, vmr, conn, vmSpec);
+            } catch (final Exception e) {
+                throw new CloudRuntimeException("Unable to finalize VM MetaData: " + vmSpec);
+            }
         }
     }
 
@@ -5749,5 +5907,13 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
             String errMsg = "Could not umount secondary storage " + remoteDir + " on host " + localDir;
             s_logger.warn(errMsg);
         }
+    }
+
+    public ConfigKey<?>[] getConfigKeys(){
+        return new ConfigKey<?>[] {XenServerManagedStorageSrType};
+    }
+
+    public String getConfigComponentName(){
+        return CitrixResourceBase.class.getSimpleName();
     }
 }

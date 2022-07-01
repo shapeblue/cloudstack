@@ -104,9 +104,12 @@ public class RegisterTemplateCmd extends BaseCmd implements UserCmd {
     @Parameter(name = ApiConstants.REQUIRES_HVM, type = CommandType.BOOLEAN, description = "true if this template requires HVM")
     private Boolean requiresHvm;
 
+    @Parameter(name = ApiConstants.BOOT_FILENAME, type = CommandType.STRING, description = "PXE boot filename on the TFTP server.")
+    private String bootFilename;
+
     @Parameter(name = ApiConstants.URL,
                type = CommandType.STRING,
-               required = true,
+               required = false,
                length = 2048,
                description = "the URL of where the template is hosted. Possible URL include http:// and https://")
     private String url;
@@ -217,6 +220,10 @@ public class RegisterTemplateCmd extends BaseCmd implements UserCmd {
 
     public Boolean getRequiresHvm() {
         return requiresHvm;
+    }
+
+    public String getBootFilename() {
+        return bootFilename;
     }
 
     public String getUrl() {

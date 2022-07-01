@@ -1687,10 +1687,12 @@ public class ApiResponseHelper implements ResponseGenerator {
         }
         vpnResponse.setIpRange(vpn.getIpRange());
         vpnResponse.setPresharedKey(vpn.getIpsecPresharedKey());
+        vpnResponse.setCertificate(vpn.getCaCertificate());
         populateOwner(vpnResponse, vpn);
         vpnResponse.setState(vpn.getState().toString());
         vpnResponse.setId(vpn.getUuid());
         vpnResponse.setForDisplay(vpn.isDisplay());
+        vpnResponse.setType(vpn.getVpnType());
         vpnResponse.setObjectName("remoteaccessvpn");
 
         return vpnResponse;
@@ -3181,6 +3183,7 @@ public class ApiResponseHelper implements ResponseGenerator {
         response.setUsesDistributedRouter(vpc.usesDistributedRouter());
         response.setRedundantRouter(vpc.isRedundant());
         response.setRegionLevelVpc(vpc.isRegionLevelVpc());
+        response.setNetworkBootIp(vpc.getNetworkBootIp());
 
         Map<Service, Set<Provider>> serviceProviderMap = ApiDBUtils.listVpcOffServices(vpc.getVpcOfferingId());
         List<ServiceResponse> serviceResponses = new ArrayList<ServiceResponse>();
