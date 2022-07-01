@@ -72,6 +72,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.cloud.api.query.dao.ServiceOfferingJoinDao;
+import com.cloud.api.query.vo.ServiceOfferingJoinVO;
 import com.cloud.configuration.ConfigurationManager;
 import com.cloud.configuration.Resource;
 import com.cloud.configuration.Resource.ResourceType;

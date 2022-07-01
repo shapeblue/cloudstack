@@ -23,6 +23,7 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.capacity.CapacityManager;
@@ -51,7 +52,6 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineProfile;
 import com.cloud.vm.dao.VMInstanceDao;
-import com.google.common.base.Strings;
 
 public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
     private static final Logger s_logger = Logger.getLogger(BareMetalPlanner.class);
@@ -164,10 +164,10 @@ public class BareMetalPlanner extends AdapterBase implements DeploymentPlanner {
 
     private boolean hasHostCorrectTag(HostVO h, String tag) {
         _hostDao.loadDetails(h);
-        if (Strings.isNullOrEmpty(tag)) {
+        if (StringUtils.isEmpty(tag)) {
             return true;
         }
-        if (Strings.isNullOrEmpty(h.getDetail("hostTag"))) {
+        if (StringUtils.isEmpty(h.getDetail("hostTag"))) {
             return false;
         }
         if (h.getDetail("hostTag").equalsIgnoreCase(tag)) {

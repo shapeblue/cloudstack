@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
 
 import com.bettercloud.vault.SslConfig;
@@ -34,11 +34,9 @@ import com.bettercloud.vault.api.pki.RoleOptions;
 import com.bettercloud.vault.response.AuthResponse;
 import com.bettercloud.vault.response.LogicalResponse;
 import com.bettercloud.vault.response.PkiResponse;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-
 import com.cloud.domain.Domain;
 import com.cloud.utils.net.Ip;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * @author Khosrow Moossavi
@@ -70,7 +68,7 @@ public class PkiEngineVault implements PkiEngine {
 
     public PkiEngineVault(Map<String, String> configs) {
         _vaultUrl = configs.get(PkiConfig.VaultUrl.key());
-        Assert.isTrue(!Strings.isNullOrEmpty(_vaultUrl), "PKI Engine: URL of Vault endpoint is missing");
+        Assert.isTrue(StringUtils.isNotEmpty(_vaultUrl), "PKI Engine: URL of Vault endpoint is missing");
 
         _vaultVerifySsl = BooleanUtils.toBoolean(configs.get(PkiConfig.VaultVerifySsl.key()));
 
@@ -80,24 +78,24 @@ public class PkiEngineVault implements PkiEngine {
         _vaultToken = configs.get(PkiConfig.VaultToken.key());
 
         // if Token provided ignore RoleId and SecretId
-        if (!Strings.isNullOrEmpty(_vaultToken)) {
+        if (StringUtils.isNotEmpty(_vaultToken)) {
             _vaultTokenRoleId = null;
             _vaultTokenSecretId = null;
         } else {
             _vaultTokenRoleId = configs.get(PkiConfig.VaultAppRoleId.key());
             _vaultTokenSecretId = configs.get(PkiConfig.VaultAppSecretId.key());
 
-            if (Strings.isNullOrEmpty(_vaultTokenRoleId) && Strings.isNullOrEmpty(_vaultTokenSecretId)) {
+            if (StringUtils.isEmpty(_vaultTokenRoleId) && StringUtils.isEmpty(_vaultTokenSecretId)) {
                 throw new IllegalArgumentException("PKI Engine: Vault Token access and RoleId and SecretId are missing");
             }
         }
 
         _vaultRoleName = configs.get(PkiConfig.VaultRoleName.key());
-        Assert.isTrue(!Strings.isNullOrEmpty(_vaultRoleName), "PKI Engine: Vault PKI role name is missing");
+        Assert.isTrue(StringUtils.isNotEmpty(_vaultRoleName), "PKI Engine: Vault PKI role name is missing");
 
         String mountPath = configs.get(PkiConfig.VaultMounthPath.key());
 
-        Assert.isTrue(!Strings.isNullOrEmpty(mountPath), "PKI Engine: Vault PKI mount path is missing");
+        Assert.isTrue(StringUtils.isNotEmpty(mountPath), "PKI Engine: Vault PKI mount path is missing");
         Assert.isTrue(!StringUtils.endsWith(mountPath, "/"), "PKI Engine: Vault PKI mount path must not end with trailing slash, current value: " + mountPath);
 
         _vaultMountPath = mountPath + "/%s";
@@ -106,13 +104,13 @@ public class PkiEngineVault implements PkiEngine {
         _certificateCommonName = configs.get(PkiConfig.CertificateCommonName.key()).replaceAll("__BRAND__", certificateBrand);
 
         _vaultPkiTtl = configs.get(PkiConfig.VaultPkiTtl.key());
-        Assert.isTrue(!Strings.isNullOrEmpty(_vaultPkiTtl), "PKI Engine: Vault PKI TTL is missing");
+        Assert.isTrue(StringUtils.isNotEmpty(_vaultPkiTtl), "PKI Engine: Vault PKI TTL is missing");
 
         _vaultCATtl = configs.get(PkiConfig.VaultCATtl.key());
-        Assert.isTrue(!Strings.isNullOrEmpty(_vaultCATtl), "PKI Engine: Vault PKI root CA TTL is missing");
+        Assert.isTrue(StringUtils.isNotEmpty(_vaultCATtl), "PKI Engine: Vault PKI root CA TTL is missing");
 
         _vaultRoleTtl = configs.get(PkiConfig.VaultRoleTtl.key());
-        Assert.isTrue(!Strings.isNullOrEmpty(_vaultRoleTtl), "PKI Engine: Vault PKI role TTL is missing");
+        Assert.isTrue(StringUtils.isNotEmpty(_vaultRoleTtl), "PKI Engine: Vault PKI role TTL is missing");
     }
 
     /* (non-Javadoc)
@@ -282,7 +280,7 @@ public class PkiEngineVault implements PkiEngine {
 
         String caUrl;
 
-        if (Strings.isNullOrEmpty(_vaultCertUrl)) {
+        if (StringUtils.isEmpty(_vaultCertUrl)) {
             caUrl = "";
         } else if (_vaultCertUrl.equals(DEFAULT_FAULT_CERT_URL)) {
             caUrl = new StringBuilder()
@@ -301,7 +299,7 @@ public class PkiEngineVault implements PkiEngine {
 
         String crlUrl;
 
-        if (Strings.isNullOrEmpty(_vaultCrlUrl)) {
+        if (StringUtils.isEmpty(_vaultCrlUrl)) {
             crlUrl = "";
         } else if (_vaultCrlUrl.equals(DEFAULT_FAULT_CRL_URL)) {
             crlUrl = new StringBuilder()
@@ -350,7 +348,7 @@ public class PkiEngineVault implements PkiEngine {
                                             .build();
 
             // Vault Token is provided, Vault object can be initialized right away
-            if (!Strings.isNullOrEmpty(_vaultToken)) {
+            if (StringUtils.isNotEmpty(_vaultToken)) {
                 return new Vault(config).withRetries(RETRY_COUNT, RETRY_INTERVAL_MILISECONDS);
             }
 

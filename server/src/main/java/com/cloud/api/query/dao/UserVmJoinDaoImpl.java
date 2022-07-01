@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import com.cloud.storage.DiskOfferingVO;
 import org.apache.cloudstack.affinity.AffinityGroupResponse;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
@@ -51,6 +50,7 @@ import com.cloud.api.ApiResponseHelper;
 import com.cloud.api.query.vo.UserVmJoinVO;
 import com.cloud.gpu.GPU;
 import com.cloud.service.ServiceOfferingDetailsVO;
+import com.cloud.storage.DiskOfferingVO;
 import com.cloud.storage.GuestOS;
 import com.cloud.user.Account;
 import com.cloud.user.AccountManager;
@@ -366,13 +366,6 @@ public class UserVmJoinDaoImpl extends GenericDaoBaseWithTagInformation<UserVmJo
             // Remove deny listed settings if user is not admin
             if (caller.getType() != Account.Type.ADMIN) {
                 String[] userVmSettingsToHide = QueryService.UserVMDeniedDetails.value().split(",");
-                for (String key : userVmSettingsToHide) {
-                    resourceDetails.remove(key.trim());
-                }
-            }
-            // Remove blacklisted settings if user is not admin
-            if (caller.getType() != Account.ACCOUNT_TYPE_ADMIN) {
-                String[] userVmSettingsToHide = QueryService.UserVMBlacklistedDetails.value().split(",");
                 for (String key : userVmSettingsToHide) {
                     resourceDetails.remove(key.trim());
                 }

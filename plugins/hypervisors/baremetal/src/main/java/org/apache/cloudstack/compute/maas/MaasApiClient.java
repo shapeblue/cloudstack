@@ -18,12 +18,18 @@
  */
 package org.apache.cloudstack.compute.maas;
 
-import com.cloud.utils.StringUtils;
-import com.cloud.utils.exception.CloudRuntimeException;
-import com.google.common.base.Strings;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -43,16 +49,10 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Type;
-import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import com.cloud.utils.exception.CloudRuntimeException;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 public class MaasApiClient {
 
@@ -344,7 +344,7 @@ public class MaasApiClient {
     public List<MaasObject.MaasNode> getMaasNodes(String pool) throws IOException {
         String url = getApiUrl("machines");
 
-        if (!Strings.isNullOrEmpty(pool)) {
+        if (StringUtils.isNotEmpty(pool)) {
             url += "?pool=" + pool;
         }
 

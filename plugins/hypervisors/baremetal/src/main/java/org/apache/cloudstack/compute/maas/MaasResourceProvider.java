@@ -19,6 +19,26 @@
 
 package org.apache.cloudstack.compute.maas;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+import javax.naming.ConfigurationException;
+
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.compute.maas.MaasObject.MaasInterface;
+import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Configurable;
+
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.PlugNicAnswer;
@@ -45,8 +65,8 @@ import com.cloud.baremetal.manager.BaremetalVlanManager;
 import com.cloud.baremetal.manager.VlanType;
 import com.cloud.baremetal.networkservice.BareMetalResourceBase;
 import com.cloud.host.DetailVO;
-import com.cloud.host.HostVO;
 import com.cloud.host.Host.Type;
+import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.host.dao.HostDetailsDao;
 import com.cloud.hypervisor.Hypervisor;
@@ -61,26 +81,7 @@ import com.cloud.utils.script.OutputInterpreter;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
-import com.google.common.base.Strings;
 import com.google.gson.Gson;
-
-import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.compute.maas.MaasObject.MaasInterface;
-import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
-import org.apache.log4j.Logger;
-import org.springframework.beans.factory.annotation.Configurable;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-import javax.naming.ConfigurationException;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 @Configurable
 public class MaasResourceProvider extends BareMetalResourceBase implements BareMetalResource {
@@ -176,7 +177,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
             }
         }
 
-        if (!Strings.isNullOrEmpty((String) params.get("MaasSystemId")) && Strings.isNullOrEmpty(maasUniqueId)) {
+        if (StringUtils.isNotEmpty((String) params.get("MaasSystemId")) && StringUtils.isEmpty(maasUniqueId)) {
             maasUniqueId = (String) params.get("MaasSystemId");
         }
 
@@ -256,7 +257,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
             maasApi.removeTagFromMachine(maasNode.getSystemId(), "accountid_" + uservm.getAccountUuid());
             maasApi.removeTagFromMachine(maasNode.getSystemId(), "domainid_" + uservm.getDomainUuid());
 
-            if (!Strings.isNullOrEmpty(uservm.getProjectUuid())) {
+            if (StringUtils.isNotEmpty(uservm.getProjectUuid())) {
                 maasApi.removeTagFromMachine(maasNode.getSystemId(), "projectid_" + uservm.getProjectUuid());
             }
 
@@ -369,7 +370,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
             maasApi.addTagToMachine(maasNode.getSystemId(), "accountid_" + uservm.getAccountUuid());
             maasApi.addTagToMachine(maasNode.getSystemId(), "domainid_" + uservm.getDomainUuid());
 
-            if (!Strings.isNullOrEmpty(uservm.getProjectUuid())) {
+            if (StringUtils.isNotEmpty(uservm.getProjectUuid())) {
                 maasApi.addTagToMachine(maasNode.getSystemId(), "projectid_" + uservm.getProjectUuid());
             }
 
@@ -500,7 +501,7 @@ public class MaasResourceProvider extends BareMetalResourceBase implements BareM
         }
 
         // Node Create
-        if (Strings.isNullOrEmpty(maasUniqueId)) {
+        if (StringUtils.isEmpty(maasUniqueId)) {
             MaasObject.AddMachineParameters maasMachine = new MaasObject.AddMachineParameters(_ip, _mac, _username, _password, _uuid);
 
             try {

@@ -24,12 +24,12 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.CertificateResponse;
+import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.pki.PkiDetail;
 import org.apache.cloudstack.pki.PkiManager;
 
 import com.cloud.domain.Domain;
 import com.cloud.exception.RemoteAccessVpnException;
-import com.cloud.user.Account;
 import com.cloud.user.DomainService;
 import com.cloud.utils.exception.CloudRuntimeException;
 
@@ -99,6 +99,6 @@ public class ListVpnCaCertificateCmd extends BaseCmd {
 
     @Override
     public long getEntityOwnerId() {
-        return Account.ACCOUNT_TYPE_NORMAL;
+        return CallContext.current().getCallingAccountId();
     }
 }

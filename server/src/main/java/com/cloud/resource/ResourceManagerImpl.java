@@ -36,8 +36,6 @@ import java.util.Random;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.exception.StorageConflictException;
-import com.cloud.exception.StorageUnavailableException;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
 import org.apache.cloudstack.api.ApiConstants;
@@ -125,6 +123,8 @@ import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.exception.ResourceInUseException;
 import com.cloud.exception.ResourceUnavailableException;
+import com.cloud.exception.StorageConflictException;
+import com.cloud.exception.StorageUnavailableException;
 import com.cloud.gpu.GPU;
 import com.cloud.gpu.HostGpuGroupsVO;
 import com.cloud.gpu.VGPUTypesVO;
@@ -203,7 +203,6 @@ import com.cloud.vm.VirtualMachineProfileImpl;
 import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.UserVmDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
-import com.google.common.base.Strings;
 import com.google.gson.Gson;
 
 @Component
@@ -2211,7 +2210,7 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         host.setStorageMacAddress(startup.getStorageMacAddress());
         host.setStorageNetmask(startup.getStorageNetmask());
         host.setVersion(startup.getVersion());
-        host.setName(Strings.isNullOrEmpty(startup.getName()) ? resource.getName() : startup.getName());
+        host.setName(StringUtils.isEmpty(startup.getName()) ? resource.getName() : startup.getName());
         host.setManagementServerId(_nodeId);
         host.setStorageUrl(startup.getIqn());
         host.setLastPinged(System.currentTimeMillis() >> 10);

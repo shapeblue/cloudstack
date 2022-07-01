@@ -1081,7 +1081,7 @@ public class ConfigurationManagerTest {
         seenException = false;
          try {
             diskOfferingVO = configurationMgr.createDiskOffering(1L, null, null, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, testHighestMaxIops);
+                    10L, null, false, false, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, null, testHighestMaxIops);
         }catch (InvalidParameterValueException e) {
             Assert.assertTrue("Incorrect exception raised", e.toString().contains("Both highestminiops and highestmaxiops should be specified"));
             seenException = true;
