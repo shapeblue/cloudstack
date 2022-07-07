@@ -971,7 +971,7 @@ public class ConfigurationManagerTest {
 
         try {
             DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, null, null, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, null, null);
+                    10L, null, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, 1000L, 5000L);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue(e.toString().contains("highestminops specified but none of customizediops or miniopspergb specified"));
             seenException = true;
@@ -997,7 +997,7 @@ public class ConfigurationManagerTest {
 
         try {
             DiskOfferingVO diskOfferingVO = configurationMgr.createDiskOffering(1L, null, null, "test-vol", "test-description", Storage.ProvisioningType.THIN.toString(),
-                    10L, null, false, false, false, null, 1000L, 5000L, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, null, null);
+                    10L, null, false, false, false, null, 1000L, 5000L, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, 1000L, 5000L);
         } catch (InvalidParameterValueException e) {
             Assert.assertTrue(e.toString().contains("highestminops specified but none of customizediops or miniopspergb specified"));
             seenException = true;
