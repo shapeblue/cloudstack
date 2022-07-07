@@ -35,79 +35,173 @@ INSERT IGNORE INTO `cloud`.`hypervisor_capabilities`(uuid,hypervisor_type, hyper
 UPDATE `cloud`.`hypervisor_capabilities` SET max_guests_limit='1024', max_data_volumes_limit='59', max_hosts_per_cluster='64' WHERE (hypervisor_type='VMware' AND hypervisor_version='6.0' );
 UPDATE `cloud`.`hypervisor_capabilities` SET max_guests_limit='1024', max_data_volumes_limit='59', max_hosts_per_cluster='64' WHERE (hypervisor_type='VMware' AND hypervisor_version='6.5' );
 
--- Add new OS versions
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('277', UUID(), '1', 'Ubuntu 17.04', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('278', UUID(), '1', 'Ubuntu 17.10', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('279', UUID(), '1', 'Ubuntu 18.04 LTS', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('280', UUID(), '1', 'Ubuntu 18.10', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('281', UUID(), '1', 'Ubuntu 19.04', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('282', UUID(), '1', 'Red Hat Enterprise Linux 7.3', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('283', UUID(), '1', 'Red Hat Enterprise Linux 7.4', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('284', UUID(), '1', 'Red Hat Enterprise Linux 7.5', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('285', UUID(), '1', 'Red Hat Enterprise Linux 7.6', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('286', UUID(), '1', 'Red Hat Enterprise Linux 8.0', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('289', UUID(), '2', 'Debian GNU/Linux 9 (32-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('290', UUID(), '2', 'Debian GNU/Linux 9 (64-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('291', UUID(), '5', 'SUSE Linux Enterprise Server 15 (64-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('292', UUID(), '2', 'Debian GNU/Linux 10 (32-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('293', UUID(), '2', 'Debian GNU/Linux 10 (64-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('294', UUID(), '2', 'Linux 4.x Kernel (32-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('295', UUID(), '2', 'Linux 4.x Kernel (64-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('296', UUID(), '3', 'Oracle Linux 8', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('297', UUID(), '1', 'CentOS 8', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('298', UUID(), '9', 'FreeBSD 11 (32-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('299', UUID(), '9', 'FreeBSD 11 (64-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('300', UUID(), '9', 'FreeBSD 12 (32-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('301', UUID(), '9', 'FreeBSD 12 (64-bit)', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('302', UUID(), '1', 'CentOS 6.8', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('303', UUID(), '1', 'CentOS 6.9', now(), '0');
-INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('304', UUID(), '1', 'CentOS 6.10', now(), '0');
 
--- Add New and missing VMware 6.5 Guest OSes
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 235, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 236, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 147, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 148, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 213, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 214, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 215, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 216, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 217, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 218, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 219, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 220, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 250, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 251, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux7_64Guest', 247, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntuGuest', 255, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 256, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 277, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 278, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 279, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 280, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 282, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 283, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 284, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 285, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'windows9Server64Guest', 276, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian9Guest', 289, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian9_64Guest', 290, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian10Guest', 282, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian10_64Guest', 293, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'sles15_64Guest', 291, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos6_64Guest', 302, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos6_64Guest', 303, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos6_64Guest', 304, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel8_64Guest', 286, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 281, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'other4xLinuxGuest', 294, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'other4xLinux64Guest', 295, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux8_64Guest', 296, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos8_64Guest', 297, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd11Guest', 298, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd11_64Guest', 299, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd12Guest', 300, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd12_64Guest', 301, now(), 0);
+-- Copy from 41520to41600 - PR#4699 Drop the procedure `ADD_GUEST_OS_AND_HYPERVISOR_MAPPING` if it already exist.
+DROP PROCEDURE IF EXISTS `cloud`.`ADD_GUEST_OS_AND_HYPERVISOR_MAPPING`;
+
+-- Copy from 41520to41600 - PR#4699 Create the procedure `ADD_GUEST_OS_AND_HYPERVISOR_MAPPING` to add guest_os and guest_os_hypervisor mapping.
+CREATE PROCEDURE `cloud`.`ADD_GUEST_OS_AND_HYPERVISOR_MAPPING` (
+    IN guest_os_category_id bigint(20) unsigned,
+    IN guest_os_display_name VARCHAR(255),
+    IN guest_os_hypervisor_hypervisor_type VARCHAR(32),
+    IN guest_os_hypervisor_hypervisor_version VARCHAR(32),
+    IN guest_os_hypervisor_guest_os_name VARCHAR(255)
+)
+BEGIN
+	INSERT  INTO cloud.guest_os (uuid, category_id, display_name, created)
+	SELECT 	UUID(), guest_os_category_id, guest_os_display_name, now()
+	FROM    DUAL
+	WHERE 	not exists( SELECT  1
+	                    FROM    cloud.guest_os
+	                    WHERE   cloud.guest_os.category_id = guest_os_category_id
+	                    AND     cloud.guest_os.display_name = guest_os_display_name)
+
+;	INSERT  INTO cloud.guest_os_hypervisor (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created)
+	SELECT 	UUID(), guest_os_hypervisor_hypervisor_type, guest_os_hypervisor_hypervisor_version, guest_os_hypervisor_guest_os_name, guest_os.id, now()
+	FROM 	cloud.guest_os
+	WHERE 	guest_os.category_id = guest_os_category_id
+	AND 	guest_os.display_name = guest_os_display_name
+	AND	NOT EXISTS (SELECT  1
+	                    FROM    cloud.guest_os_hypervisor as hypervisor
+	                    WHERE   hypervisor_type = guest_os_hypervisor_hypervisor_type
+	                    AND     hypervisor_version = guest_os_hypervisor_hypervisor_version
+	                    AND     hypervisor.guest_os_id = guest_os.id
+	                    AND     hypervisor.guest_os_name = guest_os_hypervisor_guest_os_name)
+;END;
+
+DROP PROCEDURE IF EXISTS `cloud`.`ADD_GUEST_OS_ONLY`;
+CREATE PROCEDURE `cloud`.`ADD_GUEST_OS_ONLY` (
+    IN guest_os_category_id bigint(20) unsigned,
+    IN guest_os_display_name VARCHAR(255)
+)
+BEGIN
+	INSERT  INTO cloud.guest_os (uuid, category_id, display_name, created)
+	SELECT 	UUID(), guest_os_category_id, guest_os_display_name, now()
+	FROM    DUAL
+	WHERE 	not exists( SELECT  1
+	                    FROM    cloud.guest_os
+	                    WHERE   cloud.guest_os.category_id = guest_os_category_id
+	                    AND     cloud.guest_os.display_name = guest_os_display_name)
+;END;
+
+---- Add new OS versions
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('277', UUID(), '1', 'Ubuntu 17.04', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('278', UUID(), '1', 'Ubuntu 17.10', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('279', UUID(), '1', 'Ubuntu 18.04 LTS', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('280', UUID(), '1', 'Ubuntu 18.10', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('281', UUID(), '1', 'Ubuntu 19.04', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('282', UUID(), '1', 'Red Hat Enterprise Linux 7.3', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('283', UUID(), '1', 'Red Hat Enterprise Linux 7.4', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('284', UUID(), '1', 'Red Hat Enterprise Linux 7.5', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('285', UUID(), '1', 'Red Hat Enterprise Linux 7.6', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('286', UUID(), '1', 'Red Hat Enterprise Linux 8.0', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('289', UUID(), '2', 'Debian GNU/Linux 9 (32-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('290', UUID(), '2', 'Debian GNU/Linux 9 (64-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('291', UUID(), '5', 'SUSE Linux Enterprise Server 15 (64-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('292', UUID(), '2', 'Debian GNU/Linux 10 (32-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('293', UUID(), '2', 'Debian GNU/Linux 10 (64-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('294', UUID(), '2', 'Linux 4.x Kernel (32-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('295', UUID(), '2', 'Linux 4.x Kernel (64-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('296', UUID(), '3', 'Oracle Linux 8', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('297', UUID(), '1', 'CentOS 8', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('298', UUID(), '9', 'FreeBSD 11 (32-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('299', UUID(), '9', 'FreeBSD 11 (64-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('300', UUID(), '9', 'FreeBSD 12 (32-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('301', UUID(), '9', 'FreeBSD 12 (64-bit)', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('302', UUID(), '1', 'CentOS 6.8', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('303', UUID(), '1', 'CentOS 6.9', now(), '0');
+--INSERT INTO cloud.guest_os (id, uuid, category_id, display_name, created, is_user_defined) VALUES ('304', UUID(), '1', 'CentOS 6.10', now(), '0');
+--
+---- Add New and missing VMware 6.5 Guest OSes
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 235, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 236, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 147, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 148, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 213, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 214, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 215, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 216, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 217, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 218, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 219, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 220, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6Guest', 250, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux6_64Guest', 251, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux7_64Guest', 247, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntuGuest', 255, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 256, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 277, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 278, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 279, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 280, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 282, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 283, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 284, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel7_64Guest', 285, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'windows9Server64Guest', 276, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian9Guest', 289, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian9_64Guest', 290, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian10Guest', 282, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'debian10_64Guest', 293, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'sles15_64Guest', 291, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos6_64Guest', 302, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos6_64Guest', 303, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos6_64Guest', 304, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'rhel8_64Guest', 286, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'ubuntu64Guest', 281, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'other4xLinuxGuest', 294, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'other4xLinux64Guest', 295, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'oracleLinux8_64Guest', 296, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'centos8_64Guest', 297, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd11Guest', 298, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd11_64Guest', 299, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd12Guest', 300, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'VMware', '6.5', 'freebsd12_64Guest', 301, now(), 0);
+
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.0 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.0 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.1 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.1 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.2 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.2 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.3 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.3 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.4 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.4 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.5 (32-bit)', 'VMware', '6.5', 'oracleLinux6Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Enterprise Linux 6.5 (64-bit)', 'VMware', '6.5', 'oracleLinux6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Linux 7', 'VMware', '6.5', 'oracleLinux7_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (10, 'Ubuntu 16.04 (32-bit)', 'VMware', '6.5', 'ubuntuGuest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (10, 'Ubuntu 16.04 (64-bit)', 'VMware', '6.5', 'ubuntu64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (6, 'Windows Server 2019 (64-bit)', 'VMware', '6.5', 'windows9Server64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 17.04', 'VMware', '6.5', 'ubuntu64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 17.10', 'VMware', '6.5', 'ubuntu64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 18.04 LTS', 'VMware', '6.5', 'ubuntu64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 18.10', 'VMware', '6.5', 'ubuntu64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 19.04', 'VMware', '6.5', 'ubuntu64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.3', 'VMware', '6.5', 'rhel7_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.4', 'VMware', '6.5', 'rhel7_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.5', 'VMware', '6.5', 'rhel7_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.6', 'VMware', '6.5', 'rhel7_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 8.0', 'VMware', '6.5', 'rhel8_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 9 (32-bit)', 'VMware', '6.5', 'debian9Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 9 (64-bit)', 'VMware', '6.5', 'debian9_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (5, 'SUSE Linux Enterprise Server 15 (64-bit)', 'VMware', '6.5', 'sles15_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 10 (32-bit)', 'VMware', '6.5', 'debian10Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 10 (64-bit)', 'VMware', '6.5', 'debian10_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Linux 4.x Kernel (32-bit)', 'VMware', '6.5', 'other4xLinuxGuest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Linux 4.x Kernel (64-bit)', 'VMware', '6.5', 'other4xLinux64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (3, 'Oracle Linux 8', 'VMware', '6.5', 'oracleLinux8_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 8', 'VMware', '6.5', 'centos8_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (9, 'FreeBSD 11 (32-bit)', 'VMware', '6.5', 'freebsd11Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (9, 'FreeBSD 11 (64-bit)', 'VMware', '6.5', 'freebsd11_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (9, 'FreeBSD 12 (32-bit)', 'VMware', '6.5', 'freebsd12Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (9, 'FreeBSD 12 (64-bit)', 'VMware', '6.5', 'freebsd12_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.8', 'VMware', '6.5', 'centos6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.9', 'VMware', '6.5', 'centos6_64Guest');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.10', 'VMware', '6.5', 'centos6_64Guest');
 
 -- Copy VMware 6.5 Guest OSes to VMware 6.7
 INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) SELECT UUID(),'VMware', '6.7', guest_os_name, guest_os_id, utc_timestamp(), 0  FROM `cloud`.`guest_os_hypervisor` WHERE hypervisor_type='VMware' AND hypervisor_version='6.5';
@@ -121,50 +215,82 @@ INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervis
 -- Copy XenServer 7.1.1 to XenServer 7.1.2
 INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) SELECT UUID(),'Xenserver', '7.1.2', guest_os_name, guest_os_id, utc_timestamp(), 0  FROM `cloud`.`guest_os_hypervisor` WHERE hypervisor_type='Xenserver' AND hypervisor_version='7.1.1';
 
--- Add New XenServer 7.1.2 Guest OSes
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Debian Stretch 9.0', 289, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Debian Stretch 9.0', 290, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Ubuntu Bionic Beaver 18.04', 279, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Windows Server 2019 (64-bit)', 276, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'CentOS 6 (64-bit', 303, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'CentOS 7', 283, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'CentOS 7', 284, now(), 0);
+---- Add New XenServer 7.1.2 Guest OSes
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Debian Stretch 9.0', 289, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Debian Stretch 9.0', 290, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Ubuntu Bionic Beaver 18.04', 279, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'Windows Server 2019 (64-bit)', 276, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'CentOS 6 (64-bit', 303, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'CentOS 7', 283, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.1.2', 'CentOS 7', 284, now(), 0);
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 9 (32-bit)', 'Xenserver', '7.1.2', 'Debian Stretch 9.0');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 9 (64-bit)', 'Xenserver', '7.1.2', 'Debian Stretch 9.0');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 18.04', 'Xenserver', '7.1.2', 'Ubuntu Bionic Beaver 18.04');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (6, 'Windows Server 2019 (64-bit)', 'Xenserver', '7.1.2', 'Windows Server 2019 (64-bit)');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.9', 'Xenserver', '7.1.2', 'CentOS 6 (64-bit)');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.4', 'Xenserver', '7.1.2', 'CentOS 7');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.5', 'Xenserver', '7.1.2', 'CentOS 7');
+
 -- Copy XenServer 7.5 hypervisor guest OS mappings to XenServer 7.6
 INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) SELECT UUID(),'Xenserver', '7.6.0', guest_os_name, guest_os_id, utc_timestamp(), 0  FROM `cloud`.`guest_os_hypervisor` WHERE hypervisor_type='Xenserver' AND hypervisor_version='7.5.0';
 
--- Add New XenServer 7.6 Guest OSes
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Jessie 8.0', 269, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Jessie 8.0', 270, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Stretch 9.0', 289, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Stretch 9.0', 290, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Ubuntu Xenial Xerus 16.04', 255, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Ubuntu Xenial Xerus 16.04', 256, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Ubuntu Bionic Beaver 18.04', 279, now(), 0);
+---- Add New XenServer 7.6 Guest OSes
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Jessie 8.0', 269, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Jessie 8.0', 270, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Stretch 9.0', 289, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Debian Stretch 9.0', 290, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Ubuntu Xenial Xerus 16.04', 255, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Ubuntu Xenial Xerus 16.04', 256, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '7.6.0', 'Ubuntu Bionic Beaver 18.04', 279, now(), 0);
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 8 (32-bit)', 'Xenserver', '7.6.0', 'Debian Jessie 8.0');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 8 (64-bit)', 'Xenserver', '7.6.0', 'Debian Jessie 8.0');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 9 (32-bit)', 'Xenserver', '7.6.0', 'Debian Jessie 9.0');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (2, 'Debian GNU/Linux 9 (64-bit)', 'Xenserver', '7.6.0', 'Debian Jessie 9.0');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (10, 'Ubuntu 16.04 (32-bit)', 'Xenserver', '7.6.0', 'Ubuntu Xenial Xerus 16.04');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (10, 'Ubuntu 16.04 (32-bit)', 'Xenserver', '7.6.0', 'Ubuntu Xenial Xerus 16.04');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 18.04', 'Xenserver', '7.6.0', 'Ubuntu Bionic Beaver 18.04');
 
 -- Copy XenServer 7.6 hypervisor guest OS mappings to XenServer8.0
 INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid,hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) SELECT UUID(),'Xenserver', '8.0.0', guest_os_name, guest_os_id, utc_timestamp(), 0  FROM `cloud`.`guest_os_hypervisor` WHERE hypervisor_type='Xenserver' AND hypervisor_version='7.6.0';
 
--- Add New XenServer 8.0 Guest OSes
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'Xenserver', '8.0.0', 'Windows Server 2019 (64-bit)', 276, now(), 0);
+---- Add New XenServer 8.0 Guest OSes
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (6, 'Windows Server 2019 (64-bit)', 'Xenserver', '8.0.0', 'Windows Server 2019 (64-bit)');
 
--- Add Missing KVM Guest OSes
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.6', 262, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.7', 263, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.7', 264, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.8', 302, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.9', 303, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.10', 304, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.2', 269, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.3', 282, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.4', 283, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.5', 284, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.6', 285, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 8', 286, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 17.04', 277, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 17.10', 278, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 18.04 LTS', 279, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 18.10', 280, now(), 0);
-INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 19.04', 281, now(), 0);
+---- Add Missing KVM Guest OSes
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.6', 262, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.7', 263, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.7', 264, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.8', 302, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.9', 303, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'CentOS 6.10', 304, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.2', 269, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.3', 282, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.4', 283, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.5', 284, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 7.6', 285, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Red Hat Enterprise Linux 8', 286, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 17.04', 277, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 17.10', 278, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 18.04 LTS', 279, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 18.10', 280, now(), 0);
+--INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (uuid, hypervisor_type, hypervisor_version, guest_os_name, guest_os_id, created, is_user_defined) VALUES (UUID(), 'KVM', 'default', 'Ubuntu 19.04', 281, now(), 0);
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.6 (64-bit)', 'KVM', 'default', 'CentOS 6.6');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.7 (32-bit)', 'KVM', 'default', 'CentOS 6.7');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.7 (64-bit)', 'KVM', 'default', 'CentOS 6.7');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.8', 'KVM', 'default', 'CentOS 6.8');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.9', 'KVM', 'default', 'CentOS 6.9');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'CentOS 6.10', 'KVM', 'default', 'CentOS 6.10');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.2', 'KVM', 'default', 'Red Hat Enterprise Linux 7.2');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.3', 'KVM', 'default', 'Red Hat Enterprise Linux 7.3');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.4', 'KVM', 'default', 'Red Hat Enterprise Linux 7.4');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.5', 'KVM', 'default', 'Red Hat Enterprise Linux 7.5');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 7.6', 'KVM', 'default', 'Red Hat Enterprise Linux 7.6');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Red Hat Enterprise Linux 8', 'KVM', 'default', 'Red Hat Enterprise Linux 8');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 17.04', 'KVM', 'default', 'Ubuntu 17.04');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 17.10', 'KVM', 'default', 'Ubuntu 17.10');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 18.04 LTS', 'KVM', 'default', 'Ubuntu 18.04 LTS');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 18.10', 'KVM', 'default', 'Ubuntu 18.10');
+CALL ADD_GUEST_OS_AND_HYPERVISOR_MAPPING (1, 'Ubuntu 19.04', 'KVM', 'default', 'Ubuntu 19.04');
 
 -- DPDK client and server mode support
 ALTER TABLE `cloud`.`service_offering_details` CHANGE COLUMN `value` `value` TEXT NOT NULL;
