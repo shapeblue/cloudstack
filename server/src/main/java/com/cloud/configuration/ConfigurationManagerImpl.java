@@ -3459,27 +3459,6 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             isCustomized = true;
         }
 
-        if (Boolean.TRUE.equals(isCustomizedIops) || isCustomizedIops == null) {
-            minIops = null;
-            maxIops = null;
-        } else {
-            if (minIops == null && maxIops == null) {
-                minIops = 0L;
-                maxIops = 0L;
-            } else {
-                if (minIops == null || minIops <= 0) {
-                    throw new InvalidParameterValueException("The min IOPS must be greater than 0.");
-                }
-
-                if (maxIops == null) {
-                    maxIops = 0L;
-                }
-
-                if (minIops > maxIops) {
-                    throw new InvalidParameterValueException("The min IOPS must be less than or equal to the max IOPS.");
-                }
-            }
-        }
         if (minIopsPerGb != null || maxIopsPerGb != null) {
 
             if (!isCustomized) {
@@ -3507,8 +3486,6 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             }
         }
 
-        // Filter child domains when both parent and child domains are present
-        List<Long> filteredDomainIds = filterChildSubDomains(domainIds);
         if (highestMinIops != null && highestMaxIops != null) {
             if (highestMinIops > highestMaxIops){
                 throw new InvalidParameterValueException("highestminiops must be less than highestmaxiops");
@@ -3534,6 +3511,28 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         }else {
             if (highestMaxIops != null || highestMinIops != null) {
                 throw new InvalidParameterValueException("Both highestminiops and highestmaxiops should be specified");
+            }
+        }
+
+        if (Boolean.TRUE.equals(isCustomizedIops) || isCustomizedIops == null) {
+            minIops = null;
+            maxIops = null;
+        } else {
+            if (minIops == null && maxIops == null) {
+                minIops = 0L;
+                maxIops = 0L;
+            } else {
+                if (minIops == null || minIops <= 0) {
+                    throw new InvalidParameterValueException("The min IOPS must be greater than 0.");
+                }
+
+                if (maxIops == null) {
+                    maxIops = 0L;
+                }
+
+                if (minIops > maxIops) {
+                    throw new InvalidParameterValueException("The min IOPS must be less than or equal to the max IOPS.");
+                }
             }
         }
 
@@ -3574,6 +3573,9 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         if (user == null || user.getRemoved() != null) {
             throw new InvalidParameterValueException("Unable to find active user by id " + userId);
         }
+
+        // Filter child domains when both parent and child domains are present
+        List<Long> filteredDomainIds = filterChildSubDomains(domainIds);
         final Account account = _accountDao.findById(user.getAccountId());
         if (account.getType() == Account.Type.DOMAIN_ADMIN) {
             if (filteredDomainIds.isEmpty()) {
