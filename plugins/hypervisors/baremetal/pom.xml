@@ -69,9 +69,9 @@
             <groupId>net.juniper.netconf</groupId>
             <artifactId>netconf-juniper</artifactId>
             <version>1.0</version>
-            <scope>system</scope>
+<!--            <scope>system</scope>-->
 <!--             https://github.com/Juniper/netconf-java/releases/download/1.0.0/Netconf.jar-->
-            <systemPath>${project.basedir}/src/main/resources/libs/Netconf.jar</systemPath>
+<!--            <systemPath>${project.basedir}/src/main/resources/libs/Netconf.jar</systemPath>-->
         </dependency>
    </dependencies>
 </project>
