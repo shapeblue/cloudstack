@@ -24,6 +24,7 @@ UPDATE `cloud`.`service_offering` so
 SET so.limit_cpu_use = 1
 WHERE so.default_use = 1 AND so.vm_type IN ('domainrouter', 'secondarystoragevm', 'consoleproxy', 'internalloadbalancervm', 'elasticloadbalancervm');
 
+DROP VIEW IF EXISTS `cloud`.`template_view`;
 CREATE VIEW `cloud`.`template_view` AS
      SELECT
          `vm_template`.`id` AS `id`,
