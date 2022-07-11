@@ -18,14 +18,14 @@
  */
 package org.apache.cloudstack.storage.motion;
 
+import static com.cloud.storage.snapshot.SnapshotManager.BackupSnapshotAfterTakingSnapshot;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.inject.Inject;
 
-import com.cloud.agent.api.to.DiskTO;
-import com.cloud.storage.Storage;
 import org.apache.cloudstack.engine.subsystem.api.storage.ClusterScope;
 import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataMotionStrategy;
@@ -60,6 +60,7 @@ import com.cloud.agent.api.storage.MigrateVolumeCommand;
 import com.cloud.agent.api.to.DataObjectType;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.DataTO;
+import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.capacity.CapacityManager;
@@ -67,12 +68,12 @@ import com.cloud.configuration.Config;
 import com.cloud.host.Host;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.storage.DataStoreRole;
-import com.cloud.storage.StorageManager;
+import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.StoragePoolType;
+import com.cloud.storage.StorageManager;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.VolumeDao;
-import static com.cloud.storage.snapshot.SnapshotManager.BackupSnapshotAfterTakingSnapshot;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.exception.CloudRuntimeException;
@@ -157,9 +158,7 @@ public class AncientDataMotionStrategy implements DataMotionStrategy {
     }
 
     protected Answer copyObject(DataObject srcData, DataObject destData, Host destHost) {
-        int imgSizeGigs = (int)Math.ceil(srcData.getSize() * 1.0d / (1024 * 1024 * 1024));
-        imgSizeGigs++; // add one just in case
-        int primaryStorageDownloadWait = StorageManager.PRIMARY_STORAGE_DOWNLOAD_WAIT.value()*imgSizeGigs;
+        int primaryStorageDownloadWait = StorageManager.PRIMARY_STORAGE_DOWNLOAD_WAIT.value();
         Answer answer = null;
         DataObject cacheData = null;
         DataObject srcForCopy = srcData;
