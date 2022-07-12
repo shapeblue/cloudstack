@@ -3536,38 +3536,6 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             }
         }
 
-        if (isCustomizedIops != null) {
-            bytesReadRate = null;
-            bytesWriteRate = null;
-            iopsReadRate = null;
-            iopsWriteRate = null;
-
-            if (isCustomizedIops) {
-                minIops = null;
-                maxIops = null;
-            } else {
-                if (minIops == null && maxIops == null) {
-                    minIops = 0L;
-                    maxIops = 0L;
-                } else {
-                    if (minIops == null || minIops <= 0) {
-                        throw new InvalidParameterValueException("The min IOPS must be greater than 0.");
-                    }
-
-                    if (maxIops == null) {
-                        maxIops = 0L;
-                    }
-
-                    if (minIops > maxIops) {
-                        throw new InvalidParameterValueException("The min IOPS must be less than or equal to the max IOPS.");
-                    }
-                }
-            }
-        } else {
-            minIops = null;
-            maxIops = null;
-        }
-
         // Check if user exists in the system
         final User user = _userDao.findById(userId);
         if (user == null || user.getRemoved() != null) {
