@@ -29,11 +29,6 @@ import java.util.Date;
 
 import javax.inject.Inject;
 
-import com.cloud.upgrade.dao.Upgrade41510to41520;
-import com.cloud.upgrade.dao.Upgrade41600to41610;
-import com.cloud.upgrade.dao.Upgrade41610to41700;
-import com.cloud.upgrade.dao.Upgrade41700to41710;
-import com.cloud.upgrade.dao.Upgrade41710to41800;
 import org.apache.cloudstack.utils.CloudStackVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -87,7 +82,6 @@ import com.cloud.upgrade.dao.Upgrade41110to41120;
 import com.cloud.upgrade.dao.Upgrade41120to41130;
 import com.cloud.upgrade.dao.Upgrade41130to41200;
 import com.cloud.upgrade.dao.Upgrade41200to41201;
-import com.cloud.upgrade.dao.Upgrade41213to41300;
 import com.cloud.upgrade.dao.Upgrade41201to41202;
 import com.cloud.upgrade.dao.Upgrade41202to41203;
 import com.cloud.upgrade.dao.Upgrade41203to41204;
@@ -100,11 +94,17 @@ import com.cloud.upgrade.dao.Upgrade41209to412010;
 import com.cloud.upgrade.dao.Upgrade41210to412011;
 import com.cloud.upgrade.dao.Upgrade41211to412012;
 import com.cloud.upgrade.dao.Upgrade41212to412013;
+import com.cloud.upgrade.dao.Upgrade412025to41300;
 import com.cloud.upgrade.dao.Upgrade41300to41310;
 import com.cloud.upgrade.dao.Upgrade41310to41400;
 import com.cloud.upgrade.dao.Upgrade41400to41500;
 import com.cloud.upgrade.dao.Upgrade41500to41510;
+import com.cloud.upgrade.dao.Upgrade41510to41520;
 import com.cloud.upgrade.dao.Upgrade41520to41600;
+import com.cloud.upgrade.dao.Upgrade41600to41610;
+import com.cloud.upgrade.dao.Upgrade41610to41700;
+import com.cloud.upgrade.dao.Upgrade41700to41710;
+import com.cloud.upgrade.dao.Upgrade41710to41800;
 import com.cloud.upgrade.dao.Upgrade420to421;
 import com.cloud.upgrade.dao.Upgrade421to430;
 import com.cloud.upgrade.dao.Upgrade430to440;
@@ -253,7 +253,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                 .next("4.12.0.10", new Upgrade41210to412011())
                 .next("4.12.0.11", new Upgrade41211to412012())
                 .next("4.12.0.12", new Upgrade41212to412013())
-                .next("4.12.0.0", new Upgrade41213to41300())
+                .next("4.12.0.25", new Upgrade412025to41300())
                 .next("4.13.0.0", new Upgrade41300to41310())
                 .next("4.13.1.0", new Upgrade41310to41400())
                 .next("4.14.0.0", new Upgrade41400to41500())
