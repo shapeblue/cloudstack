@@ -17,29 +17,40 @@
 """ test for private vlan isolation
 """
 #Import Local Modules
-import marvin
 from marvin.cloudstackTestCase import *
+from marvin.cloudstackException import CloudstackAPIException
 from marvin.cloudstackAPI import *
-from marvin.sshClient import SshClient
 from marvin.lib.utils import *
 from marvin.lib.base import *
 from marvin.lib.common import *
 from nose.plugins.attrib import attr
-import telnetlib
 
-#Import System modules
-import time
 _multiprocess_shared_ = True
 
 class TestPVLAN(cloudstackTestCase):
 
     zoneId = 1
-    networkOfferingId = 7
     vlan = 2468
     isolatedpvlan = 864
 
     def setUp(self):
         self.apiClient = self.testClient.getApiClient()
+        list_shared_network_offerings = NetworkOffering.list(
+            self.apiClient,
+            name="DefaultSharedNetworkOffering",
+            displayText="Offering for Shared networks"
+            )
+        self.assertEqual(
+            isinstance(list_shared_network_offerings, list),
+            True,
+            "List network offerings response was not a valid list"
+        )
+        self.assertNotEqual(
+            len(list_shared_network_offerings),
+            0,
+            "List network offerings response was empty"
+        )
+        self.networkOfferingId = list_shared_network_offerings[0].id
 
     @attr(tags = ["advanced"], required_hardware="false")
     def test_create_pvlan_network(self):
@@ -78,5 +89,5 @@ class TestPVLAN(cloudstackTestCase):
         createNetworkCmd.startipv6="fc00:1234::10"
         createNetworkCmd.endipv6="fc00:1234::20"
         err = 0
-        with self.assertRaises(Exception):
+        with self.assertRaises(CloudstackAPIException):
             self.apiClient.createNetwork(createNetworkCmd)

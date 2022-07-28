@@ -28,6 +28,7 @@ import com.cloud.agent.api.storage.CreateAnswer;
 import com.cloud.agent.api.storage.CreateCommand;
 import com.cloud.agent.api.to.StorageFilerTO;
 import com.cloud.agent.api.to.VolumeTO;
+import com.cloud.hypervisor.xenserver.resource.CitrixHelper;
 import com.cloud.hypervisor.xenserver.resource.CitrixResourceBase;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
@@ -50,7 +51,8 @@ public final class CitrixCreateCommandWrapper extends CommandWrapper<CreateComma
 
         VDI vdi = null;
         try {
-            final SR poolSr = citrixResourceBase.getStorageRepository(conn, pool.getUuid());
+            final SR poolSr = citrixResourceBase.getStorageRepository(conn,
+                    CitrixHelper.getSRNameLabel(pool.getUuid(), pool.getType(), pool.getPath()));
             if (command.getTemplateUrl() != null) {
                 VDI tmpltvdi = null;
 
@@ -70,7 +72,7 @@ public final class CitrixCreateCommandWrapper extends CommandWrapper<CreateComma
             VDI.Record vdir;
             vdir = vdi.getRecord(conn);
 
-            s_logger.debug("Succesfully created VDI for " + command + ".  Uuid = " + vdir.uuid);
+            s_logger.debug("Successfully created VDI for " + command + ".  Uuid = " + vdir.uuid);
 
             final VolumeTO vol =
                     new VolumeTO(command.getVolumeId(), dskch.getType(), pool.getType(), pool.getUuid(), vdir.nameLabel, pool.getPath(), vdir.uuid, vdir.virtualSize, null);

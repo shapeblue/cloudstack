@@ -27,6 +27,8 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.cloudstack.annotation.AnnotationService;
+import org.apache.cloudstack.annotation.dao.AnnotationDao;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.commons.collections.MapUtils;
 import org.apache.log4j.Logger;
@@ -50,6 +52,8 @@ import org.apache.cloudstack.framework.jobs.impl.AsyncJobVO;
 import org.apache.cloudstack.framework.jobs.impl.OutcomeImpl;
 import org.apache.cloudstack.framework.jobs.impl.VmWorkJobVO;
 import org.apache.cloudstack.jobs.JobInfo;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
 
@@ -76,7 +80,7 @@ import com.cloud.service.dao.ServiceOfferingDetailsDao;
 import com.cloud.storage.GuestOSVO;
 import com.cloud.storage.Snapshot;
 import com.cloud.storage.SnapshotVO;
-import com.cloud.storage.Storage.ImageFormat;
+import com.cloud.storage.Storage;
 import com.cloud.storage.Volume;
 import com.cloud.storage.Volume.Type;
 import com.cloud.storage.VolumeVO;
@@ -109,12 +113,11 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.UserVmDetailVO;
 import com.cloud.vm.UserVmManager;
 import com.cloud.vm.UserVmVO;
-import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
-import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.VirtualMachineManager;
 import com.cloud.vm.VirtualMachineProfile;
+import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.VmWork;
 import com.cloud.vm.VmWorkConstants;
 import com.cloud.vm.VmWorkJobHandler;
@@ -166,6 +169,10 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
     protected UserVmDetailsDao _userVmDetailsDao;
     @Inject
     protected VMSnapshotDetailsDao _vmSnapshotDetailsDao;
+    @Inject
+    PrimaryDataStoreDao _storagePoolDao;
+    @Inject
+    private AnnotationDao annotationDao;
 
     VmWorkJobHandlerProxy _jobHandlerProxy = new VmWorkJobHandlerProxy(this);
 
@@ -358,9 +365,29 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
             throw new InvalidParameterValueException("Can not snapshot memory when VM is not in Running state");
         }
 
-        // for KVM, only allow snapshot with memory when VM is in running state
-        if (userVmVo.getHypervisorType() == HypervisorType.KVM && userVmVo.getState() == State.Running && !snapshotMemory) {
-            throw new InvalidParameterValueException("KVM VM does not allow to take a disk-only snapshot when VM is in running state");
+        List<VolumeVO> rootVolumes = _volumeDao.findReadyRootVolumesByInstance(userVmVo.getId());
+        if (rootVolumes == null || rootVolumes.isEmpty()) {
+            throw new CloudRuntimeException("Unable to find root volume for the user vm:" + userVmVo.getUuid());
+        }
+
+        VolumeVO rootVolume = rootVolumes.get(0);
+        StoragePoolVO rootVolumePool = _storagePoolDao.findById(rootVolume.getPoolId());
+        if (rootVolumePool == null) {
+            throw new CloudRuntimeException("Unable to find root volume storage pool for the user vm:" + userVmVo.getUuid());
+        }
+
+        if (userVmVo.getHypervisorType() == HypervisorType.KVM) {
+            //DefaultVMSnapshotStrategy - allows snapshot with memory when VM is in running state and all volumes have to be in QCOW format
+            //ScaleIOVMSnapshotStrategy - allows group snapshots without memory; all VM's volumes should be on same storage pool; The state of VM could be Running/Stopped; RAW image format is only supported
+            //StorageVMSnapshotStrategy - allows volume snapshots without memory; VM has to be in Running state; No limitation of the image format if the storage plugin supports volume snapshots; "kvm.vmstoragesnapshot.enabled" has to be enabled
+            //Other Storage volume plugins could integrate this with their own functionality for group snapshots
+            VMSnapshotStrategy snapshotStrategy = storageStrategyFactory.getVmSnapshotStrategy(userVmVo.getId(), rootVolumePool.getId(), snapshotMemory);
+
+            if (snapshotStrategy == null) {
+                String message = "KVM does not support the type of snapshot requested";
+                s_logger.debug(message);
+                throw new CloudRuntimeException(message);
+            }
         }
 
         // check access
@@ -379,9 +406,6 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
             if (activeSnapshots.size() > 0) {
                 throw new CloudRuntimeException("There is other active volume snapshot tasks on the instance to which the volume is attached, please try again later.");
             }
-            if (userVmVo.getHypervisorType() == HypervisorType.KVM && volume.getFormat() != ImageFormat.QCOW2) {
-                throw new CloudRuntimeException("We only support create vm snapshots from vm with QCOW2 image");
-            }
         }
 
         // check if there are other active VM snapshot tasks
@@ -392,6 +416,10 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
         VMSnapshot.Type vmSnapshotType = VMSnapshot.Type.Disk;
         if (snapshotMemory && userVmVo.getState() == VirtualMachine.State.Running)
             vmSnapshotType = VMSnapshot.Type.DiskAndMemory;
+
+        if (rootVolumePool.getPoolType() == Storage.StoragePoolType.PowerFlex) {
+            vmSnapshotType = VMSnapshot.Type.Disk;
+        }
 
         try {
             return createAndPersistVMSnapshot(userVmVo, vsDescription, vmSnapshotName, vsDisplayName, vmSnapshotType);
@@ -428,6 +456,7 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
                     throw new CloudRuntimeException("Failed to create snapshot for vm: " + vmId);
                 }
                 addSupportForCustomServiceOffering(vmId, serviceOfferingId, vmSnapshot.getId());
+                CallContext.current().putContextParameter(VMSnapshot.class, vmSnapshot.getUuid());
                 return vmSnapshot;
             }
         });
@@ -487,7 +516,11 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
             VmWorkJobVO placeHolder = null;
             placeHolder = createPlaceHolderWork(vmId);
             try {
-                return orchestrateCreateVMSnapshot(vmId, vmSnapshotId, quiescevm);
+                VMSnapshot snapshot = orchestrateCreateVMSnapshot(vmId, vmSnapshotId, quiescevm);
+                if (snapshot != null) {
+                    CallContext.current().putContextParameter(VMSnapshot.class, snapshot.getUuid());
+                }
+                return snapshot;
             } finally {
                 _workJobDao.expunge(placeHolder.getId());
             }
@@ -508,10 +541,14 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
             if (jobResult != null) {
                 if (jobResult instanceof ConcurrentOperationException)
                     throw (ConcurrentOperationException)jobResult;
+                else if (jobResult instanceof CloudRuntimeException)
+                    throw (CloudRuntimeException)jobResult;
                 else if (jobResult instanceof Throwable)
                     throw new RuntimeException("Unexpected exception", (Throwable)jobResult);
             }
-
+            if (result != null) {
+                CallContext.current().putContextParameter(VMSnapshot.class, result.getUuid());
+            }
             return result;
         }
     }
@@ -544,8 +581,9 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
             VMSnapshot snapshot = strategy.takeVMSnapshot(vmSnapshot);
             return snapshot;
         } catch (Exception e) {
-            s_logger.debug("Failed to create vm snapshot: " + vmSnapshotId, e);
-            throw new CloudRuntimeException("Failed to create vm snapshot: " + vmSnapshotId, e);
+            String errMsg = String.format("Failed to create vm snapshot: [%s] due to: %s", vmSnapshotId, e.getMessage());
+            s_logger.debug(errMsg, e);
+            throw new CloudRuntimeException(errMsg, e);
         }
     }
 
@@ -613,6 +651,8 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
             if (jobResult != null) {
                 if (jobResult instanceof ConcurrentOperationException)
                     throw (ConcurrentOperationException)jobResult;
+                else if (jobResult instanceof CloudRuntimeException)
+                    throw (CloudRuntimeException)jobResult;
                 else if (jobResult instanceof Throwable)
                     throw new RuntimeException("Unexpected exception", (Throwable)jobResult);
             }
@@ -649,6 +689,7 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
                 throw new InvalidParameterValueException("There is other active vm snapshot tasks on the instance, please try again later");
         }
 
+        annotationDao.removeByEntityType(AnnotationService.EntityType.VM_SNAPSHOT.name(), vmSnapshot.getUuid());
         if (vmSnapshot.getState() == VMSnapshot.State.Allocated) {
             return _vmSnapshotDao.remove(vmSnapshot.getId());
         } else {
@@ -739,6 +780,8 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
                     throw (InsufficientCapacityException)jobResult;
                 else if (jobResult instanceof ResourceUnavailableException)
                     throw (ResourceUnavailableException)jobResult;
+                else if (jobResult instanceof CloudRuntimeException)
+                    throw (CloudRuntimeException)jobResult;
                 else if (jobResult instanceof Throwable)
                     throw new RuntimeException("Unexpected exception", (Throwable)jobResult);
             }
@@ -988,6 +1031,8 @@ public class VMSnapshotManagerImpl extends MutualExclusiveIdsManagerBase impleme
                     throw (ConcurrentOperationException)jobResult;
                 else if (jobResult instanceof InvalidParameterValueException)
                     throw (InvalidParameterValueException)jobResult;
+                else if (jobResult instanceof CloudRuntimeException)
+                    throw (CloudRuntimeException)jobResult;
                 else if (jobResult instanceof Throwable)
                     throw new RuntimeException("Unexpected exception", (Throwable)jobResult);
             }

@@ -176,6 +176,12 @@ public class NetworkVO implements Network {
     String externalId;
 
     @Transient
+    String routerIp;
+
+    @Transient
+    String routerIpv6;
+
+    @Transient
     transient String vlanIdAsUUID;
 
     @Transient
@@ -543,9 +549,7 @@ public class NetworkVO implements Network {
 
     @Override
     public String toString() {
-        StringBuilder buf = new StringBuilder("Ntwk[");
-        buf.append(id).append("|").append(trafficType).append("|").append(networkOfferingId).append("]");
-        return buf.toString();
+        return String.format("Network {\"id\": %s, \"name\": \"%s\", \"uuid\": \"%s\", \"networkofferingid\": %d}", id, name, uuid, networkOfferingId);
     }
 
     @Override
@@ -671,5 +675,21 @@ public class NetworkVO implements Network {
 
     public void setPvlanType(PVlanType pvlanType) {
         this.pVlanType = pvlanType;
+    }
+
+    public String getRouterIp() {
+        return routerIp;
+    }
+
+    public void setRouterIp(String routerIp) {
+        this.routerIp = routerIp;
+    }
+
+    public String getRouterIpv6() {
+        return routerIpv6;
+    }
+
+    public void setRouterIpv6(String routerIpv6) {
+        this.routerIpv6 = routerIpv6;
     }
 }

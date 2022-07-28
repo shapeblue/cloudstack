@@ -34,7 +34,7 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 import com.cloud.storage.dao.VolumeDetailsDao;
-import org.apache.cloudstack.api.ApiCommandJobType;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 import org.apache.cloudstack.api.ApiErrorCode;
@@ -1084,7 +1084,7 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
                             s_logger.debug("Purge queue item for cancelled job-" + job.getId());
                         }
                         _queueMgr.purgeAsyncJobQueueItemId(job.getId());
-                        if (ApiCommandJobType.Volume.toString().equals(job.getInstanceType())) {
+                        if (ApiCommandResourceType.Volume.toString().equals(job.getInstanceType())) {
 
                             try {
                                 _volumeDetailsDao.removeDetail(job.getInstanceId(), "SNAPSHOT_ID");
@@ -1097,6 +1097,10 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
                     final List<SnapshotDetailsVO> snapshotList = _snapshotDetailsDao.findDetails(AsyncJob.Constants.MS_ID, Long.toString(msid), false);
                     for (final SnapshotDetailsVO snapshotDetailsVO : snapshotList) {
                         SnapshotInfo snapshot = snapshotFactory.getSnapshot(snapshotDetailsVO.getResourceId(), DataStoreRole.Primary);
+                        if (snapshot == null) {
+                            _snapshotDetailsDao.remove(snapshotDetailsVO.getId());
+                            continue;
+                        }
                         snapshotSrv.processEventOnSnapshotObject(snapshot, Snapshot.Event.OperationFailed);
                         _snapshotDetailsDao.removeDetail(snapshotDetailsVO.getResourceId(), AsyncJob.Constants.MS_ID);
                     }

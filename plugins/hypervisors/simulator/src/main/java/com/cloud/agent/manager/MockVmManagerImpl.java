@@ -261,9 +261,9 @@ public class MockVmManagerImpl extends ManagerBase implements MockVmManager {
         final MockVm vm = _mockVmDao.findByVmName(router_name);
         final String args = vm.getBootargs();
         if (args.indexOf("router_pr=100") > 0) {
-            s_logger.debug("Router priority is for MASTER");
-            final CheckRouterAnswer ans = new CheckRouterAnswer(cmd, "Status: MASTER", true);
-            ans.setState(VirtualRouter.RedundantState.MASTER);
+            s_logger.debug("Router priority is for PRIMARY");
+            final CheckRouterAnswer ans = new CheckRouterAnswer(cmd, "Status: PRIMARY", true);
+            ans.setState(VirtualRouter.RedundantState.PRIMARY);
             return ans;
         } else {
             s_logger.debug("Router priority is for BACKUP");
@@ -319,7 +319,7 @@ public class MockVmManagerImpl extends ManagerBase implements MockVmManager {
         final HashMap<String, VmStatsEntry> vmStatsNameMap = new HashMap<String, VmStatsEntry>();
         final List<String> vmNames = cmd.getVmNames();
         for (final String vmName : vmNames) {
-            final VmStatsEntry entry = new VmStatsEntry(0, 0, 0, 0, 0, 0, 0, "vm");
+            final VmStatsEntry entry = new VmStatsEntry(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "vm");
             entry.setNetworkReadKBs(32768); // default values 256 KBps
             entry.setNetworkWriteKBs(16384);
             entry.setCPUUtilization(10);

@@ -19,7 +19,7 @@ package org.apache.cloudstack.api.command.admin.router;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
-import org.apache.cloudstack.api.ApiCommandJobType;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
@@ -48,6 +48,9 @@ public class RebootRouterCmd extends BaseAsyncCmd {
 
     @Parameter(name = ApiConstants.ID, type = CommandType.UUID, entityType = DomainRouterResponse.class, required = true, description = "the ID of the router")
     private Long id;
+
+    @Parameter(name = ApiConstants.FORCED, type = CommandType.BOOLEAN, required = false, description = "Force reboot the router (Router is force Stopped and then Started)", since = "4.16.0")
+    private Boolean forced;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -87,19 +90,23 @@ public class RebootRouterCmd extends BaseAsyncCmd {
     }
 
     @Override
-    public ApiCommandJobType getInstanceType() {
-        return ApiCommandJobType.DomainRouter;
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.DomainRouter;
     }
 
     @Override
-    public Long getInstanceId() {
+    public Long getApiResourceId() {
         return getId();
+    }
+
+    public boolean isForced() {
+        return (forced != null) ? forced : false;
     }
 
     @Override
     public void execute() throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException {
         CallContext.current().setEventDetails("Router Id: " + this._uuidMgr.getUuid(VirtualMachine.class,getId()));
-        VirtualRouter result = _routerService.rebootRouter(getId(), true);
+        VirtualRouter result = _routerService.rebootRouter(getId(), true, isForced());
         if (result != null) {
             DomainRouterResponse response = _responseGenerator.createDomainRouterResponse(result);
             response.setResponseName("router");

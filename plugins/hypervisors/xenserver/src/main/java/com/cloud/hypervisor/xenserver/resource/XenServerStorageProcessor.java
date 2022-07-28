@@ -50,6 +50,7 @@ import org.apache.cloudstack.storage.command.ResignatureAnswer;
 import org.apache.cloudstack.storage.command.ResignatureCommand;
 import org.apache.cloudstack.storage.command.SnapshotAndCopyAnswer;
 import org.apache.cloudstack.storage.command.SnapshotAndCopyCommand;
+import org.apache.cloudstack.storage.command.SyncVolumePathCommand;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.SnapshotObjectTO;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
@@ -217,9 +218,15 @@ public class XenServerStorageProcessor implements StorageProcessor {
     }
 
     @Override
-    public Answer CheckDataStoreStoragePolicyComplaince(CheckDataStoreStoragePolicyComplainceCommand cmd) {
+    public Answer checkDataStoreStoragePolicyCompliance(CheckDataStoreStoragePolicyComplainceCommand cmd) {
         s_logger.info("'CheckDataStoreStoragePolicyComplainceCommand' not applicable used for XenServerStorageProcessor");
         return new Answer(cmd,false,"Not applicable used for XenServerStorageProcessor");
+    }
+
+    @Override
+    public Answer syncVolumePath(SyncVolumePathCommand cmd) {
+        s_logger.info("SyncVolumePathCommand not currently applicable for XenServerStorageProcessor");
+        return new Answer(cmd, false, "Not currently applicable for XenServerStorageProcessor");
     }
 
     @Override
@@ -798,7 +805,9 @@ public class XenServerStorageProcessor implements StorageProcessor {
 
         try {
             final Connection conn = hypervisorResource.getConnection();
-            final SR poolSr = hypervisorResource.getStorageRepository(conn, data.getDataStore().getUuid());
+            final PrimaryDataStoreTO primaryStore = (PrimaryDataStoreTO)data.getDataStore();
+            final SR poolSr = hypervisorResource.getStorageRepository(conn,
+                    CitrixHelper.getSRNameLabel(primaryStore.getUuid(), primaryStore.getPoolType(), primaryStore.getPath()));
             VDI.Record vdir = new VDI.Record();
             vdir.nameLabel = volume.getName();
             vdir.SR = poolSr;
@@ -844,7 +853,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
 
             VDI.Record vdir;
             vdir = vdi.getRecord(conn);
-            s_logger.debug("Succesfully created VDI: Uuid = " + vdir.uuid);
+            s_logger.debug("Successfully created VDI: Uuid = " + vdir.uuid);
 
             final VolumeObjectTO newVol = new VolumeObjectTO();
             newVol.setName(vdir.nameLabel);
@@ -871,7 +880,9 @@ public class XenServerStorageProcessor implements StorageProcessor {
         if (srcStore instanceof NfsTO) {
             final NfsTO nfsStore = (NfsTO) srcStore;
             try {
-                final SR primaryStoragePool = hypervisorResource.getStorageRepository(conn, destVolume.getDataStore().getUuid());
+                final PrimaryDataStoreTO destStore = (PrimaryDataStoreTO)destVolume.getDataStore();
+                final SR primaryStoragePool = hypervisorResource.getStorageRepository(conn,
+                        CitrixHelper.getSRNameLabel(destStore.getUuid(), destStore.getPoolType(), destStore.getPath()));
                 final String srUuid = primaryStoragePool.getUuid(conn);
                 final URI uri = new URI(nfsStore.getUrl());
                 final String volumePath = uri.getHost() + ":" + uri.getPath() + nfsStore.getPathSeparator() + srcVolume.getPath();
@@ -905,8 +916,9 @@ public class XenServerStorageProcessor implements StorageProcessor {
             try {
                 final NfsTO nfsStore = (NfsTO) destStore;
                 final URI uri = new URI(nfsStore.getUrl());
+                final String nfsVersion = nfsStore.getNfsVersion();
                 // Create the volume folder
-                if (!hypervisorResource.createSecondaryStorageFolder(conn, uri.getHost() + ":" + uri.getPath(), destVolume.getPath())) {
+                if (!hypervisorResource.createSecondaryStorageFolder(conn, uri.getHost() + ":" + uri.getPath(), destVolume.getPath(), nfsVersion)) {
                     throw new InternalErrorException("Failed to create the volume folder.");
                 }
 
@@ -1153,7 +1165,9 @@ public class XenServerStorageProcessor implements StorageProcessor {
         final DataTO cacheData = cmd.getCacheTO();
         final DataTO destData = cmd.getDestTO();
         final int wait = cmd.getWait();
-        final String primaryStorageNameLabel = srcData.getDataStore().getUuid();
+        final PrimaryDataStoreTO primaryStore = (PrimaryDataStoreTO)srcData.getDataStore();
+        final String primaryStorageNameLabel = CitrixHelper.getSRNameLabel(primaryStore.getUuid(),
+                primaryStore.getPoolType(), primaryStore.getPath());
         String secondaryStorageUrl = null;
         NfsTO cacheStore = null;
         String destPath = null;
@@ -1166,6 +1180,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
             secondaryStorageUrl = cacheStore.getUrl();
             destPath = destData.getPath();
         }
+        String nfsVersion = cacheStore.getNfsVersion();
 
         final SnapshotObjectTO snapshotTO = (SnapshotObjectTO) srcData;
         final SnapshotObjectTO snapshotOnImage = (SnapshotObjectTO) destData;
@@ -1222,7 +1237,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
             if (fullbackup) {
                 // the first snapshot is always a full snapshot
 
-                if (!hypervisorResource.createSecondaryStorageFolder(conn, secondaryStorageMountPath, folder)) {
+                if (!hypervisorResource.createSecondaryStorageFolder(conn, secondaryStorageMountPath, folder, nfsVersion)) {
                     details = " Filed to create folder " + folder + " in secondary storage";
                     s_logger.warn(details);
                     return new CopyCmdAnswer(details);
@@ -1336,6 +1351,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
         final TemplateObjectTO template = (TemplateObjectTO) cmd.getDestTO();
         final NfsTO destStore = (NfsTO) cmd.getDestTO().getDataStore();
         final int wait = cmd.getWait();
+        final String nfsVersion = destStore.getNfsVersion();
 
         final String secondaryStoragePoolURL = destStore.getUrl();
         final String volumeUUID = volume.getPath();
@@ -1351,7 +1367,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
             final URI uri = new URI(secondaryStoragePoolURL);
             secondaryStorageMountPath = uri.getHost() + ":" + uri.getPath();
             installPath = template.getPath();
-            if (!hypervisorResource.createSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath)) {
+            if (!hypervisorResource.createSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath, nfsVersion)) {
                 details = " Filed to create folder " + installPath + " in secondary storage";
                 s_logger.warn(details);
                 return new CopyCmdAnswer(details);
@@ -1378,7 +1394,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
             final String templatePath = secondaryStorageMountPath + "/" + installPath;
             result =
                     hypervisorResource.postCreatePrivateTemplate(conn, templatePath, tmpltFilename, tmpltUUID, userSpecifiedName, null, physicalSize, virtualSize,
-                            template.getId());
+                            template.getId(), nfsVersion);
             if (!result) {
                 throw new CloudRuntimeException("Could not create the template.properties file on secondary storage dir: " + tmpltURI);
             }
@@ -1398,7 +1414,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
                 hypervisorResource.removeSR(conn, tmpltSR);
             }
             if (secondaryStorageMountPath != null) {
-                hypervisorResource.deleteSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath);
+                hypervisorResource.deleteSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath, nfsVersion);
             }
             details = "Creating template from volume " + volumeUUID + " failed due to " + e.toString();
             s_logger.error(details, e);
@@ -1452,7 +1468,8 @@ public class XenServerStorageProcessor implements StorageProcessor {
 
             final String destNfsPath = destUri.getHost() + ":" + destUri.getPath();
 
-            if (!hypervisorResource.createSecondaryStorageFolder(conn, destNfsPath, destDir)) {
+            String destNfsVersion = destStore.getNfsVersion();
+            if (!hypervisorResource.createSecondaryStorageFolder(conn, destNfsPath, destDir, destNfsVersion)) {
                 final String details = " Failed to create folder " + destDir + " in secondary storage";
 
                 s_logger.warn(details);
@@ -1487,7 +1504,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
             templatePath = templatePath.replaceAll("//", "/");
 
             result = hypervisorResource.postCreatePrivateTemplate(conn, templatePath, templateFilename, templateUuid, userSpecifiedTemplateName, null,
-                    physicalSize, virtualSize, templateObjTO.getId());
+                    physicalSize, virtualSize, templateObjTO.getId(), destNfsVersion);
 
             if (!result) {
                 throw new CloudRuntimeException("Could not create the template.properties file on secondary storage dir: " + templateUri);

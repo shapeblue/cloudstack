@@ -247,10 +247,26 @@ public class VmwareStorageLayoutHelper implements Configurable {
         s_logger.info("Fixup folder-synchronization. move " + fileDsFullPath + " -> " + targetPath);
         ds.moveDatastoreFile(fileDsFullPath, dcMo.getMor(), ds.getMor(), targetPath, dcMo.getMor(), true);
 
-        if (folderName != null) {
-            String[] files = ds.listDirContent(folderName);
-            if (files == null || files.length == 0) {
-                ds.deleteFolder(folderName, dcMo.getMor());
+        try {
+            if (folderName != null) {
+                String[] files = ds.listDirContent(folderName);
+                if (files == null || files.length == 0) {
+                    ds.deleteFolder(folderName, dcMo.getMor());
+                }
+            }
+        } catch (Exception e) {
+            if (e.getMessage().toLowerCase().startsWith("server returned http response code: 500 for url: ") &&
+                    e.getMessage().contains(vmName)) {
+                String link = "https://github.com/apache/cloudstack/pull/6283";
+                String message = String.format("Failed to list folder content of VM [name: %s] due to: [%s]. For more information about this error, or "
+                        + "to know why ACS tries to check folder content, please check this link [%s]. This error apparently only occurs with datastores that use the NFS protocol and "
+                        + "in specific versions of VMWare. Users using VMFS or VMWare versions greater than 6.7 have not reported this error. If the operation performed is a volume detach, "
+                        + "it was successful. If you want to know why this error occurs in VMWare, please contact VMWare's technical support.",
+                        vmName, e.getMessage(), link);
+                s_logger.warn(message, e);
+            } else {
+                s_logger.error(String.format("Failed to sync volume [%s] of VM [%s] due to: [%s].", vmdkName, vmName, e.getMessage()), e);
+                throw e;
             }
         }
     }
@@ -263,6 +279,7 @@ public class VmwareStorageLayoutHelper implements Configurable {
                 s_logger.info("Check if we need to move " + fileFullDsPath + " to its root location");
                 DatastoreMO dsMo = new DatastoreMO(dcMo.getContext(), dcMo.findDatastore(file.getDatastoreName()));
                 if (dsMo.getMor() != null && !dsMo.getDatastoreType().equalsIgnoreCase("VVOL")) {
+                    HypervisorHostHelper.createBaseFolderInDatastore(dsMo, dsMo.getDataCenterMor());
                     DatastoreFile targetFile = new DatastoreFile(file.getDatastoreName(), HypervisorHostHelper.VSPHERE_DATASTORE_BASE_FOLDER, file.getFileName());
                     if (!targetFile.getPath().equalsIgnoreCase(file.getPath())) {
                         s_logger.info("Move " + file.getPath() + " -> " + targetFile.getPath());
@@ -370,6 +387,7 @@ public class VmwareStorageLayoutHelper implements Configurable {
 
     //This method call is for the volumes which actually exists
     public static String getLegacyDatastorePathFromVmdkFileName(DatastoreMO dsMo, String vmdkFileName) throws Exception {
+        HypervisorHostHelper.createBaseFolderInDatastore(dsMo, dsMo.getDataCenterMor());
         String vmdkDatastorePath = String.format("[%s] %s/%s", dsMo.getName(), HypervisorHostHelper.VSPHERE_DATASTORE_BASE_FOLDER, vmdkFileName);
         if (!dsMo.fileExists(vmdkDatastorePath)) {
             vmdkDatastorePath = getDeprecatedLegacyDatastorePathFromVmdkFileName(dsMo, vmdkFileName);
@@ -379,6 +397,7 @@ public class VmwareStorageLayoutHelper implements Configurable {
 
     //This method call is for the volumes to be created or can also be for volumes already exists
     public static String getDatastorePathBaseFolderFromVmdkFileName(DatastoreMO dsMo, String vmdkFileName) throws Exception {
+        HypervisorHostHelper.createBaseFolderInDatastore(dsMo, dsMo.getDataCenterMor());
         return String.format("[%s] %s/%s", dsMo.getName(), HypervisorHostHelper.VSPHERE_DATASTORE_BASE_FOLDER, vmdkFileName);
     }
 

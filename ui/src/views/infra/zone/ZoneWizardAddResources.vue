@@ -17,14 +17,20 @@
 
 <template>
   <div style="width: auto;">
-    <a-steps progressDot :current="currentStep" size="small" style="margin-left: 0; margin-top: 16px;">
+    <a-steps
+      ref="resourceStep"
+      progressDot
+      :current="currentStep"
+      size="small"
+      style="margin-left: 0; margin-top: 16px;">
       <a-step
-        v-for="step in steps"
-        :key="step.title"
+        v-for="(step, index) in steps"
+        :ref="`resourceStep${index}`"
+        :key="step.formKey"
         :title="$t(step.title)"></a-step>
     </a-steps>
     <static-inputs-form
-      v-if="currentStep === 0"
+      v-if="checkVisibleResource('clusterResource')"
       @nextPressed="nextPressed"
       @backPressed="handleBack"
       @fieldsChanged="fieldsChanged"
@@ -37,7 +43,7 @@
 
     <div v-if="hypervisor !== 'VMware'">
       <static-inputs-form
-        v-if="currentStep === 1"
+        v-if="checkVisibleResource('hostResource')"
         @nextPressed="nextPressed"
         @backPressed="handleBack"
         @fieldsChanged="fieldsChanged"
@@ -48,7 +54,7 @@
         :isFixError="isFixError"
       />
       <static-inputs-form
-        v-if="currentStep === 2"
+        v-if="(!localstorageenabled || !localstorageenabledforsystemvm) && checkVisibleResource('primaryResource')"
         @nextPressed="nextPressed"
         @backPressed="handleBack"
         @fieldsChanged="fieldsChanged"
@@ -59,7 +65,7 @@
         :isFixError="isFixError"
       />
       <static-inputs-form
-        v-if="currentStep === 3"
+        v-if="checkVisibleResource('secondaryResource')"
         @nextPressed="nextPressed"
         @backPressed="handleBack"
         @fieldsChanged="fieldsChanged"
@@ -72,7 +78,7 @@
     </div>
     <div v-else>
       <static-inputs-form
-        v-if="currentStep === 1"
+        v-if="checkVisibleResource('primaryResource')"
         @nextPressed="nextPressed"
         @backPressed="handleBack"
         @fieldsChanged="fieldsChanged"
@@ -83,7 +89,7 @@
         :isFixError="isFixError"
       />
       <static-inputs-form
-        v-if="currentStep === 2"
+        v-if="checkVisibleResource('secondaryResource')"
         @nextPressed="nextPressed"
         @backPressed="handleBack"
         @fieldsChanged="fieldsChanged"
@@ -97,13 +103,16 @@
   </div>
 </template>
 <script>
-import StaticInputsForm from '@views/infra/zone/StaticInputsForm'
+import { nextTick } from 'vue'
 import { api } from '@/api'
+import { mixinDevice } from '@/utils/mixin.js'
+import StaticInputsForm from '@views/infra/zone/StaticInputsForm'
 
 export default {
   components: {
     StaticInputsForm
   },
+  mixins: [mixinDevice],
   props: {
     prefillContent: {
       type: Object,
@@ -122,16 +131,20 @@ export default {
   },
   computed: {
     zoneType () {
-      return this.prefillContent.zoneType ? this.prefillContent.zoneType.value : null
+      return this.prefillContent?.zoneType || null
     },
     hypervisor () {
-      return this.prefillContent.hypervisor ? this.prefillContent.hypervisor.value : null
+      return this.prefillContent?.hypervisor || null
+    },
+    localstorageenabled () {
+      return this.prefillContent?.localstorageenabled?.value || false
+    },
+    localstorageenabledforsystemvm () {
+      return this.prefillContent?.localstorageenabledforsystemvm?.value || false
     },
     steps () {
       const steps = []
       const hypervisor = this.prefillContent.hypervisor ? this.prefillContent.hypervisor.value : null
-      const localStorageEnabled = this.prefillContent.localstorageenabled.value
-      const localStorageEnabledForSystemVM = this.prefillContent.localstorageenabledforsystemvm.value
       steps.push({
         title: 'label.cluster',
         fromKey: 'clusterResource',
@@ -144,7 +157,7 @@ export default {
           description: 'message.desc.host'
         })
       }
-      if (!localStorageEnabled || !localStorageEnabledForSystemVM) {
+      if (!this.localstorageenabled || !this.localstorageenabledforsystemvm) {
         steps.push({
           title: 'label.primary.storage',
           fromKey: 'primaryResource',
@@ -338,7 +351,7 @@ export default {
           placeHolder: 'message.error.server',
           required: true,
           display: {
-            primaryStorageProtocol: ['nfs', 'iscsi', 'gluster', 'SMB']
+            primaryStorageProtocol: ['nfs', 'iscsi', 'gluster', 'SMB', 'Linstor']
           }
         },
         {
@@ -351,7 +364,7 @@ export default {
           }
         },
         {
-          title: 'label.SR.name',
+          title: 'label.sr.name',
           key: 'primaryStorageSRLabel',
           placeHolder: 'message.error.sr.namelabel',
           required: true,
@@ -369,7 +382,7 @@ export default {
           }
         },
         {
-          title: 'label.LUN.number',
+          title: 'label.lun.number',
           key: 'primaryStorageLUN',
           placeHolder: 'message.error.lun',
           required: true,
@@ -465,7 +478,7 @@ export default {
           placeHolder: 'message.error.vcenter.datacenter',
           required: true,
           display: {
-            primaryStorageProtocol: 'vmfs'
+            primaryStorageProtocol: ['vmfs', 'datastorecluster']
           }
         },
         {
@@ -474,7 +487,16 @@ export default {
           placeHolder: 'message.error.vcenter.datastore',
           required: true,
           display: {
-            primaryStorageProtocol: 'vmfs'
+            primaryStorageProtocol: ['vmfs', 'datastorecluster']
+          }
+        },
+        {
+          title: 'label.resourcegroup',
+          key: 'primaryStorageLinstorResourceGroup',
+          placeHolder: 'message.error.linstor.resourcegroup',
+          required: true,
+          display: {
+            primaryStorageProtocol: 'Linstor'
           }
         },
         {
@@ -549,7 +571,7 @@ export default {
           }
         },
         {
-          title: 'label.s3.access_key',
+          title: 'label.s3.access.key',
           key: 'secondaryStorageAccessKey',
           required: true,
           placeHolder: 'message.error.access.key',
@@ -558,7 +580,7 @@ export default {
           }
         },
         {
-          title: 'label.s3.secret_key',
+          title: 'label.s3.secret.key',
           key: 'secondaryStorageSecretKey',
           required: true,
           placeHolder: 'message.error.secret.key',
@@ -584,7 +606,7 @@ export default {
           }
         },
         {
-          title: 'label.s3.use_https',
+          title: 'label.s3.use.https',
           key: 'secondaryStorageHttps',
           required: false,
           switch: true,
@@ -594,7 +616,7 @@ export default {
           }
         },
         {
-          title: 'label.s3.connection_timeoutt',
+          title: 'label.s3.connection.timeout',
           key: 'secondaryStorageConnectionTimeout',
           required: false,
           display: {
@@ -602,7 +624,7 @@ export default {
           }
         },
         {
-          title: 'label.s3.max_error_retry',
+          title: 'label.s3.max.error.retry',
           key: 'secondaryStorageMaxError',
           required: false,
           display: {
@@ -610,7 +632,7 @@ export default {
           }
         },
         {
-          title: 'label.s3.socket_timeout',
+          title: 'label.s3.socket.timeout',
           key: 'secondaryStorageSocketTimeout',
           required: false,
           display: {
@@ -632,7 +654,8 @@ export default {
           required: true,
           placeHolder: 'message.error.s3nfs.server',
           display: {
-            secondaryStorageProvider: ['S3']
+            secondaryStorageProvider: ['S3'],
+            secondaryStorageNFSStaging: true
           }
         },
         {
@@ -641,7 +664,8 @@ export default {
           required: true,
           placeHolder: 'message.error.s3nfs.path',
           display: {
-            secondaryStorageProvider: ['S3']
+            secondaryStorageProvider: ['S3'],
+            secondaryStorageNFSStaging: true
           }
         },
         {
@@ -656,7 +680,8 @@ export default {
         {
           title: 'label.account',
           key: 'secondaryStorageAccount',
-          required: false,
+          required: true,
+          placeHolder: 'message.error.swift.account',
           display: {
             secondaryStorageProvider: ['Swift']
           }
@@ -664,7 +689,8 @@ export default {
         {
           title: 'label.username',
           key: 'secondaryStorageUsername',
-          required: false,
+          required: true,
+          placeHolder: 'message.error.swift.username',
           display: {
             secondaryStorageProvider: ['Swift']
           }
@@ -672,6 +698,15 @@ export default {
         {
           title: 'label.key',
           key: 'secondaryStorageKey',
+          required: true,
+          placeHolder: 'message.error.swift.key',
+          display: {
+            secondaryStorageProvider: ['Swift']
+          }
+        },
+        {
+          title: 'label.storagepolicy',
+          key: 'secondaryStoragePolicy',
           required: false,
           display: {
             secondaryStorageProvider: ['Swift']
@@ -687,15 +722,17 @@ export default {
       primaryStorageScopes: [],
       primaryStorageProtocols: [],
       storageProviders: [],
-      currentStep: 0,
+      currentStep: null,
       options: ['primaryStorageScope', 'primaryStorageProtocol', 'provider']
     }
   },
-  mounted () {
+  created () {
+    this.currentStep = this.prefillContent?.resourceStep || 0
     if (this.stepChild && this.stepChild !== '') {
       this.currentStep = this.steps.findIndex(item => item.fromKey === this.stepChild)
     }
-    if (this.prefillContent.hypervisor.value === 'BareMetal') {
+    this.scrollToStepActive()
+    if (this.prefillContent.hypervisor === 'BareMetal') {
       this.$emit('nextPressed')
     } else {
       this.fetchConfigurationSwitch()
@@ -704,7 +741,7 @@ export default {
         this.$emit('fieldsChanged', {
           lastHypervisor: this.prefillContent.hypervisor
         })
-      } else if (this.prefillContent.lastHypervisor.value !== this.prefillContent.hypervisor.value) {
+      } else if (this.prefillContent.lastHypervisor !== this.prefillContent.hypervisor) {
         this.$emit('fieldsChanged', {
           lastHypervisor: this.prefillContent.hypervisor,
           primaryStorageProtocol: null,
@@ -719,14 +756,35 @@ export default {
         this.$emit('nextPressed')
       } else {
         this.currentStep++
+        this.$emit('fieldsChanged', { resourceStep: this.currentStep })
       }
+
+      this.scrollToStepActive()
     },
-    handleBack (e) {
+    handleBack () {
       if (this.currentStep === 0) {
         this.$emit('backPressed')
       } else {
         this.currentStep--
+        this.$emit('fieldsChanged', { resourceStep: this.currentStep })
       }
+
+      this.scrollToStepActive()
+    },
+    scrollToStepActive () {
+      if (!this.isMobile()) {
+        return
+      }
+      nextTick().then(() => {
+        if (!this.$refs.resourceStep) {
+          return
+        }
+        if (this.currentStep === 0) {
+          this.$refs.resourceStep.$el.scrollLeft = 0
+          return
+        }
+        this.$refs.resourceStep.$el.scrollLeft = this.$refs['resourceStep' + (this.currentStep - 1)][0].$el.offsetLeft
+      })
     },
     fieldsChanged (changed) {
       this.$emit('fieldsChanged', changed)
@@ -747,7 +805,7 @@ export default {
       }
     },
     fetchScope () {
-      const hypervisor = this.prefillContent.hypervisor ? this.prefillContent.hypervisor.value : null
+      const hypervisor = this.prefillContent?.hypervisor || null
       const scope = []
       if (['KVM', 'VMware', 'Hyperv'].includes(hypervisor)) {
         scope.push({
@@ -765,10 +823,9 @@ export default {
         })
       }
       this.primaryStorageScopes = scope
-      this.$forceUpdate()
     },
     fetchProtocol () {
-      const hypervisor = this.prefillContent.hypervisor ? this.prefillContent.hypervisor.value : null
+      const hypervisor = this.prefillContent?.hypervisor || null
       const protocols = []
       if (hypervisor === 'KVM') {
         protocols.push({
@@ -791,6 +848,10 @@ export default {
           id: 'gluster',
           description: 'Gluster'
         })
+        protocols.push({
+          id: 'Linstor',
+          description: 'Linstor'
+        })
       } else if (hypervisor === 'XenServer') {
         protocols.push({
           id: 'nfs',
@@ -812,6 +873,10 @@ export default {
         protocols.push({
           id: 'vmfs',
           description: 'vmfs'
+        })
+        protocols.push({
+          id: 'datastorecluster',
+          description: 'datastorecluster'
         })
       } else if (hypervisor === 'Hyperv') {
         protocols.push({
@@ -848,12 +913,11 @@ export default {
       }
 
       this.primaryStorageProtocols = protocols
-      this.$forceUpdate()
     },
     async fetchConfigurationSwitch () {
-      const hypervisor = this.prefillContent.hypervisor ? this.prefillContent.hypervisor.value : null
-      this.$emit('fieldsChanged', { dvSwitchEnabled: { value: false } })
-      this.$emit('fieldsChanged', { vSwitchEnabled: { value: false } })
+      const hypervisor = this.prefillContent?.hypervisor || null
+      this.$emit('fieldsChanged', { dvSwitchEnabled: false })
+      this.$emit('fieldsChanged', { vSwitchEnabled: false })
       if (hypervisor && hypervisor === 'VMware') {
         await this.fetchNexusSwitchConfig()
         await this.fetchDvSwitchConfig()
@@ -865,7 +929,7 @@ export default {
         if (json.listconfigurationsresponse.configuration[0].value) {
           vSwitchEnabled = true
         }
-        this.$emit('fieldsChanged', { vSwitchEnabled: { value: vSwitchEnabled } })
+        this.$emit('fieldsChanged', { vSwitchEnabled: vSwitchEnabled })
       })
     },
     fetchDvSwitchConfig () {
@@ -874,7 +938,7 @@ export default {
         if (json.listconfigurationsresponse.configuration[0].value) {
           dvSwitchEnabled = true
         }
-        this.$emit('fieldsChanged', { dvSwitchEnabled: { value: dvSwitchEnabled } })
+        this.$emit('fieldsChanged', { dvSwitchEnabled: dvSwitchEnabled })
       })
     },
     fetchProvider () {
@@ -890,11 +954,14 @@ export default {
           storageProviders.push({ id: 'Swift', description: 'Swift' })
         }
         this.storageProviders = storageProviders
-        this.$forceUpdate()
       })
     },
     submitLaunchZone () {
       this.$emit('submitLaunchZone')
+    },
+    checkVisibleResource (key) {
+      const formKey = this.steps[this.currentStep]?.fromKey || ''
+      return formKey === key
     }
   }
 }

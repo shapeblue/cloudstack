@@ -23,6 +23,7 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import com.cloud.host.HostVO;
@@ -78,7 +79,7 @@ public class DomainRouterDaoImpl extends GenericDaoBase<DomainRouterVO, Long> im
         AllFieldsSearch = createSearchBuilder();
         AllFieldsSearch.and("dc", AllFieldsSearch.entity().getDataCenterId(), Op.EQ);
         AllFieldsSearch.and("account", AllFieldsSearch.entity().getAccountId(), Op.EQ);
-        AllFieldsSearch.and("role", AllFieldsSearch.entity().getRole(), Op.EQ);
+        AllFieldsSearch.and("role", AllFieldsSearch.entity().getRole(), Op.IN);
         AllFieldsSearch.and("domainId", AllFieldsSearch.entity().getDomainId(), Op.EQ);
         AllFieldsSearch.and("host", AllFieldsSearch.entity().getHostId(), Op.EQ);
         AllFieldsSearch.and("lastHost", AllFieldsSearch.entity().getLastHostId(), Op.EQ);
@@ -337,10 +338,10 @@ public class DomainRouterDaoImpl extends GenericDaoBase<DomainRouterVO, Long> im
     }
 
     @Override
-    public List<DomainRouterVO> listByNetworkAndRole(final long networkId, final Role role) {
+    public List<DomainRouterVO> listByNetworkAndRole(final long networkId, final Role... roles) {
         final SearchCriteria<DomainRouterVO> sc = AllFieldsSearch.create();
         sc.setJoinParameters("networkRouter", "networkId", networkId);
-        sc.setParameters("role", role);
+        sc.setParameters("role", (Object[])roles);
         return listBy(sc);
     }
 
@@ -376,19 +377,21 @@ public class DomainRouterDaoImpl extends GenericDaoBase<DomainRouterVO, Long> im
     public void addRouterToGuestNetwork(final VirtualRouter router, final Network guestNetwork) {
         if (_routerNetworkDao.findByRouterAndNetwork(router.getId(), guestNetwork.getId()) == null) {
             final NetworkOffering off = _offDao.findById(guestNetwork.getNetworkOfferingId());
-            if (!off.getName().equalsIgnoreCase(NetworkOffering.SystemPrivateGatewayNetworkOffering)) {
+            if (!StringUtils.equalsAnyIgnoreCase(NetworkOffering.SystemPrivateGatewayNetworkOffering, NetworkOffering.SystemPrivateGatewayNetworkOfferingWithoutVlan)) {
                 final TransactionLegacy txn = TransactionLegacy.currentTxn();
                 txn.start();
                 //1) add router to network
                 final RouterNetworkVO routerNtwkMap = new RouterNetworkVO(router.getId(), guestNetwork.getId(), guestNetwork.getGuestType());
                 _routerNetworkDao.persist(routerNtwkMap);
                 //2) create user stats entry for the network
-                UserStatisticsVO stats =
-                        _userStatsDao.findBy(router.getAccountId(), router.getDataCenterId(), guestNetwork.getId(), null, router.getId(), router.getType().toString());
-                if (stats == null) {
-                    stats =
-                            new UserStatisticsVO(router.getAccountId(), router.getDataCenterId(), null, router.getId(), router.getType().toString(), guestNetwork.getId());
-                    _userStatsDao.persist(stats);
+                if (router.getVpcId() == null) {
+                    UserStatisticsVO stats =
+                            _userStatsDao.findBy(router.getAccountId(), router.getDataCenterId(), guestNetwork.getId(), null, router.getId(), router.getType().toString());
+                    if (stats == null) {
+                        stats =
+                                new UserStatisticsVO(router.getAccountId(), router.getDataCenterId(), null, router.getId(), router.getType().toString(), guestNetwork.getId());
+                        _userStatsDao.persist(stats);
+                    }
                 }
                 txn.commit();
             }

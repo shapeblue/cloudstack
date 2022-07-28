@@ -20,23 +20,23 @@
     <a-input-search
       style="width: 25vw;float: right;margin-bottom: 10px; z-index: 8;"
       :placeholder="$t('label.search')"
-      v-model="filter"
+      v-model:value="filter"
       @search="handleSearch" />
 
     <a-list size="large" class="list" :loading="loading || tabLoading">
       <a-list-item :key="index" v-for="(item, index) in items" class="item">
         <a-list-item-meta>
-          <span slot="title" style="word-break: break-all">{{ item.name }}</span>
-          <span slot="description" style="word-break: break-all">{{ item.description }}</span>
+          <template #title style="word-break: break-all">{{ item.name }}</template>
+          <template #description style="word-break: break-all">{{ item.description }}</template>
         </a-list-item-meta>
 
         <div class="item__content">
           <a-input
-            :autoFocus="editableValueKey === index"
+            v-focus="editableValueKey === index"
             v-if="editableValueKey === index"
             class="editable-value value"
             :defaultValue="item.value"
-            v-model="editableValue"
+            v-model:value="editableValue"
             @keydown.esc="editableValueKey = null"
             @pressEnter="updateData(item)">
           </a-input>
@@ -45,27 +45,32 @@
           </span>
         </div>
 
-        <div slot="actions" class="action">
-          <a-button
-            shape="circle"
+        <template #actions class="action">
+          <tooltip-button
+            :tooltip="$t('label.edit')"
             :disabled="!('updateConfiguration' in $store.getters.apis)"
             v-if="editableValueKey !== index"
-            icon="edit"
-            @click="setEditableSetting(item, index)" />
-          <a-button
-            shape="circle"
-            size="default"
-            @click="editableValueKey = null"
-            v-if="editableValueKey === index" >
-            <a-icon type="close-circle" theme="twoTone" twoToneColor="#f5222d" />
-          </a-button>
-          <a-button
-            shape="circle"
-            @click="updateData(item)"
-            v-if="editableValueKey === index" >
-            <a-icon type="check-circle" theme="twoTone" twoToneColor="#52c41a" />
-          </a-button>
-        </div>
+            icon="edit-outlined"
+            @onClick="setEditableSetting(item, index)" />
+          <tooltip-button
+            :tooltip="$t('label.cancel')"
+            @onClick="editableValueKey = null"
+            v-if="editableValueKey === index"
+            iconType="CloseCircleTwoTone"
+            iconTwoToneColor="#f5222d" />
+          <tooltip-button
+            :tooltip="$t('label.ok')"
+            @onClick="updateData(item)"
+            v-if="editableValueKey === index"
+            iconType="CheckCircleTwoTone"
+            iconTwoToneColor="#52c41a" />
+          <tooltip-button
+            :tooltip="$t('label.reset.config.value')"
+            @onClick="resetConfig(item)"
+            v-if="editableValueKey !== index"
+            icon="reload-outlined"
+            :disabled="!('updateConfiguration' in $store.getters.apis)" />
+        </template>
       </a-list-item>
     </a-list>
   </div>
@@ -73,8 +78,12 @@
 
 <script>
 import { api } from '@/api'
+import TooltipButton from '@/components/widgets/TooltipButton'
 
 export default {
+  components: {
+    TooltipButton
+  },
   name: 'SettingsTab',
   props: {
     resource: {
@@ -96,7 +105,7 @@ export default {
       filter: ''
     }
   },
-  beforeMount () {
+  created () {
     switch (this.$route.meta.name) {
       case 'account':
         this.scopeKey = 'accountid'
@@ -119,15 +128,15 @@ export default {
       default:
         this.scopeKey = ''
     }
-  },
-  mounted () {
     this.fetchData()
   },
   watch: {
-    resource: function (newItem, oldItem) {
-      if (!newItem.id) return
-      this.resource = newItem
-      this.fetchData()
+    resource: {
+      deep: true,
+      handler (newItem) {
+        if (!newItem.id) return
+        this.fetchData()
+      }
     }
   },
   methods: {
@@ -181,6 +190,28 @@ export default {
     handleSearch (value) {
       this.filter = value
       this.fetchData()
+    },
+    resetConfig (item) {
+      this.tabLoading = true
+      api('resetConfiguration', {
+        [this.scopeKey]: this.resource.id,
+        name: item.name
+      }).then(() => {
+        const message = `${this.$t('label.setting')} ${item.name} ${this.$t('label.reset.config.value')}`
+        this.$message.success(message)
+      }).catch(error => {
+        console.error(error)
+        this.$message.error(this.$t('message.error.reset.config'))
+        this.$notification.error({
+          message: this.$t('label.error'),
+          description: this.$t('message.error.reset.config')
+        })
+      }).finally(() => {
+        this.tabLoading = false
+        this.fetchData(() => {
+          this.editableValueKey = null
+        })
+      })
     }
   }
 }
@@ -210,7 +241,7 @@ export default {
 
     &__content {
       width: 100%;
-      display: flex;
+      display: block;
       word-break: break-all;
 
       @media (min-width: 760px) {

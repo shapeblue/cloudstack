@@ -27,14 +27,15 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
-import org.cloud.network.router.deployment.RouterDeploymentDefinition;
-
+import com.cloud.utils.validation.ChecksumUtil;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.cloudstack.network.router.deployment.RouterDeploymentDefinition;
 import org.apache.cloudstack.utils.CloudStackVersion;
+import org.apache.log4j.Logger;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
@@ -64,6 +65,7 @@ import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.network.IpAddressManager;
+import com.cloud.network.Ipv6Service;
 import com.cloud.network.Network;
 import com.cloud.network.NetworkModel;
 import com.cloud.network.Networks.BroadcastDomainType;
@@ -71,6 +73,9 @@ import com.cloud.network.Networks.IsolationType;
 import com.cloud.network.addr.PublicIp;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.NetworkDao;
+import com.cloud.network.dao.NetworkDetailVO;
+import com.cloud.network.dao.NetworkDetailsDao;
+import com.cloud.network.dao.RouterHealthCheckResultDao;
 import com.cloud.network.dao.UserIpv6AddressDao;
 import com.cloud.network.lb.LoadBalancingRule;
 import com.cloud.network.router.VirtualRouter.RedundantState;
@@ -156,6 +161,12 @@ public class NetworkHelperImpl implements NetworkHelper {
     ConfigurationDao _configDao;
     @Inject
     VpcVirtualNetworkApplianceManager _vpcRouterMgr;
+    @Inject
+    NetworkDetailsDao networkDetailsDao;
+    @Inject
+    RouterHealthCheckResultDao _routerHealthCheckResultDao;
+    @Inject
+    Ipv6Service ipv6Service;
 
     protected final Map<HypervisorType, ConfigKey<String>> hypervisorsMap = new HashMap<>();
 
@@ -254,12 +265,37 @@ public class NetworkHelperImpl implements NetworkHelper {
         _accountMgr.checkAccess(caller, null, true, router);
 
         _itMgr.expunge(router.getUuid());
+        _routerHealthCheckResultDao.expungeHealthChecks(router.getId());
         _routerDao.remove(router.getId());
         return router;
     }
 
     @Override
     public boolean checkRouterVersion(final VirtualRouter router) {
+        if (!VirtualNetworkApplianceManager.RouterVersionCheckEnabled.value()) {
+            // Router version check is disabled.
+            return true;
+        }
+        if (router.getTemplateVersion() == null) {
+            return false;
+        }
+        final long dcid = router.getDataCenterId();
+        String routerVersion = CloudStackVersion.trimRouterVersion(router.getTemplateVersion());
+        String routerChecksum = router.getScriptsVersion() == null ? "" : router.getScriptsVersion();
+        boolean routerVersionMatch = CloudStackVersion.compare(routerVersion, NetworkOrchestrationService.MinVRVersion.valueIn(dcid)) >= 0;
+        if (routerVersionMatch) {
+            return true;
+        }
+        if (HypervisorType.Simulator.equals(router.getHypervisorType())) {
+            return true;
+        }
+        String currentCheckSum = ChecksumUtil.calculateCurrentChecksum(router.getName(), "vms/cloud-scripts.tgz");
+        boolean routerCheckSumMatch = currentCheckSum.equals(routerChecksum);
+        return routerCheckSumMatch;
+    }
+
+    @Override
+    public boolean checkRouterTemplateVersion(final VirtualRouter router) {
         if (!VirtualNetworkApplianceManager.RouterVersionCheckEnabled.value()) {
             // Router version check is disabled.
             return true;
@@ -558,20 +594,18 @@ public class NetworkHelperImpl implements NetworkHelper {
     protected List<HypervisorType> getHypervisors(final RouterDeploymentDefinition routerDeploymentDefinition) throws InsufficientServerCapacityException {
         final DeployDestination dest = routerDeploymentDefinition.getDest();
         List<HypervisorType> hypervisors = new ArrayList<HypervisorType>();
+        final HypervisorType defaults = _resourceMgr.getDefaultHypervisor(dest.getDataCenter().getId());
+        if (defaults != HypervisorType.None) {
+            hypervisors.add(defaults);
+        }
         if (dest.getCluster() != null) {
             if (dest.getCluster().getHypervisorType() == HypervisorType.Ovm) {
                 hypervisors.add(getClusterToStartDomainRouterForOvm(dest.getCluster().getPodId()));
             } else {
                 hypervisors.add(dest.getCluster().getHypervisorType());
             }
-        } else {
-            final HypervisorType defaults = _resourceMgr.getDefaultHypervisor(dest.getDataCenter().getId());
-            if (defaults != HypervisorType.None) {
-                hypervisors.add(defaults);
-            } else {
-                // if there is no default hypervisor, get it from the cluster
-                hypervisors = _resourceMgr.getSupportedHypervisorTypes(dest.getDataCenter().getId(), true, routerDeploymentDefinition.getPlan().getPodId());
-            }
+        } else if (defaults == HypervisorType.None) {
+            hypervisors = _resourceMgr.getSupportedHypervisorTypes(dest.getDataCenter().getId(), true, routerDeploymentDefinition.getPlan().getPodId());
         }
 
         filterSupportedHypervisors(hypervisors);
@@ -631,7 +665,7 @@ public class NetworkHelperImpl implements NetworkHelper {
         return controlConfig;
     }
 
-    protected LinkedHashMap<Network, List<? extends NicProfile>> configurePublicNic(final RouterDeploymentDefinition routerDeploymentDefinition, final boolean hasGuestNic) {
+    protected LinkedHashMap<Network, List<? extends NicProfile>> configurePublicNic(final RouterDeploymentDefinition routerDeploymentDefinition, final boolean hasGuestNic) throws InsufficientAddressCapacityException {
         final LinkedHashMap<Network, List<? extends NicProfile>> publicConfig = new LinkedHashMap<Network, List<? extends NicProfile>>(3);
 
         if (routerDeploymentDefinition.isPublicNetwork()) {
@@ -671,6 +705,9 @@ public class NetworkHelperImpl implements NetworkHelper {
             if (peerNic != null) {
                 s_logger.info("Use same MAC as previous RvR, the MAC is " + peerNic.getMacAddress());
                 defaultNic.setMacAddress(peerNic.getMacAddress());
+            }
+            if (routerDeploymentDefinition.getGuestNetwork() != null) {
+                ipv6Service.updateNicIpv6(defaultNic, routerDeploymentDefinition.getDest().getDataCenter(), routerDeploymentDefinition.getGuestNetwork());
             }
             publicConfig.put(publicNetworks.get(0), new ArrayList<NicProfile>(Arrays.asList(defaultNic)));
         }
@@ -718,13 +755,19 @@ public class NetworkHelperImpl implements NetworkHelper {
                                 + guestNetwork);
                         defaultNetworkStartIp = placeholder.getIPv4Address();
                     } else {
-                        final String startIp = _networkModel.getStartIpAddress(guestNetwork.getId());
-                        if (startIp != null
-                                && _ipAddressDao.findByIpAndSourceNetworkId(guestNetwork.getId(), startIp).getAllocatedTime() == null) {
-                            defaultNetworkStartIp = startIp;
-                        } else if (s_logger.isDebugEnabled()) {
-                            s_logger.debug("First ipv4 " + startIp + " in network id=" + guestNetwork.getId()
-                                    + " is already allocated, can't use it for domain router; will get random ip address from the range");
+                        NetworkDetailVO routerIpDetail = networkDetailsDao.findDetail(guestNetwork.getId(), ApiConstants.ROUTER_IP);
+                        String routerIp = routerIpDetail != null ? routerIpDetail.getValue() : null;
+                        if (routerIp != null) {
+                            defaultNetworkStartIp = routerIp;
+                        } else {
+                            final String startIp = _networkModel.getStartIpAddress(guestNetwork.getId());
+                            if (startIp != null
+                                    && _ipAddressDao.findByIpAndSourceNetworkId(guestNetwork.getId(), startIp).getAllocatedTime() == null) {
+                                defaultNetworkStartIp = startIp;
+                            } else if (s_logger.isDebugEnabled()) {
+                                s_logger.debug("First ipv4 " + startIp + " in network id=" + guestNetwork.getId()
+                                        + " is already allocated, can't use it for domain router; will get random ip address from the range");
+                            }
                         }
                     }
                 }
@@ -735,12 +778,18 @@ public class NetworkHelperImpl implements NetworkHelper {
                                 + guestNetwork);
                         defaultNetworkStartIpv6 = placeholder.getIPv6Address();
                     } else {
-                        final String startIpv6 = _networkModel.getStartIpv6Address(guestNetwork.getId());
-                        if (startIpv6 != null && _ipv6Dao.findByNetworkIdAndIp(guestNetwork.getId(), startIpv6) == null) {
-                            defaultNetworkStartIpv6 = startIpv6;
-                        } else if (s_logger.isDebugEnabled()) {
-                            s_logger.debug("First ipv6 " + startIpv6 + " in network id=" + guestNetwork.getId()
-                                    + " is already allocated, can't use it for domain router; will get random ipv6 address from the range");
+                        NetworkDetailVO routerIpDetail = networkDetailsDao.findDetail(guestNetwork.getId(), ApiConstants.ROUTER_IPV6);
+                        String routerIpv6 = routerIpDetail != null ? routerIpDetail.getValue() : null;
+                        if (routerIpv6 != null) {
+                            defaultNetworkStartIpv6 = routerIpv6;
+                        } else {
+                            final String startIpv6 = _networkModel.getStartIpv6Address(guestNetwork.getId());
+                            if (startIpv6 != null && _ipv6Dao.findByNetworkIdAndIp(guestNetwork.getId(), startIpv6) == null) {
+                                defaultNetworkStartIpv6 = startIpv6;
+                            } else if (s_logger.isDebugEnabled()) {
+                                s_logger.debug("First ipv6 " + startIpv6 + " in network id=" + guestNetwork.getId()
+                                        + " is already allocated, can't use it for domain router; will get random ipv6 address from the range");
+                            }
                         }
                     }
                 }

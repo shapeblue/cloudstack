@@ -30,6 +30,7 @@ import com.cloud.exception.ResourceAllocationException;
 import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.hypervisor.HypervisorGuruManager;
 import com.cloud.storage.Storage;
 import com.cloud.storage.TemplateProfile;
 import com.cloud.projects.ProjectManager;
@@ -117,6 +118,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotService;
+import org.apache.cloudstack.snapshot.SnapshotHelper;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -180,6 +183,8 @@ public class TemplateManagerImplTest {
     @Inject
     private VMTemplateDao _tmpltDao;
 
+    @Inject
+    HypervisorGuruManager _hvGuruMgr;
 
     public class CustomThreadPoolExecutor extends ThreadPoolExecutor {
         AtomicInteger ai = new AtomicInteger(0);
@@ -209,7 +214,7 @@ public class TemplateManagerImplTest {
     @Before
     public void setUp() {
         ComponentContext.initComponentsLifeCycle();
-        AccountVO account = new AccountVO("admin", 1L, "networkDomain", Account.ACCOUNT_TYPE_NORMAL, "uuid");
+        AccountVO account = new AccountVO("admin", 1L, "networkDomain", Account.Type.NORMAL, "uuid");
         UserVO user = new UserVO(1, "testuser", "password", "firstname", "lastName", "email", "timezone", UUID.randomUUID().toString(), User.Source.UNKNOWN);
         CallContext.register(user, account);
     }
@@ -695,6 +700,21 @@ public class TemplateManagerImplTest {
         @Bean
         public VMTemplateDetailsDao vmTemplateDetailsDao() {
             return Mockito.mock(VMTemplateDetailsDao.class);
+        }
+
+        @Bean
+        public HypervisorGuruManager hypervisorGuruManager() {
+            return Mockito.mock(HypervisorGuruManager.class);
+        }
+
+        @Bean
+        public SnapshotHelper snapshotHelper() {
+            return Mockito.mock(SnapshotHelper.class);
+        }
+
+        @Bean
+        public SnapshotService snapshotService() {
+            return Mockito.mock(SnapshotService.class);
         }
 
         public static class Library implements TypeFilter {

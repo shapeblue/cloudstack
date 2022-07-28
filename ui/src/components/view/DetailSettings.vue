@@ -26,9 +26,9 @@
         <a-button
           type="dashed"
           style="width: 100%"
-          icon="plus"
           :disabled="!('updateTemplate' in $store.getters.apis && 'updateVirtualMachine' in $store.getters.apis && isAdminOrOwner())"
           @click="onShowAddDetail">
+          <template #icon><plus-outlined /></template>
           {{ $t('label.add.setting') }}
         </a-button>
       </div>
@@ -40,30 +40,24 @@
             class="detail-input"
             ref="keyElm"
             :filterOption="filterOption"
-            :value="newKey"
-            :dataSource="Object.keys(detailOptions)"
+            v-model:value="newKey"
+            :options="detailKeys"
             :placeholder="$t('label.name')"
             @change="e => onAddInputChange(e, 'newKey')" />
-          <a-input style=" width: 30px; border-left: 0; pointer-events: none; backgroundColor: #fff" placeholder="=" disabled />
+          <a-input
+            class="tag-disabled-input"
+            style=" width: 30px; border-left: 0; pointer-events: none; text-align: center"
+            placeholder="="
+            disabled />
           <a-auto-complete
             class="detail-input"
             :filterOption="filterOption"
-            :value="newValue"
-            :dataSource="detailOptions[newKey]"
+            v-model:value="newValue"
+            :options="detailValues"
             :placeholder="$t('label.value')"
             @change="e => onAddInputChange(e, 'newValue')" />
-          <a-tooltip arrowPointAtCenter placement="topRight">
-            <template slot="title">
-              {{ $t('label.add.setting') }}
-            </template>
-            <a-button icon="check" @click="addDetail" class="detail-button"></a-button>
-          </a-tooltip>
-          <a-tooltip arrowPointAtCenter placement="topRight">
-            <template slot="title">
-              {{ $t('label.cancel') }}
-            </template>
-            <a-button icon="close" @click="closeDetail" class="detail-button"></a-button>
-          </a-tooltip>
+          <tooltip-button :tooltip="$t('label.add.setting')" :shape="null" icon="check-outlined" @onClick="addDetail" buttonClass="detail-button" />
+          <tooltip-button :tooltip="$t('label.cancel')" :shape="null" icon="close-outlined" @onClick="closeDetail" buttonClass="detail-button" />
         </a-input-group>
         <p v-if="error" style="color: red"> {{ $t(error) }} </p>
       </div>
@@ -71,51 +65,60 @@
     <a-list size="large">
       <a-list-item :key="index" v-for="(item, index) in details">
         <a-list-item-meta>
-          <span slot="title">
+          <template #title>
             {{ item.name }}
-          </span>
-          <span slot="description" style="word-break: break-all">
-            <span v-if="item.edit" style="display: flex">
+          </template>
+          <template #description>
+            <div v-if="item.edit" style="display: flex">
               <a-auto-complete
                 style="width: 100%"
-                :value="item.value"
-                :dataSource="detailOptions[item.name]"
+                v-model:value="item.value"
+                :options="getDetailOptions(detailOptions[item.name])"
                 @change="val => handleInputChange(val, index)"
                 @pressEnter="e => updateDetail(index)" />
-            </span>
-            <span v-else>{{ item.value }}</span>
-          </span>
+              <tooltip-button
+                buttonClass="edit-button"
+                :tooltip="$t('label.cancel')"
+                @onClick="hideEditDetail(index)"
+                v-if="item.edit"
+                iconType="close-circle-two-tone"
+                iconTwoToneColor="#f5222d" />
+              <tooltip-button
+                buttonClass="edit-button"
+                :tooltip="$t('label.ok')"
+                @onClick="updateDetail(index)"
+                v-if="item.edit"
+                iconType="check-circle-two-tone"
+                iconTwoToneColor="#52c41a" />
+            </div>
+            <span v-else style="word-break: break-all">{{ item.value }}</span>
+          </template>
         </a-list-item-meta>
-        <div
-          slot="actions"
-          v-if="!disableSettings && 'updateTemplate' in $store.getters.apis &&
-            'updateVirtualMachine' in $store.getters.apis && isAdminOrOwner() && allowEditOfDetail(item.name)">
-          <a-button shape="circle" size="default" @click="updateDetail(index)" v-if="item.edit">
-            <a-icon type="check-circle" theme="twoTone" twoToneColor="#52c41a" />
-          </a-button>
-          <a-button shape="circle" size="default" @click="hideEditDetail(index)" v-if="item.edit">
-            <a-icon type="close-circle" theme="twoTone" twoToneColor="#f5222d" />
-          </a-button>
-          <a-button
-            shape="circle"
-            icon="edit"
-            v-if="!item.edit"
-            @click="showEditDetail(index)" />
-        </div>
-        <div
-          slot="actions"
-          v-if="!disableSettings && 'updateTemplate' in $store.getters.apis &&
-            'updateVirtualMachine' in $store.getters.apis && isAdminOrOwner() && allowEditOfDetail(item.name)">
-          <a-popconfirm
-            :title="`${$t('label.delete.setting')}?`"
-            @confirm="deleteDetail(index)"
-            :okText="$t('label.yes')"
-            :cancelText="$t('label.no')"
-            placement="left"
-          >
-            <a-button shape="circle" type="danger" icon="delete" />
-          </a-popconfirm>
-        </div>
+        <template #actions>
+          <div
+            v-if="!disableSettings && 'updateTemplate' in $store.getters.apis &&
+              'updateVirtualMachine' in $store.getters.apis && isAdminOrOwner() && allowEditOfDetail(item.name)">
+            <tooltip-button
+              :tooltip="$t('label.edit')"
+              icon="edit-outlined"
+              :disabled="deployasistemplate === true"
+              v-if="!item.edit"
+              @onClick="showEditDetail(index)" />
+          </div>
+          <div
+            v-if="!disableSettings && 'updateTemplate' in $store.getters.apis &&
+              'updateVirtualMachine' in $store.getters.apis && isAdminOrOwner() && allowEditOfDetail(item.name)">
+            <a-popconfirm
+              :title="`${$t('label.delete.setting')}?`"
+              @confirm="deleteDetail(index)"
+              :okText="$t('label.yes')"
+              :cancelText="$t('label.no')"
+              placement="left"
+            >
+              <tooltip-button :tooltip="$t('label.delete')" :disabled="deployasistemplate === true" type="primary" :danger="true" icon="delete-outlined" />
+            </a-popconfirm>
+          </div>
+        </template>
       </a-list-item>
     </a-list>
   </a-spin>
@@ -123,8 +126,10 @@
 
 <script>
 import { api } from '@/api'
+import TooltipButton from '@/components/widgets/TooltipButton'
 
 export default {
+  components: { TooltipButton },
   name: 'DetailSettings',
   props: {
     resource: {
@@ -142,21 +147,43 @@ export default {
       newValue: '',
       loading: false,
       resourceType: 'UserVm',
+      deployasistemplate: false,
       error: false
     }
   },
   watch: {
-    resource: function (newItem, oldItem) {
-      this.updateResource(newItem)
+    resource: {
+      deep: true,
+      handler (newItem) {
+        this.updateResource(newItem)
+      }
     }
   },
-  mounted () {
+  computed: {
+    detailKeys () {
+      return Object.keys(this.detailOptions).map(key => {
+        return { value: key }
+      })
+    },
+    detailValues () {
+      if (!this.newKey) {
+        return []
+      }
+      if (!Array.isArray(this.detailOptions[this.newKey])) {
+        return { value: this.detailOptions[this.newKey] }
+      }
+      return this.detailOptions[this.newKey].map(value => {
+        return { value: value }
+      })
+    }
+  },
+  created () {
     this.updateResource(this.resource)
   },
   methods: {
     filterOption (input, option) {
       return (
-        option.componentOptions.children[0].text.toUpperCase().indexOf(input.toUpperCase()) >= 0
+        option.value.toUpperCase().indexOf(input.toUpperCase()) >= 0
       )
     },
     updateResource (resource) {
@@ -164,21 +191,23 @@ export default {
       if (!resource) {
         return
       }
-      this.resource = resource
       this.resourceType = this.$route.meta.resourceType
       if (resource.details) {
-        this.details = Object.keys(this.resource.details).map(k => {
-          return { name: k, value: this.resource.details[k], edit: false }
+        this.details = Object.keys(resource.details).map(k => {
+          return { name: k, value: resource.details[k], edit: false }
         })
       }
-      api('listDetailOptions', { resourcetype: this.resourceType, resourceid: this.resource.id }).then(json => {
+      api('listDetailOptions', { resourcetype: this.resourceType, resourceid: resource.id }).then(json => {
         this.detailOptions = json.listdetailoptionsresponse.detailoptions.details
       })
-      this.disableSettings = (this.$route.meta.name === 'vm' && this.resource.state !== 'Stopped')
+      this.disableSettings = (this.$route.meta.name === 'vm' && resource.state !== 'Stopped')
+      api('listTemplates', { templatefilter: 'all', id: resource.templateid }).then(json => {
+        this.deployasistemplate = json.listtemplatesresponse.template[0].deployasis
+      })
     },
     allowEditOfDetail (name) {
-      if (this.resource.readonlyuidetails) {
-        if (this.resource.readonlyuidetails.split(',').map(item => item.trim()).includes(name)) {
+      if (this.resource.readonlydetails) {
+        if (this.resource.readonlydetails.split(',').map(item => item.trim()).includes(name)) {
           return false
         }
       }
@@ -187,16 +216,20 @@ export default {
     showEditDetail (index) {
       this.details[index].edit = true
       this.details[index].originalValue = this.details[index].value
-      this.$set(this.details, index, this.details[index])
     },
     hideEditDetail (index) {
       this.details[index].edit = false
       this.details[index].value = this.details[index].originalValue
-      this.$set(this.details, index, this.details[index])
     },
     handleInputChange (val, index) {
       this.details[index].value = val
-      this.$set(this.details, index, this.details[index])
+    },
+    getDetailOptions (values) {
+      if (!values) {
+        return
+      }
+      var data = values.map(value => { return { value: value } })
+      return data
     },
     onAddInputChange (val, obj) {
       this.error = false
@@ -206,6 +239,27 @@ export default {
       return ['Admin'].includes(this.$store.getters.userInfo.roletype) ||
         (this.resource.domainid === this.$store.getters.userInfo.domainid && this.resource.account === this.$store.getters.userInfo.account) ||
         this.resource.project && this.resource.projectid === this.$store.getters.project.id
+    },
+    getDetailsParam (details) {
+      var params = {}
+      var filteredDetails = details
+      if (this.resource.readonlydetails && filteredDetails) {
+        filteredDetails = []
+        var readOnlyDetailNames = this.resource.readonlydetails.split(',').map(item => item.trim())
+        for (var detail of this.details) {
+          if (!readOnlyDetailNames.includes(detail.name)) {
+            filteredDetails.push(detail)
+          }
+        }
+      }
+      if (filteredDetails.length === 0) {
+        params.cleanupdetails = true
+      } else {
+        filteredDetails.forEach(function (item, index) {
+          params['details[0].' + item.name] = item.value
+        })
+      }
+      return params
     },
     runApi () {
       var apiName = ''
@@ -222,14 +276,8 @@ export default {
         return
       }
 
-      const params = { id: this.resource.id }
-      if (this.details.length === 0) {
-        params.cleanupdetails = true
-      } else {
-        this.details.forEach(function (item, index) {
-          params['details[0].' + item.name] = item.value
-        })
-      }
+      var params = { id: this.resource.id }
+      params = Object.assign(params, this.getDetailsParam(this.details))
       this.loading = true
       api(apiName, params).then(json => {
         var details = {}
@@ -253,6 +301,10 @@ export default {
     addDetail () {
       if (this.newKey === '' || this.newValue === '') {
         this.error = this.$t('message.error.provide.setting')
+        return
+      }
+      if (!this.allowEditOfDetail(this.newKey)) {
+        this.error = this.$t('error.unable.to.proceed')
         return
       }
       this.error = false

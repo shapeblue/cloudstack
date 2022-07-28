@@ -35,6 +35,7 @@ import com.cloud.hypervisor.kvm.resource.LibvirtStoragePoolDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtStoragePoolDef.PoolType;
 import com.cloud.hypervisor.kvm.resource.LibvirtStorageVolumeDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtStorageVolumeXMLParser;
+import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.Storage.ProvisioningType;
 import com.cloud.storage.Storage.StoragePoolType;
@@ -294,17 +295,17 @@ public class ManagedNfsStorageAdaptor implements StorageAdaptor {
     }
 
     @Override
-    public KVMPhysicalDisk createDiskFromSnapshot(KVMPhysicalDisk snapshot, String snapshotName, String name, KVMStoragePool destPool, int timeout) {
-        throw new UnsupportedOperationException("Creating a disk from a snapshot is not supported in this configuration.");
-    }
-
-    @Override
     public boolean refresh(KVMStoragePool pool) {
         return true;
     }
 
     @Override
     public boolean createFolder(String uuid, String path) {
+        return createFolder(uuid, path, null);
+    }
+
+    @Override
+    public boolean createFolder(String uuid, String path, String localPath) {
         String mountPoint = _mountPoint + File.separator + uuid;
         File f = new File(mountPoint + File.separator + path);
         if (!f.exists()) {
@@ -319,7 +320,7 @@ public class ManagedNfsStorageAdaptor implements StorageAdaptor {
     }
 
     @Override
-    public KVMPhysicalDisk createTemplateFromDirectDownloadFile(String templateFilePath, KVMStoragePool destPool, boolean isIso) {
+    public KVMPhysicalDisk createTemplateFromDirectDownloadFile(String templateFilePath, String destTemplatePath, KVMStoragePool destPool, Storage.ImageFormat format, int timeout) {
         return null;
     }
 

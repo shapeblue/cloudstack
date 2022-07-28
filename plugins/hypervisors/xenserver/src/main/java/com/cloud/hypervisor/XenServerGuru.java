@@ -17,6 +17,7 @@
 package com.cloud.hypervisor;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +33,7 @@ import org.apache.cloudstack.storage.command.DettachCommand;
 import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Command;
@@ -98,7 +99,14 @@ public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru,
         if (userVmVO != null) {
             HostVO host = hostDao.findById(userVmVO.getHostId());
             if (host != null) {
-                to.setVcpuMaxLimit(MaxNumberOfVCPUSPerVM.valueIn(host.getClusterId()));
+                List<HostVO> clusterHosts = hostDao.listByClusterAndHypervisorType(host.getClusterId(), host.getHypervisorType());
+                HostVO hostWithMinSocket = clusterHosts.stream().min(Comparator.comparing(HostVO::getCpuSockets)).orElse(null);
+                Integer vCpus = MaxNumberOfVCPUSPerVM.valueIn(host.getClusterId());
+                if (hostWithMinSocket != null && hostWithMinSocket.getCpuSockets() != null &&
+                        hostWithMinSocket.getCpuSockets() < vCpus) {
+                    vCpus = hostWithMinSocket.getCpuSockets();
+                }
+                to.setVcpuMaxLimit(vCpus);
             }
         }
 

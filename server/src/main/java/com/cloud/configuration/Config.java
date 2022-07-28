@@ -16,6 +16,15 @@
 // under the License.
 package com.cloud.configuration;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.StringTokenizer;
+
+import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
+import org.apache.cloudstack.engine.subsystem.api.storage.StoragePoolAllocator;
+import org.apache.cloudstack.framework.config.ConfigKey;
+
 import com.cloud.agent.AgentManager;
 import com.cloud.consoleproxy.ConsoleProxyManager;
 import com.cloud.ha.HighAvailabilityManager;
@@ -29,14 +38,6 @@ import com.cloud.storage.snapshot.SnapshotManager;
 import com.cloud.template.TemplateManager;
 import com.cloud.vm.UserVmManager;
 import com.cloud.vm.snapshot.VMSnapshotManager;
-import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
-import org.apache.cloudstack.engine.subsystem.api.storage.StoragePoolAllocator;
-import org.apache.cloudstack.framework.config.ConfigKey;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.StringTokenizer;
 
 /**
  * @deprecated use the more dynamic ConfigKey
@@ -144,7 +145,6 @@ public enum Config {
             "60000",
             "The interval (in milliseconds) when storage stats (per host) are retrieved from agents.",
             null),
-    MaxVolumeSize("Storage", ManagementServer.class, Integer.class, "storage.max.volume.size", "2000", "The maximum size for a volume (in GB).", null),
     StorageCacheReplacementLRUTimeInterval(
             "Storage",
             ManagementServer.class,
@@ -265,7 +265,7 @@ public enum Config {
     NetworkRouterRpFilter(
             "Network",
             ManagementServer.class,
-            Integer.class,
+            Boolean.class,
             "network.disable.rpfilter",
             "true",
             "disable rp_filter on Domain Router VM public interfaces.",
@@ -446,7 +446,7 @@ public enum Config {
     ConsoleProxyDisableRpFilter(
             "Console Proxy",
             AgentManager.class,
-            Integer.class,
+            Boolean.class,
             "consoleproxy.disable.rpfilter",
             "true",
             "disable rp_filter on console proxy VM public interface",
@@ -984,7 +984,7 @@ public enum Config {
             Integer.class,
             "incorrect.login.attempts.allowed",
             "5",
-            "Incorrect login attempts allowed before the user is disabled",
+            "Incorrect login attempts allowed before the user is disabled (when value > 0). If value <=0 users are not disabled after failed login attempts",
             null),
     // Ovm
     OvmPublicNetwork("Hidden", ManagementServer.class, String.class, "ovm.public.network.device", null, "Specify the public bridge on host for public network", null),

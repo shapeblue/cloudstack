@@ -34,6 +34,7 @@ import org.apache.cloudstack.storage.command.IntroduceObjectCmd;
 import org.apache.cloudstack.storage.command.ResignatureCommand;
 import org.apache.cloudstack.storage.command.SnapshotAndCopyCommand;
 import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
+import org.apache.cloudstack.storage.command.SyncVolumePathCommand;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
@@ -43,6 +44,7 @@ import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.Volume;
+import com.google.gson.Gson;
 
 public class StorageSubsystemCommandHandlerBase implements StorageSubsystemCommandHandler {
     private static final Logger s_logger = Logger.getLogger(StorageSubsystemCommandHandlerBase.class);
@@ -54,6 +56,7 @@ public class StorageSubsystemCommandHandlerBase implements StorageSubsystemComma
 
     @Override
     public Answer handleStorageCommands(StorageSubSystemCommand command) {
+        logCommand(command);
         if (command instanceof CopyCommand) {
             return this.execute((CopyCommand)command);
         } else if (command instanceof CreateObjectCommand) {
@@ -73,7 +76,9 @@ public class StorageSubsystemCommandHandlerBase implements StorageSubsystemComma
         } else if (command instanceof DirectDownloadCommand) {
             return processor.handleDownloadTemplateToPrimaryStorage((DirectDownloadCommand) command);
         } else if (command instanceof CheckDataStoreStoragePolicyComplainceCommand) {
-            return processor.CheckDataStoreStoragePolicyComplaince((CheckDataStoreStoragePolicyComplainceCommand) command);
+            return processor.checkDataStoreStoragePolicyCompliance((CheckDataStoreStoragePolicyComplainceCommand) command);
+        } else if (command instanceof SyncVolumePathCommand) {
+            return processor.syncVolumePath((SyncVolumePathCommand) command);
         }
 
         return new Answer((Command)command, false, "not implemented yet");
@@ -99,10 +104,13 @@ public class StorageSubsystemCommandHandlerBase implements StorageSubsystemComma
             //copy volume from image cache to primary
             return processor.copyVolumeFromImageCacheToPrimary(cmd);
         } else if (srcData.getObjectType() == DataObjectType.VOLUME && srcData.getDataStore().getRole() == DataStoreRole.Primary) {
-            if (destData.getObjectType() == DataObjectType.VOLUME && srcData instanceof VolumeObjectTO && ((VolumeObjectTO)srcData).isDirectDownload()) {
-                return processor.copyVolumeFromPrimaryToPrimary(cmd);
-            } else if (destData.getObjectType() == DataObjectType.VOLUME) {
-                return processor.copyVolumeFromPrimaryToSecondary(cmd);
+            if (destData.getObjectType() == DataObjectType.VOLUME) {
+                if ((srcData instanceof VolumeObjectTO && ((VolumeObjectTO)srcData).isDirectDownload()) ||
+                        destData.getDataStore().getRole() == DataStoreRole.Primary) {
+                    return processor.copyVolumeFromPrimaryToPrimary(cmd);
+                } else {
+                    return processor.copyVolumeFromPrimaryToSecondary(cmd);
+                }
             } else if (destData.getObjectType() == DataObjectType.TEMPLATE) {
                 return processor.createTemplateFromVolume(cmd);
             }
@@ -162,6 +170,14 @@ public class StorageSubsystemCommandHandlerBase implements StorageSubsystemComma
             return processor.dettachIso(cmd);
         } else {
             return processor.dettachVolume(cmd);
+        }
+    }
+
+    private void logCommand(Command cmd) {
+        try {
+            s_logger.debug(String.format("Executing command %s: [%s].", cmd.getClass().getSimpleName(), new Gson().toJson(cmd)));
+        } catch (Exception e) {
+            s_logger.debug(String.format("Executing command %s.", cmd.getClass().getSimpleName()));
         }
     }
 }

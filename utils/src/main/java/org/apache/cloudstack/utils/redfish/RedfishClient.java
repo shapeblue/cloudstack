@@ -38,7 +38,7 @@ import javax.net.ssl.TrustManager;
 
 import com.cloud.utils.nio.TrustAllManager;
 import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -231,8 +231,9 @@ public class RedfishClient {
         for (int attempt = 1; attempt < redfishRequestMaxRetries + 1; attempt++) {
             try {
                 TimeUnit.SECONDS.sleep(WAIT_FOR_REQUEST_RETRY);
-                LOGGER.debug(String.format("Retry HTTP %s request [URL: %s], attempt %d/%d.", httpReq.getMethod(), url, attempt, redfishRequestMaxRetries));
+                LOGGER.debug(String.format("HTTP %s request retry attempt %d/%d [URL: %s].", httpReq.getMethod(), attempt, redfishRequestMaxRetries, url));
                 response = client.execute(httpReq);
+                break;
             } catch (IOException | InterruptedException e) {
                 if (attempt == redfishRequestMaxRetries) {
                     throw new RedfishException(String.format("Failed to execute HTTP %s request retry attempt %d/%d [URL: %s] due to exception %s", httpReq.getMethod(), attempt, redfishRequestMaxRetries,url, e));

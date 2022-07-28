@@ -24,6 +24,8 @@ import org.apache.log4j.Logger;
 import org.libvirt.StoragePool;
 
 import org.apache.cloudstack.utils.qemu.QemuImg.PhysicalDiskFormat;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.StoragePoolType;
@@ -45,6 +47,7 @@ public class LibvirtStoragePool implements KVMStoragePool {
     protected String authSecret;
     protected String sourceHost;
     protected int sourcePort;
+
     protected String sourceDir;
 
     public LibvirtStoragePool(String uuid, String name, StoragePoolType type, StorageAdaptor adaptor, StoragePool pool) {
@@ -56,7 +59,6 @@ public class LibvirtStoragePool implements KVMStoragePool {
         this.used = 0;
         this.available = 0;
         this._pool = pool;
-
     }
 
     public void setCapacity(long capacity) {
@@ -101,7 +103,7 @@ public class LibvirtStoragePool implements KVMStoragePool {
 
     @Override
     public PhysicalDiskFormat getDefaultFormat() {
-        if (getStoragePoolType() == StoragePoolType.CLVM || getStoragePoolType() == StoragePoolType.RBD) {
+        if (getStoragePoolType() == StoragePoolType.CLVM || getStoragePoolType() == StoragePoolType.RBD || getStoragePoolType() == StoragePoolType.PowerFlex) {
             return PhysicalDiskFormat.RAW;
         } else {
             return PhysicalDiskFormat.QCOW2;
@@ -269,6 +271,19 @@ public class LibvirtStoragePool implements KVMStoragePool {
 
     @Override
     public boolean createFolder(String path) {
-        return this._storageAdaptor.createFolder(this.uuid, path);
+        return this._storageAdaptor.createFolder(this.uuid, path, this.type == StoragePoolType.Filesystem ? this.localPath : null);
+    }
+
+    @Override
+    public boolean supportsConfigDriveIso() {
+        if (this.type == StoragePoolType.NetworkFilesystem) {
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this, ToStringStyle.JSON_STYLE).append("uuid", getUuid()).append("path", getLocalPath()).toString();
     }
 }

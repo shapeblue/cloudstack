@@ -25,22 +25,23 @@
       :rowKey="item => item.id"
       :pagination="false"
     >
-      <template slot="displayname" slot-scope="text, record">
+      <template #displayname="{ record }">
         <router-link :to="{ path: '/vm/' + record.id }">{{ record.displayname || record.name }}</router-link>
       </template>
-      <template slot="ipaddress" slot-scope="text, record">
+      <template #ipaddress="{ record }">
         <span v-for="nic in record.nic" :key="nic.id">
           <span v-if="nic.networkid === resource.networkid">
             {{ nic.ipaddress }} <br/>
           </span>
         </span>
       </template>
-      <template slot="remove" slot-scope="text, record">
-        <a-button
-          type="danger"
-          icon="delete"
-          shape="circle"
-          @click="removeVmFromLB(record)" />
+      <template #remove="{ record }">
+        <tooltip-button
+          :tooltip="$t('label.remove.vm.from.lb')"
+          type="primary"
+          :danger="true"
+          icon="delete-outlined"
+          @onClick="removeVmFromLB(record)" />
       </template>
       <a-divider />
     </a-table>
@@ -55,7 +56,7 @@
       @change="changePage"
       @showSizeChange="changePageSize"
       showSizeChanger>
-      <template slot="buildOptionText" slot-scope="props">
+      <template #buildOptionText="props">
         <span>{{ props.value }} / {{ $t('label.page') }}</span>
       </template>
     </a-pagination>
@@ -63,9 +64,13 @@
 </template>
 <script>
 import { api } from '@/api'
+import TooltipButton from '@/components/widgets/TooltipButton'
 
 export default {
   name: 'InternalLBAssignedVmTab',
+  components: {
+    TooltipButton
+  },
   props: {
     resource: {
       type: Object,
@@ -83,29 +88,32 @@ export default {
         {
           title: this.$t('label.name'),
           dataIndex: 'displayname',
-          scopedSlots: { customRender: 'displayname' }
+          slots: { customRender: 'displayname' }
         },
         {
           title: this.$t('label.ipaddress'),
           dataIndex: 'ipaddress',
-          scopedSlots: { customRender: 'ipaddress' }
+          slots: { customRender: 'ipaddress' }
         },
         {
           title: '',
-          scopedSlots: { customRender: 'remove' }
+          slots: { customRender: 'remove' }
         }
       ]
     }
   },
-  mounted () {
+  created () {
     this.fetchData()
   },
   watch: {
-    resource: function (newItem, oldItem) {
-      if (!newItem || !newItem.id) {
-        return
+    resource: {
+      deep: true,
+      handler (newItem) {
+        if (!newItem || !newItem.id) {
+          return
+        }
+        this.fetchData()
       }
-      this.fetchData()
     }
   },
   methods: {

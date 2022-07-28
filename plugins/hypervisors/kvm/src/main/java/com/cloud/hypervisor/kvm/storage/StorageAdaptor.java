@@ -66,13 +66,13 @@ public interface StorageAdaptor {
 
     public KVMPhysicalDisk copyPhysicalDisk(KVMPhysicalDisk disk, String name, KVMStoragePool destPools, int timeout);
 
-    public KVMPhysicalDisk createDiskFromSnapshot(KVMPhysicalDisk snapshot, String snapshotName, String name, KVMStoragePool destPool, int timeout);
-
     public boolean refresh(KVMStoragePool pool);
 
     public boolean deleteStoragePool(KVMStoragePool pool);
 
     public boolean createFolder(String uuid, String path);
+
+    public boolean createFolder(String uuid, String path, String localPath);
 
     /**
      * Creates disk using template backing.
@@ -86,7 +86,8 @@ public interface StorageAdaptor {
      * Create physical disk on Primary Storage from direct download template on the host (in temporary location)
      * @param templateFilePath
      * @param destPool
-     * @param isIso
+     * @param format
+     * @param timeout
      */
-    KVMPhysicalDisk createTemplateFromDirectDownloadFile(String templateFilePath, KVMStoragePool destPool, boolean isIso);
+    KVMPhysicalDisk createTemplateFromDirectDownloadFile(String templateFilePath, String destTemplatePath, KVMStoragePool destPool, Storage.ImageFormat format, int timeout);
 }

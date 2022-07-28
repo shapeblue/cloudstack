@@ -59,6 +59,7 @@ class TestVMWareStoragePolicies(cloudstackTestCase):
             cls.apiclient,
             cls.zone.id,
             cls.hypervisor,
+            deploy_as_is=cls.hypervisor.lower() == "vmware"
         )
         cls._cleanup.append(cls.network_offering)
         return
@@ -191,6 +192,8 @@ class TestVMWareStoragePolicies(cloudstackTestCase):
             self.apiclient,
             self.testdata["l2-network"],
             zoneid=self.zone.id,
+            accountid=self.account.name,
+            domainid=self.account.domainid,
             networkofferingid=self.network_offering.id
         )
         self.cleanup.append(l2_network)

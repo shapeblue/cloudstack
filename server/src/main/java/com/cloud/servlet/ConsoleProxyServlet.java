@@ -17,7 +17,9 @@
 package com.cloud.servlet;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URLEncoder;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -35,8 +37,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import com.cloud.agent.AgentManager;
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.GetVmVncTicketAnswer;
+import com.cloud.agent.api.GetVmVncTicketCommand;
+import com.cloud.exception.AgentUnavailableException;
+import com.cloud.exception.OperationTimedoutException;
 import org.apache.cloudstack.framework.security.keys.KeysManager;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.support.SpringBeanAutowiringSupport;
@@ -46,6 +55,7 @@ import com.cloud.vm.VmDetailConstants;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import com.cloud.api.ApiServlet;
 import com.cloud.consoleproxy.ConsoleProxyManager;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.host.HostVO;
@@ -91,6 +101,8 @@ public class ConsoleProxyServlet extends HttpServlet {
     UserVmDetailsDao _userVmDetailsDao;
     @Inject
     KeysManager _keysMgr;
+    @Inject
+    AgentManager agentManager;
 
     static KeysManager s_keysMgr;
 
@@ -289,8 +301,15 @@ public class ConsoleProxyServlet extends HttpServlet {
             }
         }
 
+        InetAddress remoteAddress = null;
+        try {
+            remoteAddress = ApiServlet.getClientAddress(req);
+        } catch (UnknownHostException e) {
+            s_logger.warn("UnknownHostException when trying to lookup remote IP-Address. This should never happen. Blocking request.", e);
+        }
+
         StringBuffer sb = new StringBuffer();
-        sb.append("<html><title>").append(escapeHTML(vmName)).append("</title><frameset><frame src=\"").append(composeConsoleAccessUrl(rootUrl, vm, host));
+        sb.append("<html><title>").append(escapeHTML(vmName)).append("</title><frameset><frame src=\"").append(composeConsoleAccessUrl(rootUrl, vm, host, remoteAddress));
         sb.append("\"></frame></frameset></html>");
         s_logger.debug("the console url is :: " + sb.toString());
         sendResponse(resp, sb.toString());
@@ -417,7 +436,48 @@ public class ConsoleProxyServlet extends HttpServlet {
         return sb.toString();
     }
 
-    private String composeConsoleAccessUrl(String rootUrl, VirtualMachine vm, HostVO hostVo) {
+    /**
+     * Sets the URL to establish a VNC over websocket connection
+     */
+    private void setWebsocketUrl(VirtualMachine vm, ConsoleProxyClientParam param) {
+        String ticket = acquireVncTicketForVmwareVm(vm);
+        if (StringUtils.isBlank(ticket)) {
+            s_logger.error("Could not obtain VNC ticket for VM " + vm.getInstanceName());
+            return;
+        }
+        String wsUrl = composeWebsocketUrlForVmwareVm(ticket, param);
+        param.setWebsocketUrl(wsUrl);
+    }
+
+    /**
+     * Format expected: wss://<ESXi_HOST_IP>:443/ticket/<TICKET_ID>
+     */
+    private String composeWebsocketUrlForVmwareVm(String ticket, ConsoleProxyClientParam param) {
+        param.setClientHostPort(443);
+        return String.format("wss://%s:%s/ticket/%s", param.getClientHostAddress(), param.getClientHostPort(), ticket);
+    }
+
+    /**
+     * Acquires a ticket to be used for console proxy as described in 'Removal of VNC Server from ESXi' on:
+     * https://docs.vmware.com/en/VMware-vSphere/7.0/rn/vsphere-esxi-vcenter-server-70-release-notes.html
+     */
+    private String acquireVncTicketForVmwareVm(VirtualMachine vm) {
+        try {
+            s_logger.info("Acquiring VNC ticket for VM = " + vm.getHostName());
+            GetVmVncTicketCommand cmd = new GetVmVncTicketCommand(vm.getInstanceName());
+            Answer answer = agentManager.send(vm.getHostId(), cmd);
+            GetVmVncTicketAnswer ans = (GetVmVncTicketAnswer) answer;
+            if (!ans.getResult()) {
+                s_logger.info("VNC ticket could not be acquired correctly: " + ans.getDetails());
+            }
+            return ans.getTicket();
+        } catch (AgentUnavailableException | OperationTimedoutException e) {
+            s_logger.error("Error acquiring ticket", e);
+            return null;
+        }
+    }
+
+    private String composeConsoleAccessUrl(String rootUrl, VirtualMachine vm, HostVO hostVo, InetAddress addr) {
         StringBuffer sb = new StringBuffer(rootUrl);
         String host = hostVo.getPrivateIpAddress();
 
@@ -465,6 +525,11 @@ public class ConsoleProxyServlet extends HttpServlet {
         param.setClientHostPassword(sid);
         param.setClientTag(tag);
         param.setTicket(ticket);
+        param.setSourceIP(addr != null ? addr.getHostAddress(): null);
+
+        if (requiresVncOverWebSocketConnection(vm, hostVo)) {
+            setWebsocketUrl(vm, param);
+        }
 
         if (details != null) {
             param.setLocale(details.getValue());
@@ -484,8 +549,10 @@ public class ConsoleProxyServlet extends HttpServlet {
         if (param.getHypervHost() != null || !ConsoleProxyManager.NoVncConsoleDefault.value()) {
             sb.append("/ajax?token=" + encryptor.encryptObject(ConsoleProxyClientParam.class, param));
         } else {
-            sb.append("/resource/noVNC/vnc.html?port=" + ConsoleProxyManager.DEFAULT_NOVNC_PORT + "&token="
-                + encryptor.encryptObject(ConsoleProxyClientParam.class, param));
+            sb.append("/resource/noVNC/vnc.html")
+                .append("?autoconnect=true")
+                .append("&port=" + ConsoleProxyManager.DEFAULT_NOVNC_PORT)
+                .append("&token=" + encryptor.encryptObject(ConsoleProxyClientParam.class, param));
         }
 
         // for console access, we need guest OS type to help implement keyboard
@@ -498,6 +565,14 @@ public class ConsoleProxyServlet extends HttpServlet {
             s_logger.debug("Compose console url: " + sb.toString());
         }
         return sb.toString();
+    }
+
+    /**
+     * Since VMware 7.0 VNC servers are deprecated, it uses a ticket to create a VNC over websocket connection
+     * Check: https://docs.vmware.com/en/VMware-vSphere/7.0/rn/vsphere-esxi-vcenter-server-70-release-notes.html
+     */
+    private boolean requiresVncOverWebSocketConnection(VirtualMachine vm, HostVO hostVo) {
+        return vm.getHypervisorType() == Hypervisor.HypervisorType.VMware && hostVo.getHypervisorVersion().compareTo("7.0") >= 0;
     }
 
     public static String genAccessTicket(String host, String port, String sid, String tag) {
@@ -560,7 +635,7 @@ public class ConsoleProxyServlet extends HttpServlet {
                                 accountObj.getId() + " and caller is a normal user");
                     }
                 } else if (_accountMgr.isDomainAdmin(accountObj.getId())
-                        || accountObj.getType() == Account.ACCOUNT_TYPE_READ_ONLY_ADMIN) {
+                        || accountObj.getType() == Account.Type.READ_ONLY_ADMIN) {
                     if(s_logger.isDebugEnabled()) {
                         s_logger.debug("VM access is denied. VM owner account " + vm.getAccountId()
                                 + " does not match the account id in session " + accountObj.getId() + " and the domain-admin caller does not manage the target domain");
@@ -599,8 +674,8 @@ public class ConsoleProxyServlet extends HttpServlet {
             account = _accountMgr.getAccount(user.getAccountId());
         }
 
-        if ((user == null) || (user.getRemoved() != null) || !user.getState().equals(Account.State.enabled) || (account == null) ||
-            !account.getState().equals(Account.State.enabled)) {
+        if ((user == null) || (user.getRemoved() != null) || !user.getState().equals(Account.State.ENABLED) || (account == null) ||
+            !account.getState().equals(Account.State.ENABLED)) {
             s_logger.warn("Deleted/Disabled/Locked user with id=" + userId + " attempting to access public API");
             return false;
         }
@@ -666,7 +741,7 @@ public class ConsoleProxyServlet extends HttpServlet {
             user = userAcctPair.first();
             Account account = userAcctPair.second();
 
-            if (!user.getState().equals(Account.State.enabled) || !account.getState().equals(Account.State.enabled)) {
+            if (!user.getState().equals(Account.State.ENABLED) || !account.getState().equals(Account.State.ENABLED)) {
                 s_logger.debug("disabled or locked user accessing the api, userid = " + user.getId() + "; name = " + user.getUsername() + "; state: " + user.getState() +
                     "; accountState: " + account.getState());
                 return false;

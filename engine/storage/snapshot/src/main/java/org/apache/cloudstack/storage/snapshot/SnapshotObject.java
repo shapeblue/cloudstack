@@ -127,7 +127,7 @@ public class SnapshotObject implements SnapshotInfo {
         if (vo == null) {
             return null;
         }
-        return snapshotFactory.getSnapshot(vo.getId(), store);
+        return snapshotFactory.getSnapshot(vo.getSnapshotId(), store);
     }
 
     @Override
@@ -142,7 +142,10 @@ public class SnapshotObject implements SnapshotInfo {
         List<SnapshotInfo> children = new ArrayList<>();
         if (vos != null) {
             for (SnapshotDataStoreVO vo : vos) {
-                children.add(snapshotFactory.getSnapshot(vo.getSnapshotId(), DataStoreRole.Image));
+                SnapshotInfo info = snapshotFactory.getSnapshot(vo.getSnapshotId(), DataStoreRole.Image);
+                if (info != null) {
+                    children.add(info);
+                }
             }
         }
         return children;
@@ -295,8 +298,8 @@ public class SnapshotObject implements SnapshotInfo {
     }
 
     @Override
-    public short getsnapshotType() {
-        return snapshot.getsnapshotType();
+    public short getSnapshotType() {
+        return snapshot.getSnapshotType();
     }
 
     @Override

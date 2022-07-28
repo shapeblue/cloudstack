@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.iso;
 
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
@@ -44,9 +45,13 @@ public class DetachIsoCmd extends BaseAsyncCmd implements UserCmd {
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
 
-    @Parameter(name=ApiConstants.VIRTUAL_MACHINE_ID, type=CommandType.UUID, entityType = UserVmResponse.class,
-            required=true, description="The ID of the virtual machine")
+    @Parameter(name = ApiConstants.VIRTUAL_MACHINE_ID, type = CommandType.UUID, entityType = UserVmResponse.class,
+            required = true, description = "The ID of the virtual machine")
     protected Long virtualMachineId;
+
+    @Parameter(name = ApiConstants.FORCED, type = CommandType.BOOLEAN,
+            description = "If true, ejects the ISO before detaching on VMware. Default: false", since = "4.15.1")
+    protected Boolean forced;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -54,6 +59,10 @@ public class DetachIsoCmd extends BaseAsyncCmd implements UserCmd {
 
     public Long getVirtualMachineId() {
         return virtualMachineId;
+    }
+
+    public Boolean isForced() {
+        return forced != null;
     }
 
     /////////////////////////////////////////////////////
@@ -86,8 +95,18 @@ public class DetachIsoCmd extends BaseAsyncCmd implements UserCmd {
     }
 
     @Override
+    public Long getApiResourceId() {
+        return virtualMachineId;
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.VirtualMachine;
+    }
+
+    @Override
     public void execute() {
-        boolean result = _templateService.detachIso(virtualMachineId);
+        boolean result = _templateService.detachIso(virtualMachineId, isForced());
         if (result) {
             UserVm userVm = _entityMgr.findById(UserVm.class, virtualMachineId);
             UserVmResponse response = _responseGenerator.createUserVmResponse(getResponseView(), "virtualmachine", userVm).get(0);

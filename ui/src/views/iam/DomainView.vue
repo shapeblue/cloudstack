@@ -21,20 +21,17 @@
       <a-row>
         <a-col :span="14" style="padding-left: 6px">
           <breadcrumb :resource="resource">
-            <span slot="end">
-              <template slot="title">
-                {{ $t('label.refresh') }}
-              </template>
+            <template #end>
               <a-button
                 style="margin-top: 4px"
                 :loading="loading"
                 shape="round"
                 size="small"
-                icon="reload"
                 @click="fetchData()">
+                <template #icon><ReloadOutlined /></template>
                 {{ $t('label.refresh') }}
               </a-button>
-            </span>
+            </template>
           </breadcrumb>
         </a-col>
         <a-col :span="10">
@@ -60,12 +57,14 @@
         :tabs="$route.meta.tabs" />
       <tree-view
         v-else
+        :key="treeViewKey"
         :treeData="treeData"
         :treeSelected="treeSelected"
+        :treeStore="domainStore"
         :loading="loading"
         :tabs="$route.meta.tabs"
         @change-resource="changeResource"
-        :actionData="actionData"/>
+        @change-tree-store="changeDomainStore"/>
     </div>
 
     <div v-if="showAction">
@@ -87,6 +86,7 @@ import ActionButton from '@/components/view/ActionButton'
 import TreeView from '@/components/view/TreeView'
 import DomainActionForm from '@/views/iam/DomainActionForm'
 import ResourceView from '@/components/view/ResourceView'
+import eventBus from '@/config/eventBus'
 
 export default {
   name: 'DomainView',
@@ -103,12 +103,13 @@ export default {
       resource: {},
       loading: false,
       selectedRowKeys: [],
+      treeViewKey: 0,
       treeData: [],
-      actionData: [],
       treeSelected: {},
       showAction: false,
       action: {},
-      dataView: false
+      dataView: false,
+      domainStore: {}
     }
   },
   computed: {
@@ -122,35 +123,27 @@ export default {
       return actions
     }
   },
-  beforeCreate () {
-    this.form = this.$form.createForm(this)
-  },
-  mounted () {
-    this.fetchData()
-  },
   beforeRouteUpdate (to, from, next) {
     next()
   },
   beforeRouteLeave (to, from, next) {
+    this.changeDomainStore({})
     next()
   },
-  watch: {
-    '$route' (to, from) {
-      if (to.fullPath !== from.fullPath && !to.fullPath.includes('action/')) {
+  created () {
+    this.domainStore = store.getters.domainStore
+    this.fetchData()
+    eventBus.on('refresh-domain-icon', () => {
+      if (this.$showIcon()) {
         this.fetchData()
       }
-    },
-    '$i18n.locale' (to, from) {
-      if (to !== from) {
-        this.fetchData()
-      }
-    }
+    })
   },
   provide () {
     return {
       parentCloseAction: this.closeAction,
-      parentUpdActionData: this.updateActionData,
-      parentFetchData: this.fetchData
+      parentFetchData: this.fetchData,
+      parentForceRerender: this.forceRerender
     }
   },
   methods: {
@@ -168,7 +161,7 @@ export default {
       }
 
       this.loading = true
-
+      params.showicon = true
       api('listDomains', params).then(json => {
         const domains = json.listdomainsresponse.domain || []
         this.treeData = this.generateTreeData(domains)
@@ -278,7 +271,6 @@ export default {
                 continue
               }
               param.opts = json[obj][res]
-              this.$forceUpdate()
               break
             }
             break
@@ -294,6 +286,9 @@ export default {
 
       rootItem[0].title = rootItem[0].title ? rootItem[0].title : rootItem[0].name
       rootItem[0].key = rootItem[0].id ? rootItem[0].id : 0
+      rootItem[0].slots = {
+        icon: 'leaf'
+      }
 
       if (!rootItem[0].haschild) {
         rootItem[0].isLeaf = true
@@ -306,11 +301,15 @@ export default {
       this.treeSelected = resource
       this.resource = this.treeSelected
     },
+    changeDomainStore (domainStore) {
+      this.domainStore = domainStore
+      store.dispatch('SetDomainStore', domainStore)
+    },
     closeAction () {
       this.showAction = false
     },
-    updateActionData (data) {
-      this.actionData.push(data)
+    forceRerender () {
+      this.treeViewKey += 1
     }
   }
 }

@@ -16,7 +16,7 @@
 // under the License.
 
 <template>
-  <div>
+  <div v-ctrl-enter="handleSubmit">
     <a-card
       class="ant-form-text"
       style="text-align: justify; margin: 10px 0; padding: 20px;"
@@ -24,19 +24,24 @@
     </a-card>
     <a-table
       bordered
+      :scroll="{ x: 500 }"
       :dataSource="physicalNetworks"
       :columns="columns"
       :pagination="false"
-      style="margin-bottom: 24px;">
-      <template slot="name" slot-scope="text, record">
-        <a-input :value="text" @change="e => onCellChange(record.key, 'name', e.target.value)" />
+      style="margin-bottom: 24px; width: 100%">
+      <template #name="{ text, record }">
+        <a-input :value="text" @change="e => onCellChange(record.key, 'name', e.target.value)" v-focus="true" />
       </template>
-      <template slot="isolationMethod" slot-scope="text, record">
+      <template #isolationMethod="{ text, record }">
         <a-select
           style="width: 100%"
           :defaultValue="text"
           @change="value => onCellChange(record.key, 'isolationMethod', value)"
-        >
+          showSearch
+          optionFilterProp="label"
+          :filterOption="(input, option) => {
+            return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }" >
           <a-select-option value="VLAN"> VLAN </a-select-option>
           <a-select-option value="VXLAN"> VXLAN </a-select-option>
           <a-select-option value="GRE"> GRE </a-select-option>
@@ -48,49 +53,28 @@
           <a-select-option value="VCS"> VCS </a-select-option>
         </a-select>
       </template>
-      <template slot="traffics" slot-scope="traffics, record">
-        <div v-for="traffic in traffics" :key="traffic.type">
+      <template #traffics="{ record }">
+        <div v-for="traffic in record.traffics" :key="traffic.type">
           <a-tag
             :color="trafficColors[traffic.type]"
             style="margin:2px"
           >
             {{ traffic.type.toUpperCase() }}
-            <a-icon type="edit" class="traffic-type-action" @click="editTraffic(record.key, traffic, $event)"/>
-            <a-icon type="delete" class="traffic-type-action" @click="deleteTraffic(record.key, traffic, $event)"/>
+            <edit-outlined class="traffic-type-action" @click="editTraffic(record.key, traffic, $event)"/>
+            <delete-outlined class="traffic-type-action" @click="deleteTraffic(record.key, traffic, $event)"/>
           </a-tag>
         </div>
-        <a-modal
-          :title="$t('label.edit.traffic.type')"
-          :visible="showEditTraffic"
-          :closable="true"
-          :maskClosable="false"
-          :okText="$t('label.ok')"
-          :cancelText="$t('label.cancel')"
-          @ok="updateTrafficLabel(trafficInEdit)"
-          @cancel="cancelEditTraffic"
-          centered
-        >
-          <a-form :form="form">
-            <span class="ant-form-text"> {{ $t('message.edit.traffic.type') }} </span>
-            <a-form-item v-bind="formItemLayout" style="margin-top:16px;" :label="$t('label.traffic.label')">
-              <a-input
-                v-decorator="['trafficLabel', {
-                  rules: [{
-                    required: true,
-                    message: $t('message.error.traffic.label'),
-                  }]
-                }]"
-              />
-            </a-form-item>
-          </a-form>
-        </a-modal>
         <div v-if="isShowAddTraffic(record.traffics)">
           <div class="traffic-select-item" v-if="addingTrafficForKey === record.key">
             <a-select
               :defaultValue="trafficLabelSelected"
               @change="val => { trafficLabelSelected = val }"
               style="min-width: 120px;"
-            >
+              showSearch
+              optionFilterProp="label"
+              :filterOption="(input, option) => {
+                return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              }" >
               <a-select-option
                 v-for="(traffic, index) in availableTrafficToAdd"
                 :value="traffic"
@@ -100,35 +84,43 @@
                 {{ traffic.toUpperCase() }}
               </a-select-option>
             </a-select>
-            <a-button
-              class="icon-button"
-              shape="circle"
-              icon="plus"
+            <tooltip-button
+              :tooltip="$t('label.add')"
+              buttonClass="icon-button"
+              icon="plus-outlined"
               size="small"
-              @click="trafficAdded" />
-            <a-button
-              class="icon-button"
-              type="danger"
-              shape="circle"
-              icon="close"
+              @onClick="trafficAdded" />
+            <tooltip-button
+              :tooltip="$t('label.cancel')"
+              buttonClass="icon-button"
+              type="primary"
+              :danger="true"
+              icon="close-outlined"
               size="small"
-              @click="() => { addingTrafficForKey = null }" />
+              @onClick="() => { addingTrafficForKey = null }" />
           </div>
           <a-tag
             key="addingTraffic"
             style="margin:2px;"
             v-else
-            @click="addingTraffic(record.key, record.traffics)"
           >
-            <a-icon type="plus" />
-            {{ $t('label.add.traffic') }}
+            <a @click="addingTraffic(record.key, record.traffics)">
+              <plus-outlined />
+              {{ $t('label.add.traffic') }}
+            </a>
           </a-tag>
         </div>
       </template>
-      <template slot="actions" slot-scope="text, record">
-        <a-button v-if="physicalNetworks.indexOf(record) > 0" type="danger" shape="circle" icon="delete" @click="onDelete(record)" />
+      <template #actions="{ record }">
+        <tooltip-button
+          :tooltip="$t('label.delete')"
+          v-if="physicalNetworks.indexOf(record) > 0"
+          type="primary"
+          :danger="true"
+          icon="delete-outlined"
+          @onClick="onDelete(record)" />
       </template>
-      <template slot="footer" v-if="isAdvancedZone">
+      <template #footer v-if="isAdvancedZone">
         <a-button
           @click="handleAddPhysicalNetwork">
           {{ $t('label.add.physical.network') }}
@@ -145,6 +137,7 @@
       <a-button
         class="button-next"
         type="primary"
+        ref="submit"
         @click="handleSubmit">
         {{ $t('label.next') }}
       </a-button>
@@ -153,19 +146,82 @@
       :visible="showError"
       :title="`${$t('label.error')}!`"
       :maskClosable="false"
-      :okText="$t('label.ok')"
-      :cancelText="$t('label.cancel')"
-      @ok="() => { showError = false }"
+      :closable="true"
+      :footer="null"
       @cancel="() => { showError = false }"
       centered
     >
-      <span>{{ $t('message.required.traffic.type') }}</span>
+      <div v-ctrl-enter="showError = false">
+        <span>{{ $t('message.required.traffic.type') }}</span>
+        <div :span="24" class="action-button">
+          <a-button @click="showError = false">{{ $t('label.cancel') }}</a-button>
+          <a-button type="primary" ref="submit" @click="showError = false">{{ $t('label.ok') }}</a-button>
+        </div>
+      </div>
+    </a-modal>
+    <a-modal
+      :title="$t('label.edit.traffic.type')"
+      :visible="showEditTraffic"
+      :closable="true"
+      :maskClosable="false"
+      centered
+      :footer="null">
+      <a-form
+        :ref="formRef"
+        :model="form"
+        :rules="rules"
+        layout="vertical"
+        v-ctrl-enter:[trafficInEdit]="updateTrafficLabel"
+       >
+        <span class="ant-form-text"> {{ $t('message.edit.traffic.type') }} </span>
+        <a-form-item
+          v-if="hypervisor !== 'VMware'"
+          name="trafficLabel"
+          ref="trafficLabel"
+          v-bind="formItemLayout"
+          style="margin-top:16px;"
+          :label="$t('label.traffic.label')">
+          <a-input v-model:value="form.trafficLabel" />
+        </a-form-item>
+        <span v-else>
+          <a-form-item :label="$t('label.vswitch.name')" name="vSwitchName" ref="vSwitchName">
+            <a-input v-model:value="form.vSwitchName" />
+          </a-form-item>
+          <a-form-item :label="$t('label.vlanid')" name="vlanId" ref="vlanId">
+            <a-input v-model:value="form.vlanId" />
+          </a-form-item>
+          <a-form-item v-if="isAdvancedZone" :label="$t('label.vswitch.type')" name="vSwitchType" ref="vSwitchType">
+            <a-select
+              v-model:value="form.vSwitchType"
+              showSearch
+              optionFilterProp="label"
+              :filterOption="(input, option) => {
+                return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              }" >
+              <a-select-option value="nexusdvs">{{ $t('label.vswitch.type.nexusdvs') }}</a-select-option>
+              <a-select-option value="vmwaresvs">{{ $t('label.vswitch.type.vmwaresvs') }}</a-select-option>
+              <a-select-option value="vmwaredvs">{{ $t('label.vswitch.type.vmwaredvs') }}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </span>
+
+        <div :span="24" class="action-button">
+          <a-button @click="cancelEditTraffic">{{ $t('label.cancel') }}</a-button>
+          <a-button type="primary" ref="submit" @click="updateTrafficLabel(trafficInEdit)">{{ $t('label.ok') }}</a-button>
+        </div>
+      </a-form>
     </a-modal>
   </div>
 </template>
 <script>
 
+import { ref, reactive, toRaw } from 'vue'
+import TooltipButton from '@/components/widgets/TooltipButton'
+
 export default {
+  components: {
+    TooltipButton
+  },
   props: {
     prefillContent: {
       type: Object,
@@ -203,7 +259,8 @@ export default {
       addingTrafficForKey: '-1',
       trafficLabelSelected: null,
       showError: false,
-      defaultTrafficOptions: []
+      defaultTrafficOptions: [],
+      isChangeHyperv: false
     }
   },
   computed: {
@@ -212,27 +269,28 @@ export default {
       columns.push({
         title: this.$t('label.network.name'),
         dataIndex: 'name',
-        width: '30%',
-        scopedSlots: { customRender: 'name' }
+        width: 175,
+        slots: { customRender: 'name' }
       })
       columns.push({
         title: this.$t('label.isolation.method'),
         dataIndex: 'isolationMethod',
-        width: '20%',
-        scopedSlots: { customRender: 'isolationMethod' }
+        width: 150,
+        slots: { customRender: 'isolationMethod' }
       })
       columns.push({
         title: this.$t('label.traffic.types'),
         key: 'traffics',
         dataIndex: 'traffics',
-        scopedSlots: { customRender: 'traffics' }
+        width: 250,
+        slots: { customRender: 'traffics' }
       })
       if (this.isAdvancedZone) {
         columns.push({
           title: '',
           dataIndex: 'actions',
-          scopedSlots: { customRender: 'actions' },
-          width: 50
+          slots: { customRender: 'actions' },
+          width: 70
         })
       }
 
@@ -242,10 +300,10 @@ export default {
       return this.zoneType === 'Advanced'
     },
     zoneType () {
-      return this.prefillContent.zoneType ? this.prefillContent.zoneType.value : null
+      return this.prefillContent?.zoneType || null
     },
     securityGroupsEnabled () {
-      return this.isAdvancedZone && (this.prefillContent.securityGroupsEnabled ? this.prefillContent.securityGroupsEnabled.value : false)
+      return this.isAdvancedZone && (this.prefillContent?.securityGroupsEnabled || false)
     },
     networkOfferingSelected () {
       return this.prefillContent.networkOfferingSelected
@@ -263,12 +321,13 @@ export default {
         traffics.push('public')
       }
       return traffics
+    },
+    hypervisor () {
+      return this.prefillContent.hypervisor?.value || null
     }
   },
-  beforeCreate () {
-    this.form = this.$form.createForm(this)
-  },
   created () {
+    this.initForm()
     this.defaultTrafficOptions = ['management', 'guest', 'storage']
     if (this.isAdvancedZone || this.needsPublicTraffic) {
       this.defaultTrafficOptions.push('public')
@@ -280,8 +339,13 @@ export default {
       this.count = this.physicalNetworks.length
       requiredTrafficTypes.forEach(type => {
         let foundType = false
-        this.physicalNetworks.forEach(net => {
+        this.physicalNetworks.forEach((net, idx) => {
           for (const index in net.traffics) {
+            if (this.hypervisor === 'VMware') {
+              delete this.physicalNetworks[idx].traffics[index].label
+            } else {
+              this.physicalNetworks[idx].traffics[index].label = ''
+            }
             const traffic = net.traffics[index]
             if (traffic.type === 'storage') {
               const idx = this.availableTrafficToAdd.indexOf(traffic.type)
@@ -307,6 +371,13 @@ export default {
     this.emitPhysicalNetworks()
   },
   methods: {
+    initForm () {
+      this.formRef = ref()
+      this.form = reactive({})
+      this.rules = reactive({
+        trafficLabel: [{ required: true, message: this.$t('message.error.traffic.label') }]
+      })
+    },
     onCellChange (key, dataIndex, value) {
       const physicalNetworks = [...this.physicalNetworks]
       const target = physicalNetworks.find(item => item.key === key)
@@ -403,8 +474,25 @@ export default {
         traffic: traffic
       }
       this.showEditTraffic = true
-      this.form.setFieldsValue({
-        trafficLabel: this.trafficInEdit !== null ? this.trafficInEdit.traffic.label : null
+      const fields = {}
+      if (this.hypervisor === 'VMware') {
+        delete this.trafficInEdit.traffic.label
+        fields.vSwitchName = null
+        fields.vlanId = null
+        if (traffic.type === 'guest') {
+          fields.vSwitchName = this.trafficInEdit?.traffic?.vSwitchName || 'vSwitch0'
+        }
+        fields.vSwitchType = 'vmwaresvs'
+      } else {
+        delete this.trafficInEdit.traffic.vSwitchName
+        delete this.trafficInEdit.traffic.vlanId
+        delete this.trafficInEdit.traffic.vSwitchType
+        fields.trafficLabel = null
+        fields.trafficLabel = this.trafficInEdit?.traffic?.label || null
+      }
+
+      Object.keys(fields).forEach(key => {
+        this.form[key] = fields[key]
       })
     },
     deleteTraffic (key, traffic, $event) {
@@ -419,12 +507,21 @@ export default {
       this.emitPhysicalNetworks()
     },
     updateTrafficLabel (trafficInEdit) {
-      this.form.validateFields((err, values) => {
-        if (!err) {
-          this.showEditTraffic = false
+      this.formRef.value.validate().then(() => {
+        const values = toRaw(this.form)
+        this.showEditTraffic = false
+        if (this.hypervisor === 'VMware') {
+          trafficInEdit.traffic.vSwitchName = values.vSwitchName
+          trafficInEdit.traffic.vlanId = values.vlanId
+          if (this.isAdvancedZone) {
+            trafficInEdit.traffic.vSwitchType = values.vSwitchType
+          }
+        } else {
           trafficInEdit.traffic.label = values.trafficLabel
-          this.trafficInEdit = null
         }
+        this.trafficInEdit = null
+      }).catch(error => {
+        this.formRef.value.scrollToField(error.errorFields[0].name)
       })
       this.emitPhysicalNetworks()
     },
@@ -500,7 +597,7 @@ export default {
   }
 
   .traffic-select-item {
-    /deep/.icon-button {
+    :deep(.icon-button) {
       margin: 0 0 0 5px;
     }
   }

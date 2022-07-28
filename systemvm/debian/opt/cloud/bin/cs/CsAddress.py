@@ -135,6 +135,15 @@ class CsInterface:
     def get_ip(self):
         return self.get_attr("public_ip")
 
+    def get_ip6(self):
+        if not self.config.is_vpc():
+            return self.config.cmdline().get_dev_ip6prelen(self.get_device())
+        if self.is_public():
+            return self.config.guestnetwork().get_router_ip6prelen()
+        elif self.is_guest():
+            return self.config.guestnetwork().get_dev_ip6prelen(self.get_device())
+        return self.get_attr("public_ip6")
+
     def get_network(self):
         return self.get_attr("network")
 
@@ -147,6 +156,19 @@ class CsInterface:
         else:
             return self.config.cmdline().get_guest_gw()
 
+    def get_gateway6(self):
+        if self.config.is_vpc():
+            if self.is_public():
+                return self.config.guestnetwork().get_router_ip6gateway()
+            elif self.is_guest():
+                return self.config.guestnetwork().get_dev_ip6gateway(self.get_device())
+        else:
+            if self.is_public():
+                return self.config.cmdline().get_ip6gateway()
+            elif self.is_guest():
+                return self.config.cmdline().get_guest_ip6gateway()
+        return self.get_attr("gateway6")
+
     def ip_in_subnet(self, ip):
         ipo = IPAddress(ip)
         net = IPNetwork("%s/%s" % (self.get_ip(), self.get_size()))
@@ -155,9 +177,23 @@ class CsInterface:
     def get_gateway_cidr(self):
         return "%s/%s" % (self.get_gateway(), self.get_size())
 
+    def get_gateway6_cidr(self):
+        gw6 = self.get_gateway6()
+        cidr6_size = self.get_cidr6_size()
+        if not gw6 or not cidr6_size or gw6 == "ERROR" or cidr6_size == "ERROR":
+            return False
+        return "%s/%s" % (self.get_gateway6(), self.get_cidr6_size())
+
     def get_size(self):
         """ Return the network size in bits (24, 16, 8 etc) """
         return self.get_attr("size")
+
+    def get_cidr6_size(self):
+        if self.config.is_vpc() and self.is_guest():
+            return self.config.guestnetwork().get_dev_ip6cidr(self.get_device())
+        elif not self.config.is_vpc() and self.is_guest():
+            return self.config.cmdline().get_guest_ip6cidr_size()
+        return self.get_attr("size6")
 
     def get_device(self):
         return self.get_attr("device")
@@ -328,6 +364,9 @@ class CsIP:
             if(self.cl.get_gateway()):
                 route.add_defaultroute(self.cl.get_gateway())
 
+        if self.config.is_router() and self.cl.get_ip6gateway():
+            route.add_defaultroute_v6(self.cl.get_ip6gateway())
+
     def set_mark(self):
         cmd = "-A PREROUTING -i %s -m state --state NEW -j CONNMARK --set-xmark %s/0xffffffff" % \
             (self.getDevice(), self.dnum)
@@ -419,6 +458,8 @@ class CsIP:
             self.fw.append(
                 ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 80 -s %s -m state --state NEW -j ACCEPT" % (self.dev, guestNetworkCidr)])
             self.fw.append(
+                ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 443 -s %s -m state --state NEW -j ACCEPT" % (self.dev, guestNetworkCidr)])
+            self.fw.append(
                 ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 8080 -s %s -m state --state NEW -j ACCEPT" % (self.dev, guestNetworkCidr)])
             self.fw.append(
                 ["filter", "", "-A FORWARD -i %s -o eth1 -m state --state RELATED,ESTABLISHED -j ACCEPT" % self.dev])
@@ -467,19 +508,15 @@ class CsIP:
                 ["filter", "", "-A INPUT -i %s -p udp -m udp --dport 53 -s %s -j ACCEPT" % (self.dev, guestNetworkCidr)])
             self.fw.append(
                 ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 53 -s %s -j ACCEPT" % (self.dev, guestNetworkCidr)])
-
             self.fw.append(
                 ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 80 -s %s -m state --state NEW -j ACCEPT" % (self.dev, guestNetworkCidr)])
+            self.fw.append(
+                ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 443 -s %s -m state --state NEW -j ACCEPT" % (self.dev, guestNetworkCidr)])
             self.fw.append(
                 ["filter", "", "-A INPUT -i %s -p tcp -m tcp --dport 8080 -s %s -m state --state NEW -j ACCEPT" % (self.dev, guestNetworkCidr)])
             self.fw.append(["mangle", "",
                             "-A PREROUTING -m state --state NEW -i %s -s %s ! -d %s/32 -j ACL_OUTBOUND_%s" %
                             (self.dev, guestNetworkCidr, self.address['gateway'], self.dev)])
-
-            self.fw.append(["", "front", "-A NETWORK_STATS_%s -i %s -d %s" %
-                            ("eth1", "eth1", guestNetworkCidr)])
-            self.fw.append(["", "front", "-A NETWORK_STATS_%s -o %s -s %s" %
-                            ("eth1", "eth1", guestNetworkCidr)])
 
         if self.is_private_gateway():
             self.fw.append(["filter", "", "-A FORWARD -d %s -o %s -j ACL_INBOUND_%s" %
@@ -500,7 +537,7 @@ class CsIP:
                     if not inf.startswith("eth"):
                         continue
                     for address in addresses:
-                        if "nw_type" in address and address["nw_type"] == "guest":
+                        if "nw_type" in address and address["nw_type"] == "guest" and address["add"]:
                             self.fw.append(["filter", "front", "-A FORWARD -s %s -d %s -j ACL_INBOUND_%s" %
                                             (address["network"], self.address["network"], self.dev)])
                             self.fw.append(["filter", "front", "-A FORWARD -s %s -d %s -j ACL_INBOUND_%s" %
@@ -518,6 +555,10 @@ class CsIP:
                 ["mangle", "", "-A VPN_STATS_%s -i %s -m mark --mark 0x524/0xffffffff" % (self.dev, self.dev)])
             self.fw.append(
                 ["", "front", "-A FORWARD -j NETWORK_STATS_%s" % self.dev])
+            self.fw.append(
+                ["", "front", "-A NETWORK_STATS_%s -s %s -o %s" % (self.dev, self.cl.get_vpccidr(), self.dev)])
+            self.fw.append(
+                ["", "front", "-A NETWORK_STATS_%s -d %s -i %s" % (self.dev, self.cl.get_vpccidr(), self.dev)])
 
         self.fw.append(["", "front", "-A FORWARD -j NETWORK_STATS"])
         self.fw.append(["", "front", "-A INPUT -j NETWORK_STATS"])
@@ -606,13 +647,13 @@ class CsIP:
                 app.setup()
 
                 # If redundant then this is dealt with
-                # by the master backup functions
+                # by the primary backup functions
                 if not cmdline.is_redundant():
                     if method == "add":
                         CsPasswdSvc(self.address['public_ip']).start()
                     elif method == "delete":
                         CsPasswdSvc(self.address['public_ip']).stop()
-                elif cmdline.is_master():
+                elif cmdline.is_primary():
                     if method == "add":
                         CsPasswdSvc(self.get_gateway() + "," + self.address['public_ip']).start()
                     elif method == "delete":

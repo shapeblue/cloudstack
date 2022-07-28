@@ -16,11 +16,11 @@
 // under the License.
 package org.apache.cloudstack.alert;
 
-import com.cloud.capacity.Capacity;
-import com.cloud.exception.InvalidParameterValueException;
-
 import java.util.HashSet;
 import java.util.Set;
+
+import com.cloud.capacity.Capacity;
+import com.cloud.exception.InvalidParameterValueException;
 
 public interface AlertService {
     public static class AlertType {
@@ -42,6 +42,7 @@ public interface AlertService {
         public static final AlertType ALERT_TYPE_STORAGE_ALLOCATED = new AlertType(Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED, "ALERT.STORAGE.ALLOCATED", true);
         public static final AlertType ALERT_TYPE_VIRTUAL_NETWORK_PUBLIC_IP = new AlertType(Capacity.CAPACITY_TYPE_VIRTUAL_NETWORK_PUBLIC_IP, "ALERT.NETWORK.PUBLICIP",
             true);
+        public static final AlertType ALERT_TYPE_VIRTUAL_NETWORK_IPV6_SUBNET = new AlertType(Capacity.CAPACITY_TYPE_VIRTUAL_NETWORK_IPV6_SUBNET, "ALERT.NETWORK.IPV6SUBNET", true);
         public static final AlertType ALERT_TYPE_PRIVATE_IP = new AlertType(Capacity.CAPACITY_TYPE_PRIVATE_IP, "ALERT.NETWORK.PRIVATEIP", true);
         public static final AlertType ALERT_TYPE_SECONDARY_STORAGE = new AlertType(Capacity.CAPACITY_TYPE_SECONDARY_STORAGE, "ALERT.STORAGE.SECONDARY", true);
         public static final AlertType ALERT_TYPE_HOST = new AlertType((short)7, "ALERT.COMPUTE.HOST", true);
@@ -69,6 +70,7 @@ public interface AlertService {
         public static final AlertType ALERT_TYPE_OOBM_AUTH_ERROR = new AlertType((short)29, "ALERT.OOBM.AUTHERROR", true);
         public static final AlertType ALERT_TYPE_HA_ACTION = new AlertType((short)30, "ALERT.HA.ACTION", true);
         public static final AlertType ALERT_TYPE_CA_CERT = new AlertType((short)31, "ALERT.CA.CERT", true);
+        public static final AlertType ALERT_TYPE_VM_SNAPSHOT = new AlertType((short)32, "ALERT.VM.SNAPSHOT", true);
 
         public short getType() {
             return type;

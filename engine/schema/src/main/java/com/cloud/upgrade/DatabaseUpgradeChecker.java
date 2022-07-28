@@ -29,11 +29,15 @@ import java.util.Date;
 
 import javax.inject.Inject;
 
+import com.cloud.upgrade.dao.Upgrade41510to41520;
+import com.cloud.upgrade.dao.Upgrade41600to41610;
+import com.cloud.upgrade.dao.Upgrade41610to41700;
 import org.apache.cloudstack.utils.CloudStackVersion;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.upgrade.dao.DbUpgrade;
+import com.cloud.upgrade.dao.DbUpgradeSystemVmTemplate;
 import com.cloud.upgrade.dao.Upgrade217to218;
 import com.cloud.upgrade.dao.Upgrade218to22;
 import com.cloud.upgrade.dao.Upgrade218to224DomainVlans;
@@ -70,6 +74,7 @@ import com.cloud.upgrade.dao.Upgrade41300to41310;
 import com.cloud.upgrade.dao.Upgrade41310to41400;
 import com.cloud.upgrade.dao.Upgrade41400to41500;
 import com.cloud.upgrade.dao.Upgrade41500to41510;
+import com.cloud.upgrade.dao.Upgrade41520to41600;
 import com.cloud.upgrade.dao.Upgrade420to421;
 import com.cloud.upgrade.dao.Upgrade421to430;
 import com.cloud.upgrade.dao.Upgrade430to440;
@@ -196,6 +201,11 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                 .next("4.14.0.0", new Upgrade41400to41500())
                 .next("4.14.1.0", new Upgrade41400to41500())
                 .next("4.15.0.0", new Upgrade41500to41510())
+                .next("4.15.1.0", new Upgrade41510to41520())
+                .next("4.15.2.0", new Upgrade41520to41600())
+                .next("4.16.0.0", new Upgrade41600to41610())
+                .next("4.16.1.0", new Upgrade41610to41700())
+                .next("4.16.1.1", new Upgrade41610to41700())
                 .build();
     }
 
@@ -233,6 +243,35 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         return upgrades;
 
+    }
+
+    private void updateSystemVmTemplates(DbUpgrade[] upgrades) {
+        for (int i = upgrades.length - 1; i >= 0; i--) {
+            DbUpgrade upgrade = upgrades[i];
+            if (upgrade instanceof DbUpgradeSystemVmTemplate) {
+                TransactionLegacy txn = TransactionLegacy.open("Upgrade");
+                txn.start();
+                try {
+                    Connection conn;
+                    try {
+                        conn = txn.getConnection();
+                    } catch (SQLException e) {
+                        String errorMessage = "Unable to upgrade the database";
+                        s_logger.error(errorMessage, e);
+                        throw new CloudRuntimeException(errorMessage, e);
+                    }
+                    ((DbUpgradeSystemVmTemplate)upgrade).updateSystemVmTemplates(conn);
+                    txn.commit();
+                    break;
+                } catch (CloudRuntimeException e) {
+                    String errorMessage = "Unable to upgrade the database";
+                    s_logger.error(errorMessage, e);
+                    throw new CloudRuntimeException(errorMessage, e);
+                } finally {
+                    txn.close();
+                }
+            }
+        }
     }
 
     protected void upgrade(CloudStackVersion dbVersion, CloudStackVersion currentVersion) {
@@ -310,6 +349,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                 txn.close();
             }
         }
+        updateSystemVmTemplates(upgrades);
     }
 
     @Override
@@ -330,7 +370,12 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                     return;
                 }
 
-                final CloudStackVersion currentVersion = CloudStackVersion.parse(currentVersionValue);
+                String csVersion = SystemVmTemplateRegistration.parseMetadataFile();
+                final CloudStackVersion sysVmVersion = CloudStackVersion.parse(csVersion);
+                final  CloudStackVersion currentVersion = CloudStackVersion.parse(currentVersionValue);
+                SystemVmTemplateRegistration.CS_MAJOR_VERSION  = String.valueOf(sysVmVersion.getMajorRelease()) + "." + String.valueOf(sysVmVersion.getMinorRelease());
+                SystemVmTemplateRegistration.CS_TINY_VERSION = String.valueOf(sysVmVersion.getPatchRelease());
+
                 s_logger.info("DB version = " + dbVersion + " Code Version = " + currentVersion);
 
                 if (dbVersion.compareTo(currentVersion) > 0) {

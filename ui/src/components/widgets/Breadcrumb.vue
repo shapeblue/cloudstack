@@ -22,24 +22,27 @@
         v-if="item && item.name"
         :to="{ path: item.path === '' ? '/' : item.path }"
       >
-        <a-icon v-if="index == 0" :type="item.meta.icon" style="font-size: 16px" @click="resetToMainView" />
-        {{ $t(item.meta.title) }}
+        <render-icon v-if="index == 0" :icon="item.meta.icon" style="font-size: 16px" @click="resetToMainView" />
+        <span v-if="item.meta.title">{{ $t(item.meta.title) }}</span>
       </router-link>
       <span v-else-if="$route.params.id">
-        <label v-if="'name' in resource">
-          <span v-if="['USER.LOGIN', 'USER.LOGOUT', 'ROUTER.HEALTH.CHECKS', 'FIREWALL.CLOSE', 'ALERT.SERVICE.DOMAINROUTER'].includes(resource.name)">{{ $t(resource.name.toLowerCase()) }}</span>
-          <span v-else>{{ resource.name }}</span>
+        <label
+          v-if="'name' in resource &&
+            ['USER.LOGIN', 'USER.LOGOUT', 'ROUTER.HEALTH.CHECKS', 'FIREWALL.CLOSE', 'ALERT.SERVICE.DOMAINROUTER'].includes(resource.name)">
+          <span>
+            {{ $t(resource.name.toLowerCase()) }}
+          </span>
         </label>
         <label v-else>
-          {{ resource.name || resource.displayname || resource.displaytext || resource.hostname || resource.username || resource.ipaddress || $route.params.id }}
+          {{ resource.displayname || resource.displaytext || resource.name || resource.hostname || resource.username || resource.ipaddress || $route.params.id }}
         </label>
       </span>
       <span v-else>
         {{ $t(item.meta.title) }}
       </span>
-      <span v-if="index === (breadList.length - 1)" style="margin-left: 5px">
+      <span v-if="index === (breadList.length - 1)" style="margin-left: 8px">
         <a-tooltip placement="bottom">
-          <template slot="title">
+          <template #title>
             {{ $t('label.open.documentation') }}
           </template>
           <a
@@ -47,7 +50,7 @@
             style="margin-right: 12px"
             :href="$config.docBase + '/' + $route.meta.docHelp"
             target="_blank">
-            <a-icon type="question-circle-o"></a-icon>
+            <QuestionCircleOutlined />
           </a>
         </a-tooltip>
         <slot name="end">
@@ -79,7 +82,7 @@ export default {
     this.getBreadcrumb()
   },
   watch: {
-    $route () {
+    '$route.fullPath' () {
       this.getBreadcrumb()
     }
   },
@@ -87,8 +90,9 @@ export default {
     getBreadcrumb () {
       this.name = this.$route.name
       this.breadList = []
-      this.$route.matched.forEach((item) => {
-        if (item && item.parent && item.parent.name !== 'index' && !item.path.endsWith(':id')) {
+      this.$route.matched.forEach((item, idx) => {
+        const parent = this.$route.matched[idx - 1]
+        if (item && parent && parent.name !== 'index' && !item.path.endsWith(':id')) {
           this.breadList.pop()
         }
         this.breadList.push(item)

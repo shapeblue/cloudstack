@@ -35,7 +35,7 @@ public interface VirtualRouter extends VirtualMachine {
     boolean getIsRedundantRouter();
 
     public enum RedundantState {
-        UNKNOWN, MASTER, BACKUP, FAULT
+        UNKNOWN, PRIMARY, BACKUP, FAULT
     }
 
     RedundantState getRedundantState();
@@ -52,4 +52,6 @@ public interface VirtualRouter extends VirtualMachine {
     Long getVpcId();
 
     String getTemplateVersion();
+
+    String getScriptsVersion();
 }

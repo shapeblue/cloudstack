@@ -49,6 +49,14 @@
             </div>
             <div class="list__col">
               <div class="list__label">
+                {{ $t('label.traffictype') }}
+              </div>
+              <div>
+                {{ network.traffictype }}
+              </div>
+            </div>
+            <div class="list__col">
+              <div class="list__label">
                 {{ $t('label.broadcastdomainrange') }}
               </div>
               <div>{{ network.broadcastdomainrange }}</div>
@@ -85,15 +93,18 @@ export default {
       fetchLoading: false
     }
   },
-  mounted () {
+  created () {
     this.fetchData()
   },
   watch: {
-    resource (newItem, oldItem) {
-      if (!newItem || !newItem.id) {
-        return
+    resource: {
+      deep: true,
+      handler (newItem) {
+        if (!newItem || !newItem.id) {
+          return
+        }
+        this.fetchData()
       }
-      this.fetchData()
     }
   },
   methods: {
@@ -101,9 +112,25 @@ export default {
       this.fetchLoading = true
       api('listPhysicalNetworks', { zoneid: this.resource.id }).then(json => {
         this.networks = json.listphysicalnetworksresponse.physicalnetwork || []
+        this.fetchTrafficLabels()
       }).catch(error => {
         this.$notifyError(error)
-      }).finally(() => {
+      })
+    },
+    fetchTrafficLabels () {
+      const promises = []
+      for (const network of this.networks) {
+        promises.push(new Promise((resolve, reject) => {
+          api('listTrafficTypes', { physicalnetworkid: network.id }).then(json => {
+            network.traffictype = json.listtraffictypesresponse.traffictype.filter(e => { return e.traffictype }).map(e => { return e.traffictype }).join(', ')
+            resolve()
+          }).catch(error => {
+            this.$notifyError(error)
+            reject(error)
+          })
+        }))
+      }
+      Promise.all(promises).finally(() => {
         this.fetchLoading = false
       })
     }

@@ -52,6 +52,7 @@ import com.cloud.host.dao.HostDao;
 import com.cloud.storage.DiskOfferingVO;
 import com.cloud.storage.GuestOSHypervisorVO;
 import com.cloud.storage.GuestOSVO;
+import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.GuestOSDao;
@@ -67,6 +68,7 @@ import com.cloud.utils.db.TransactionStatus;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.fsm.NoTransitionException;
 import com.cloud.vm.UserVmVO;
+import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.snapshot.VMSnapshot;
 import com.cloud.vm.snapshot.VMSnapshotVO;
@@ -230,11 +232,10 @@ public class DefaultVMSnapshotStrategy extends ManagerBase implements VMSnapshot
             } else {
                 String errMsg = (answer == null) ? null : answer.getDetails();
                 s_logger.error("Delete vm snapshot " + vmSnapshot.getName() + " of vm " + userVm.getInstanceName() + " failed due to " + errMsg);
+                processAnswer(vmSnapshotVO, userVm, answer, hostId);
                 throw new CloudRuntimeException("Delete vm snapshot " + vmSnapshot.getName() + " of vm " + userVm.getInstanceName() + " failed due to " + errMsg);
             }
-        } catch (OperationTimedoutException e) {
-            throw new CloudRuntimeException("Delete vm snapshot " + vmSnapshot.getName() + " of vm " + userVm.getInstanceName() + " failed due to " + e.getMessage());
-        } catch (AgentUnavailableException e) {
+        } catch (OperationTimedoutException | AgentUnavailableException e) {
             throw new CloudRuntimeException("Delete vm snapshot " + vmSnapshot.getName() + " of vm " + userVm.getInstanceName() + " failed due to " + e.getMessage());
         }
     }
@@ -254,9 +255,13 @@ public class DefaultVMSnapshotStrategy extends ManagerBase implements VMSnapshot
                         finalizeRevert(vmSnapshot, answer.getVolumeTOs());
                         vmSnapshotHelper.vmSnapshotStateTransitTo(vmSnapshot, VMSnapshot.Event.OperationSucceeded);
                     } else if (as instanceof DeleteVMSnapshotAnswer) {
-                        DeleteVMSnapshotAnswer answer = (DeleteVMSnapshotAnswer)as;
-                        finalizeDelete(vmSnapshot, answer.getVolumeTOs());
-                        vmSnapshotDao.remove(vmSnapshot.getId());
+                        if (as.getResult()) {
+                            DeleteVMSnapshotAnswer answer = (DeleteVMSnapshotAnswer) as;
+                            finalizeDelete(vmSnapshot, answer.getVolumeTOs());
+                            vmSnapshotDao.remove(vmSnapshot.getId());
+                        } else {
+                            vmSnapshotHelper.vmSnapshotStateTransitTo(vmSnapshot, VMSnapshot.Event.OperationFailed);
+                        }
                     }
                 }
             });
@@ -329,13 +334,13 @@ public class DefaultVMSnapshotStrategy extends ManagerBase implements VMSnapshot
         }
     }
 
-    private void publishUsageEvent(String type, VMSnapshot vmSnapshot, UserVm userVm, VolumeObjectTO volumeTo) {
+    protected void publishUsageEvent(String type, VMSnapshot vmSnapshot, UserVm userVm, VolumeObjectTO volumeTo) {
         VolumeVO volume = volumeDao.findById(volumeTo.getId());
         Long diskOfferingId = volume.getDiskOfferingId();
         Long offeringId = null;
         if (diskOfferingId != null) {
             DiskOfferingVO offering = diskOfferingDao.findById(diskOfferingId);
-            if (offering != null && (offering.getType() == DiskOfferingVO.Type.Disk)) {
+            if (offering != null && !offering.isComputeOnly()) {
                 offeringId = offering.getId();
             }
         }
@@ -347,7 +352,7 @@ public class DefaultVMSnapshotStrategy extends ManagerBase implements VMSnapshot
                 volumeTo.getSize(), VMSnapshot.class.getName(), vmSnapshot.getUuid(), details);
     }
 
-    private void publishUsageEvent(String type, VMSnapshot vmSnapshot, UserVm userVm, Long vmSnapSize, Long virtualSize) {
+    protected void publishUsageEvent(String type, VMSnapshot vmSnapshot, UserVm userVm, Long vmSnapSize, Long virtualSize) {
         try {
             Map<String, String> details = new HashMap<>();
             if (vmSnapshot != null) {
@@ -445,5 +450,21 @@ public class DefaultVMSnapshotStrategy extends ManagerBase implements VMSnapshot
             publishUsageEvent(EventTypes.EVENT_VM_SNAPSHOT_OFF_PRIMARY, vmSnapshot, userVm, full_chain_size, 0L);
         }
         return vmSnapshotDao.remove(vmSnapshot.getId());
+    }
+
+    @Override
+    public StrategyPriority canHandle(Long vmId, Long rootPoolId, boolean snapshotMemory) {
+        UserVmVO vm = userVmDao.findById(vmId);
+        if (vm.getState() == State.Running && !snapshotMemory) {
+            return StrategyPriority.CANT_HANDLE;
+        }
+
+        List<VolumeVO> volumes = volumeDao.findByInstance(vmId);
+        for (VolumeVO volume : volumes) {
+            if (volume.getFormat() != ImageFormat.QCOW2) {
+                return StrategyPriority.CANT_HANDLE;
+            }
+        }
+        return StrategyPriority.DEFAULT;
     }
 }

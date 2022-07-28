@@ -29,7 +29,6 @@ setup_vpcrouter() {
 auto lo eth0
 iface lo inet loopback
 EOF
-  setup_interface "0" $ETH0_IP $ETH0_MASK $GW
 
   echo $NAME > /etc/hostname
   echo 'AVAHI_DAEMON_DETECT_LOCAL=0' > /etc/default/avahi-daemon
@@ -86,7 +85,6 @@ EOF
   enable_fwding 1
   enable_passive_ftp 1
   cp /etc/iptables/iptables-vpcrouter /etc/iptables/rules.v4
-  setup_sshd $ETH0_IP "eth0"
   cp /etc/vpcdnsmasq.conf /etc/dnsmasq.conf
   cp /etc/cloud-nic.rules /etc/udev/rules.d/cloud-nic.rules
   echo "" > /etc/dnsmasq.d/dhcphosts.txt
@@ -112,6 +110,16 @@ EOF
   if [ -f /etc/cron.daily/logrotate ]; then
     mv -n /etc/cron.daily/logrotate /etc/cron.hourly 2>&1
   fi
+
+  # Setup hourly lograte in systemd timer
+  sed -i 's/OnCalendar=daily/OnCalendar=hourly/g' /usr/lib/systemd/system/logrotate.timer
+  sed -i 's/AccuracySec=12h/AccuracySec=5m/g' /usr/lib/systemd/system/logrotate.timer
+
+  # reload daemon
+  /usr/bin/systemctl daemon-reload
+
+  # Load modules to support NAT traversal in VR
+  modprobe nf_nat_pptp
 }
 
 routing_svcs

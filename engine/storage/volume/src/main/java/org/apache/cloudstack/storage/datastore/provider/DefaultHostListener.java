@@ -20,18 +20,28 @@ package org.apache.cloudstack.storage.datastore.provider;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.CleanupPersistentNetworkResourceCommand;
 import com.cloud.agent.api.ModifyStoragePoolAnswer;
 import com.cloud.agent.api.ModifyStoragePoolCommand;
-import com.cloud.agent.api.StoragePoolInfo;
+import com.cloud.agent.api.SetupPersistentNetworkCommand;
+import com.cloud.agent.api.to.NicTO;
 import com.cloud.alert.AlertManager;
+import com.cloud.configuration.ConfigurationManager;
 import com.cloud.exception.StorageConflictException;
+import com.cloud.host.HostVO;
+import com.cloud.host.dao.HostDao;
+import com.cloud.network.NetworkModel;
+import com.cloud.network.dao.NetworkDao;
+import com.cloud.network.dao.NetworkVO;
+import com.cloud.offerings.NetworkOfferingVO;
+import com.cloud.offerings.dao.NetworkOfferingDao;
 import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.Storage;
+import com.cloud.storage.StorageManager;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.StoragePoolHostVO;
-import com.cloud.storage.StoragePoolStatus;
+import com.cloud.storage.StorageService;
 import com.cloud.storage.dao.StoragePoolHostDao;
-import com.cloud.storage.dao.StoragePoolTagsDao;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.engine.subsystem.api.storage.HypervisorHostListener;
@@ -39,13 +49,11 @@ import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailVO;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class DefaultHostListener implements HypervisorHostListener {
     private static final Logger s_logger = Logger.getLogger(DefaultHostListener.class);
@@ -62,16 +70,56 @@ public class DefaultHostListener implements HypervisorHostListener {
     @Inject
     StoragePoolDetailsDao storagePoolDetailsDao;
     @Inject
-    StoragePoolTagsDao storagePoolTagsDao;
+    StorageManager storageManager;
+    @Inject
+    StorageService storageService;
+    @Inject
+    NetworkOfferingDao networkOfferingDao;
+    @Inject
+    HostDao hostDao;
+    @Inject
+    NetworkModel networkModel;
+    @Inject
+    ConfigurationManager configManager;
+    @Inject
+    NetworkDao networkDao;
+
 
     @Override
     public boolean hostAdded(long hostId) {
         return true;
     }
 
+    private boolean createPersistentNetworkResourcesOnHost(long hostId) {
+        HostVO host = hostDao.findById(hostId);
+        if (host == null) {
+            s_logger.warn(String.format("Host with id %ld can't be found", hostId));
+            return false;
+        }
+        setupPersistentNetwork(host);
+        return true;
+    }
+
+    /**
+     * Creates a dummy NicTO object which is used by the respective hypervisors to setup network elements / resources
+     * - bridges(KVM), VLANs(Xen) and portgroups(VMWare) for L2 network
+     */
+    private NicTO createNicTOFromNetworkAndOffering(NetworkVO networkVO, NetworkOfferingVO networkOfferingVO, HostVO hostVO) {
+        NicTO to = new NicTO();
+        to.setName(networkModel.getNetworkTag(hostVO.getHypervisorType(), networkVO));
+        to.setBroadcastType(networkVO.getBroadcastDomainType());
+        to.setType(networkVO.getTrafficType());
+        to.setBroadcastUri(networkVO.getBroadcastUri());
+        to.setIsolationuri(networkVO.getBroadcastUri());
+        to.setNetworkRateMbps(configManager.getNetworkOfferingNetworkRate(networkOfferingVO.getId(), networkVO.getDataCenterId()));
+        to.setSecurityGroupEnabled(networkModel.isSecurityGroupSupportedInNetwork(networkVO));
+        return to;
+    }
+
+
     @Override
     public boolean hostConnect(long hostId, long poolId) throws StorageConflictException {
-        StoragePool pool = (StoragePool)this.dataStoreMgr.getDataStore(poolId, DataStoreRole.Primary);
+        StoragePool pool = (StoragePool) this.dataStoreMgr.getDataStore(poolId, DataStoreRole.Primary);
         ModifyStoragePoolCommand cmd = new ModifyStoragePoolCommand(true, pool);
         final Answer answer = agentMgr.easySend(hostId, cmd);
 
@@ -88,7 +136,7 @@ public class DefaultHostListener implements HypervisorHostListener {
 
         assert (answer instanceof ModifyStoragePoolAnswer) : "Well, now why won't you actually return the ModifyStoragePoolAnswer when it's ModifyStoragePoolCommand? Pool=" +
             pool.getId() + "Host=" + hostId;
-        ModifyStoragePoolAnswer mspAnswer = (ModifyStoragePoolAnswer)answer;
+        ModifyStoragePoolAnswer mspAnswer = (ModifyStoragePoolAnswer) answer;
         if (mspAnswer.getLocalDatastoreName() != null && pool.isShared()) {
             String datastoreName = mspAnswer.getLocalDatastoreName();
             List<StoragePoolVO> localStoragePools = this.primaryStoreDao.listLocalStoragePoolByPath(pool.getDataCenterId(), datastoreName);
@@ -104,47 +152,14 @@ public class DefaultHostListener implements HypervisorHostListener {
         updateStoragePoolHostVOAndDetails(poolVO, hostId, mspAnswer);
 
         if (pool.getPoolType() == Storage.StoragePoolType.DatastoreCluster) {
-            for (ModifyStoragePoolAnswer childDataStoreAnswer : ((ModifyStoragePoolAnswer) answer).getDatastoreClusterChildren()) {
-                StoragePoolInfo childStoragePoolInfo = childDataStoreAnswer.getPoolInfo();
-                StoragePoolVO dataStoreVO = primaryStoreDao.findPoolByUUID(childStoragePoolInfo.getUuid());
-                if (dataStoreVO != null) {
-                    continue;
-                }
-                dataStoreVO = new StoragePoolVO();
-                dataStoreVO.setStorageProviderName(poolVO.getStorageProviderName());
-                dataStoreVO.setHostAddress(childStoragePoolInfo.getHost());
-                dataStoreVO.setPoolType(Storage.StoragePoolType.PreSetup);
-                dataStoreVO.setPath(childStoragePoolInfo.getHostPath());
-                dataStoreVO.setPort(poolVO.getPort());
-                dataStoreVO.setName(childStoragePoolInfo.getName());
-                dataStoreVO.setUuid(childStoragePoolInfo.getUuid());
-                dataStoreVO.setDataCenterId(poolVO.getDataCenterId());
-                dataStoreVO.setPodId(poolVO.getPodId());
-                dataStoreVO.setClusterId(poolVO.getClusterId());
-                dataStoreVO.setStatus(StoragePoolStatus.Up);
-                dataStoreVO.setUserInfo(poolVO.getUserInfo());
-                dataStoreVO.setManaged(poolVO.isManaged());
-                dataStoreVO.setCapacityIops(poolVO.getCapacityIops());
-                dataStoreVO.setCapacityBytes(childDataStoreAnswer.getPoolInfo().getCapacityBytes());
-                dataStoreVO.setUsedBytes(childDataStoreAnswer.getPoolInfo().getCapacityBytes() - childDataStoreAnswer.getPoolInfo().getAvailableBytes());
-                dataStoreVO.setHypervisor(poolVO.getHypervisor());
-                dataStoreVO.setScope(poolVO.getScope());
-                dataStoreVO.setParent(poolVO.getId());
-
-                Map<String, String> details = new HashMap<>();
-                if(StringUtils.isNotEmpty(childDataStoreAnswer.getPoolType())) {
-                    details.put("pool_type", childDataStoreAnswer.getPoolType());
-                }
-
-                List<String> storageTags = storagePoolTagsDao.getStoragePoolTags(poolId);
-                primaryStoreDao.persist(dataStoreVO, details, storageTags);
-
-                updateStoragePoolHostVOAndDetails(dataStoreVO, hostId, childDataStoreAnswer);
-            }
+            storageManager.syncDatastoreClusterStoragePool(poolId, ((ModifyStoragePoolAnswer) answer).getDatastoreClusterChildren(), hostId);
         }
 
+        storageService.updateStorageCapabilities(poolId, false);
+
         s_logger.info("Connection established between storage pool " + pool + " and host " + hostId);
-        return true;
+
+        return createPersistentNetworkResourcesOnHost(hostId);
     }
 
     private void updateStoragePoolHostVOAndDetails(StoragePool pool, long hostId, ModifyStoragePoolAnswer mspAnswer) {
@@ -159,7 +174,7 @@ public class DefaultHostListener implements HypervisorHostListener {
         StoragePoolVO poolVO = this.primaryStoreDao.findById(pool.getId());
         poolVO.setUsedBytes(mspAnswer.getPoolInfo().getCapacityBytes() - mspAnswer.getPoolInfo().getAvailableBytes());
         poolVO.setCapacityBytes(mspAnswer.getPoolInfo().getCapacityBytes());
-        if(StringUtils.isNotEmpty(mspAnswer.getPoolType())) {
+        if (StringUtils.isNotEmpty(mspAnswer.getPoolType())) {
             StoragePoolDetailVO poolType = storagePoolDetailsDao.findDetail(pool.getId(), "pool_type");
             if (poolType == null) {
                 StoragePoolDetailVO storagePoolDetailVO = new StoragePoolDetailVO(pool.getId(), "pool_type", mspAnswer.getPoolType(), false);
@@ -177,11 +192,62 @@ public class DefaultHostListener implements HypervisorHostListener {
 
     @Override
     public boolean hostAboutToBeRemoved(long hostId) {
+        // send host the cleanup persistent network resources
+        HostVO host = hostDao.findById(hostId);
+        if (host == null) {
+            s_logger.warn("Host with id " + hostId + " can't be found");
+            return false;
+        }
+
+        List<NetworkVO> allPersistentNetworks = networkDao.getAllPersistentNetworksFromZone(host.getDataCenterId()); // find zoneId of host
+        for (NetworkVO persistentNetworkVO : allPersistentNetworks) {
+            NetworkOfferingVO networkOfferingVO = networkOfferingDao.findById(persistentNetworkVO.getNetworkOfferingId());
+            CleanupPersistentNetworkResourceCommand cleanupCmd =
+                    new CleanupPersistentNetworkResourceCommand(createNicTOFromNetworkAndOffering(persistentNetworkVO, networkOfferingVO, host));
+            Answer answer = agentMgr.easySend(hostId, cleanupCmd);
+            if (answer == null) {
+                s_logger.error("Unable to get answer to the cleanup persistent network command " + persistentNetworkVO.getId());
+                continue;
+            }
+            if (!answer.getResult()) {
+                String msg = String.format("Unable to cleanup persistent network resources from network %d on the host %d", persistentNetworkVO.getId(), hostId);
+                s_logger.error(msg);
+            }
+        }
         return true;
     }
 
     @Override
     public boolean hostRemoved(long hostId, long clusterId) {
         return true;
+    }
+
+    @Override
+    public boolean hostEnabled(long hostId) {
+        HostVO host = hostDao.findById(hostId);
+        if (host == null) {
+            s_logger.warn(String.format("Host with id %d can't be found", hostId));
+            return false;
+        }
+        setupPersistentNetwork(host);
+        return true;
+    }
+
+    private void setupPersistentNetwork(HostVO host) {
+        List<NetworkVO> allPersistentNetworks = networkDao.getAllPersistentNetworksFromZone(host.getDataCenterId());
+        for (NetworkVO networkVO : allPersistentNetworks) {
+            NetworkOfferingVO networkOfferingVO = networkOfferingDao.findById(networkVO.getNetworkOfferingId());
+
+            SetupPersistentNetworkCommand persistentNetworkCommand =
+                    new SetupPersistentNetworkCommand(createNicTOFromNetworkAndOffering(networkVO, networkOfferingVO, host));
+            Answer answer = agentMgr.easySend(host.getId(), persistentNetworkCommand);
+            if (answer == null) {
+                throw new CloudRuntimeException("Unable to get answer to the setup persistent network command " + networkVO.getId());
+            }
+            if (!answer.getResult()) {
+                String msg = String.format("Unable to create persistent network resources for network %d on the host %d in zone %d", networkVO.getId(), host.getId(), networkVO.getDataCenterId());
+                s_logger.error(msg);
+            }
+        }
     }
 }

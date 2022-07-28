@@ -137,24 +137,32 @@ class Vcenter():
             parsedObject['dvportgroup'] = Vcenter._parse_dvportgroup(obj)
         elif vim.VirtualMachine in vimtype:
             parsedObject['vm'] = Vcenter._parse_vm(obj)
+        elif vim.HostSystem in vimtype:
+            parsedObject['host'] = obj
         else:
             parsedObject['name'] = obj.name
         return parsedObject
 
-    def _get_obj(self, vimtype, name=None):
+    def _get_obj(self, vimtype, name=None, parse=True):
         """
         Get the vsphere object associated with a given text name
         """
-        obj = None
         content = self.service_instance.RetrieveContent()
         container = content.viewManager.CreateContainerView(content.rootFolder, vimtype, True)
+        result = []
         for c in container.view:
             if name is not None:
                 if c.name == name:
-                    obj = c
-                    return [self.parse_details(obj, vimtype)]
+                    result.append(c)
+                    break
             else:
-                return [self.parse_details(c, vimtype) for c in container.view]
+                result.append(c)
+        container.Destroy()
+        if len(result) == 0:
+            return None
+        if parse:
+            return [self.parse_details(c, vimtype) for c in result]
+        return result
 
     def get_dvswitches(self, name=None):
         """
@@ -184,11 +192,30 @@ class Vcenter():
 
     def get_vms(self, name=None):
         """
-        :param name:
+        Get VMs in vCenter
+        :param name: Name of the VM in vCenter
         :return:
         """
         vms = self._get_obj([vim.VirtualMachine], name)
         return vms
+
+
+    def delete_vm(self, name):
+        """
+        Deletes a VM in vCenter
+        :param name: Name of the VM in vCenter
+        :return:
+        """
+        vms = self._get_obj([vim.VirtualMachine], name, False)
+        if type(vms) is not list or len(vms) != 1:
+            return False
+        vm = vms[0]
+        print("Deleting VM with name: %s; vm: %s" % (name, vm))
+        task = vm.PowerOffVM_Task()
+        self.wait_for_task(task)
+        task = vm.Destroy_Task()
+        self.wait_for_task(task)
+        return True
 
     def get_clusters(self, dc, clus=None):
         """
@@ -279,7 +306,7 @@ class Vcenter():
                                             force=True)
             task = cluster.AddHost(spec=hostspec, asConnected=True)
         except Exception as e:
-            print "Error adding host :%s" % e
+            print("Error adding host :%s" % e)
         self.wait_for_task(task)
         host = self._get_obj([vim.HostSystem], hostname)
         return host
@@ -316,7 +343,7 @@ class Vcenter():
                                           username=user,
                                           password=passwd)
         except Exception as e:
-            print "Failed to create datacenter: %s" % e
+            print("Failed to create datacenter: %s" % e)
 
     def wait_for_task(self, task):
 
@@ -326,7 +353,7 @@ class Vcenter():
         if task.info.state == vim.TaskInfo.State.success:
             if task.info.result is not None:
                 out = 'Task completed successfully, result: %s' % (task.info.result,)
-                print out
+                print(out)
         elif task.info.state == vim.TaskInfo.State.error:
             out = 'Error - Task did not complete successfully: %s' % (task.info.error,)
             raise ValueError(out)
@@ -348,35 +375,35 @@ class Vcenter():
         out = p3.stdout.read()
         ssl_thumbprint = out.split('=')[-1].strip()
         return ssl_thumbprint
-    
+
 if __name__ == '__main__':
     vc_object = Vcenter("10.x.x.x", "username", "password")
 
 
-    print '###get one dc########'
-    print(vc_object.get_datacenters(name='testDC'))
+    print('###get one dc########')
+    print((vc_object.get_datacenters(name='testDC')))
 
-    print '###get multiple dcs########'
+    print('###get multiple dcs########')
     for i in vc_object.get_datacenters():
         print(i)
 
-    print '###get one dv########'
-    print vc_object.get_dvswitches(name='dvSwitch')
+    print('###get one dv########')
+    print(vc_object.get_dvswitches(name='dvSwitch'))
 
-    print '###get multiple dvs########'
+    print('###get multiple dvs########')
     for i in vc_object.get_dvswitches():
         print(i)
 
-    print '###get one dvportgroup########'
-    print(vc_object.get_dvportgroups(name='cloud.guest.207.200.1-dvSwitch'))
+    print('###get one dvportgroup########')
+    print((vc_object.get_dvportgroups(name='cloud.guest.207.200.1-dvSwitch')))
 
-    print "###get one dvportgroup and the vms associated with it########"
+    print("###get one dvportgroup and the vms associated with it########")
     for vm in vc_object.get_dvportgroups(name='cloud.guest.207.200.1-dvSwitch')[0]['dvportgroup']['vmlist']:
-        print(vm.name)
-        print(vm.network)
+        print((vm.name))
+        print((vm.network))
 
-    print '###get multiple dvportgroups########'
+    print('###get multiple dvportgroups########')
     for i in vc_object.get_dvportgroups():
         print(i)
 
-    print vc_object.get_vms(name='VM1')
+    print(vc_object.get_vms(name='VM1'))

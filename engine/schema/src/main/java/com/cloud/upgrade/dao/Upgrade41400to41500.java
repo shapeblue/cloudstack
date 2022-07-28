@@ -23,21 +23,20 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
-import com.cloud.hypervisor.Hypervisor;
+import com.cloud.storage.GuestOSHypervisorMapping;
+import com.cloud.upgrade.GuestOsMapper;
 import com.cloud.utils.exception.CloudRuntimeException;
 
 public class Upgrade41400to41500 implements DbUpgrade {
 
     final static Logger LOG = Logger.getLogger(Upgrade41400to41500.class);
+    private GuestOsMapper guestOsMapper = new GuestOsMapper();
 
     @Override
     public String[] getUpgradableVersionRange() {
@@ -67,176 +66,8 @@ public class Upgrade41400to41500 implements DbUpgrade {
 
     @Override
     public void performDataMigration(Connection conn) {
-        updateSystemVmTemplates(conn);
         addRolePermissionsForNewReadOnlyAndSupportRoles(conn);
-    }
-
-    @SuppressWarnings("serial")
-    private void updateSystemVmTemplates(final Connection conn) {
-        LOG.debug("Updating System Vm template IDs");
-        final Set<Hypervisor.HypervisorType> hypervisorsListInUse = new HashSet<Hypervisor.HypervisorType>();
-        try (PreparedStatement pstmt = conn.prepareStatement("select distinct(hypervisor_type) from `cloud`.`cluster` where removed is null"); ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                switch (Hypervisor.HypervisorType.getType(rs.getString(1))) {
-                    case XenServer:
-                        hypervisorsListInUse.add(Hypervisor.HypervisorType.XenServer);
-                        break;
-                    case KVM:
-                        hypervisorsListInUse.add(Hypervisor.HypervisorType.KVM);
-                        break;
-                    case VMware:
-                        hypervisorsListInUse.add(Hypervisor.HypervisorType.VMware);
-                        break;
-                    case Hyperv:
-                        hypervisorsListInUse.add(Hypervisor.HypervisorType.Hyperv);
-                        break;
-                    case LXC:
-                        hypervisorsListInUse.add(Hypervisor.HypervisorType.LXC);
-                        break;
-                    case Ovm3:
-                        hypervisorsListInUse.add(Hypervisor.HypervisorType.Ovm3);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        } catch (final SQLException e) {
-            LOG.error("updateSystemVmTemplates: Exception caught while getting hypervisor types from clusters: " + e.getMessage());
-            throw new CloudRuntimeException("updateSystemVmTemplates:Exception while getting hypervisor types from clusters", e);
-        }
-
-        final Map<Hypervisor.HypervisorType, String> NewTemplateNameList = new HashMap<Hypervisor.HypervisorType, String>() {
-            {
-                put(Hypervisor.HypervisorType.KVM, "systemvm-kvm-4.15.0");
-                put(Hypervisor.HypervisorType.VMware, "systemvm-vmware-4.15.0");
-                put(Hypervisor.HypervisorType.XenServer, "systemvm-xenserver-4.15.0");
-                put(Hypervisor.HypervisorType.Hyperv, "systemvm-hyperv-4.15.0");
-                put(Hypervisor.HypervisorType.LXC, "systemvm-lxc-4.15.0");
-                put(Hypervisor.HypervisorType.Ovm3, "systemvm-ovm3-4.15.0");
-            }
-        };
-
-        final Map<Hypervisor.HypervisorType, String> routerTemplateConfigurationNames = new HashMap<Hypervisor.HypervisorType, String>() {
-            {
-                put(Hypervisor.HypervisorType.KVM, "router.template.kvm");
-                put(Hypervisor.HypervisorType.VMware, "router.template.vmware");
-                put(Hypervisor.HypervisorType.XenServer, "router.template.xenserver");
-                put(Hypervisor.HypervisorType.Hyperv, "router.template.hyperv");
-                put(Hypervisor.HypervisorType.LXC, "router.template.lxc");
-                put(Hypervisor.HypervisorType.Ovm3, "router.template.ovm3");
-            }
-        };
-
-        final Map<Hypervisor.HypervisorType, String> newTemplateUrl = new HashMap<Hypervisor.HypervisorType, String>() {
-            {
-                put(Hypervisor.HypervisorType.KVM, "https://download.cloudstack.org/systemvm/4.15/systemvmtemplate-4.15.0-kvm.qcow2.bz2");
-                put(Hypervisor.HypervisorType.VMware, "https://download.cloudstack.org/systemvm/4.15/systemvmtemplate-4.15.0-vmware.ova");
-                put(Hypervisor.HypervisorType.XenServer, "https://download.cloudstack.org/systemvm/4.15/systemvmtemplate-4.15.0-xen.vhd.bz2");
-                put(Hypervisor.HypervisorType.Hyperv, "https://download.cloudstack.org/systemvm/4.15/systemvmtemplate-4.15.0-hyperv.vhd.zip");
-                put(Hypervisor.HypervisorType.LXC, "https://download.cloudstack.org/systemvm/4.15/systemvmtemplate-4.15.0-kvm.qcow2.bz2");
-                put(Hypervisor.HypervisorType.Ovm3, "https://download.cloudstack.org/systemvm/4.15/systemvmtemplate-4.15.0-ovm.raw.bz2");
-            }
-        };
-
-        final Map<Hypervisor.HypervisorType, String> newTemplateChecksum = new HashMap<Hypervisor.HypervisorType, String>() {
-            {
-                put(Hypervisor.HypervisorType.KVM, "81b3e48bb934784a13555a43c5ef5ffb");
-                put(Hypervisor.HypervisorType.XenServer, "1b178a5dbdbe090555515340144c6017");
-                put(Hypervisor.HypervisorType.VMware, "e6a88e518c57d6f36c096c4204c3417f");
-                put(Hypervisor.HypervisorType.Hyperv, "5c94da45337cf3e1910dcbe084d4b9ad");
-                put(Hypervisor.HypervisorType.LXC, "81b3e48bb934784a13555a43c5ef5ffb");
-                put(Hypervisor.HypervisorType.Ovm3, "875c5c65455fc06c4a012394410db375");
-            }
-        };
-
-        for (final Map.Entry<Hypervisor.HypervisorType, String> hypervisorAndTemplateName : NewTemplateNameList.entrySet()) {
-            LOG.debug("Updating " + hypervisorAndTemplateName.getKey() + " System Vms");
-            try (PreparedStatement pstmt = conn.prepareStatement("select id from `cloud`.`vm_template` where name = ? and removed is null order by id desc limit 1")) {
-                // Get systemvm template id for corresponding hypervisor
-                long templateId = -1;
-                pstmt.setString(1, hypervisorAndTemplateName.getValue());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        templateId = rs.getLong(1);
-                    }
-                } catch (final SQLException e) {
-                    LOG.error("updateSystemVmTemplates: Exception caught while getting ids of templates: " + e.getMessage());
-                    throw new CloudRuntimeException("updateSystemVmTemplates: Exception caught while getting ids of templates", e);
-                }
-
-                // change template type to SYSTEM
-                if (templateId != -1) {
-                    try (PreparedStatement templ_type_pstmt = conn.prepareStatement("update `cloud`.`vm_template` set type='SYSTEM' where id = ?");) {
-                        templ_type_pstmt.setLong(1, templateId);
-                        templ_type_pstmt.executeUpdate();
-                    } catch (final SQLException e) {
-                        LOG.error("updateSystemVmTemplates:Exception while updating template with id " + templateId + " to be marked as 'system': " + e.getMessage());
-                        throw new CloudRuntimeException("updateSystemVmTemplates:Exception while updating template with id " + templateId + " to be marked as 'system'", e);
-                    }
-                    // update template ID of system Vms
-                    try (PreparedStatement update_templ_id_pstmt = conn
-                            .prepareStatement("update `cloud`.`vm_instance` set vm_template_id = ? where type <> 'User' and hypervisor_type = ? and removed is NULL");) {
-                        update_templ_id_pstmt.setLong(1, templateId);
-                        update_templ_id_pstmt.setString(2, hypervisorAndTemplateName.getKey().toString());
-                        update_templ_id_pstmt.executeUpdate();
-                    } catch (final Exception e) {
-                        LOG.error("updateSystemVmTemplates:Exception while setting template for " + hypervisorAndTemplateName.getKey().toString() + " to " + templateId
-                                + ": " + e.getMessage());
-                        throw new CloudRuntimeException("updateSystemVmTemplates:Exception while setting template for " + hypervisorAndTemplateName.getKey().toString() + " to "
-                                + templateId, e);
-                    }
-
-                    // Change value of global configuration parameter
-                    // router.template.* for the corresponding hypervisor
-                    try (PreparedStatement update_pstmt = conn.prepareStatement("UPDATE `cloud`.`configuration` SET value = ? WHERE name = ?");) {
-                        update_pstmt.setString(1, hypervisorAndTemplateName.getValue());
-                        update_pstmt.setString(2, routerTemplateConfigurationNames.get(hypervisorAndTemplateName.getKey()));
-                        update_pstmt.executeUpdate();
-                    } catch (final SQLException e) {
-                        LOG.error("updateSystemVmTemplates:Exception while setting " + routerTemplateConfigurationNames.get(hypervisorAndTemplateName.getKey()) + " to "
-                                + hypervisorAndTemplateName.getValue() + ": " + e.getMessage());
-                        throw new CloudRuntimeException("updateSystemVmTemplates:Exception while setting "
-                                + routerTemplateConfigurationNames.get(hypervisorAndTemplateName.getKey()) + " to " + hypervisorAndTemplateName.getValue(), e);
-                    }
-
-                    // Change value of global configuration parameter
-                    // minreq.sysvmtemplate.version for the ACS version
-                    try (PreparedStatement update_pstmt = conn.prepareStatement("UPDATE `cloud`.`configuration` SET value = ? WHERE name = ?");) {
-                        update_pstmt.setString(1, "4.15.0");
-                        update_pstmt.setString(2, "minreq.sysvmtemplate.version");
-                        update_pstmt.executeUpdate();
-                    } catch (final SQLException e) {
-                        LOG.error("updateSystemVmTemplates:Exception while setting 'minreq.sysvmtemplate.version' to 4.15.0: " + e.getMessage());
-                        throw new CloudRuntimeException("updateSystemVmTemplates:Exception while setting 'minreq.sysvmtemplate.version' to 4.15.0", e);
-                    }
-                } else {
-                    if (hypervisorsListInUse.contains(hypervisorAndTemplateName.getKey())) {
-                        throw new CloudRuntimeException(getUpgradedVersion() + hypervisorAndTemplateName.getKey() + " SystemVm template not found. Cannot upgrade system Vms");
-                    } else {
-                        LOG.warn(getUpgradedVersion() + hypervisorAndTemplateName.getKey() + " SystemVm template not found. " + hypervisorAndTemplateName.getKey()
-                                + " hypervisor is not used, so not failing upgrade");
-                        // Update the latest template URLs for corresponding
-                        // hypervisor
-                        try (PreparedStatement update_templ_url_pstmt = conn
-                                .prepareStatement("UPDATE `cloud`.`vm_template` SET url = ? , checksum = ? WHERE hypervisor_type = ? AND type = 'SYSTEM' AND removed is null order by id desc limit 1");) {
-                            update_templ_url_pstmt.setString(1, newTemplateUrl.get(hypervisorAndTemplateName.getKey()));
-                            update_templ_url_pstmt.setString(2, newTemplateChecksum.get(hypervisorAndTemplateName.getKey()));
-                            update_templ_url_pstmt.setString(3, hypervisorAndTemplateName.getKey().toString());
-                            update_templ_url_pstmt.executeUpdate();
-                        } catch (final SQLException e) {
-                            LOG.error("updateSystemVmTemplates:Exception while updating 'url' and 'checksum' for hypervisor type "
-                                    + hypervisorAndTemplateName.getKey().toString() + ": " + e.getMessage());
-                            throw new CloudRuntimeException("updateSystemVmTemplates:Exception while updating 'url' and 'checksum' for hypervisor type "
-                                    + hypervisorAndTemplateName.getKey().toString(), e);
-                        }
-                    }
-                }
-            } catch (final SQLException e) {
-                LOG.error("updateSystemVmTemplates:Exception while getting ids of templates: " + e.getMessage());
-                throw new CloudRuntimeException("updateSystemVmTemplates:Exception while getting ids of templates", e);
-            }
-        }
-        LOG.debug("Updating System Vm Template IDs Complete");
+        updateGuestOsMappings(conn);
     }
 
     private void addRolePermissionsForNewReadOnlyAndSupportRoles(final Connection conn) {
@@ -519,6 +350,240 @@ public class Upgrade41400to41500 implements DbUpgrade {
             LOG.error("Exception while adding role permissions for support user role: " + e.getMessage());
             throw new CloudRuntimeException("Exception while adding role permissions for support user role: " + e.getMessage(), e);
         }
+    }
+
+    private void updateGuestOsMappings(final Connection conn) {
+        LOG.debug("Updating guest OS mappings");
+
+        // The below existing Guest OS Ids must be used for updating the guest OS hypervisor mappings
+        // CentOS - 1, Debian - 2, Oracle - 3, RedHat - 4, SUSE - 5, Windows - 6, Other - 7, Novel - 8, Unix - 9, Ubuntu - 10, None - 11
+
+        // OVF configured OS while registering deploy-as-is templates Linux 3.x Kernel OS
+        guestOsMapper.addGuestOsAndHypervisorMappings(11, "OVF Configured OS", null);
+
+        List<GuestOSHypervisorMapping> mappings = new ArrayList<GuestOSHypervisorMapping>();
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "other3xLinux64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "other3xLinux64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "other3xLinux64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "other3xLinux64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "other3xLinux64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "other3xLinux64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(2, "Linux 3.x Kernel (64 bit)", mappings);
+        mappings.clear();
+
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "other3xLinuxGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "other3xLinuxGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "other3xLinuxGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "other3xLinuxGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "other3xLinuxGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "other3xLinuxGuest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(2, "Linux 3.x Kernel (32 bit)", mappings);
+        mappings.clear();
+
+        // Add Amazonlinux as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "amazonlinux2_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "amazonlinux2_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "amazonlinux2_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Amazon Linux 2 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux4 32 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "asianux4Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "asianux4Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux4Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux4Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux4Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux4Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 4 (32 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux4 64 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "asianux4_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "asianux4_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux4_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux4_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux4_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux4_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 4 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux5 32 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "asianux5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "asianux5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux5Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 5 (32 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux5 64 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "asianux5_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "asianux5_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux5_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux5_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux5_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux5_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 5 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux7 32 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "asianux7Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux7Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux7Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux7Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux7Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 7 (32 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux7 64 as support guest os, and  VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "asianux7_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux7_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux7_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux7_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux7_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 7 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add asianux8 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "asianux8_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "asianux8_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "asianux8_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "asianux8_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Asianux Server 8 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add eComStation 2.0 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "eComStation2Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "eComStation2Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "eComStation2Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "eComStation2Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "eComStation 2.0", mappings);
+        mappings.clear();
+
+        // Add macOS 10.13 (64 bit) as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "darwin17_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "darwin17_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "darwin17_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "darwin17_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "macOS 10.13 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add macOS 10.14 (64 bit) as support guest os, and VMWare guest os mapping
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "darwin18_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "darwin18_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "darwin18_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "darwin18_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "macOS 10.14 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add Fedora Linux (64 bit) as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "fedora64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "fedora64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "fedora64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "fedora64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "fedora64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "fedora64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Fedora Linux (64 bit)", mappings);
+        mappings.clear();
+
+        // Add Fedora Linux as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "fedoraGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "fedoraGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "fedoraGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "fedoraGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "fedoraGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "fedoraGuest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Fedora Linux", mappings);
+        mappings.clear();
+
+        // Add Mandrake Linux as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "mandrakeGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "mandrakeGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "mandrakeGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "mandrakeGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "mandrakeGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "mandrakeGuest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Mandrake Linux", mappings);
+        mappings.clear();
+
+        // Add Mandriva Linux (64 bit)  as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "mandriva64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "mandriva64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "mandriva64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "mandriva64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "mandriva64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "mandriva64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Mandriva Linux (64 bit)", mappings);
+        mappings.clear();
+
+        // Add Mandriva Linux  as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "mandrivaGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "mandrivaGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "mandrivaGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "mandrivaGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "mandrivaGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "mandrivaGuest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Mandriva Linux", mappings);
+        mappings.clear();
+
+        // Add SCO OpenServer 5   as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "openServer5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "openServer5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "openServer5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "openServer5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "openServer5Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "openServer5Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "SCO OpenServer 5", mappings);
+        mappings.clear();
+
+        // Add SCO OpenServer 6 as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "openServer6Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "openServer6Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "openServer6Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "openServer6Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "openServer6Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "openServer6Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "SCO OpenServer 6", mappings);
+        mappings.clear();
+
+        // Add OpenSUSE Linux (64 bit) as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "opensuse64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "opensuse64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "opensuse64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "opensuse64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "opensuse64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "opensuse64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "OpenSUSE Linux (64 bit)", mappings);
+        mappings.clear();
+
+        // Add OpenSUSE Linux (32 bit) as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "opensuseGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "opensuseGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "opensuseGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "opensuseGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "opensuseGuest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "opensuseGuest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "OpenSUSE Linux (32 bit)", mappings);
+        mappings.clear();
+
+        // Add Solaris 11 (64 bit) as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.0", "solaris11_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "solaris11_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "solaris11_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "solaris11_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "solaris11_64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "solaris11_64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "Solaris 11 (64 bit)", mappings);
+        mappings.clear();
+
+        // Add  VMware Photon (64 bit) as support guest os, and VMWare guest os mappings
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.5", "vmwarePhoton64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7", "vmwarePhoton64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.1", "vmwarePhoton64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.2", "vmwarePhoton64Guest"));
+        mappings.add(new GuestOSHypervisorMapping("VMware", "6.7.3", "vmwarePhoton64Guest"));
+        guestOsMapper.addGuestOsAndHypervisorMappings(7, "VMware Photon (64 bit)", mappings);
     }
 
     @Override

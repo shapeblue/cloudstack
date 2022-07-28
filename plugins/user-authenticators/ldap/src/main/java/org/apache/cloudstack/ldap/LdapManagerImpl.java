@@ -21,10 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Inject;
+import javax.naming.ConfigurationException;
 import javax.naming.NamingException;
 import javax.naming.ldap.LdapContext;
+import java.util.Map;
 import java.util.UUID;
 
+import com.cloud.user.AccountManager;
+import com.cloud.utils.component.ComponentLifecycleBase;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.api.LdapValidator;
 import org.apache.cloudstack.api.command.LDAPConfigCmd;
@@ -42,6 +46,8 @@ import org.apache.cloudstack.api.response.LdapConfigurationResponse;
 import org.apache.cloudstack.api.response.LdapUserResponse;
 import org.apache.cloudstack.api.response.LinkAccountToLdapResponse;
 import org.apache.cloudstack.api.response.LinkDomainToLdapResponse;
+import org.apache.cloudstack.framework.messagebus.MessageBus;
+import org.apache.cloudstack.framework.messagebus.MessageSubscriber;
 import org.apache.cloudstack.ldap.dao.LdapConfigurationDao;
 import org.apache.cloudstack.ldap.dao.LdapTrustMapDao;
 import org.apache.commons.lang.Validate;
@@ -57,7 +63,7 @@ import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.Pair;
 
 @Component
-public class LdapManagerImpl implements LdapManager, LdapValidator {
+public class LdapManagerImpl extends ComponentLifecycleBase implements LdapManager, LdapValidator {
     private static final Logger LOGGER = Logger.getLogger(LdapManagerImpl.class.getName());
 
     @Inject
@@ -80,6 +86,9 @@ public class LdapManagerImpl implements LdapManager, LdapValidator {
     @Inject
     LdapTrustMapDao _ldapTrustMapDao;
 
+    @Inject
+    private MessageBus messageBus;
+
     public LdapManagerImpl() {
         super();
     }
@@ -91,6 +100,33 @@ public class LdapManagerImpl implements LdapManager, LdapValidator {
         _ldapContextFactory = ldapContextFactory;
         _ldapUserManagerFactory = ldapUserManagerFactory;
         _ldapConfiguration = ldapConfiguration;
+    }
+
+    @Override
+    public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
+        super.configure(name, params);
+        LOGGER.debug("Configuring LDAP Manager");
+
+        messageBus.subscribe(AccountManager.MESSAGE_REMOVE_ACCOUNT_EVENT, new MessageSubscriber() {
+            @Override
+            public void onPublishMessage(String senderAddress, String subject, Object args) {
+                try {
+                    final Account account = accountDao.findByIdIncludingRemoved((Long) args);
+                    long domainId = account.getDomainId();
+                    LdapTrustMapVO ldapTrustMapVO = _ldapTrustMapDao.findByAccount(domainId, account.getAccountId());
+                    if (ldapTrustMapVO != null) {
+                        String msg = String.format("Removing link between LDAP: %s - type: %s and account: %s on domain: %s",
+                                ldapTrustMapVO.getName(), ldapTrustMapVO.getType().name(), account.getAccountId(), domainId);
+                        LOGGER.debug(msg);
+                        _ldapTrustMapDao.remove(ldapTrustMapVO.getId());
+                    }
+                } catch (final Exception e) {
+                    LOGGER.error("Caught exception while removing account linked to LDAP", e);
+                }
+            }
+        });
+
+        return true;
     }
 
     @Override
@@ -342,12 +378,12 @@ public class LdapManagerImpl implements LdapManager, LdapValidator {
         return linkDomainToLdap(cmd.getDomainId(),cmd.getType(), ldapDomain,cmd.getAccountType());
     }
 
-    private LinkDomainToLdapResponse linkDomainToLdap(Long domainId, String type, String name, short accountType) {
+    private LinkDomainToLdapResponse linkDomainToLdap(Long domainId, String type, String name, Account.Type accountType) {
         Validate.notNull(type, "type cannot be null. It should either be GROUP or OU");
         Validate.notNull(domainId, "domainId cannot be null.");
         Validate.notEmpty(name, "GROUP or OU name cannot be empty");
         //Account type should be 0 or 2. check the constants in com.cloud.user.Account
-        Validate.isTrue(accountType==0 || accountType==2, "accountype should be either 0(normal user) or 2(domain admin)");
+        Validate.isTrue(accountType== Account.Type.NORMAL || accountType== Account.Type.DOMAIN_ADMIN, "accountype should be either 0(normal user) or 2(domain admin)");
         LinkType linkType = LdapManager.LinkType.valueOf(type.toUpperCase());
         LdapTrustMapVO vo = _ldapTrustMapDao.persist(new LdapTrustMapVO(domainId, linkType, name, accountType, 0));
         DomainVO domain = domainDao.findById(vo.getDomainId());
@@ -357,7 +393,7 @@ public class LdapManagerImpl implements LdapManager, LdapValidator {
         } else {
             domainUuid = domain.getUuid();
         }
-        LinkDomainToLdapResponse response = new LinkDomainToLdapResponse(domainUuid, vo.getType().toString(), vo.getName(), vo.getAccountType());
+        LinkDomainToLdapResponse response = new LinkDomainToLdapResponse(domainUuid, vo.getType().toString(), vo.getName(), vo.getAccountType().ordinal());
         return response;
     }
 
@@ -407,7 +443,7 @@ public class LdapManagerImpl implements LdapManager, LdapValidator {
             domainUuid = domain.getUuid();
         }
 
-        LinkAccountToLdapResponse response = new LinkAccountToLdapResponse(domainUuid, vo.getType().toString(), vo.getName(), vo.getAccountType(), account.getUuid(), cmd.getAccountName());
+        LinkAccountToLdapResponse response = new LinkAccountToLdapResponse(domainUuid, vo.getType().toString(), vo.getName(), vo.getAccountType().ordinal(), account.getUuid(), cmd.getAccountName());
         return response;
     }
 

@@ -92,9 +92,14 @@ public class CreateNetworkOfferingCmd extends BaseCmd {
     @Parameter(name = ApiConstants.GUEST_IP_TYPE, type = CommandType.STRING, required = true, description = "guest type of the network offering: Shared or Isolated")
     private String guestIptype;
 
+    @Parameter(name = ApiConstants.INTERNET_PROTOCOL,
+            type = CommandType.STRING,
+            description = "The internet protocol of network offering. Options are ipv4 and dualstack. Default is ipv4. dualstack will create a network offering that supports both IPv4 and IPv6",
+            since = "4.17.0")
+    private String internetProtocol;
+
     @Parameter(name = ApiConstants.SUPPORTED_SERVICES,
             type = CommandType.LIST,
-            required = true,
             collectionType = CommandType.STRING,
             description = "services supported by the network offering")
     private List<String> supportedServices;
@@ -158,6 +163,12 @@ public class CreateNetworkOfferingCmd extends BaseCmd {
             since = "4.13")
     private List<Long> zoneIds;
 
+    @Parameter(name = ApiConstants.ENABLE,
+            type = CommandType.BOOLEAN,
+            description = "set to true if the offering is to be enabled during creation. Default is false",
+            since = "4.16")
+    private Boolean enable;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -199,11 +210,15 @@ public class CreateNetworkOfferingCmd extends BaseCmd {
     }
 
     public List<String> getSupportedServices() {
-        return supportedServices;
+        return supportedServices == null ? new ArrayList<String>() : supportedServices;
     }
 
     public String getGuestIpType() {
         return guestIptype;
+    }
+
+    public String getInternetProtocol() {
+        return internetProtocol;
     }
 
     public Boolean getSpecifyIpRanges() {
@@ -335,6 +350,13 @@ public class CreateNetworkOfferingCmd extends BaseCmd {
             zoneIds.addAll(set);
         }
         return zoneIds;
+    }
+
+    public Boolean getEnable() {
+        if (enable != null) {
+            return enable;
+        }
+        return false;
     }
 
     /////////////////////////////////////////////////////
