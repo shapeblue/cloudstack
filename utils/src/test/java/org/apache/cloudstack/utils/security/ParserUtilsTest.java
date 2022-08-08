@@ -33,11 +33,7 @@ public class ParserUtilsTest extends TestCase {
     public void testGetSaferDocumentBuilderFactory() throws ParserConfigurationException {
         final DocumentBuilderFactory factory = ParserUtils.getSaferDocumentBuilderFactory();
         assertTrue(factory.getFeature(XMLConstants.FEATURE_SECURE_PROCESSING));
-        assertTrue(factory.getFeature("http://apache.org/xml/features/disallow-doctype-decl"));
-        assertFalse(factory.getFeature("http://xml.org/sax/features/external-general-entities"));
-        assertFalse(factory.getFeature("http://xml.org/sax/features/external-parameter-entities"));
         assertFalse(factory.getFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd"));
-        assertFalse(factory.isXIncludeAware());
         assertFalse(factory.isExpandEntityReferences());
     }
 
