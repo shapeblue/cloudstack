@@ -48,7 +48,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 import javax.naming.ConfigurationException;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.cloudstack.api.ApiConstants;
@@ -60,6 +59,7 @@ import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.hypervisor.xenserver.ExtraConfigurationUtility;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.cloudstack.utils.security.ParserUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.FileUtils;
@@ -3277,7 +3277,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
         // stability
         if (dynamicMaxRam > staticMax) { // XS contraint that dynamic max <=
             // static max
-            s_logger.warn("dynamic max " + toHumanReadableSize(dynamicMaxRam) + " cant be greater than static max " + toHumanReadableSize(staticMax) + ", this can lead to stability issues. Setting static max as much as dynamic max ");
+            s_logger.warn("dynamic max " + toHumanReadableSize(dynamicMaxRam) + " can't be greater than static max " + toHumanReadableSize(staticMax) + ", this can lead to stability issues. Setting static max as much as dynamic max ");
             return dynamicMaxRam;
         }
         return staticMax;
@@ -3313,7 +3313,7 @@ public abstract class CitrixResourceBase extends ServerResourceBase implements S
             final URLConnection uc = url.openConnection();
             in = new BufferedReader(new InputStreamReader(uc.getInputStream()));
             final InputSource statsSource = new InputSource(in);
-            return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(statsSource);
+            return ParserUtils.getSaferDocumentBuilderFactory().newDocumentBuilder().parse(statsSource);
         } catch (final MalformedURLException e) {
             s_logger.warn("Malformed URL?  come on...." + urlStr);
             return null;
