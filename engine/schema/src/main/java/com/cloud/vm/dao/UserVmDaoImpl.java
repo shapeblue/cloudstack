@@ -79,6 +79,8 @@ public class UserVmDaoImpl extends GenericDaoBase<UserVmVO, Long> implements Use
 
     protected SearchBuilder<UserVmVO> UserVmSearch;
     protected SearchBuilder<UserVmVO> UserVmByIsoSearch;
+
+    protected SearchBuilder<UserVmVO> listByUserdataId;
     protected Attribute _updateTimeAttr;
     // ResourceTagsDaoImpl _tagsDao = ComponentLocator.inject(ResourceTagsDaoImpl.class);
     @Inject
@@ -207,6 +209,10 @@ public class UserVmDaoImpl extends GenericDaoBase<UserVmVO, Long> implements Use
         UserVmByIsoSearch = createSearchBuilder();
         UserVmByIsoSearch.and("isoId", UserVmByIsoSearch.entity().getIsoId(), SearchCriteria.Op.EQ);
         UserVmByIsoSearch.done();
+
+        listByUserdataId = createSearchBuilder();
+        listByUserdataId.and("userDataId", listByUserdataId.entity().getUserDataId(), SearchCriteria.Op.EQ);
+        listByUserdataId.done();
 
         _updateTimeAttr = _allAttributes.get("updateTime");
         assert _updateTimeAttr != null : "Couldn't get this updateTime attribute";
@@ -722,5 +728,12 @@ public class UserVmDaoImpl extends GenericDaoBase<UserVmVO, Long> implements Use
         }
 
         return vmsDetailByNames;
+    }
+
+    @Override
+    public List<UserVmVO> findByUserDataId(long userdataId) {
+        SearchCriteria<UserVmVO> sc = listByUserdataId.create();
+        sc.setParameters("userDataId", userdataId);
+        return listBy(sc);
     }
 }

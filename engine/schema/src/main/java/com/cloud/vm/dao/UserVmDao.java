@@ -95,4 +95,7 @@ public interface UserVmDao extends GenericDao<UserVmVO, Long> {
     List<UserVmVO> listByIsoId(Long isoId);
 
     List<Pair<Pair<String, VirtualMachine.Type>, Pair<Long, String>>> getVmsDetailByNames(Set<String> vmNames, String detail);
+
+    List<UserVmVO> findByUserDataId(long userdataId);
+
 }
