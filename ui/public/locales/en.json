@@ -286,6 +286,7 @@
 "label.action.update.os.preference.processing": "Updating OS Preference....",
 "label.action.update.resource.count": "Update Resource Count",
 "label.action.update.resource.count.processing": "Updating Resource Count....",
+"label.action.userdata.reset": "Reset userdata",
 "label.action.vmsnapshot.create": "Take VM Snapshot",
 "label.action.vmsnapshot.delete": "Delete VM snapshot",
 "label.action.vmsnapshot.revert": "Revert to VM snapshot",
