@@ -536,6 +536,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     public MemStat getMemStat() {
+        _memStat.refresh();
         return _memStat;
     }
 
@@ -2851,7 +2852,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
                         dataStoreUrl = "nfs://" + psHost + File.separator + psPath;
                         physicalDisk = getPhysicalDiskFromNfsStore(dataStoreUrl, data);
                     } else if (primaryDataStoreTO.getPoolType().equals(StoragePoolType.SharedMountPoint) ||
-                            primaryDataStoreTO.getPoolType().equals(StoragePoolType.Filesystem)) {
+                            primaryDataStoreTO.getPoolType().equals(StoragePoolType.Filesystem) ||
+                            primaryDataStoreTO.getPoolType().equals(StoragePoolType.StorPool)) {
                         physicalDisk = getPhysicalDiskPrimaryStore(primaryDataStoreTO, data);
                     }
                 }
@@ -2871,7 +2873,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
                     && (pool.getType() == StoragePoolType.NetworkFilesystem
                     || pool.getType() == StoragePoolType.SharedMountPoint
                     || pool.getType() == StoragePoolType.Filesystem
-                    || pool.getType() == StoragePoolType.Gluster)) {
+                    || pool.getType() == StoragePoolType.Gluster
+                    || pool.getType() == StoragePoolType.StorPool)) {
                 setBackingFileFormat(physicalDisk.getPath());
             }
 
