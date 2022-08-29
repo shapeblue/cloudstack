@@ -48,6 +48,7 @@
               v-if="showTab(tab)">
               <keep-alive>
                 <component
+                  style="width: 100%; height: 100%"
                   v-if="tab.resourceType"
                   :is="tab.component"
                   :resource="resource"

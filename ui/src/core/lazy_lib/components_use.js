@@ -66,6 +66,7 @@ import {
 } from 'ant-design-vue'
 import VueClipboard from 'vue3-clipboard'
 import VueCropper from 'vue-cropper'
+import VNetworkGraph from 'v-network-graph'
 
 export default {
   install: (app) => {
@@ -78,6 +79,7 @@ export default {
 
     app.use(VueClipboard, { autoSetContainer: true })
     app.use(VueCropper)
+    app.use(VNetworkGraph)
     app.use(ConfigProvider)
     app.use(Layout)
     app.use(Input)
