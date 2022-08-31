@@ -40,6 +40,9 @@ export default {
     name: 'nics',
     component: shallowRef(defineAsyncComponent(() => import('@/views/network/NicsTable.vue')))
   }, {
+    name: 'statistics',
+    component: shallowRef(defineAsyncComponent(() => import('@/components/view/StatsTab.vue')))
+  }, {
     name: 'router.health.checks',
     show: (record, route, user) => { return ['Running'].includes(record.state) && ['Admin'].includes(user.roletype) },
     component: shallowRef(defineAsyncComponent(() => import('@views/infra/routers/RouterHealthCheck.vue')))

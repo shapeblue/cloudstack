@@ -44,6 +44,7 @@ import com.cloud.utils.Pair;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.UserVmVO;
+import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VmStatsVO;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.VmStatsDao;
@@ -87,7 +88,7 @@ public class MetricsServiceImplTest {
     Pair<List<UserVmVO>, Integer> expectedVmListAndCounter;
 
     @Mock
-    Pair<List<UserVmVO>, Integer> expectedVmListAndCounterMock;
+    Pair<List<VMInstanceVO>, Integer> expectedVmListAndCounterMock;
 
     @Mock
     Map<Long,List<VmStatsVO>> vmStatsMapMock;
@@ -123,7 +124,7 @@ public class MetricsServiceImplTest {
         Mockito.doReturn(null).when(listVMsUsageHistoryCmdMock).getName();
         Mockito.doReturn(null).when(listVMsUsageHistoryCmdMock).getKeyword();
 
-        Pair<List<UserVmVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
+        Pair<List<VMInstanceVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
 
         Mockito.verify(scMock).setParameters(stringCaptor1.capture(), objectArrayCaptor.capture());
         Assert.assertEquals("idIN", stringCaptor1.getValue());
@@ -141,7 +142,7 @@ public class MetricsServiceImplTest {
         Mockito.doReturn(null).when(listVMsUsageHistoryCmdMock).getName();
         Mockito.doReturn(null).when(listVMsUsageHistoryCmdMock).getKeyword();
 
-        Pair<List<UserVmVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
+        Pair<List<VMInstanceVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
 
         Mockito.verify(scMock).setParameters(stringCaptor1.capture(), objectArrayCaptor.capture());
         Assert.assertEquals("idIN", stringCaptor1.getValue());
@@ -158,7 +159,7 @@ public class MetricsServiceImplTest {
         Mockito.doReturn("fakeName").when(listVMsUsageHistoryCmdMock).getName();
         Mockito.doReturn(null).when(listVMsUsageHistoryCmdMock).getKeyword();
 
-        Pair<List<UserVmVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
+        Pair<List<VMInstanceVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
 
         Mockito.verify(scMock).setParameters(stringCaptor1.capture(), objectArrayCaptor.capture());
         Assert.assertEquals("displayName", stringCaptor1.getValue());
@@ -176,7 +177,7 @@ public class MetricsServiceImplTest {
         Mockito.doReturn(null).when(listVMsUsageHistoryCmdMock).getName();
         Mockito.doReturn("fakeKeyword").when(listVMsUsageHistoryCmdMock).getKeyword();
 
-        Pair<List<UserVmVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
+        Pair<List<VMInstanceVO>, Integer> result = spy.searchForUserVmsInternal(listVMsUsageHistoryCmdMock);
 
         Mockito.verify(scMock, Mockito.times(2)).addOr(stringCaptor1.capture(), opCaptor.capture(), objectArrayCaptor.capture());
         List<String> conditions = stringCaptor1.getAllValues();
@@ -212,7 +213,7 @@ public class MetricsServiceImplTest {
         Map<Long,List<VmStatsVO>> expected = new HashMap<Long,List<VmStatsVO>>();
 
         Map<Long,List<VmStatsVO>> result = spy.searchForVmMetricsStatsInternal(
-                listVMsUsageHistoryCmdMock, new ArrayList<UserVmVO>());
+                listVMsUsageHistoryCmdMock, new ArrayList<VMInstanceVO>());
 
         Mockito.verify(userVmVOMock, Mockito.never()).getId();
         Mockito.verify(spy, Mockito.never()).findVmStatsAccordingToDateParams(

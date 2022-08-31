@@ -39,6 +39,11 @@ export default {
       show: () => { return 'listEvents' in store.getters.apis }
     },
     {
+      name: 'statistics',
+      component: shallowRef(defineAsyncComponent(() => import('@/components/view/StatsTab.vue'))),
+      show: () => { return 'listVirtualMachinesUsageHistory' in store.getters.apis }
+    },
+    {
       name: 'comments',
       component: shallowRef(defineAsyncComponent(() => import('@/components/view/AnnotationsTab.vue')))
     }
