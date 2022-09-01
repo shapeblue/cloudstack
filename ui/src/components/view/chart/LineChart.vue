@@ -14,24 +14,42 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.hypervisor.vmware.manager;
 
-import com.cloud.agent.api.Command;
-import com.cloud.hypervisor.vmware.mo.DatastoreMO;
-import com.cloud.hypervisor.vmware.mo.VmwareHypervisorHost;
-import com.cloud.hypervisor.vmware.util.VmwareContext;
-import com.cloud.storage.resource.VmwareStorageProcessor;
+<template>
+  <Line
+    :chart-options="chartOptions"
+    :chart-data="chartData"
+    :width="width"
+    :height="height"
+  />
+</template>
 
-public interface VmwareHostService {
-    VmwareContext getServiceContext(Command cmd);
+<script>
+import { Line } from 'vue-chartjs'
+import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, CategoryScale, TimeScale, LinearScale, PointElement, Filler } from 'chart.js'
 
-    void invalidateServiceContext(VmwareContext context);
+ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, TimeScale, LinearScale, PointElement, Filler)
 
-    VmwareHypervisorHost getHyperHost(VmwareContext context, Command cmd);
-
-    String getWorkerName(VmwareContext context, Command cmd, int workerSequence, DatastoreMO dsMo) throws Exception;
-
-    String createLogMessageException(Throwable e, Command command);
-
-    VmwareStorageProcessor getStorageProcessor();
+export default {
+  name: 'LineChart',
+  components: { Line },
+  props: {
+    chartData: {
+      type: Object,
+      required: true
+    },
+    chartOptions: {
+      type: Object,
+      default: () => {}
+    },
+    width: {
+      type: Number,
+      default: 650
+    },
+    height: {
+      type: Number,
+      default: 250
+    }
+  }
 }
+</script>
