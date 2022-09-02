@@ -584,7 +584,7 @@ SELECT
     `iso`.`name` AS `iso_name`,
     `iso`.`display_text` AS `iso_display_text`,
     `service_offering`.`id` AS `service_offering_id`,
-    `service_offering`.`uuid` AS `service_offering_uuid`,
+    `svc_disk_offering`.`uuid` AS `service_offering_uuid`,
     `disk_offering`.`uuid` AS `disk_offering_uuid`,
     `disk_offering`.`id` AS `disk_offering_id`,
     (CASE
@@ -601,7 +601,7 @@ SELECT
         END) AS `ram_size`,
     `backup_offering`.`uuid` AS `backup_offering_uuid`,
     `backup_offering`.`id` AS `backup_offering_id`,
-    `service_offering`.`name` AS `service_offering_name`,
+    `svc_disk_offering`.`name` AS `service_offering_name`,
     `disk_offering`.`name` AS `disk_offering_name`,
     `backup_offering`.`name` AS `backup_offering_name`,
     `storage_pool`.`id` AS `pool_id`,
@@ -683,7 +683,7 @@ FROM
         LEFT JOIN `vm_template` `iso` ON ((`iso`.`id` = `user_vm`.`iso_id`)))
         LEFT JOIN `volumes` ON ((`vm_instance`.`id` = `volumes`.`instance_id`)))
         LEFT JOIN `service_offering` ON ((`vm_instance`.`service_offering_id` = `service_offering`.`id`)))
-        LEFT JOIN `disk_offering` `svc_disk_offering` ON ((`volumes`.`disk_offering_id` = `svc_disk_offering`.`id`)))
+        LEFT JOIN `disk_offering` `svc_disk_offering` ON ((`vm_instance`.`service_offering_id` = `svc_disk_offering`.`id`)))
         LEFT JOIN `disk_offering` ON ((`volumes`.`disk_offering_id` = `disk_offering`.`id`)))
         LEFT JOIN `backup_offering` ON ((`vm_instance`.`backup_offering_id` = `backup_offering`.`id`)))
         LEFT JOIN `storage_pool` ON ((`volumes`.`pool_id` = `storage_pool`.`id`)))
