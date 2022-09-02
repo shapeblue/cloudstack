@@ -23,8 +23,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.cloud.server.ResourceIcon;
-import com.cloud.user.UserData;
-import com.cloud.utils.Pair;
 import org.apache.cloudstack.api.response.DirectDownloadCertificateResponse;
 import org.apache.cloudstack.api.response.ResourceIconResponse;
 import org.apache.cloudstack.api.response.DirectDownloadCertificateHostStatusResponse;

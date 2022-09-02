@@ -49,8 +49,6 @@ import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.user.UserData;
 import com.cloud.user.UserDataVO;
 import com.cloud.user.dao.UserDataDao;
-import com.cloud.dc.DomainVlanMapVO;
-import com.cloud.dc.dao.DomainVlanMapDao;
 import com.cloud.utils.db.UUIDManager;
 import com.cloud.vm.dao.DomainRouterDao;
 import com.cloud.vm.dao.NicDao;
@@ -4267,7 +4265,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         try {
             owner = _accountMgr.finalizeOwner(caller, accountName, domainId, projectId);
         } catch (InvalidParameterValueException ex) {
-            if (caller.getType() == Account.Type.ADMIN && accountName != null && domainId != null) {
+            if (caller.getType() == Account.ACCOUNT_TYPE_ADMIN && accountName != null && domainId != null) {
                 owner = _accountDao.findAccountIncludingRemoved(accountName, domainId);
             }
             if (owner == null) {
@@ -4486,6 +4484,15 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
 
         final Account owner = _accountMgr.finalizeOwner(caller, cmd.getAccountName(), cmd.getDomainId(), cmd.getProjectId());
         return owner;
+    }
+
+    /**
+     * @param cmd
+     * @return Account
+     */
+    protected Account getOwner(final RegisterUserDataCmd cmd) {
+        final Account caller = getCaller();
+        return  _accountMgr.finalizeOwner(caller, cmd.getAccountName(), cmd.getDomainId(), cmd.getProjectId());
     }
 
     /**

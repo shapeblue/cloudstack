@@ -37,10 +37,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import com.cloud.utils.security.CertificateHelper;
-import com.cloud.utils.security.CertificateHelper;
 import com.cloud.user.UserData;
-import com.cloud.api.query.dao.UserVmJoinDao;
-import com.cloud.network.vpc.VpcVO;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.affinity.AffinityGroup;
