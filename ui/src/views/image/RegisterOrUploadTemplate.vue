@@ -24,7 +24,7 @@
       {{ $t('message.upload.file.processing') }}
       <a-progress :percent="uploadPercentage" />
     </span>
-    <a-spin :spinning="loading" v-else>
+    <a-spin v-else :spinning="loading">
       <a-form
         :form="form"
         @submit="handleSubmit"
@@ -345,7 +345,7 @@
                 :filterOption="(input, option) => {
                   return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }"
-                v-model:value="userdataid"
+                v-model="userdataid"
                 :placeholder="linkUserDataParams.userdataid.description"
                 :loading="userdata.loading">
                 <a-select-option v-for="opt in userdata.opts" :key="opt.id">
@@ -360,7 +360,7 @@
                 <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
               </template>
               <a-select
-                v-model:value="userdatapolicy"
+                v-model="userdatapolicy"
                 :placeholder="linkUserDataParams.userdatapolicy.description"
                 optionFilterProp="label"
                 :filterOption="(input, option) => {

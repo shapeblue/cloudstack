@@ -17,7 +17,7 @@
 
 <template>
   <div class="form-layout">
-    <a-spin :spinning="loading" v-if="!isSubmitted">
+    <a-spin v-if="!isSubmitted" :spinning="loading">
       <p v-html="$t('message.desc.register.user.data')"></p>
       <a-form
         v-ctrl-enter="handleSubmit"
@@ -31,7 +31,7 @@
             <tooltip-label :title="$t('label.name')" :tooltip="apiParams.name.description"/>
           </template>
           <a-input
-            v-model:value="form.name"
+            v-model="form.name"
             :placeholder="apiParams.name.description"
             v-focus="true" />
         </a-form-item>
@@ -40,7 +40,7 @@
             <tooltip-label :title="$t('label.userdata')" :tooltip="apiParams.userdata.description"/>
           </template>
           <a-textarea
-            v-model:value="form.userdata"
+            v-model="form.userdata"
             :placeholder="apiParams.userdata.description"/>
         </a-form-item>
         <a-form-item name="params" ref="params">
@@ -49,7 +49,7 @@
           </template>
           <a-select
             mode="tags"
-            v-model:value="form.params"
+            v-model="form.params"
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
@@ -67,13 +67,13 @@
           </template>
           <a-select
             id="domain-selection"
-            v-model:value="form.domainid"
+            v-model="form.domainid"
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
               return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
-              :loading="domainLoading"
+            :loading="domainLoading"
             :placeholder="apiParams.domainid.description"
             @change="val => { handleDomainChanged(domains[val]) }">
             <a-select-option v-for="(opt, optIndex) in domains" :key="optIndex">
@@ -86,7 +86,7 @@
             <tooltip-label :title="$t('label.account')" :tooltip="apiParams.account.description"/>
           </template>
           <a-input
-            v-model:value="form.account"
+            v-model="form.account"
             :placeholder="apiParams.account.description"/>
         </a-form-item>
 
@@ -113,7 +113,7 @@ import { api } from '@/api'
 import TooltipLabel from '@/components/widgets/TooltipLabel'
 
 export default {
-  name: 'registerUserData',
+  name: 'RegisterUserData',
   props: {},
   components: {
     TooltipLabel

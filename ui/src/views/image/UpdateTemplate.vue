@@ -133,7 +133,7 @@
                 :filterOption="(input, option) => {
                   return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }"
-                v-model:value="userdataid"
+                v-model="userdataid"
                 :placeholder="linkUserDataParams.userdataid.description"
                 :loading="userdata.loading">
                 <a-select-option v-for="opt in userdata.opts" :key="opt.id">
@@ -148,7 +148,7 @@
                 <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
               </template>
               <a-select
-                v-model:value="userdatapolicy"
+                v-model="userdatapolicy"
                 :placeholder="linkUserDataParams.userdatapolicy.description"
                 optionFilterProp="label"
                 :filterOption="(input, option) => {
@@ -165,7 +165,7 @@
           <template #label>
             <tooltip-label :title="$t('label.isdynamicallyscalable')" :tooltip="apiParams.isdynamicallyscalable.description"/>
           </template>
-          <a-switch v-model:checked="form.isdynamicallyscalable" />
+          <a-switch :checked="form.isdynamicallyscalable" />
         </a-form-item>
         <a-form-item v-if="isAdmin">
           <tooltip-label slot="label" :title="$t('label.templatetype')" :tooltip="apiParams.templatetype.description"/>

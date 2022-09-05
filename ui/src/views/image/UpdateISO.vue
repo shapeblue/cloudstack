@@ -29,7 +29,7 @@
             <tooltip-label :title="$t('label.name')" :tooltip="apiParams.name.description"/>
           </template>
           <a-input
-            v-model:value="form.name"
+            v-model="form.name"
             :placeholder="apiParams.name.description"
             autoFocus />
         </a-form-item>
@@ -38,7 +38,7 @@
             <tooltip-label :title="$t('label.displaytext')" :tooltip="apiParams.displaytext.description"/>
           </template>
           <a-input
-            v-model:value="form.displaytext"
+            v-model="form.displaytext"
             :placeholder="apiParams.displaytext.description"
             autoFocus />
         </a-form-item>
@@ -50,7 +50,7 @@
             :filterOption="(input, option) => {
               return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
-            v-model:value="form.ostypeid"
+            v-model="form.ostypeid"
             :loading="osTypes.loading"
             :placeholder="apiParams.ostypeid.description">
             <a-select-option v-for="opt in osTypes.opts" :key="opt.id">
@@ -71,7 +71,7 @@
                 :filterOption="(input, option) => {
                   return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }"
-                v-model:value="userdataid"
+                v-model="userdataid"
                 :placeholder="linkUserDataParams.userdataid.description"
                 :loading="userdata.loading">
                 <a-select-option v-for="opt in userdata.opts" :key="opt.id">
@@ -86,7 +86,7 @@
                 <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
               </template>
               <a-select
-                v-model:value="userdatapolicy"
+                v-model="userdatapolicy"
                 :placeholder="linkUserDataParams.userdatapolicy.description"
                 optionFilterProp="label"
                 :filterOption="(input, option) => {
