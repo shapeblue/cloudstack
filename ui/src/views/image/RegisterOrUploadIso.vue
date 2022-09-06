@@ -138,34 +138,31 @@
 
         <a-row :gutter="12">
           <a-col :md="24" :lg="12">
-            <a-form-item
-              name="userdataid"
-              ref="userdataid"
-              :label="$t('label.userdata')">
+            <a-form-item :label="$t('label.userdata')">
               <a-select
-                showSearch
-                optionFilterProp="label"
-                :filterOption="(input, option) => {
-                  return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                }"
-                v-model="userdataid"
+                v-decorator="['userdataid', {}]"
+                v-model="userdatapolicy"
                 :placeholder="linkUserDataParams.userdataid.description"
-                :loading="userdata.loading">
+                showSearch
+                optionFilterProp="children"
+                :filterOption="(input, option) => {
+                  return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                }"
+                :loading="userdata.loading" >
                 <a-select-option v-for="opt in userdata.opts" :key="opt.id">
-                  {{ opt.name || opt.description }}
+                  {{ opt.id || opt.description }}
                 </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :md="24" :lg="12">
-            <a-form-item ref="userdatapolicy" name="userdatapolicy">
-              <template #label>
-                <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
-              </template>
+            <a-form-item>
+              <tooltip-label slot="label" :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
               <a-select
+                v-decorator="['userdatapolicy', {}]"
                 v-model="userdatapolicy"
                 :placeholder="linkUserDataParams.userdatapolicy.description"
-                optionFilterProp="label"
+                optionFilterProp="children"
                 :filterOption="(input, option) => {
                   return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }" >
