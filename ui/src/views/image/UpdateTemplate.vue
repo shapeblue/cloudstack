@@ -123,17 +123,15 @@
         </a-row>
         <a-row :gutter="12">
           <a-col :md="24" :lg="12">
-            <a-form-item
-              name="userdataid"
-              ref="userdataid"
-              :label="$t('label.userdata')">
+            <a-form-item>
+              <tooltip-label slot="label" :title="$t('label.userdata')" :tooltip="$t('label.userdata.tooltip')"/>
               <a-select
                 showSearch
-                optionFilterProp="label"
+                optionFilterProp="children"
                 :filterOption="(input, option) => {
-                  return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  return option.componentOptions.children[0].text.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }"
-                v-model="userdataid"
+                v-decorator="['userdataid', {}]"
                 :placeholder="linkUserDataParams.userdataid.description"
                 :loading="userdata.loading">
                 <a-select-option v-for="opt in userdata.opts" :key="opt.id">
@@ -143,14 +141,12 @@
             </a-form-item>
           </a-col>
           <a-col :md="24" :lg="12">
-            <a-form-item ref="userdatapolicy" name="userdatapolicy">
-              <template #label>
-                <tooltip-label :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
-              </template>
+            <a-form-item>
+              <tooltip-label slot="label" :title="$t('label.userdatapolicy')" :tooltip="$t('label.userdatapolicy.tooltip')"/>
               <a-select
-                v-model="userdatapolicy"
+                v-decorator="['userdatapolicy', {}]"
                 :placeholder="linkUserDataParams.userdatapolicy.description"
-                optionFilterProp="label"
+                optionFilterProp="children"
                 :filterOption="(input, option) => {
                   return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }" >
@@ -161,11 +157,9 @@
             </a-form-item>
           </a-col>
         </a-row>
-        <a-form-item name="isdynamicallyscalable" ref="isdynamicallyscalable">
-          <template #label>
-            <tooltip-label :title="$t('label.isdynamicallyscalable')" :tooltip="apiParams.isdynamicallyscalable.description"/>
-          </template>
-          <a-switch :checked="form.isdynamicallyscalable" />
+        <a-form-item>
+          <tooltip-label slot="label" :title="$t('label.isdynamicallyscalable')" :tooltip="apiParams.isdynamicallyscalable.description"/>
+          <a-switch v-decorator="['isdynamicallyscalable', {}]" />
         </a-form-item>
         <a-form-item v-if="isAdmin">
           <tooltip-label slot="label" :title="$t('label.templatetype')" :tooltip="apiParams.templatetype.description"/>

@@ -21,39 +21,33 @@
       <p v-html="$t('message.desc.register.user.data')"></p>
       <a-form
         v-ctrl-enter="handleSubmit"
-        :ref="formRef"
-        :model="form"
-        :rules="rules"
+        :form="form"
         @finish="handleSubmit"
         layout="vertical">
-        <a-form-item name="name" ref="name">
-          <template #label>
-            <tooltip-label :title="$t('label.name')" :tooltip="apiParams.name.description"/>
-          </template>
+        <a-form-item>
+          <tooltip-label slot="label" :title="$t('label.name')" :tooltip="apiParams.name.description"/>
           <a-input
-            v-model="form.name"
+            v-decorator="['name', {
+              rules: [{ required: true, message: `${$t('message.error.required.input')}` }]
+            }]"
             :placeholder="apiParams.name.description"
             v-focus="true" />
         </a-form-item>
-        <a-form-item name="userdata" ref="userdata">
-          <template #label>
-            <tooltip-label :title="$t('label.userdata')" :tooltip="apiParams.userdata.description"/>
-          </template>
+        <a-form-item>
+          <tooltip-label slot="label" :title="$t('label.userdata')" :tooltip="apiParams.userdata.description"/>
           <a-textarea
-            v-model="form.userdata"
+            v-decorator="['userdata']"
             :placeholder="apiParams.userdata.description"/>
         </a-form-item>
-        <a-form-item name="params" ref="params">
-          <template #label>
-            <tooltip-label :title="$t('label.userdataparams')" :tooltip="apiParams.params.description"/>
-          </template>
+        <a-form-item>
+          <tooltip-label slot="label" :title="$t('label.userdataparams')" :tooltip="apiParams.params.description"/>
           <a-select
             mode="tags"
-            v-model="form.params"
+            v-decorator="['params']"
             showSearch
-            optionFilterProp="label"
+            optionFilterProp="children"
             :filterOption="(input, option) => {
-              return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.componentOptions.children[0].text.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
             :placeholder="apiParams.params.description">
             <a-select-option v-for="opt in params" :key="opt">
@@ -61,17 +55,15 @@
             </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item name="domainid" ref="domainid" v-if="isAdminOrDomainAdmin()">
-          <template #label>
-            <tooltip-label :title="$t('label.domainid')" :tooltip="apiParams.domainid.description"/>
-          </template>
+        <a-form-item v-if="isAdminOrDomainAdmin()">
+          <tooltip-label slot="label" :title="$t('label.domainid')" :tooltip="apiParams.domainid.description"/>
           <a-select
             id="domain-selection"
-            v-model="form.domainid"
+            v-decorator="['domainid']"
             showSearch
-            optionFilterProp="label"
+            optionFilterProp="children"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.componentOptions.children[0].text.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
             :loading="domainLoading"
             :placeholder="apiParams.domainid.description"
@@ -81,12 +73,10 @@
             </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item name="account" ref="account" v-if="isAdminOrDomainAdmin() && !isObjectEmpty(selectedDomain) && selectedDomain.id !== null">
-          <template #label>
-            <tooltip-label :title="$t('label.account')" :tooltip="apiParams.account.description"/>
-          </template>
+        <a-form-item v-if="isAdminOrDomainAdmin() && !isObjectEmpty(selectedDomain) && selectedDomain.id !== null">
+          <tooltip-label :slot="label" :title="$t('label.account')" :tooltip="apiParams.account.description"/>
           <a-input
-            v-model="form.account"
+            v-decorator="['account']"
             :placeholder="apiParams.account.description"/>
         </a-form-item>
 
@@ -108,7 +98,7 @@
 </template>
 
 <script>
-import { ref, reactive, toRaw } from 'vue'
+import { toRaw } from 'vue'
 import { api } from '@/api'
 import TooltipLabel from '@/components/widgets/TooltipLabel'
 
@@ -130,9 +120,9 @@ export default {
   },
   beforeCreate () {
     this.apiParams = this.$getApiParams('registerUserData')
+    this.form = this.$form.createForm(this)
   },
   created () {
-    this.initForm()
     this.domains = [
       {
         id: null,
@@ -142,14 +132,6 @@ export default {
     this.fetchData()
   },
   methods: {
-    initForm () {
-      this.formRef = ref()
-      this.form = reactive({})
-      this.rules = reactive({
-        name: [{ required: true, message: this.$t('message.error.name') }],
-        userdata: [{ required: true, message: this.$t('message.error.userdata') }]
-      })
-    },
     fetchData () {
       if (this.isAdminOrDomainAdmin()) {
         this.fetchDomainData()
