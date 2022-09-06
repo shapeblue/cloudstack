@@ -378,7 +378,7 @@ export default {
           dataView: true,
           show: (record) => { return ['Stopped'].includes(record.state) },
           popup: true,
-          component: shallowRef(defineAsyncComponent(() => import('@/views/compute/ResetUserData')))
+          component: () => import('@/views/compute/ResetUserData')
         },
         {
           api: 'assignVirtualMachine',
@@ -671,11 +671,11 @@ export default {
       tabs: [
         {
           name: 'details',
-          component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
+          component: () => import('@/components/view/DetailsTab.vue')
         },
         {
           name: 'comments',
-          component: shallowRef(defineAsyncComponent(() => import('@/components/view/AnnotationsTab.vue')))
+          component: () => import('@/components/view/AnnotationsTab.vue')
         }
       ],
       actions: [
@@ -686,7 +686,7 @@ export default {
           docHelp: 'adminguide/virtual_machines.html#creating-the-ssh-keypair',
           listView: true,
           popup: true,
-          component: shallowRef(defineAsyncComponent(() => import('@/views/compute/RegisterUserData.vue')))
+          component: () => import('@/views/compute/RegisterUserData.vue')
         },
         {
           api: 'deleteUserData',

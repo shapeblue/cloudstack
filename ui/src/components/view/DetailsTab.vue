@@ -46,7 +46,7 @@
           {{ $toLocaleDate(resource[item]) }}
         </div>
         <div v-else-if="$route.meta.name === 'userdata' && item === 'userdata'">
-          <div style="white-space: pre-wrap;"> {{ decodeUserData(resource.userdata)}} </div>
+          <div style="white-space: pre-wrap;"> {{ decodeUserData(resource.userdata) }} </div>
         </div>
         <div v-else>{{ resource[item] }}</div>
       </div>

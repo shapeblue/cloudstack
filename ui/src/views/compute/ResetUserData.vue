@@ -18,20 +18,20 @@
 <template>
   <a-spin :spinning="loadingData">
     <a-form
-            :ref="formRef"
-            :model="form"
-            :rules="rules"
-            layout="vertical"
-            class="form"
-            v-ctrl-enter="handleSubmit"
-            @finish="handleSubmit">
+      :ref="formRef"
+      :model="form"
+      :rules="rules"
+      layout="vertical"
+      class="form"
+      v-ctrl-enter="handleSubmit"
+      @finish="handleSubmit">
       <div v-if="template && template.userdataid">
         <a-text type="primary">
-            The template "{{ $t(this.template.name) }}" is linked to Userdata "{{ $t(this.template.userdataname) }}" with override policy "{{ $t(this.template.userdatapolicy) }}"
+          The template "{{ $t(this.template.name) }}" is linked to Userdata "{{ $t(this.template.userdataname) }}" with override policy "{{ $t(this.template.userdatapolicy) }}"
         </a-text><br/><br/>
         <div v-if="templateUserDataParams.length > 0 && !doUserdataOverride">
           <a-text type="primary" v-if="this.template && this.template.userdataid && templateUserDataParams.length > 0">
-              Enter the values for the variables in userdata
+            Enter the values for the variables in userdata
           </a-text>
           <a-input-group>
             <a-table
@@ -42,7 +42,7 @@
               :pagination="false"
               :rowKey="record => record.key">
               <template #value="{ record }">
-                <a-input v-model:value="templateUserDataValues[record.key]" />
+                <a-input v-model="templateUserDataValues[record.key]" />
               </template>
             </a-table>
           </a-input-group>
@@ -51,11 +51,11 @@
       <div v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE' || userdataDefaultOverridePolicy === 'APPEND' || !userdataDefaultOverridePolicy">
         <span v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE'" >
           {{ $t('label.userdata.do.override') }}
-          <a-switch v-model:checked="doUserdataOverride" style="margin-left: 10px"/>
+          <a-switch checked="doUserdataOverride" style="margin-left: 10px"/>
         </span>
         <span v-if="userdataDefaultOverridePolicy === 'APPEND'">
           {{ $t('label.userdata.do.append') }}
-          <a-switch v-model:checked="doUserdataAppend" style="margin-left: 10px"/>
+          <a-switch :checked="doUserdataAppend" style="margin-left: 10px"/>
         </span>
         <a-step>
           <template #description>
@@ -88,7 +88,7 @@
                               :pagination="false"
                               :rowKey="record => record.key">
                               <template #value="{ record }">
-                                <a-input v-model:value="userDataValues[record.key]" />
+                                <a-input v-model="userDataValues[record.key]" />
                               </template>
                             </a-table>
                           </a-input-group>
@@ -101,7 +101,7 @@
                   <a-form-item name="userdata" ref="userdata" >
                     <a-textarea
                       placeholder="Userdata"
-                      v-model:value="form.userdata">
+                      v-model="form.userdata">
                     </a-textarea>
                   </a-form-item>
                 </div>

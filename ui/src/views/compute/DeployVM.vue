@@ -544,130 +544,132 @@
                     </a-form-item>
                     <span>
                       {{ $t('label.show.registered.userdata') }}
-                      <a-switch v-model:checked="showRegisteredUserdata" style="margin-left: 10px"/>
+                      <a-switch :checked="showRegisteredUserdata" style="margin-left: 10px"/>
                     </span>
                     <div style="margin-top: 15px" v-show="!showRegisteredUserdata">
                       <a-form-item name="userdata" ref="userdata" >
                         <a-textarea
                           placeholder="Userdata"
-                          v-model:value="form.userdata">
+                          v-model="form.userdata">
                         </a-textarea>
                       </a-form-item>
                     </div>
-                    <div style="margin-top: 15px" v-show="showRegisteredUserdata">
-                      <a-card>
-                        <div v-if="this.template && this.template.userdataid">
-                          <a-text type="primary">
+                    <a-form-item :label="$t('label.userdata')">
+                      <div style="margin-top: 15px" v-show="showRegisteredUserdata">
+                        <a-card>
+                          <div v-if="this.template && this.template.userdataid">
+                            <a-text type="primary">
                               Userdata "{{ $t(this.template.userdataname) }}" is linked with template "{{ $t(this.template.name) }}" with override policy "{{ $t(this.template.userdatapolicy) }}"
-                          </a-text><br/><br/>
-                          <div v-if="templateUserDataParams.length > 0 && !doUserdataOverride">
-                            <a-text type="primary" v-if="this.template && this.template.userdataid && templateUserDataParams.length > 0">
+                            </a-text><br/><br/>
+                            <div v-if="templateUserDataParams.length > 0 && !doUserdataOverride">
+                              <a-text type="primary" v-if="this.template && this.template.userdataid && templateUserDataParams.length > 0">
                                 Enter the values for the variables in userdata
-                            </a-text>
-                            <a-input-group>
-                              <a-table
-                                size="small"
-                                style="overflow-y: auto"
-                                :columns="userDataParamCols"
-                                :dataSource="templateUserDataParams"
-                                :pagination="false"
-                                :rowKey="record => record.key">
-                                <template #value="{ record }">
-                                  <a-input v-model:value="templateUserDataValues[record.key]" />
-                                </template>
-                              </a-table>
-                            </a-input-group>
+                              </a-text>
+                              <a-input-group>
+                                <a-table
+                                  size="small"
+                                  style="overflow-y: auto"
+                                  :columns="userDataParamCols"
+                                  :dataSource="templateUserDataParams"
+                                  :pagination="false"
+                                  :rowKey="record => record.key">
+                                  <template #value="{ record }">
+                                    <a-input v-model="templateUserDataValues[record.key]" />
+                                  </template>
+                                </a-table>
+                              </a-input-group>
+                            </div>
                           </div>
-                        </div>
-                        <div v-if="this.iso && this.iso.userdataid">
-                          <a-text type="primary">
+                          <div v-if="this.iso && this.iso.userdataid">
+                            <a-text type="primary">
                               Userdata "{{ $t(this.iso.userdataname) }}" is linked with ISO "{{ $t(this.iso.name) }}" with override policy "{{ $t(this.iso.userdatapolicy) }}"
-                          </a-text><br/><br/>
-                          <div v-if="templateUserDataParams.length > 0 && !doUserdataOverride">
-                            <a-text type="primary" v-if="this.iso && this.iso.userdataid && templateUserDataParams.length > 0">
+                            </a-text><br/><br/>
+                            <div v-if="templateUserDataParams.length > 0 && !doUserdataOverride">
+                              <a-text type="primary" v-if="this.iso && this.iso.userdataid && templateUserDataParams.length > 0">
                                 Enter the values for the variables in userdata
-                            </a-text>
-                            <a-input-group>
-                              <a-table
-                                size="small"
-                                style="overflow-y: auto"
-                                :columns="userDataParamCols"
-                                :dataSource="templateUserDataParams"
-                                :pagination="false"
-                                :rowKey="record => record.key">
-                                <template #value="{ record }">
-                                  <a-input v-model:value="templateUserDataValues[record.key]" />
-                                </template>
-                              </a-table>
-                            </a-input-group>
-                          </div>
-                        </div><br/><br/>
-                        <div v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE' || userdataDefaultOverridePolicy === 'APPEND' || !userdataDefaultOverridePolicy">
-                          <span v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE'" >
-                            {{ $t('label.userdata.do.override') }}
-                            <a-switch v-model:checked="doUserdataOverride" style="margin-left: 10px"/>
-                          </span>
-                          <span v-if="userdataDefaultOverridePolicy === 'APPEND'">
-                            {{ $t('label.userdata.do.append') }}
-                            <a-switch v-model:checked="doUserdataAppend" style="margin-left: 10px"/>
-                          </span>
-                          <a-step
-                            :status="zoneSelected ? 'process' : 'wait'">
-                            <template #description>
-                              <div v-if="doUserdataOverride || doUserdataAppend || !userdataDefaultOverridePolicy" style="margin-top: 15px">
-                                <a-card
-                                  :tabList="userdataTabList"
-                                  :activeTabKey="userdataTabKey"
-                                  @tabChange="key => onUserdataTabChange(key, 'userdataTabKey')">
-                                  <div v-if="userdataTabKey === 'userdataregistered'">
-                                    <a-step
-                                      v-if="isUserAllowedToListUserDatas"
-                                      :status="zoneSelected ? 'process' : 'wait'">
-                                      <template #description>
-                                        <div v-if="zoneSelected">
-                                          <user-data-selection
-                                            :items="options.userDatas"
-                                            :row-count="rowCount.userDatas"
-                                            :zoneId="zoneId"
-                                            :disabled="template.userdatapolicy === 'DENYOVERRIDE'"
-                                            :loading="loading.userDatas"
-                                            :preFillContent="dataPreFill"
-                                            @select-user-data-item="($event) => updateUserData($event)"
-                                            @handle-search-filter="($event) => handleSearchFilter('userData', $event)"
-                                          />
-                                          <div v-if="userDataParams.length > 0">
-                                            <a-input-group>
-                                              <a-table
-                                                size="small"
-                                                style="overflow-y: auto"
-                                                :columns="userDataParamCols"
-                                                :dataSource="userDataParams"
-                                                :pagination="false"
-                                                :rowKey="record => record.key">
-                                                <template #value="{ record }">
-                                                  <a-input v-model:value="userDataValues[record.key]" />
-                                                </template>
-                                              </a-table>
-                                            </a-input-group>
+                              </a-text>
+                              <a-input-group>
+                                <a-table
+                                  size="small"
+                                  style="overflow-y: auto"
+                                  :columns="userDataParamCols"
+                                  :dataSource="templateUserDataParams"
+                                  :pagination="false"
+                                  :rowKey="record => record.key">
+                                  <template #value="{ record }">
+                                    <a-input v-model="templateUserDataValues[record.key]" />
+                                  </template>
+                                </a-table>
+                              </a-input-group>
+                            </div>
+                          </div><br/><br/>
+                          <div v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE' || userdataDefaultOverridePolicy === 'APPEND' || !userdataDefaultOverridePolicy">
+                            <span v-if="userdataDefaultOverridePolicy === 'ALLOWOVERRIDE'" >
+                              {{ $t('label.userdata.do.override') }}
+                              <a-switch :checked="doUserdataOverride" style="margin-left: 10px"/>
+                            </span>
+                            <span v-if="userdataDefaultOverridePolicy === 'APPEND'">
+                              {{ $t('label.userdata.do.append') }}
+                              <a-switch :checked="doUserdataAppend" style="margin-left: 10px"/>
+                            </span>
+                            <a-step
+                              :status="zoneSelected ? 'process' : 'wait'">
+                              <template #description>
+                                <div v-if="doUserdataOverride || doUserdataAppend || !userdataDefaultOverridePolicy" style="margin-top: 15px">
+                                  <a-card
+                                    :tabList="userdataTabList"
+                                    :activeTabKey="userdataTabKey"
+                                    @tabChange="key => onUserdataTabChange(key, 'userdataTabKey')">
+                                    <div v-if="userdataTabKey === 'userdataregistered'">
+                                      <a-step
+                                        v-if="isUserAllowedToListUserDatas"
+                                        :status="zoneSelected ? 'process' : 'wait'">
+                                        <template #description>
+                                          <div v-if="zoneSelected">
+                                            <user-data-selection
+                                              :items="options.userDatas"
+                                              :row-count="rowCount.userDatas"
+                                              :zoneId="zoneId"
+                                              :disabled="template.userdatapolicy === 'DENYOVERRIDE'"
+                                              :loading="loading.userDatas"
+                                              :preFillContent="dataPreFill"
+                                              @select-user-data-item="($event) => updateUserData($event)"
+                                              @handle-search-filter="($event) => handleSearchFilter('userData', $event)"
+                                            />
+                                            <div v-if="userDataParams.length > 0">
+                                              <a-input-group>
+                                                <a-table
+                                                  size="small"
+                                                  style="overflow-y: auto"
+                                                  :columns="userDataParamCols"
+                                                  :dataSource="userDataParams"
+                                                  :pagination="false"
+                                                  :rowKey="record => record.key">
+                                                  <template #value="{ record }">
+                                                    <a-input v-model="userDataValues[record.key]" />
+                                                  </template>
+                                                </a-table>
+                                              </a-input-group>
+                                            </div>
                                           </div>
-                                        </div>
-                                      </template>
-                                    </a-step>
-                                  </div>
-                                  <div v-else>
-                                    <a-form-item name="userdata" ref="userdata" >
-                                      <a-textarea
-                                        placeholder="Userdata"
-                                        v-model:value="form.userdata">
-                                      </a-textarea>
-                                    </a-form-item>
-                                  </div>
-                                </a-card>
-                              </div>
-                            </template>
-                          </a-step>
-                        </div>
-                      </a-card>
+                                        </template>
+                                      </a-step>
+                                    </div>
+                                    <div v-else>
+                                      <a-form-item name="userdata" ref="userdata" >
+                                        <a-textarea
+                                          placeholder="Userdata"
+                                          v-model="form.userdata">
+                                        </a-textarea>
+                                      </a-form-item>
+                                    </div>
+                                  </a-card>
+                                </div>
+                              </template>
+                            </a-step>
+                          </div>
+                        </a-card>
+                      </div>
                     </a-form-item>
                     <a-form-item :label="this.$t('label.affinity.groups')">
                       <affinity-group-selection
@@ -1332,37 +1334,37 @@ export default {
         this.vm.defaultnetworkid = this.defaultnetworkid
       }
 
-        if (this.template) {
-          this.vm.templateid = this.template.id
-          this.vm.templatename = this.template.displaytext
-          this.vm.ostypeid = this.template.ostypeid
-          this.vm.ostypename = this.template.ostypename
-        }
+      if (this.template) {
+        this.vm.templateid = this.template.id
+        this.vm.templatename = this.template.displaytext
+        this.vm.ostypeid = this.template.ostypeid
+        this.vm.ostypename = this.template.ostypename
+      }
 
-        if (this.iso) {
-          this.vm.isoid = this.iso.id
-          this.vm.templateid = this.iso.id
-          this.vm.templatename = this.iso.displaytext
-          this.vm.ostypeid = this.iso.ostypeid
-          this.vm.ostypename = this.iso.ostypename
-          if (this.hypervisor) {
-            this.vm.hypervisor = this.hypervisor
-          }
+      if (this.iso) {
+        this.vm.isoid = this.iso.id
+        this.vm.templateid = this.iso.id
+        this.vm.templatename = this.iso.displaytext
+        this.vm.ostypeid = this.iso.ostypeid
+        this.vm.ostypename = this.iso.ostypename
+        if (this.hypervisor) {
+          this.vm.hypervisor = this.hypervisor
         }
+      }
 
-        if (this.serviceOffering) {
-          this.vm.serviceofferingid = this.serviceOffering.id
-          this.vm.serviceofferingname = this.serviceOffering.displaytext
-          if (this.serviceOffering.cpunumber) {
-            this.vm.cpunumber = this.serviceOffering.cpunumber
-          }
-          if (this.serviceOffering.cpuspeed) {
-            this.vm.cpuspeed = this.serviceOffering.cpuspeed
-          }
-          if (this.serviceOffering.memory) {
-            this.vm.memory = this.serviceOffering.memory
-          }
+      if (this.serviceOffering) {
+        this.vm.serviceofferingid = this.serviceOffering.id
+        this.vm.serviceofferingname = this.serviceOffering.displaytext
+        if (this.serviceOffering.cpunumber) {
+          this.vm.cpunumber = this.serviceOffering.cpunumber
         }
+        if (this.serviceOffering.cpuspeed) {
+          this.vm.cpuspeed = this.serviceOffering.cpuspeed
+        }
+        if (this.serviceOffering.memory) {
+          this.vm.memory = this.serviceOffering.memory
+        }
+      }
 
       if (!this.template.deployasis && this.template.childtemplates && this.template.childtemplates.length > 0) {
         this.vm.diskofferingid = ''
