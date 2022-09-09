@@ -35,28 +35,14 @@ setup_dhcpsrvr() {
   enable_irqbalance 0
   enable_fwding 0
 
-#<<<<<<< HEAD
-#=======
-#  cp /etc/iptables/iptables-dhcpsrvr /etc/iptables/rules.v4
-#
-#>>>>>>> ak-ht-rebase-4.13
-#  #Only allow DNS service for current network
-#  sed -i "s/-A INPUT -i eth0 -p udp -m udp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p udp -m udp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
-#  sed -i "s/-A INPUT -i eth0 -p tcp -m tcp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p tcp -m tcp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
-#
-#<<<<<<< HEAD
-#=======
-#  if [ "$SSHONGUEST" == "true" ]
-#  then
-#    setup_sshd $ETH0_IP "eth0"
-#  else
-#    setup_sshd $ETH1_IP "eth1"
-#  fi
-#
-#  #disable and stop rpcbind service on DHCP server
-#  chkconfig rpcbind off
-#  service rpcbind stop
-#>>>>>>> ak-ht-rebase-4.13
+  #Only allow DNS service for current network
+  sed -i "s/-A INPUT -i eth0 -p udp -m udp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p udp -m udp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
+  sed -i "s/-A INPUT -i eth0 -p tcp -m tcp --dport 53 -j ACCEPT/-A INPUT -i eth0 -p tcp -m tcp --dport 53 -s $DHCP_RANGE\/$CIDR_SIZE -j ACCEPT/g" /etc/iptables/rules.v4
+
+  log_it "Disable radvd for dhcp server system vm"
+  rm -rf /etc/radvd.conf
+  systemctl stop radvd
+  systemctl disable radvd
 }
 
 dhcpsrvr_svcs
