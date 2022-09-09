@@ -227,6 +227,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Param(description = "Base64 string representation of the resource icon", since = "4.16.0.0")
     ResourceIconResponse icon;
 
+    @SerializedName(ApiConstants.BOOT_FILENAME)
+    @Param(description = "The boot file name to use when pxe booting.")
+    private String bootFilename;
+
     public TemplateResponse() {
         tags = new LinkedHashSet<>();
     }
@@ -466,5 +470,13 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Override
     public void setResourceIconResponse(ResourceIconResponse icon) {
         this.icon = icon;
+    }
+
+    public String getBootFilename() {
+        return bootFilename;
+    }
+
+    public void setBootFilename(String bootFilename) {
+        this.bootFilename = bootFilename;
     }
 }

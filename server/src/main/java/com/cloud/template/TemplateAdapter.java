@@ -26,6 +26,7 @@ import org.apache.cloudstack.api.command.user.template.DeleteTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.ExtractTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.GetUploadParamsForTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.RegisterTemplateCmd;
+import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
 
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
@@ -34,7 +35,6 @@ import com.cloud.storage.TemplateProfile;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.user.Account;
 import com.cloud.utils.component.Adapter;
-import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
 
 public interface TemplateAdapter extends Adapter {
     public static class TemplateAdapterType {
@@ -80,4 +80,10 @@ public interface TemplateAdapter extends Adapter {
                             Boolean featured, Boolean isExtractable, String format, Long guestOSId, List<Long> zoneId, HypervisorType hypervisorType, String chksum, Boolean bootable, String templateTag, Account templateOwner, Map details, Boolean sshKeyEnabled, String imageStoreUuid, Boolean isDynamicallyScalable,
                             TemplateType templateType, boolean directDownload, boolean deployAsIs) throws ResourceAllocationException;
 
+    TemplateProfile prepare(boolean isIso, long userId, String name, String displayText, Integer bits,
+       Boolean passwordEnabled, Boolean requiresHVM, String url, Boolean isPublic, Boolean featured,
+       Boolean isExtractable, String format, Long guestOSId, List<Long> zoneId, HypervisorType hypervisorType,
+       String chksum, Boolean bootable, String templateTag, Account templateOwner, Map details, Boolean sshKeyEnabled,
+       String imageStoreUuid, Boolean isDynamicallyScalable, TemplateType templateType, boolean directDownload,
+       boolean deployAsIs, String bootFilename) throws ResourceAllocationException;
 }

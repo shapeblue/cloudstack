@@ -3431,14 +3431,17 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         return _serviceOfferingDetailsDao.findZoneIds(serviceOfferingId);
     }
 
-    protected DiskOfferingVO createDiskOffering(final Long userId, final List<Long> domainIds, final List<Long> zoneIds, final String name, final String description, final String provisioningType,
-                                                final Long numGibibytes, String tags, boolean isCustomized, final boolean localStorageRequired,
-                                                final boolean isDisplayOfferingEnabled, final Boolean isCustomizedIops, Long minIops, Long maxIops,
-                                                Long bytesReadRate, Long bytesReadRateMax, Long bytesReadRateMaxLength,
-                                                Long bytesWriteRate, Long bytesWriteRateMax, Long bytesWriteRateMaxLength,
-                                                Long iopsReadRate, Long iopsReadRateMax, Long iopsReadRateMaxLength,
-                                                Long iopsWriteRate, Long iopsWriteRateMax, Long iopsWriteRateMaxLength,
-                                                final Integer hypervisorSnapshotReserve, String cacheMode, final Map<String, String> details, final Long storagePolicyID, final boolean diskSizeStrictness) {
+    protected DiskOfferingVO createDiskOffering(final Long userId, final List<Long> domainIds, final List<Long> zoneIds,
+        final String name, final String description, final String provisioningType,
+        final Long numGibibytes, String tags, boolean isCustomized, final boolean localStorageRequired,
+        final boolean isDisplayOfferingEnabled, final Boolean isCustomizedIops, Long minIops, Long maxIops,
+        Long bytesReadRate, Long bytesReadRateMax, Long bytesReadRateMaxLength,
+        Long bytesWriteRate, Long bytesWriteRateMax, Long bytesWriteRateMaxLength,
+        Long iopsReadRate, Long iopsReadRateMax, Long iopsReadRateMaxLength,
+        Long iopsWriteRate, Long iopsWriteRateMax, Long iopsWriteRateMaxLength,
+        final Integer hypervisorSnapshotReserve, String cacheMode, final Map<String, String> details,
+        final Long storagePolicyID, final boolean diskSizeStrictness,
+        Long minIopsPerGb, Long maxIopsPerGb, Long highestMinIops, Long highestMaxIops) {
         long diskSize = 0;// special case for custom disk offerings
         long maxVolumeSizeInGb = VolumeOrchestrationService.MaxVolumeSize.value();
         if (numGibibytes != null && numGibibytes <= 0) {
@@ -3454,6 +3457,61 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
 
         if (diskSize == 0) {
             isCustomized = true;
+        }
+
+        if (minIopsPerGb != null || maxIopsPerGb != null) {
+
+            if (!isCustomized) {
+               throw new InvalidParameterValueException("Cannot set Min/Max IOPS/GB for a fixed size disk offering");
+            }
+
+            if ((isCustomizedIops != null && isCustomizedIops) || minIops != null || maxIops != null) {
+                throw new InvalidParameterValueException("Cannot set Min/Max IOPS/GB with either " +
+                        "custom IOPS or fixed IOPS");
+            }
+
+            if (minIopsPerGb != null && maxIopsPerGb != null) {
+                if (minIopsPerGb <= 0 || maxIopsPerGb <= 0) {
+                    throw new InvalidParameterValueException("Min/Max IOPS/GB value must be greater than 0");
+                }
+
+                if (minIopsPerGb > maxIopsPerGb){
+                    throw new InvalidParameterValueException("Min IOPS/GB must be greater than max IOPS/GB");
+                }
+            }
+
+            //if either one of them is set but the other is not
+            if ((minIopsPerGb != null && maxIopsPerGb == null) || (minIopsPerGb == null && maxIopsPerGb != null)) {
+                throw new InvalidParameterValueException("Both min IOPS/GB and max IOPS/GB must be specified");
+            }
+        }
+
+        if (highestMinIops != null && highestMaxIops != null) {
+            if (highestMinIops > highestMaxIops){
+                throw new InvalidParameterValueException("highestminiops must be less than highestmaxiops");
+            }
+            if (highestMinIops <= 0 || highestMaxIops <= 0) {
+                throw new InvalidParameterValueException("highestminiops/highestmaxiops value must be greater than 0");
+            }
+
+
+            if (minIopsPerGb == null && (isCustomizedIops == null || !isCustomizedIops)) {
+                throw new InvalidParameterValueException("highestminops specified but none of customizediops or miniopspergb specified");
+            }
+            if (minIops != null) {
+                throw new InvalidParameterValueException("highestminiops cannot be specified with fixed miniops");
+            }
+
+            if (maxIopsPerGb == null && (isCustomizedIops == null || !isCustomizedIops)) {
+                throw new InvalidParameterValueException("highestmaxiops specified but none of customizediops or maxiopspergb specified");
+            }
+            if (maxIops != null) {
+                throw new InvalidParameterValueException("highestmaxiops cannot be specified with fixed maxiops");
+            }
+        }else {
+            if (highestMaxIops != null || highestMinIops != null) {
+                throw new InvalidParameterValueException("Both highestminiops and highestmaxiops should be specified");
+            }
         }
 
         if (Boolean.TRUE.equals(isCustomizedIops) || isCustomizedIops == null) {
@@ -3478,14 +3536,14 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
             }
         }
 
-        // Filter child domains when both parent and child domains are present
-        List<Long> filteredDomainIds = filterChildSubDomains(domainIds);
-
         // Check if user exists in the system
         final User user = _userDao.findById(userId);
         if (user == null || user.getRemoved() != null) {
             throw new InvalidParameterValueException("Unable to find active user by id " + userId);
         }
+
+        // Filter child domains when both parent and child domains are present
+        List<Long> filteredDomainIds = filterChildSubDomains(domainIds);
         final Account account = _accountDao.findById(user.getAccountId());
         if (account.getType() == Account.Type.DOMAIN_ADMIN) {
             if (filteredDomainIds.isEmpty()) {
@@ -3514,6 +3572,20 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
 
         if (cacheMode != null) {
             newDiskOffering.setCacheMode(DiskOffering.DiskCacheMode.valueOf(cacheMode.toUpperCase()));
+        }
+
+        if (highestMinIops != null && highestMinIops > 0) {
+            newDiskOffering.setHighestMinIops(highestMinIops);
+        }
+        if (highestMaxIops != null && highestMaxIops > 0) {
+            newDiskOffering.setHighestMaxIops(highestMaxIops);
+        }
+
+        if (minIopsPerGb != null && minIopsPerGb > 0) {
+            newDiskOffering.setMinIopsPerGb(minIopsPerGb);
+        }
+        if (maxIopsPerGb != null && maxIopsPerGb > 0) {
+            newDiskOffering.setMaxIopsPerGb(maxIopsPerGb);
         }
 
         if (hypervisorSnapshotReserve != null && hypervisorSnapshotReserve < 0) {
@@ -3630,6 +3702,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
         final Long iopsWriteRateMax = cmd.getIopsWriteRateMax();
         final Long iopsWriteRateMaxLength = cmd.getIopsWriteRateMaxLength();
         final Integer hypervisorSnapshotReserve = cmd.getHypervisorSnapshotReserve();
+
         final String cacheMode = cmd.getCacheMode();
 
         validateMaxRateEqualsOrGreater(iopsReadRate, iopsReadRateMax, IOPS_READ_RATE);
@@ -3639,12 +3712,18 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
 
         validateMaximumIopsAndBytesLength(iopsReadRateMaxLength, iopsWriteRateMaxLength, bytesReadRateMaxLength, bytesWriteRateMaxLength);
 
+        final Long minIopsPerGb = cmd.getMinIopsPerGb();
+        final Long maxIopsPerGb = cmd.getMaxIopsPerGb();
+        final Long highestMinIops = cmd.getHighestMinIops();
+        final Long highestMaxIops = cmd.getHighestMaxIops();
+
         final Long userId = CallContext.current().getCallingUserId();
         return createDiskOffering(userId, domainIds, zoneIds, name, description, provisioningType, numGibibytes, tags, isCustomized,
                 localStorageRequired, isDisplayOfferingEnabled, isCustomizedIops, minIops,
                 maxIops, bytesReadRate, bytesReadRateMax, bytesReadRateMaxLength, bytesWriteRate, bytesWriteRateMax, bytesWriteRateMaxLength,
                 iopsReadRate, iopsReadRateMax, iopsReadRateMaxLength, iopsWriteRate, iopsWriteRateMax, iopsWriteRateMaxLength,
-                hypervisorSnapshotReserve, cacheMode, details, storagePolicyId, diskSizeStrictness);
+                hypervisorSnapshotReserve, cacheMode, details, storagePolicyId, diskSizeStrictness, minIopsPerGb,
+                maxIopsPerGb, highestMinIops, highestMaxIops);
     }
 
     /**
@@ -4640,7 +4719,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
                 }
                 if (!StringUtils.isAllEmpty(ipv6Range, vlan.getIp6Range())) {
                     String r1 = StringUtils.isEmpty(ipv6Range) ? NetUtils.getIpv6RangeFromCidr(vlanIp6Cidr) : ipv6Range;
-                    String r2 = StringUtils.isEmpty(vlan.getIp6Range()) ? NetUtils.getIpv6RangeFromCidr(vlanIp6Cidr) : vlan.getIp6Range();
+                    String r2 = StringUtils.isEmpty(vlan.getIp6Range()) ? NetUtils.getIpv6RangeFromCidr(vlan.getIp6Cidr()) : vlan.getIp6Range();
                     if(NetUtils.isIp6RangeOverlap(r1, r2)) {
                         throw new InvalidParameterValueException(String.format("The IPv6 range with tag: %s already has IPs that overlap with the new range.",
                                 vlan.getVlanTag()));

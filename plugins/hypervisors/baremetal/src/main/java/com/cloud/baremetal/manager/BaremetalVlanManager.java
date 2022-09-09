@@ -19,11 +19,8 @@ package com.cloud.baremetal.manager;
 
 import com.cloud.baremetal.networkservice.BaremetalRctResponse;
 import com.cloud.baremetal.networkservice.BaremetalSwitchBackend;
-import com.cloud.deploy.DeployDestination;
-import com.cloud.network.Network;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.PluggableService;
-import com.cloud.vm.VirtualMachineProfile;
 import org.apache.cloudstack.api.AddBaremetalRctCmd;
 import org.apache.cloudstack.api.DeleteBaremetalRctCmd;
 
@@ -31,13 +28,15 @@ public interface BaremetalVlanManager extends Manager, PluggableService {
 
     BaremetalRctResponse addRct(AddBaremetalRctCmd cmd);
 
-    void prepareVlan(Network nw, DeployDestination destHost);
-
-    void releaseVlan(Network nw, VirtualMachineProfile vm);
-
     void registerSwitchBackend(BaremetalSwitchBackend backend);
 
     void deleteRct(DeleteBaremetalRctCmd cmd);
+
+    void prepareVlan(int vlanId, String macAddress, VlanType type);
+
+    void releaseVlan(int vlanId, String macAddress, VlanType type);
+
+    void releaseAllVlan(String macAddress, VlanType type);
 
     BaremetalRctResponse listRct();
 }

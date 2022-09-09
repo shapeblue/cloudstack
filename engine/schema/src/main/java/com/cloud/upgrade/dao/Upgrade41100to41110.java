@@ -31,7 +31,7 @@ import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.exception.CloudRuntimeException;
 
 public class Upgrade41100to41110 implements DbUpgrade {
-    final static Logger LOG = Logger.getLogger(Upgrade41000to41100.class);
+    final static Logger LOG = Logger.getLogger(Upgrade41100to41110.class);
 
     @Override
     public String[] getUpgradableVersionRange() {

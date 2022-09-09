@@ -161,6 +161,18 @@ public class DiskOfferingJoinVO extends BaseViewVO implements InternalIdentity, 
     @Column(name = "disk_size_strictness")
     boolean diskSizeStrictness;
 
+    @Column(name = "min_iops_per_gb")
+    Long minIopsPerGb;
+
+    @Column(name = "max_iops_per_gb")
+    Long maxIopsPerGb;
+
+    @Column(name = "highest_min_iops")
+    Long highestMinIops;
+
+    @Column(name = "highest_max_iops")
+    Long highestMaxIops;
+
     public DiskOfferingJoinVO() {
     }
 
@@ -348,5 +360,22 @@ public class DiskOfferingJoinVO extends BaseViewVO implements InternalIdentity, 
 
     public boolean getDiskSizeStrictness() {
         return diskSizeStrictness;
+    }
+
+    public Long getMinIopsPerGb() {
+        return minIopsPerGb;
+    }
+
+    public Long getMaxIopsPerGb() {
+        return maxIopsPerGb;
+    }
+
+    public Long getHighestMinIops() {
+        return highestMinIops;
+    }
+
+    public Long getHighestMaxIops() {
+        return highestMaxIops;
+
     }
 }

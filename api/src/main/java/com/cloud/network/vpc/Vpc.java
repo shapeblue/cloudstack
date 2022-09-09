@@ -16,11 +16,11 @@
 // under the License.
 package com.cloud.network.vpc;
 
+import java.util.Date;
+
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.api.InternalIdentity;
-
-import java.util.Date;
 
 public interface Vpc extends ControlledEntity, Identity, InternalIdentity {
 
@@ -55,6 +55,12 @@ public interface Vpc extends ControlledEntity, Identity, InternalIdentity {
      * @return VPC offering id - the offering that VPC is created from
      */
     long getVpcOfferingId();
+
+    /**
+     *
+     * @return Network boot ip
+     */
+    String getNetworkBootIp();
 
     /**
      *
@@ -95,4 +101,6 @@ public interface Vpc extends ControlledEntity, Identity, InternalIdentity {
     void setRollingRestart(boolean rollingRestart);
 
     Date getCreated();
+
+    void setNetworkBootIp(String networkBootIp);
 }

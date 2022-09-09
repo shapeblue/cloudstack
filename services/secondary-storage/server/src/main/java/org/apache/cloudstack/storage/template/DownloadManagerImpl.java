@@ -16,6 +16,8 @@
 // under the License.
 package org.apache.cloudstack.storage.template;
 
+import static com.cloud.utils.NumbersUtil.toHumanReadableSize;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -37,55 +39,55 @@ import java.util.concurrent.Executors;
 
 import javax.naming.ConfigurationException;
 
-import com.cloud.agent.api.to.OVFInformationTO;
-import com.cloud.storage.template.Processor;
-import com.cloud.storage.template.S3TemplateDownloader;
-import com.cloud.storage.template.TemplateDownloader;
-import com.cloud.storage.template.TemplateLocation;
-import com.cloud.storage.template.MetalinkTemplateDownloader;
-import com.cloud.storage.template.HttpTemplateDownloader;
-import com.cloud.storage.template.LocalTemplateDownloader;
-import com.cloud.storage.template.ScpTemplateDownloader;
-import com.cloud.storage.template.TemplateProp;
-import com.cloud.storage.template.OVAProcessor;
-import com.cloud.storage.template.IsoProcessor;
-import com.cloud.storage.template.QCOW2Processor;
-import com.cloud.storage.template.VmdkProcessor;
-import com.cloud.storage.template.RawImageProcessor;
-import com.cloud.storage.template.TARProcessor;
-import com.cloud.storage.template.VhdProcessor;
-import com.cloud.storage.template.TemplateConstants;
+import org.apache.cloudstack.storage.NfsMountManagerImpl.PathParser;
 import org.apache.cloudstack.storage.command.DownloadCommand;
 import org.apache.cloudstack.storage.command.DownloadCommand.ResourceType;
 import org.apache.cloudstack.storage.command.DownloadProgressCommand;
 import org.apache.cloudstack.storage.command.DownloadProgressCommand.RequestType;
-import org.apache.cloudstack.storage.NfsMountManagerImpl.PathParser;
 import org.apache.cloudstack.storage.resource.NfsSecondaryStorageResource;
 import org.apache.cloudstack.storage.resource.SecondaryStorageResource;
+import org.apache.cloudstack.utils.security.ChecksumValue;
+import org.apache.cloudstack.utils.security.DigestHelper;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.storage.DownloadAnswer;
-import com.cloud.utils.net.Proxy;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.NfsTO;
+import com.cloud.agent.api.to.OVFInformationTO;
 import com.cloud.agent.api.to.S3TO;
+import com.cloud.agent.api.to.SwiftTO;
 import com.cloud.exception.InternalErrorException;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.StorageLayer;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
+import com.cloud.storage.template.HttpTemplateDownloader;
+import com.cloud.storage.template.IsoProcessor;
+import com.cloud.storage.template.LocalTemplateDownloader;
+import com.cloud.storage.template.MetalinkTemplateDownloader;
+import com.cloud.storage.template.OVAProcessor;
+import com.cloud.storage.template.Processor;
 import com.cloud.storage.template.Processor.FormatInfo;
+import com.cloud.storage.template.QCOW2Processor;
+import com.cloud.storage.template.RawImageProcessor;
+import com.cloud.storage.template.S3TemplateDownloader;
+import com.cloud.storage.template.ScpTemplateDownloader;
+import com.cloud.storage.template.SwiftVolumeDownloader;
+import com.cloud.storage.template.TARProcessor;
+import com.cloud.storage.template.TemplateConstants;
+import com.cloud.storage.template.TemplateDownloader;
 import com.cloud.storage.template.TemplateDownloader.DownloadCompleteCallback;
 import com.cloud.storage.template.TemplateDownloader.Status;
+import com.cloud.storage.template.TemplateLocation;
+import com.cloud.storage.template.TemplateProp;
+import com.cloud.storage.template.VhdProcessor;
+import com.cloud.storage.template.VmdkProcessor;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.net.Proxy;
 import com.cloud.utils.script.Script;
 import com.cloud.utils.storage.QCOW2Utils;
-import org.apache.cloudstack.utils.security.ChecksumValue;
-import org.apache.cloudstack.utils.security.DigestHelper;
-import org.apache.commons.lang3.StringUtils;
-
-import static com.cloud.utils.NumbersUtil.toHumanReadableSize;
 
 public class DownloadManagerImpl extends ManagerBase implements DownloadManager {
     private String _name;
@@ -140,6 +142,19 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
             this.templatesize = 0;
             this.id = id;
             this.resourceType = resourceType;
+        }
+
+        public DownloadJob(TemplateDownloader td, String jobId, long id, String tmpltName, ImageFormat format, String installPathPrefix) {
+            super();
+            this.td = td;
+            this.tmpltName = tmpltName;
+            this.format = format;
+            this.hvm = false;
+            this.description = null;
+            this.installPathPrefix = installPathPrefix;
+            this.templatesize = 0;
+            this.id = id;
+            this.resourceType = null;
         }
 
         public String getDescription() {
@@ -304,8 +319,27 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
                     td.setStatus(Status.POST_DOWNLOAD_FINISHED);
                     td.setDownloadError("Install completed successfully at " + new SimpleDateFormat().format(new Date()));
                 }
-            }
-            else {
+            } else if (td instanceof SwiftVolumeDownloader) {
+                dj.setCheckSum(((SwiftVolumeDownloader) td).getMd5sum());
+                if ("vhd".equals(((SwiftVolumeDownloader) td).getFileExtension()) ||
+                        "VHD".equals(((SwiftVolumeDownloader) td).getFileExtension())) {
+                    Processor vhdProcessor = _processors.get("VHD Processor");
+                    long virtualSize = 0;
+                    try {
+                        virtualSize = vhdProcessor.getVirtualSize(((SwiftVolumeDownloader) td).getVolumeFile());
+                        dj.setTemplatesize(virtualSize);
+                    } catch (IOException e) {
+                        LOGGER.error("Unable to read VHD file", e);
+                        e.printStackTrace();
+                    }
+                } else {
+                    dj.setTemplatesize(((SwiftVolumeDownloader) td).getDownloadedBytes());
+                }
+                dj.setTemplatePhysicalSize(((SwiftVolumeDownloader) td).getDownloadedBytes());
+                dj.setTmpltPath(((SwiftVolumeDownloader) td).getDownloadLocalPath());
+                td.setStatus(Status.POST_DOWNLOAD_FINISHED);
+                td.setDownloadError("Volume downloaded to swift cache successfully at " + new SimpleDateFormat().format(new Date()));
+            } else {
                 // For other TemplateDownloaders where files are locally available,
                 // we run the postLocalDownload() method.
                 td.setDownloadError("Download success, starting install ");
@@ -550,7 +584,7 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
 
     @Override
     public String downloadS3Template(S3TO s3, long id, String url, String name, ImageFormat format, boolean hvm, Long accountId, String descr, String cksum,
-            String installPathPrefix, String user, String password, long maxTemplateSizeInBytes, Proxy proxy, ResourceType resourceType) {
+                                     String installPathPrefix, String user, String password, long maxTemplateSizeInBytes, Proxy proxy, ResourceType resourceType) {
         UUID uuid = UUID.randomUUID();
         String jobId = uuid.toString();
 
@@ -571,6 +605,36 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
             throw new CloudRuntimeException("Unable to download from URL: " + url);
         }
         DownloadJob dj = new DownloadJob(td, jobId, id, name, format, hvm, accountId, descr, cksum, installPathPrefix, resourceType);
+        dj.setTmpltPath(installPathPrefix);
+        jobs.put(jobId, dj);
+        threadPool.execute(td);
+
+        return jobId;
+    }
+
+    @Override
+    public String downloadSwiftVolume(DownloadCommand cmd, String installPathPrefix, long maxDownloadSizeInBytes) {
+        UUID uuid = UUID.randomUUID();
+        String jobId = uuid.toString();
+        //TODO get from global config
+        long maxVolumeSizeInBytes = maxDownloadSizeInBytes;
+        URI uri = null;
+        try {
+            uri = new URI(cmd.getUrl());
+        } catch (URISyntaxException e) {
+            throw new CloudRuntimeException("URI is incorrect: " + cmd.getUrl());
+        }
+        TemplateDownloader td;
+        if ((uri != null) && (uri.getScheme() != null)) {
+            if (uri.getScheme().equalsIgnoreCase("http") || uri.getScheme().equalsIgnoreCase("https")) {
+                td = new SwiftVolumeDownloader(cmd, new Completion(jobId), maxVolumeSizeInBytes, installPathPrefix);
+            } else {
+                throw new CloudRuntimeException("Scheme is not supported " + cmd.getUrl());
+            }
+        } else {
+            throw new CloudRuntimeException("Unable to download from URL: " + cmd.getUrl());
+        }
+        DownloadJob dj = new DownloadJob(td, jobId, cmd.getId(), cmd.getName(), cmd.getFormat(), cmd.getInstallPath());
         dj.setTmpltPath(installPathPrefix);
         jobs.put(jobId, dj);
         threadPool.execute(td);
@@ -734,7 +798,7 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         this._processTimeout = timeout;
         ResourceType resourceType = cmd.getResourceType();
         if (cmd instanceof DownloadProgressCommand) {
-            return handleDownloadProgressCmd(resource, (DownloadProgressCommand)cmd);
+            return handleDownloadProgressCmd(resource, (DownloadProgressCommand) cmd);
         }
 
         if (cmd.getUrl() == null) {
@@ -746,7 +810,7 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
             return new DownloadAnswer("Invalid Name", VMTemplateStorageResourceAssoc.Status.DOWNLOAD_ERROR);
         }
 
-        if(! DigestHelper.isAlgorithmSupported(cmd.getChecksum())) {
+        if (cmd.getChecksum() != null && !DigestHelper.isAlgorithmSupported(cmd.getChecksum())) {
             return new DownloadAnswer("invalid algorithm: " + cmd.getChecksum(), VMTemplateStorageResourceAssoc.Status.NOT_DOWNLOADED);
         }
 
@@ -754,7 +818,9 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         String installPathPrefix = cmd.getInstallPath();
         // for NFS, we need to get mounted path
         if (dstore instanceof NfsTO) {
-            installPathPrefix = resource.getRootDir(((NfsTO)dstore).getUrl(), _nfsVersion) + File.separator + installPathPrefix;
+            installPathPrefix = resource.getRootDir(((NfsTO) dstore).getUrl(), _nfsVersion) + File.separator + installPathPrefix;
+        } else if (dstore instanceof SwiftTO) {
+            installPathPrefix = resource.getRootDir(cmd.getCacheStore().getUrl(),_nfsVersion);
         }
         String user = null;
         String password = null;
@@ -768,8 +834,10 @@ public class DownloadManagerImpl extends ManagerBase implements DownloadManager 
         String jobId = null;
         if (dstore instanceof S3TO) {
             jobId =
-                    downloadS3Template((S3TO)dstore, cmd.getId(), cmd.getUrl(), cmd.getName(), cmd.getFormat(), cmd.isHvm(), cmd.getAccountId(), cmd.getDescription(),
+                    downloadS3Template((S3TO) dstore, cmd.getId(), cmd.getUrl(), cmd.getName(), cmd.getFormat(), cmd.isHvm(), cmd.getAccountId(), cmd.getDescription(),
                             cmd.getChecksum(), installPathPrefix, user, password, maxDownloadSizeInBytes, cmd.getProxy(), resourceType);
+        } else if (dstore instanceof SwiftTO) {
+            jobId = downloadSwiftVolume(cmd, installPathPrefix, maxDownloadSizeInBytes);
         } else {
             jobId =
                     downloadPublicTemplate(cmd.getId(), cmd.getUrl(), cmd.getName(), cmd.getFormat(), cmd.isHvm(), cmd.getAccountId(), cmd.getDescription(),

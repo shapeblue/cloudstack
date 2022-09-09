@@ -16,7 +16,7 @@
 -- under the License.
 
 --;
--- Schema upgrade from 4.10.0.0 to 4.11.0.0
+-- Schema upgrade from 4.10.0.240 to 4.11.0.0;
 --;
 
 --;
@@ -25,7 +25,7 @@
 DROP PROCEDURE IF EXISTS `cloud`.`IDEMPOTENT_ADD_COLUMN`;
 
 CREATE PROCEDURE `cloud`.`IDEMPOTENT_ADD_COLUMN` (
-		IN in_table_name VARCHAR(200)
+        IN in_table_name VARCHAR(200)
     , IN in_column_name VARCHAR(200)
     , IN in_column_definition VARCHAR(1000)
 )
@@ -36,7 +36,7 @@ BEGIN
 DROP PROCEDURE IF EXISTS `cloud`.`IDEMPOTENT_DROP_FOREIGN_KEY`;
 
 CREATE PROCEDURE `cloud`.`IDEMPOTENT_DROP_FOREIGN_KEY` (
-		IN in_table_name VARCHAR(200)
+        IN in_table_name VARCHAR(200)
     , IN in_foreign_key_name VARCHAR(200)
 )
 BEGIN
@@ -46,7 +46,7 @@ BEGIN
 DROP PROCEDURE IF EXISTS `cloud`.`IDEMPOTENT_DROP_INDEX`;
 
 CREATE PROCEDURE `cloud`.`IDEMPOTENT_DROP_INDEX` (
-		IN in_index_name VARCHAR(200)
+        IN in_index_name VARCHAR(200)
     , IN in_table_name VARCHAR(200)
 )
 BEGIN
@@ -56,7 +56,7 @@ BEGIN
 DROP PROCEDURE IF EXISTS `cloud`.`IDEMPOTENT_CREATE_UNIQUE_INDEX`;
 
 CREATE PROCEDURE `cloud`.`IDEMPOTENT_CREATE_UNIQUE_INDEX` (
-		IN in_index_name VARCHAR(200)
+        IN in_index_name VARCHAR(200)
     , IN in_table_name VARCHAR(200)
     , IN in_index_definition VARCHAR(1000)
 )

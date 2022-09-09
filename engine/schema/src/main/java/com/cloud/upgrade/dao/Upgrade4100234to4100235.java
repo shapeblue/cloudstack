@@ -14,29 +14,26 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
 package com.cloud.upgrade.dao;
 
 import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
-import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.log4j.Logger;
 
-public class Upgrade41120to41200 implements DbUpgrade {
+import com.cloud.utils.exception.CloudRuntimeException;
 
-    final static Logger LOG = Logger.getLogger(Upgrade41120to41200.class);
+public class Upgrade4100234to4100235 implements DbUpgrade {
+    final static Logger LOG = Logger.getLogger(Upgrade4100234to4100235.class);
 
     @Override
     public String[] getUpgradableVersionRange() {
-        return new String[] {"4.11.2.0", "4.12.0.0"};
+        return new String[] {"4.10.0.234", "4.10.0.235"};
     }
 
     @Override
     public String getUpgradedVersion() {
-        return "4.12.0.0";
+        return "4.10.0.235";
     }
 
     @Override
@@ -46,7 +43,7 @@ public class Upgrade41120to41200 implements DbUpgrade {
 
     @Override
     public InputStream[] getPrepareScripts() {
-        final String scriptFile = "META-INF/db/schema-41120to41200.sql";
+        final String scriptFile = "META-INF/db/schema-4100234to4100235.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
@@ -57,20 +54,11 @@ public class Upgrade41120to41200 implements DbUpgrade {
 
     @Override
     public void performDataMigration(Connection conn) {
-        updateManagementServerHostUuid(conn);
-    }
-
-    private void updateManagementServerHostUuid(Connection conn) {
-        try (final PreparedStatement updateStatement = conn.prepareStatement("UPDATE cloud.mshost SET uuid=UUID()")) {
-            updateStatement.executeUpdate();
-        } catch (SQLException e) {
-            LOG.error("Failed to add an UUID to each management server.", e);
-        }
     }
 
     @Override
     public InputStream[] getCleanupScripts() {
-        final String scriptFile = "META-INF/db/schema-41120to41200-cleanup.sql";
+        final String scriptFile = "META-INF/db/schema-4100234to4100235-cleanup.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);

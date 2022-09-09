@@ -1133,6 +1133,9 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
             if (result == null || result.isEmpty()) {
                 s_logger.error(" vpc network usage get returns empty ");
             }
+            if (result.contains(",")) {
+                result = result.split(",")[0];
+            }
             long[] stats = new long[2];
             if (result != null) {
                 String[] splitResult = result.split(":");
@@ -7670,5 +7673,10 @@ public class VmwareResource extends ServerResourceBase implements StoragePoolRes
         } catch (Exception e) {
             s_logger.error(String.format("Failed to log command %s due to: [%s].", cmd.getClass().getSimpleName(), e.getMessage()), e);
         }
+    }
+
+    @Override
+    public VmwareStorageProcessor getStorageProcessor() {
+        return _storageProcessor;
     }
 }

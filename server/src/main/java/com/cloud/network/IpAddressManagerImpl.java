@@ -954,6 +954,29 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
 
                 if (lockOneRow) {
                     assert (addrs.size() == 1) : "Return size is incorrect: " + addrs.size();
+//=======
+//                assert(addrs.size() == 1) : "Return size is incorrect: " + addrs.size();
+//
+//                if (!fetchFromDedicatedRange && VlanType.VirtualNetwork.equals(vlanUse)) {
+//                    // Check that the maximum number of public IPs for the given accountId will not be exceeded
+//                    try {
+//                        _resourceLimitMgr.checkResourceLimit(owner, ResourceType.public_ip);
+//                    } catch (ResourceAllocationException ex) {
+//                        s_logger.warn("Failed to allocate resource of type " + ex.getResourceType() + " for account " + owner);
+//                        throw new AccountLimitException("Maximum number of public IP addresses for account: " + owner.getAccountName() + " has been exceeded.");
+//                    }
+//                }
+//
+//                IPAddressVO finalAddr = getIpAddressVO(addrs, sourceNat, owner, isSystem, displayIp, vlanUse, guestNetworkId, vpcId, ignoreIp);
+//
+//                if(finalAddr == null && ignoreIp != null) {
+//                    finalAddr = getIpAddressVO(addrs, sourceNat, owner, isSystem, displayIp, vlanUse, guestNetworkId, vpcId, null);
+//                }
+//
+//                if (finalAddr == null) {
+//                    s_logger.error("Failed to fetch any free public IP address");
+//                    throw new CloudRuntimeException("Failed to fetch any free public IP address");
+//>>>>>>> ak-ht-rebase-4.13
                 }
                 if (assign) {
                     assignAndAllocateIpAddressEntry(owner, vlanUse, guestNetworkId, sourceNat, allocate,
@@ -962,6 +985,46 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
                 return addrs;
             }
         });
+    }
+
+    private IPAddressVO getIpAddressVO(List<IPAddressVO> addrs, boolean sourceNat, Account owner, boolean isSystem, Boolean displayIp, VlanType vlanUse, Long guestNetworkId, Long vpcId, String ignoreIp) {
+        IPAddressVO finalAddr = null;
+        for (final IPAddressVO possibleAddr: addrs) {
+            if(ignoreIp != null && ignoreIp.equals(possibleAddr.getAddress().addr())) {
+                continue;
+            }
+
+            if (possibleAddr.getState() != State.Free) {
+                continue;
+            }
+
+            final IPAddressVO addr = possibleAddr;
+            addr.setSourceNat(sourceNat);
+            addr.setAllocatedTime(new Date());
+            addr.setAllocatedInDomainId(owner.getDomainId());
+            addr.setAllocatedToAccountId(owner.getId());
+            addr.setSystem(isSystem);
+
+            if (displayIp != null) {
+                addr.setDisplay(displayIp);
+            }
+
+            if (vlanUse != VlanType.DirectAttached) {
+                addr.setAssociatedWithNetworkId(guestNetworkId);
+                addr.setVpcId(vpcId);
+            }
+            if (_ipAddressDao.lockRow(possibleAddr.getId(), true) != null) {
+                final IPAddressVO userIp = _ipAddressDao.findById(addr.getId());
+                if (userIp.getState() == State.Free) {
+                    addr.setState(State.Allocating);
+                    if (_ipAddressDao.update(addr.getId(), addr)) {
+                        finalAddr = addr;
+                        break;
+                    }
+                }
+            }
+        }
+        return finalAddr;
     }
 
     @DB
@@ -1032,7 +1095,13 @@ public class IpAddressManagerImpl extends ManagerBase implements IpAddressManage
     @Override
     public PublicIp assignDedicateIpAddress(Account owner, final Long guestNtwkId, final Long vpcId, final long dcId, final boolean isSourceNat)
             throws ConcurrentOperationException, InsufficientAddressCapacityException {
+        return assignDedicateIpAddress(owner, guestNtwkId, vpcId, dcId, isSourceNat, null);
+    }
 
+    @DB
+    @Override
+    public PublicIp assignDedicateIpAddress(Account owner, final Long guestNtwkId, final Long vpcId, final long dcId, final boolean isSourceNat, String ignoreIp)
+            throws ConcurrentOperationException, InsufficientAddressCapacityException {
         final long ownerId = owner.getId();
 
         PublicIp ip = null;

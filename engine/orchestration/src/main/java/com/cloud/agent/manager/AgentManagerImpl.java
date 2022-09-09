@@ -288,7 +288,9 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
     @Override
     public void unregisterForHostEvents(final int id) {
         s_logger.debug("Deregistering " + id);
-        _hostMonitors.remove(id);
+        synchronized (_hostMonitors) {
+            _hostMonitors.remove(id);
+        }
     }
 
     private AgentControlAnswer handleControlCommand(final AgentAttache attache, final AgentControlCommand cmd) {
@@ -537,55 +539,60 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         if (removed != null) {
             removed.disconnect(nextState);
         }
-
-        for (final Pair<Integer, Listener> monitor : _hostMonitors) {
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("Sending Disconnect to listener: " + monitor.second().getClass().getName());
+        synchronized (_hostMonitors) {
+            for (final Pair<Integer, Listener> monitor : _hostMonitors) {
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug("Sending Disconnect to listener: " + monitor.second().getClass().getName());
+                }
+                monitor.second().processDisconnect(hostId, nextState);
             }
-            monitor.second().processDisconnect(hostId, nextState);
         }
     }
 
     @Override
     public void notifyMonitorsOfNewlyAddedHost(long hostId) {
-        for (final Pair<Integer, Listener> monitor : _hostMonitors) {
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("Sending host added to listener: " + monitor.second().getClass().getSimpleName());
-            }
+        synchronized (_hostMonitors) {
+            for (final Pair<Integer, Listener> monitor : _hostMonitors) {
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug("Sending host added to listener: " + monitor.second().getClass().getSimpleName());
+                }
 
-            monitor.second().processHostAdded(hostId);
+                monitor.second().processHostAdded(hostId);
+            }
         }
     }
 
     protected AgentAttache notifyMonitorsOfConnection(final AgentAttache attache, final StartupCommand[] cmd, final boolean forRebalance) throws ConnectionException {
         final long hostId = attache.getId();
         final HostVO host = _hostDao.findById(hostId);
-        for (final Pair<Integer, Listener> monitor : _hostMonitors) {
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("Sending Connect to listener: " + monitor.second().getClass().getSimpleName());
-            }
-            for (int i = 0; i < cmd.length; i++) {
-                try {
-                    monitor.second().processConnect(host, cmd[i], forRebalance);
-                } catch (final Exception e) {
-                    if (e instanceof ConnectionException) {
-                        final ConnectionException ce = (ConnectionException)e;
-                        if (ce.isSetupError()) {
-                            s_logger.warn("Monitor " + monitor.second().getClass().getSimpleName() + " says there is an error in the connect process for " + hostId + " due to " + e.getMessage());
-                            handleDisconnectWithoutInvestigation(attache, Event.AgentDisconnected, true, true);
-                            throw ce;
-                        } else {
-                            s_logger.info("Monitor " + monitor.second().getClass().getSimpleName() + " says not to continue the connect process for " + hostId + " due to " + e.getMessage());
+        synchronized (_hostMonitors) {
+            for (final Pair<Integer, Listener> monitor : _hostMonitors) {
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug("Sending Connect to listener: " + monitor.second().getClass().getSimpleName());
+                }
+                for (int i = 0; i < cmd.length; i++) {
+                    try {
+                        monitor.second().processConnect(host, cmd[i], forRebalance);
+                    } catch (final Exception e) {
+                        if (e instanceof ConnectionException) {
+                            final ConnectionException ce = (ConnectionException) e;
+                            if (ce.isSetupError()) {
+                                s_logger.warn("Monitor " + monitor.second().getClass().getSimpleName() + " says there is an error in the connect process for " + hostId + " due to " + e.getMessage());
+                                handleDisconnectWithoutInvestigation(attache, Event.AgentDisconnected, true, true);
+                                throw ce;
+                            } else {
+                                s_logger.info("Monitor " + monitor.second().getClass().getSimpleName() + " says not to continue the connect process for " + hostId + " due to " + e.getMessage());
+                                handleDisconnectWithoutInvestigation(attache, Event.ShutdownRequested, true, true);
+                                return attache;
+                            }
+                        } else if (e instanceof HypervisorVersionChangedException) {
                             handleDisconnectWithoutInvestigation(attache, Event.ShutdownRequested, true, true);
-                            return attache;
+                            throw new CloudRuntimeException("Unable to connect " + attache.getId(), e);
+                        } else {
+                            s_logger.error("Monitor " + monitor.second().getClass().getSimpleName() + " says there is an error in the connect process for " + hostId + " due to " + e.getMessage(), e);
+                            handleDisconnectWithoutInvestigation(attache, Event.AgentDisconnected, true, true);
+                            throw new CloudRuntimeException("Unable to connect " + attache.getId(), e);
                         }
-                    } else if (e instanceof HypervisorVersionChangedException) {
-                        handleDisconnectWithoutInvestigation(attache, Event.ShutdownRequested, true, true);
-                        throw new CloudRuntimeException("Unable to connect " + attache.getId(), e);
-                    } else {
-                        s_logger.error("Monitor " + monitor.second().getClass().getSimpleName() + " says there is an error in the connect process for " + hostId + " due to " + e.getMessage(), e);
-                        handleDisconnectWithoutInvestigation(attache, Event.AgentDisconnected, true, true);
-                        throw new CloudRuntimeException("Unable to connect " + attache.getId(), e);
                     }
                 }
             }
@@ -1034,23 +1041,27 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
 
     @Override
     public void notifyMonitorsOfHostAboutToBeRemoved(long hostId) {
-        for (final Pair<Integer, Listener> monitor : _hostMonitors) {
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("Sending host about to be removed to listener: " + monitor.second().getClass().getSimpleName());
-            }
+        synchronized (_hostMonitors) {
+            for (final Pair<Integer, Listener> monitor : _hostMonitors) {
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug("Sending host about to be removed to listener: " + monitor.second().getClass().getSimpleName());
+                }
 
-            monitor.second().processHostAboutToBeRemoved(hostId);
+                monitor.second().processHostAboutToBeRemoved(hostId);
+            }
         }
     }
 
     @Override
     public void notifyMonitorsOfRemovedHost(long hostId, long clusterId) {
-        for (final Pair<Integer, Listener> monitor : _hostMonitors) {
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("Sending host removed to listener: " + monitor.second().getClass().getSimpleName());
-            }
+        synchronized (_hostMonitors) {
+            for (final Pair<Integer, Listener> monitor : _hostMonitors) {
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug("Sending host removed to listener: " + monitor.second().getClass().getSimpleName());
+                }
 
-            monitor.second().processHostRemoved(hostId, clusterId);
+                monitor.second().processHostRemoved(hostId, clusterId);
+            }
         }
     }
 

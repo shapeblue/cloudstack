@@ -23,6 +23,9 @@ import org.apache.cloudstack.api.BaseResponse;
 import com.cloud.serializer.Param;
 import com.google.gson.annotations.SerializedName;
 
+/**
+ * @since 4.10.0.228-cca
+ */
 public class CertificateResponse extends BaseResponse {
     @SerializedName(ApiConstants.CERTIFICATE)
     @Param(description = "The client certificate")

@@ -75,6 +75,7 @@ import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.resource.StorageProcessor;
+import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.storage.S3.ClientOptions;
 import com.google.common.annotations.VisibleForTesting;
@@ -175,6 +176,14 @@ public class XenServerStorageProcessor implements StorageProcessor {
             final String storageHost = details.get(DiskTO.STORAGE_HOST);
             final String chapInitiatorUsername = details.get(DiskTO.CHAP_INITIATOR_USERNAME);
             final String chapInitiatorSecret = details.get(DiskTO.CHAP_INITIATOR_SECRET);
+            final ResignatureAnswer resignatureAnswer = new ResignatureAnswer();
+
+            if (SRType.VDILUN.equals(CitrixResourceBase.XenServerManagedStorageSrType.value())) {
+                resignatureAnswer.setSize(NumbersUtil.parseLong(details.get(DiskTO.VOLUME_SIZE), 0));
+                resignatureAnswer.setPath(details.get(DiskTO.PATH));
+                resignatureAnswer.setFormat(ImageFormat.VHD);
+                return resignatureAnswer;
+            }
 
             newSr = hypervisorResource.getIscsiSR(conn, iScsiName, storageHost, iScsiName, chapInitiatorUsername, chapInitiatorSecret, true, false);
 
@@ -185,8 +194,6 @@ public class XenServerStorageProcessor implements StorageProcessor {
             }
 
             VDI vdi = vdis.iterator().next();
-
-            final ResignatureAnswer resignatureAnswer = new ResignatureAnswer();
 
             resignatureAnswer.setSize(vdi.getVirtualSize(conn));
             resignatureAnswer.setPath(vdi.getUuid(conn));
@@ -496,7 +503,11 @@ public class XenServerStorageProcessor implements StorageProcessor {
             }
 
             if (cmd.isManaged()) {
-                hypervisorResource.handleSrAndVdiDetach(cmd.get_iScsiName(), conn);
+
+                final PrimaryDataStoreTO store = (PrimaryDataStoreTO) data.getDataStore();
+                String storageHost = store.getHost();
+
+                hypervisorResource.handleManagedSrAndVdiDetach(cmd.get_iScsiName(), storageHost, conn);
             }
 
             return new DettachAnswer(disk);
@@ -506,11 +517,14 @@ public class XenServerStorageProcessor implements StorageProcessor {
         }
     }
 
-    protected VDI createVdi(final Connection conn, final String vdiName, final SR sr, final long size) throws BadServerResponse, XenAPIException, XmlRpcException {
+    protected VDI createVdi(final Connection conn, final String vdiName, final SR sr, final long size, Map<String,String> smConfig) throws BadServerResponse, XenAPIException, XmlRpcException {
         final VDI.Record vdir = new VDI.Record();
         vdir.nameLabel = vdiName;
         vdir.SR = sr;
         vdir.type = Types.VdiType.USER;
+        if (smConfig != null) {
+            vdir.smConfig = smConfig;
+        }
 
         vdir.virtualSize = size;
         final VDI vdi = VDI.create(conn, vdir);
@@ -601,7 +615,7 @@ public class XenServerStorageProcessor implements StorageProcessor {
     }
 
     protected boolean IsISCSI(final String type) {
-        return SRType.LVMOHBA.equals(type) || SRType.LVMOISCSI.equals(type) || SRType.LVM.equals(type);
+        return SRType.LVMOHBA.equals(type) || SRType.LVMOISCSI.equals(type) || SRType.LVM.equals(type) || SRType.VDILUN.equals(type);
     }
 
     private String copy_vhd_from_secondarystorage(final Connection conn, final String mountpoint, final String sruuid, final int wait) {

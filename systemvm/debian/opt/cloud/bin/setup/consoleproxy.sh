@@ -37,6 +37,11 @@ setup_console_proxy() {
   enable_irqbalance 0
   rm -f /etc/logrotate.d/cloud
 
+#=======
+#  #disable and stop rpcbind service on VR
+#  chkconfig rpcbind off
+#  service rpcbind stop
+#>>>>>>> ak-ht-rebase-4.13
 }
 
 setup_console_proxy

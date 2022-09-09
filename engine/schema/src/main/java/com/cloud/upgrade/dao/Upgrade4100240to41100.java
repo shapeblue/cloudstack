@@ -14,7 +14,6 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-
 package com.cloud.upgrade.dao;
 
 import java.io.InputStream;
@@ -30,13 +29,12 @@ import org.apache.log4j.Logger;
 import com.cloud.utils.PropertiesUtil;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-public class Upgrade41000to41100 implements DbUpgrade {
-
-    final static Logger LOG = Logger.getLogger(Upgrade41000to41100.class);
+public class Upgrade4100240to41100 implements DbUpgrade {
+    final static Logger LOG = Logger.getLogger(Upgrade4100240to41100.class);
 
     @Override
     public String[] getUpgradableVersionRange() {
-        return new String[] {"4.10.0.0", "4.11.0.0"};
+        return new String[] {"4.10.0.240", "4.11.0.0"};
     }
 
     @Override
@@ -51,7 +49,7 @@ public class Upgrade41000to41100 implements DbUpgrade {
 
     @Override
     public InputStream[] getPrepareScripts() {
-        final String scriptFile = "META-INF/db/schema-41000to41100.sql";
+        final String scriptFile = "META-INF/db/schema-4100240to41100.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
         if (script == null) {
             throw new CloudRuntimeException("Unable to find " + scriptFile);
@@ -64,6 +62,17 @@ public class Upgrade41000to41100 implements DbUpgrade {
     public void performDataMigration(Connection conn) {
         checkAndEnableDynamicRoles(conn);
         validateUserDataInBase64(conn);
+    }
+
+    @Override
+    public InputStream[] getCleanupScripts() {
+        final String scriptFile = "META-INF/db/schema-4100240to41100-cleanup.sql";
+        final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
+        if (script == null) {
+            throw new CloudRuntimeException("Unable to find " + scriptFile);
+        }
+
+        return new InputStream[] {script};
     }
 
     private void checkAndEnableDynamicRoles(final Connection conn) {
@@ -119,16 +128,5 @@ public class Upgrade41000to41100 implements DbUpgrade {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Done validating base64 content of user data");
         }
-    }
-
-    @Override
-    public InputStream[] getCleanupScripts() {
-        final String scriptFile = "META-INF/db/schema-41000to41100-cleanup.sql";
-        final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);
-        if (script == null) {
-            throw new CloudRuntimeException("Unable to find " + scriptFile);
-        }
-
-        return new InputStream[] {script};
     }
 }

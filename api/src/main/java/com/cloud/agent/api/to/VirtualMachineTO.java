@@ -16,11 +16,12 @@
 // under the License.
 package com.cloud.agent.api.to;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 import com.cloud.network.element.NetworkElement;
+import com.cloud.storage.Storage;
 import com.cloud.template.VirtualMachineTemplate.BootloaderType;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.Type;
@@ -81,6 +82,8 @@ public class VirtualMachineTO {
     Map<String, String> guestOsDetails = new HashMap<String, String>();
     Map<String, String> extraConfig = new HashMap<>();
     DeployAsIsInfoTO deployAsIsInfo;
+
+    Storage.ImageFormat format;
 
     public VirtualMachineTO(long id, String instanceName, VirtualMachine.Type type, int cpus, Integer speed, long minRam, long maxRam, BootloaderType bootloader,
             String os, boolean enableHA, boolean limitCpuUse, String vncPassword) {
@@ -421,5 +424,13 @@ public class VirtualMachineTO {
     @Override
     public String toString() {
         return String.format("VM {id: \"%s\", name: \"%s\", uuid: \"%s\", type: \"%s\"}", id, name, uuid, type);
+    }
+
+    public Storage.ImageFormat getFormat() {
+        return format;
+    }
+
+    public void setFormat(Storage.ImageFormat format) {
+        this.format = format;
     }
 }

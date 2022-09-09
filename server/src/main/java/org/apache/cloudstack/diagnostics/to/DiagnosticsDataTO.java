@@ -57,4 +57,9 @@ public class DiagnosticsDataTO implements DataTO {
     public long getId() {
         return id;
     }
+
+    @Override
+    public String getName() {
+        return null;
+    }
 }

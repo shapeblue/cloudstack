@@ -23,14 +23,16 @@ import java.util.List;
 
 public class VpnUserList extends ConfigBase {
     private List<VpnUser> vpnUsers;
+    private String vpnType;
 
     public VpnUserList() {
         super(ConfigBase.VPN_USER_LIST);
     }
 
-    public VpnUserList(List<VpnUser> vpnUsers) {
+    public VpnUserList(List<VpnUser> vpnUsers, String vpnType) {
         super(ConfigBase.VPN_USER_LIST);
         this.vpnUsers = vpnUsers;
+        this.vpnType = vpnType;
     }
 
     public List<VpnUser> getVpnUsers() {
@@ -41,4 +43,11 @@ public class VpnUserList extends ConfigBase {
         this.vpnUsers = vpnUsers;
     }
 
+    public String getVpnType() {
+        return vpnType;
+    }
+
+    public void setVpnType(String vpnType) {
+        this.vpnType = vpnType;
+    }
 }

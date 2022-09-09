@@ -1847,20 +1847,31 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     public boolean upgradeVirtualMachine(Long vmId, Long newServiceOfferingId, Map<String, String> customParameters) throws ResourceUnavailableException,
     ConcurrentOperationException, ManagementServerException, VirtualMachineMigrationException {
 
-        // Verify input parameters
         VMInstanceVO vmInstance = _vmInstanceDao.findById(vmId);
         Account caller = CallContext.current().getCallingAccount();
         _accountMgr.checkAccess(caller, null, true, vmInstance);
-        if (vmInstance != null) {
-            if (vmInstance.getState().equals(State.Stopped)) {
-                upgradeStoppedVirtualMachine(vmId, newServiceOfferingId, customParameters);
-                return true;
-            }
-            if (vmInstance.getState().equals(State.Running)) {
-                return upgradeRunningVirtualMachine(vmId, newServiceOfferingId, customParameters);
+        if (vmInstance == null) {
+            s_logger.error(String.format("VM instance with id [%s] is null, it is not possible to upgrade a null VM.", vmId));
+            return false;
+        }
+
+        if (State.Stopped.equals(vmInstance.getState())) {
+            upgradeStoppedVirtualMachine(vmId, newServiceOfferingId, customParameters);
+            return true;
+        }
+
+        if (State.Running.equals(vmInstance.getState())) {
+            ServiceOfferingVO newServiceOfferingVO = _serviceOfferingDao.findById(newServiceOfferingId);
+            HostVO instanceHost = _hostDao.findById(vmInstance.getHostId());
+            _hostDao.loadHostTags(instanceHost);
+
+            if (!instanceHost.checkHostServiceOfferingTags(newServiceOfferingVO)) {
+                s_logger.error(String.format("Cannot upgrade VM [%s] as the new service offering [%s] does not have the required host tags %s.", vmInstance, newServiceOfferingVO,
+                        instanceHost.getHostTags()));
+                return false;
             }
         }
-        return false;
+        return upgradeRunningVirtualMachine(vmId, newServiceOfferingId, customParameters);
     }
 
     private boolean upgradeRunningVirtualMachine(Long vmId, Long newServiceOfferingId, Map<String, String> customParameters) throws ResourceUnavailableException,
@@ -2042,13 +2053,25 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         for (final VolumeVO rootVolumeOfVm : vols) {
             DiskOfferingVO currentRootDiskOffering = _diskOfferingDao.findById(rootVolumeOfVm.getDiskOfferingId());
+            Long rootDiskSize= null;
+            Long rootDiskSizeBytes = null;
+            if (customParameters.containsKey(ApiConstants.ROOT_DISK_SIZE)) {
+                rootDiskSize = Long.parseLong(customParameters.get(ApiConstants.ROOT_DISK_SIZE));
+                rootDiskSizeBytes = rootDiskSize << 30;
+            }
+            if (currentRootDiskOffering.getId() == newDiskOffering.getId() &&
+                    (!newDiskOffering.isCustomized() || (newDiskOffering.isCustomized() && Objects.equals(rootVolumeOfVm.getSize(), rootDiskSizeBytes)))) {
+                if (s_logger.isDebugEnabled()) {
+                    s_logger.debug(String.format("Volume %s is already having disk offering %s", rootVolumeOfVm, newDiskOffering.getUuid()));
+                }
+                continue;
+            }
             HypervisorType hypervisorType = _volsDao.getHypervisorType(rootVolumeOfVm.getId());
             if (HypervisorType.Simulator != hypervisorType) {
                 Long minIopsInNewDiskOffering = null;
                 Long maxIopsInNewDiskOffering = null;
                 boolean autoMigrate = false;
                 boolean shrinkOk = false;
-                Long rootDiskSize = null;
                 if (customParameters.containsKey(ApiConstants.MIN_IOPS)) {
                     minIopsInNewDiskOffering = Long.parseLong(customParameters.get(ApiConstants.MIN_IOPS));
                 }
@@ -2060,9 +2083,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 }
                 if (customParameters.containsKey(ApiConstants.SHRINK_OK)) {
                     shrinkOk = Boolean.parseBoolean(customParameters.get(ApiConstants.SHRINK_OK));
-                }
-                if (customParameters.containsKey(ApiConstants.ROOT_DISK_SIZE)) {
-                    rootDiskSize = Long.parseLong(customParameters.get(ApiConstants.ROOT_DISK_SIZE));
                 }
                 ChangeOfferingForVolumeCmd changeOfferingForVolumeCmd = new ChangeOfferingForVolumeCmd(rootVolumeOfVm.getId(), newDiskOffering.getId(), minIopsInNewDiskOffering, maxIopsInNewDiskOffering, autoMigrate, shrinkOk);
                 if (rootDiskSize != null) {
@@ -3966,7 +3986,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         // Check templates permissions
-        _accountMgr.checkAccess(owner, AccessType.UseEntry, false, template);
+        Account templateOwner = _accountMgr.getAccount(template.getAccountId());
+        if(caller.getAccountId() != templateOwner.getAccountId()){
+            _accountMgr.checkAccess(owner, AccessType.UseEntry, false, template);
+        }
 
         // check if the user data is correct
         userData = validateUserData(userData, httpmethod);
@@ -4664,7 +4687,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                                             "Assuming something went wrong and persisting it. Host: " + host.getName() + " . VM: " + vmNetworkStat.getVmName() +
                                             " Reported: " + toHumanReadableSize(vmNetworkStat.getBytesSent()) + " Stored: " + toHumanReadableSize(vmNetworkStat_lock.getCurrentBytesSent()));
                                 }
-                                vmNetworkStat_lock.setNetBytesSent(vmNetworkStat_lock.getNetBytesSent() + vmNetworkStat_lock.getCurrentBytesSent());
+                                vmNetworkStat_lock.setNetBytesSent(0);
                             }
                             vmNetworkStat_lock.setCurrentBytesSent(vmNetworkStat.getBytesSent());
 
@@ -4674,7 +4697,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                                             "Assuming something went wrong and persisting it. Host: " + host.getName() + " . VM: " + vmNetworkStat.getVmName() +
                                             " Reported: " + toHumanReadableSize(vmNetworkStat.getBytesReceived()) + " Stored: " + toHumanReadableSize(vmNetworkStat_lock.getCurrentBytesReceived()));
                                 }
-                                vmNetworkStat_lock.setNetBytesReceived(vmNetworkStat_lock.getNetBytesReceived() + vmNetworkStat_lock.getCurrentBytesReceived());
+                                vmNetworkStat_lock.setNetBytesReceived(0);
                             }
                             vmNetworkStat_lock.setCurrentBytesReceived(vmNetworkStat.getBytesReceived());
 

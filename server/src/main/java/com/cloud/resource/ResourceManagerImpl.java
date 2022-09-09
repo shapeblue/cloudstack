@@ -36,8 +36,6 @@ import java.util.Random;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import com.cloud.exception.StorageConflictException;
-import com.cloud.exception.StorageUnavailableException;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
 import org.apache.cloudstack.api.ApiConstants;
@@ -125,6 +123,8 @@ import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.exception.ResourceInUseException;
 import com.cloud.exception.ResourceUnavailableException;
+import com.cloud.exception.StorageConflictException;
+import com.cloud.exception.StorageUnavailableException;
 import com.cloud.gpu.GPU;
 import com.cloud.gpu.HostGpuGroupsVO;
 import com.cloud.gpu.VGPUTypesVO;
@@ -171,6 +171,7 @@ import com.cloud.utils.Ternary;
 import com.cloud.utils.UriUtils;
 import com.cloud.utils.component.Manager;
 import com.cloud.utils.component.ManagerBase;
+import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericSearchBuilder;
@@ -497,7 +498,6 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
 
         final Discoverer discoverer = getMatchingDiscover(hypervisorType);
         if (discoverer == null) {
-
             throw new InvalidParameterValueException("Could not find corresponding resource manager for " + cmd.getHypervisor());
         }
 
@@ -533,6 +533,14 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
                 details.put("ovm3vip", allParams.get("ovm3vip"));
                 details.put("ovm3pool", allParams.get("ovm3pool"));
                 details.put("ovm3cluster", allParams.get("ovm3cluster"));
+            }
+            else if (hypervisorType == HypervisorType.BareMetal) {
+                if (cmd.getBaremetalMaasHost() != null && cmd.getBaremetalMaasKey() != null && cmd.getBaremetalMaasPool() != null) {
+                    details.put("baremetalType", "MaaS");
+                    details.put("baremetalMaasHost", cmd.getBaremetalMaasHost());
+                    details.put("baremetalMaaSKey", DBEncryptionUtil.encrypt(cmd.getBaremetalMaasKey()));
+                    details.put("baremetalMaasPool", cmd.getBaremetalMaasPool());
+                }
             }
             details.put("cpuOvercommitRatio", CapacityManager.CpuOverprovisioningFactor.value().toString());
             details.put("memoryOvercommitRatio", CapacityManager.MemOverprovisioningFactor.value().toString());
@@ -1829,6 +1837,9 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         }
         final List<String> hostTags = cmd.getHostTags();
         if (hostTags != null) {
+            List<VMInstanceVO> activeVMs =  _vmDao.listByHostId(hostId);
+            s_logger.warn(String.format("The following active VMs [%s] are using the host [%s]. Updating the host tags will not affect them.", activeVMs, host));
+
             if (s_logger.isDebugEnabled()) {
                 s_logger.debug("Updating Host Tags to :" + hostTags);
             }
@@ -2202,7 +2213,7 @@ public class ResourceManagerImpl extends ManagerBase implements ResourceManager,
         host.setStorageMacAddress(startup.getStorageMacAddress());
         host.setStorageNetmask(startup.getStorageNetmask());
         host.setVersion(startup.getVersion());
-        host.setName(startup.getName());
+        host.setName(StringUtils.isEmpty(startup.getName()) ? resource.getName() : startup.getName());
         host.setManagementServerId(_nodeId);
         host.setStorageUrl(startup.getIqn());
         host.setLastPinged(System.currentTimeMillis() >> 10);

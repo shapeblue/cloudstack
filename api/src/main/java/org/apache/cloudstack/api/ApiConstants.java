@@ -45,6 +45,7 @@ public class ApiConstants {
     public static final String BASE64_IMAGE = "base64image";
     public static final String BITS = "bits";
     public static final String BOOTABLE = "bootable";
+    public static final String BOOT_FILENAME = "bootfilename";
     public static final String BIND_DN = "binddn";
     public static final String BIND_PASSWORD = "bindpass";
     public static final String BYTES_READ_RATE = "bytesreadrate";
@@ -668,6 +669,7 @@ public class ApiConstants {
     public static final String REGION_ID = "regionid";
     public static final String VPC_OFF_ID = "vpcofferingid";
     public static final String VPC_OFF_NAME = "vpcofferingname";
+    public static final String NETWORK_BOOT_IP = "networkbootip";
     public static final String NETWORK = "network";
     public static final String VPC_ID = "vpcid";
     public static final String VPC_NAME = "vpcname";
@@ -679,6 +681,7 @@ public class ApiConstants {
     public static final String S2S_VPN_GATEWAY_ID = "s2svpngatewayid";
     public static final String S2S_CUSTOMER_GATEWAY_ID = "s2scustomergatewayid";
     public static final String IPSEC_PSK = "ipsecpsk";
+    public static final String MIGRATE_VPN = "migratevpn";
     public static final String GUEST_IP = "guestip";
     public static final String REMOVED = "removed";
     public static final String COMPLETED = "completed";
@@ -742,6 +745,19 @@ public class ApiConstants {
     public static final String AUTOSCALE_USER_ID = "autoscaleuserid";
     public static final String BAREMETAL_DISCOVER_NAME = "baremetaldiscovername";
     public static final String BAREMETAL_RCT_URL = "baremetalrcturl";
+    public static final String BAREMETAL_MAAS = "baremetalmaas";
+    public static final String BAREMETAL_MAAS_ACTION = "baremetalmaasaction";
+    public static final String BAREMETAL_MAAS_ACTION_CREATE = "baremetalmaascreate";
+    public static final String BAREMETAL_MAAS_ACTION_IMPORT = "baremetalmaasimport";
+    public static final String BAREMETAL_MAAS_HOST = "baremetalmaashost";
+    public static final String BAREMETAL_MAAS_KEY = "baremetalmaaskey";
+    public static final String BAREMETAL_MAAS_POOL = "baremetalmaaspool";
+    public static final String BAREMETAL_MAAS_NODE_ID = "baremetalmaasnodeid";
+    public static final String BAREMETAL_MAAS_OFFERING_ID = "offeringid";
+    public static final String BAREMETAL_MAAS_OFFERING_NAME = "offeringname";
+    public static final String BAREMETAL_MAAS_AVIALBALE_COUNT = "available";
+    public static final String BAREMETAL_MAAS_TOTAL_COUNT = "total";
+    public static final String BAREMETAL_MAAS_ERASING_COUNT = "erasing";
     public static final String UCS_DN = "ucsdn";
     public static final String GSLB_PROVIDER = "gslbprovider";
     public static final String EXCLUSIVE_GSLB_PROVIDER = "isexclusivegslbprovider";
@@ -835,6 +851,10 @@ public class ApiConstants {
     public static final String NETSCALER_CONTROLCENTER_ID = "netscalercontrolcenterid";
     public static final String NETSCALER_SERVICEPACKAGE_ID = "netscalerservicepackageid";
     public static final String FETCH_ROUTER_HEALTH_CHECK_RESULTS = "fetchhealthcheckresults";
+    public static final String MIN_IOPS_PER_GB = "miniopspergb";
+    public static final String MAX_IOPS_PER_GB = "maxiopspergb";
+    public static final String HIGHEST_MIN_IOPS = "highestminiops";
+    public static final String HIGHEST_MAX_IOPS = "highestmaxiops";
 
     public static final String ZONE_ID_LIST = "zoneids";
     public static final String DESTINATION_ZONE_ID_LIST = "destzoneids";

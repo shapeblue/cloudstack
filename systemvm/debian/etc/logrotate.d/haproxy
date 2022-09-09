@@ -1,5 +1,5 @@
 /var/log/haproxy.log {
-    rotate 5
+    rotate 2
     missingok
     notifempty
     maxsize 10M

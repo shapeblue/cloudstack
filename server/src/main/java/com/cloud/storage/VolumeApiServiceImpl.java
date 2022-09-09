@@ -774,6 +774,24 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 maxIops = diskOffering.getMaxIops();
             }
 
+            //check if iops/gb is defined, if so, use it
+            if (diskOffering.getMinIopsPerGb() != null) {
+                minIops = sizeInGB * diskOffering.getMinIopsPerGb();
+            }
+
+            if (diskOffering.getMaxIopsPerGb() != null) {
+                maxIops = sizeInGB * diskOffering.getMaxIopsPerGb();
+            }
+
+            //check limits for IOPS and set them if required
+            if (diskOffering.getHighestMinIops() != null && minIops !=null && minIops > diskOffering.getHighestMinIops()) {
+                minIops = diskOffering.getHighestMinIops();
+            }
+
+            if (diskOffering.getHighestMaxIops() != null && maxIops != null && maxIops > diskOffering.getHighestMaxIops()) {
+                maxIops = diskOffering.getHighestMaxIops();
+            }
+
             if (!validateVolumeSizeInBytes(size)) {
                 throw new InvalidParameterValueException(String.format("Invalid size for custom volume creation: %s, max volume size is: %s GB", NumbersUtil.toReadableSize(size), VolumeOrchestrationService.MaxVolumeSize.value()));
             }
@@ -805,6 +823,9 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 zoneId = snapshotCheck.getDataCenterId();
             }
 
+            size = snapshotCheck.getSize(); // ; disk offering is used for tags purposes
+            Long sizeInGB = size/(1024 * 1024 * 1024);
+
             if (diskOffering == null) { // Pure snapshot is being used to create volume.
                 diskOfferingId = snapshotCheck.getDiskOfferingId();
                 diskOffering = _diskOfferingDao.findById(diskOfferingId);
@@ -820,6 +841,23 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
             }
 
             _configMgr.checkDiskOfferingAccess(null, diskOffering, _dcDao.findById(zoneId));
+
+            // IOPS/GB overrides the manually set IOPS
+            if (diskOffering.getMinIopsPerGb() != null) {
+                minIops = sizeInGB * diskOffering.getMinIopsPerGb();
+            }
+
+            if (diskOffering.getMaxIopsPerGb() != null) {
+                maxIops = sizeInGB * diskOffering.getMaxIopsPerGb();
+            }
+
+            if (diskOffering.getHighestMinIops() != null && minIops != null && minIops > diskOffering.getHighestMinIops()) {
+                minIops = diskOffering.getHighestMinIops();
+            }
+
+            if (diskOffering.getHighestMaxIops() != null && maxIops != null && maxIops > diskOffering.getHighestMaxIops()) {
+                maxIops = diskOffering.getHighestMaxIops();
+            }
 
             // check snapshot permissions
             _accountMgr.checkAccess(caller, null, true, snapshotCheck);
@@ -1013,6 +1051,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
     @ActionEvent(eventType = EventTypes.EVENT_VOLUME_RESIZE, eventDescription = "resizing volume", async = true)
     public VolumeVO resizeVolume(ResizeVolumeCmd cmd) throws ResourceAllocationException {
         Long newSize = cmd.getSize();
+        Long newSizeInGb = null;
         Long newMinIops = cmd.getMinIops();
         Long newMaxIops = cmd.getMaxIops();
         Integer newHypervisorSnapshotReserve = null;
@@ -1073,7 +1112,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 // no parameter provided; just use the original size of the volume
                 newSize = volume.getSize();
             }
-
+            newSizeInGb = newSize >> 30;
             newMinIops = cmd.getMinIops();
 
             if (newMinIops != null) {
@@ -1085,6 +1124,10 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 newMinIops = volume.getMinIops();
             }
 
+            if (diskOffering.getMinIopsPerGb() != null) {
+                newMinIops = newSizeInGb * diskOffering.getMinIopsPerGb();
+            }
+
             newMaxIops = cmd.getMaxIops();
 
             if (newMaxIops != null) {
@@ -1094,6 +1137,9 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
             } else {
                 // no parameter provided; just use the original max IOPS of the volume
                 newMaxIops = volume.getMaxIops();
+            }
+            if (diskOffering.getMaxIopsPerGb()!=null) {
+                newMaxIops = newSizeInGb * diskOffering.getMaxIopsPerGb();
             }
 
             validateIops(newMinIops, newMaxIops, volume.getPoolType());
@@ -1149,6 +1195,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
             }
             checkIfVolumeIsRootAndVmIsRunning(newSize, volume, vmInstanceVO);
 
+
             if (newDiskOffering.isCustomizedIops() != null && newDiskOffering.isCustomizedIops()) {
                 newMinIops = cmd.getMinIops() != null ? cmd.getMinIops() : volume.getMinIops();
                 newMaxIops = cmd.getMaxIops() != null ? cmd.getMaxIops() : volume.getMaxIops();
@@ -1157,6 +1204,14 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
             } else {
                 newMinIops = newDiskOffering.getMinIops();
                 newMaxIops = newDiskOffering.getMaxIops();
+            }
+
+            if (newDiskOffering.getMinIopsPerGb() != null) {
+                newMinIops = newSizeInGb * newDiskOffering.getMinIopsPerGb();
+            }
+
+            if (newDiskOffering.getMaxIopsPerGb() != null) {
+                newMaxIops = newSizeInGb * newDiskOffering.getMaxIopsPerGb();
             }
 
             // if the hypervisor snapshot reserve value is null, it must remain null (currently only KVM uses null and null is all KVM uses for a value here)
@@ -1212,6 +1267,16 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 _resourceLimitMgr.checkResourceLimit(_accountMgr.getAccount(volume.getAccountId()), ResourceType.primary_storage, volume.isDisplayVolume(),
                         new Long(newSize - currentSize).longValue());
             }
+        }
+
+        Long highestMinIops = diskOffering.getHighestMinIops();
+        if (newMinIops != null && highestMinIops!= null && newMinIops > highestMinIops) {
+            newMinIops = highestMinIops;
+        }
+
+        Long highestMaxIops = diskOffering.getHighestMaxIops();
+            if (newMaxIops != null && highestMaxIops!= null && newMaxIops > highestMaxIops) {
+                newMaxIops = highestMaxIops;
         }
 
         // Note: The storage plug-in in question should perform validation on the IOPS to check if a sufficient number of IOPS is available to perform
@@ -2113,6 +2178,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
 
         //don't create volume on primary storage if its being attached to the vm which Root's volume hasn't been created yet
         StoragePoolVO destPrimaryStorage = null;
+
         if (existingVolumeOfVm != null && !existingVolumeOfVm.getState().equals(Volume.State.Allocated)) {
             destPrimaryStorage = _storagePoolDao.findById(existingVolumeOfVm.getPoolId());
             if (s_logger.isTraceEnabled() && destPrimaryStorage != null) {
@@ -3698,6 +3764,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         volumeStoreRef.setDownloadState(VMTemplateStorageResourceAssoc.Status.DOWNLOADED);
         volumeStoreRef.setDownloadPercent(100);
         volumeStoreRef.setZoneId(zoneId);
+        volumeStoreRef.setSize(vol.getSize());
 
         _volumeStoreDao.update(volumeStoreRef.getId(), volumeStoreRef);
 

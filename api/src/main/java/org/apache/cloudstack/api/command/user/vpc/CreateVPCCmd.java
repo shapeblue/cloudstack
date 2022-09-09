@@ -83,6 +83,9 @@ public class CreateVPCCmd extends BaseAsyncCreateCmd implements UserCmd {
                required = true, description = "the ID of the VPC offering")
     private Long vpcOffering;
 
+    @Parameter(name = ApiConstants.NETWORK_BOOT_IP, type = CommandType.STRING, description = "the network boot ip of the VPC.")
+    private String networkBootIp;
+
     @Parameter(name = ApiConstants.NETWORK_DOMAIN, type = CommandType.STRING,
                description = "VPC network domain. All networks inside the VPC will belong to this domain")
     private String networkDomain;
@@ -127,6 +130,8 @@ public class CreateVPCCmd extends BaseAsyncCreateCmd implements UserCmd {
         return vpcOffering;
     }
 
+    public String getNetworkBootIp() { return networkBootIp; }
+
     public String getNetworkDomain() {
         return networkDomain;
     }
@@ -144,7 +149,7 @@ public class CreateVPCCmd extends BaseAsyncCreateCmd implements UserCmd {
 
     @Override
     public void create() throws ResourceAllocationException {
-        Vpc vpc = _vpcService.createVpc(getZoneId(), getVpcOffering(), getEntityOwnerId(), getVpcName(), getDisplayText(), getCidr(), getNetworkDomain(), getDisplayVpc());
+        Vpc vpc = _vpcService.createVpc(getZoneId(), getVpcOffering(), getEntityOwnerId(), getVpcName(), getDisplayText(), getCidr(), getNetworkDomain(), getDisplayVpc(), getNetworkBootIp());
         if (vpc != null) {
             setEntityId(vpc.getId());
             setEntityUuid(vpc.getUuid());

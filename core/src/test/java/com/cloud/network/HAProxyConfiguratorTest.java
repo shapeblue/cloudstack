@@ -21,6 +21,9 @@ package com.cloud.network;
 
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -31,9 +34,6 @@ import org.junit.Test;
 import com.cloud.agent.api.routing.LoadBalancerConfigCommand;
 import com.cloud.agent.api.to.LoadBalancerTO;
 import com.cloud.network.lb.LoadBalancingRule.LbDestination;
-
-import java.util.List;
-import java.util.ArrayList;
 
 /**
  * @author dhoogland

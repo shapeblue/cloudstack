@@ -28,4 +28,8 @@ public interface DataStoreTO {
     String getUrl();
 
     String getPathSeparator();
+
+    default boolean isPartialBackupCapable() {
+        return true;
+    }
 }

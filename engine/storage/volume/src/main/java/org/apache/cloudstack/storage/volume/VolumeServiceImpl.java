@@ -1776,7 +1776,7 @@ public class VolumeServiceImpl implements VolumeService {
             return copyVolumeFromImageToPrimary(srcVolume, destStore);
         }
 
-        if (destStore.getRole() == DataStoreRole.Image) {
+        if (destStore.getRole() == DataStoreRole.Image || destStore.getRole() == DataStoreRole.ImageCache) {
             return copyVolumeFromPrimaryToImage(srcVolume, destStore);
         }
 

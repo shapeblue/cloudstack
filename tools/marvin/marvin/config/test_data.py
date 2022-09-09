@@ -1444,6 +1444,126 @@ test_data = {
         },
         "service_offerings":
             {
+                "GRID V100D-32A":
+                    {
+                        "name": "vGPU V100D-32A",
+                        "displaytext": "vGPU V100D-32A",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-8Q":
+                    {
+                        "name": "vGPU V100D-8Q",
+                        "displaytext": "vGPU V100D-8Q",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-4A":
+                    {
+                        "name": "vGPU V100D-4A",
+                        "displaytext": "vGPU V100D-4A",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-1B":
+                    {
+                        "name": "vGPU V100D-1B",
+                        "displaytext": "vGPU V100D-1B",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-2Q":
+                    {
+                        "name": "vGPU V100D-2Q",
+                        "displaytext": "vGPU V100D-2Q",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-4Q":
+                    {
+                        "name": "vGPU V100D-4Q",
+                        "displaytext": "vGPU V100D-4Q",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-2A":
+                    {
+                        "name": "vGPU V100D-2A",
+                        "displaytext": "vGPU V100D-2A",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-2B":
+                    {
+                        "name": "vGPU V100D-2B",
+                        "displaytext": "vGPU V100D-2B",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-32Q":
+                    {
+                        "name": "vGPU V100D-32Q",
+                        "displaytext": "vGPU V100D-32Q",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-16A":
+                    {
+                        "name": "vGPU V100D-16A",
+                        "displaytext": "vGPU V100D-16A",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-1Q":
+                    {
+                        "name": "vGPU V100D-1Q",
+                        "displaytext": "vGPU V100D-1Q",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-2B4":
+                    {
+                        "name": "vGPU V100D-2B4",
+                        "displaytext": "vGPU V100D-2B4",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-16Q":
+                    {
+                        "name": "vGPU V100D-16Q",
+                        "displaytext": "vGPU V100D-16Q",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-8A":
+                    {
+                        "name": "vGPU V100D-8A",
+                        "displaytext": "vGPU V100D-8A",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
+                "GRID V100D-1A":
+                    {
+                        "name": "vGPU V100D-1A",
+                        "displaytext": "vGPU V100D-1A",
+                        "cpunumber": 2,
+                        "cpuspeed": 1600,  \# in MHz
+                        "memory": 3072,  \# In MBs
+                    },
                 "GRID K260Q":
                     {
                         "name": "vGPU260Q",

@@ -1922,6 +1922,13 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                     }
                 }
             }
+
+            Map<String, String> guestDetails = _guestOSDao.loadDetails(guestOS);
+
+            if (guestDetails != null) {
+                details.putAll(guestDetails);
+            }
+
             if (cmd.getDetails() != null) {
                 details.remove(VmDetailConstants.ENCRYPTED_PASSWORD); // new password will be generated during vm deployment from password enabled template
                 details.putAll(cmd.getDetails());
@@ -2054,7 +2061,9 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         Boolean requiresHvm = cmd.getRequiresHvm();
         Integer sortKey = cmd.getSortKey();
         Map details = cmd.getDetails();
+        String bootFilename = cmd.getBootFilename();
         Account account = CallContext.current().getCallingAccount();
+
         boolean cleanupDetails = cmd.isCleanupDetails();
 
         // verify that template exists
@@ -2112,6 +2121,7 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
                   isDynamicallyScalable == null &&
                   isRoutingTemplate == null &&
                   templateType == null &&
+                  bootFilename == null &&
                   (! cleanupDetails && details == null) //update details in every case except this one
                   );
         if (!updateNeeded) {
@@ -2199,6 +2209,9 @@ public class TemplateManagerImpl extends ManagerBase implements TemplateManager,
         }
 
         validateDetails(template, details);
+        if (bootFilename != null) {
+            template.setBootFilename(bootFilename);
+        }
 
         if (cleanupDetails) {
             template.setDetails(null);

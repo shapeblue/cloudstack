@@ -22,11 +22,6 @@ import java.util.UUID;
 
 import javax.inject.Inject;
 
-import com.cloud.agent.api.storage.DeleteEntityDownloadURLCommand;
-import com.cloud.host.dao.HostDao;
-import com.cloud.storage.Upload;
-import org.apache.log4j.Logger;
-
 import org.apache.cloudstack.engine.subsystem.api.storage.DataObject;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.EndPoint;
@@ -35,13 +30,17 @@ import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.storage.image.NfsImageStoreDriverImpl;
 import org.apache.cloudstack.storage.image.datastore.ImageStoreEntity;
 import org.apache.cloudstack.storage.image.store.ImageStoreImpl;
+import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.storage.CreateEntityDownloadURLCommand;
+import com.cloud.agent.api.storage.DeleteEntityDownloadURLCommand;
 import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.configuration.Config;
+import com.cloud.host.dao.HostDao;
 import com.cloud.storage.Storage.ImageFormat;
+import com.cloud.storage.Upload;
 import com.cloud.utils.exception.CloudRuntimeException;
 
 public class CloudStackImageStoreDriverImpl extends NfsImageStoreDriverImpl {
@@ -73,6 +72,7 @@ public class CloudStackImageStoreDriverImpl extends NfsImageStoreDriverImpl {
         String uuid = UUID.randomUUID().toString() + "." + format.getFileExtension();
         CreateEntityDownloadURLCommand cmd = new CreateEntityDownloadURLCommand(((ImageStoreEntity)store).getMountPoint(),
                                                                 path, uuid, dataObject == null ? null: dataObject.getTO());
+        cmd.setSecUrl(((ImageStoreEntity) store).getUrl());
         Answer ans = null;
         if (ep == null) {
             String errMsg = "No remote endpoint to send command, check if host or ssvm is down?";

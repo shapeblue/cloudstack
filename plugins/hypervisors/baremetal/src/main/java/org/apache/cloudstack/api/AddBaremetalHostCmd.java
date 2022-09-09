@@ -30,13 +30,22 @@ public class AddBaremetalHostCmd extends AddHostCmd {
     @Parameter(name = ApiConstants.IP_ADDRESS, type = CommandType.STRING, description = "ip address intentionally allocated to this host after provisioning")
     private String vmIpAddress;
 
-    public AddBaremetalHostCmd() {
-    }
+    @Parameter(name = ApiConstants.BAREMETAL_MAAS_NODE_ID, type = CommandType.STRING, description = "MaaS unique ID of this host")
+    private String baremetalUniqueId;
 
-    @Override
-    public void execute() {
-        this.getFullUrlParams().put(ApiConstants.BAREMETAL_DISCOVER_NAME, BareMetalDiscoverer.class.getName());
-        super.execute();
+    @Parameter(name = ApiConstants.CPU_NUMBER, type = CommandType.STRING, description = "number of CPU cores of this host")
+    private String baremetalCpuCores;
+
+    @Parameter(name = ApiConstants.CPU_SPEED, type = CommandType.STRING, description = "CPU speed of this host")
+    private String baremetalCpu;
+
+    @Parameter(name = ApiConstants.MEMORY, type = CommandType.STRING, description = "memory capacity of this host")
+    private String baremetalMemory;
+
+    @Parameter(name = ApiConstants.HOST_MAC, type = CommandType.STRING, description = "MAC address of this host")
+    private String baremetalMAC;
+
+    public AddBaremetalHostCmd() {
     }
 
     public String getVmIpAddress() {
@@ -45,5 +54,31 @@ public class AddBaremetalHostCmd extends AddHostCmd {
 
     public void setVmIpAddress(String vmIpAddress) {
         this.vmIpAddress = vmIpAddress;
+    }
+
+    public String getBaremetalUniqueId() {
+        return baremetalUniqueId;
+    }
+
+    public String getBaremetalCpuCores() {
+        return baremetalCpuCores;
+    }
+
+    public String getBaremetalCpu() {
+        return baremetalCpu;
+    }
+
+    public String getBaremetalMemory() {
+        return baremetalMemory;
+    }
+
+    public String getBaremetalMAC() {
+        return baremetalMAC;
+    }
+
+    @Override
+    public void execute() {
+        this.getFullUrlParams().put(ApiConstants.BAREMETAL_DISCOVER_NAME, BareMetalDiscoverer.class.getName());
+        super.execute();
     }
 }
