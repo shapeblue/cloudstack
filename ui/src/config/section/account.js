@@ -55,6 +55,11 @@ export default {
       show: () => { return 'listConfigurations' in store.getters.apis }
     },
     {
+      name: 'account.network.overview',
+      component: shallowRef(defineAsyncComponent(() => import('@/views/iam/AccountNetworkOverview.vue'))),
+      show: () => { return true }
+    },
+    {
       name: 'events',
       resourceType: 'Account',
       component: shallowRef(defineAsyncComponent(() => import('@/components/view/EventsTab.vue'))),
