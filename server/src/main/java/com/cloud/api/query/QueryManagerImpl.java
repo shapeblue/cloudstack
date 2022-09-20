@@ -27,6 +27,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -108,6 +109,7 @@ import org.apache.cloudstack.api.response.ResourceTagResponse;
 import org.apache.cloudstack.api.response.RouterHealthCheckResultResponse;
 import org.apache.cloudstack.api.response.SecurityGroupResponse;
 import org.apache.cloudstack.api.response.ServiceOfferingResponse;
+import org.apache.cloudstack.api.response.StatsResponse;
 import org.apache.cloudstack.api.response.StoragePoolResponse;
 import org.apache.cloudstack.api.response.StorageTagResponse;
 import org.apache.cloudstack.api.response.TemplateResponse;
@@ -135,6 +137,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
+import com.cloud.agent.api.VmDiskStatsEntry;
 import com.cloud.api.query.dao.AccountJoinDao;
 import com.cloud.api.query.dao.AffinityGroupJoinDao;
 import com.cloud.api.query.dao.AsyncJobJoinDao;
@@ -230,10 +233,12 @@ import com.cloud.storage.StoragePoolTagVO;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.Volume;
 import com.cloud.storage.VolumeApiServiceImpl;
+import com.cloud.storage.VolumeStatsVO;
 import com.cloud.storage.dao.DiskOfferingDao;
 import com.cloud.storage.dao.StoragePoolTagsDao;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.storage.dao.VolumeDao;
+import com.cloud.storage.dao.VolumeStatsDao;
 import com.cloud.tags.ResourceTagVO;
 import com.cloud.tags.dao.ResourceTagDao;
 import com.cloud.template.VirtualMachineTemplate.State;
@@ -266,6 +271,7 @@ import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.DomainRouterDao;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.gson.Gson;
 
 @Component
 public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements QueryService, Configurable {
@@ -454,6 +460,11 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
 
     @Inject
     EntityManager entityManager;
+
+    @Inject
+    VolumeStatsDao volumeStatsDao;
+
+    private static Gson gson = new Gson();
 
     private SearchCriteria<ServiceOfferingJoinVO> getMinimumCpuServiceOfferingJoinSearchCriteria(int cpu) {
         SearchCriteria<ServiceOfferingJoinVO> sc = _srvOfferingJoinDao.createSearchCriteria();
@@ -2037,6 +2048,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
 
         List<VolumeResponse> volumeResponses = ViewResponseHelper.createVolumeResponse(respView, result.first().toArray(new VolumeJoinVO[result.first().size()]));
 
+        boolean addStats = cmd.getId() != null && Boolean.TRUE.equals(cmd.getStats());
         for (VolumeResponse vr : volumeResponses) {
             String poolId = vr.getStoragePoolId();
             if (poolId == null) {
@@ -2061,6 +2073,24 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
                 boolean supportsStorageSnapshot = Boolean.parseBoolean(caps.get(DataStoreCapabilities.STORAGE_SYSTEM_SNAPSHOT.toString()));
                 vr.setSupportsStorageSnapshot(supportsStorageSnapshot);
             }
+            if (addStats) {
+                Date startDate = new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1));
+                Date endDate = new Date();
+                List<VolumeStatsVO> statsVOList = volumeStatsDao.findByVolumeIdAndTimestampBetween(cmd.getId(), startDate, endDate);
+                List<StatsResponse> statsResponseList = new ArrayList<StatsResponse>();
+                for (VolumeStatsVO statsVO : statsVOList) {
+                    StatsResponse statsResponse = new StatsResponse();
+                    statsResponse.setTimestamp(statsVO.getTimestamp());
+                    VmDiskStatsEntry statsEntry = gson.fromJson(statsVO.getVolumeStatsData(), VmDiskStatsEntry.class);
+                    statsResponse.setDiskKbsRead(statsEntry.getBytesRead());
+                    statsResponse.setDiskKbsWrite(statsEntry.getBytesWrite());
+                    statsResponse.setDiskIORead(statsEntry.getIORead());
+                    statsResponse.setDiskIOWrite(statsEntry.getIOWrite());
+                    statsResponseList.add(statsResponse);
+                }
+                vr.setStats(statsResponseList);
+            }
+
         }
         response.setResponses(volumeResponses, result.second());
         return response;

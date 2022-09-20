@@ -18,6 +18,7 @@ package org.apache.cloudstack.api.response;
 
 import java.util.Date;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.cloudstack.acl.RoleType;
@@ -283,6 +284,11 @@ public class VolumeResponse extends BaseResponseWithTagInformation implements Co
     @SerializedName(ApiConstants.EXTERNAL_UUID)
     @Param(description = "volume uuid that is given by virtualisation provider (only for VMware)")
     private String externalUuid;
+    private String displayName;
+
+    @SerializedName("stats")
+    @Param(description = "the list of VM stats")
+    private List<StatsResponse> stats;
 
     public String getPath() {
         return path;
@@ -804,5 +810,9 @@ public class VolumeResponse extends BaseResponseWithTagInformation implements Co
 
     public void setExternalUuid(String externalUuid) {
         this.externalUuid = externalUuid;
+    }
+
+    public void setStats(List<StatsResponse> stats) {
+        this.stats = stats;
     }
 }

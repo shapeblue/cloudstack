@@ -91,6 +91,9 @@ public class ListVolumesCmd extends BaseListTaggedResourcesCmd implements UserCm
     @Parameter(name = ApiConstants.STATE, type = CommandType.STRING, description = "state of the volume. Possible values are: Ready, Allocated, Destroy, Expunging, Expunged.")
     private String state;
 
+    @Parameter(name = ApiConstants.STATS, type = CommandType.BOOLEAN, description = "whether to return volume stats or not.")
+    private Boolean stats;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -146,6 +149,11 @@ public class ListVolumesCmd extends BaseListTaggedResourcesCmd implements UserCm
     public String getState() {
         return state;
     }
+
+    public Boolean getStats() {
+        return stats;
+    }
+
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
