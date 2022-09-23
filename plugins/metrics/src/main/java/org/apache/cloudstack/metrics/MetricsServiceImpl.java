@@ -20,6 +20,7 @@ package org.apache.cloudstack.metrics;
 import static com.cloud.utils.NumbersUtil.toReadableSize;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -31,11 +32,13 @@ import java.util.Properties;
 import javax.inject.Inject;
 
 import org.apache.cloudstack.api.ApiErrorCode;
+import org.apache.cloudstack.api.InternalIdentity;
 import org.apache.cloudstack.api.ListClustersMetricsCmd;
 import org.apache.cloudstack.api.ListDbMetricsCmd;
 import org.apache.cloudstack.api.ListHostsMetricsCmd;
 import org.apache.cloudstack.api.ListInfrastructureCmd;
 import org.apache.cloudstack.api.ListMgmtsMetricsCmd;
+import org.apache.cloudstack.api.ListResourcesMetricsStatsCmd;
 import org.apache.cloudstack.api.ListStoragePoolsMetricsCmd;
 import org.apache.cloudstack.api.ListUsageServerMetricsCmd;
 import org.apache.cloudstack.api.ListVMsMetricsCmd;
@@ -61,6 +64,7 @@ import org.apache.cloudstack.response.HostMetricsResponse;
 import org.apache.cloudstack.response.HostMetricsSummary;
 import org.apache.cloudstack.response.InfrastructureResponse;
 import org.apache.cloudstack.response.ManagementServerMetricsResponse;
+import org.apache.cloudstack.response.ResourceMetricsStatsResponse;
 import org.apache.cloudstack.response.StoragePoolMetricsResponse;
 import org.apache.cloudstack.response.UsageServerMetricsResponse;
 import org.apache.cloudstack.response.VmMetricsResponse;
@@ -106,6 +110,7 @@ import com.cloud.org.Grouping;
 import com.cloud.org.Managed;
 import com.cloud.server.DbStatsCollection;
 import com.cloud.server.ManagementServerHostStats;
+import com.cloud.server.ResourceTag;
 import com.cloud.server.StatsCollector;
 import com.cloud.storage.VolumeStatsVO;
 import com.cloud.storage.VolumeVO;
@@ -116,6 +121,7 @@ import com.cloud.usage.dao.UsageJobDao;
 import com.cloud.user.Account;
 import com.cloud.user.AccountManager;
 import com.cloud.utils.Pair;
+import com.cloud.utils.UuidUtils;
 import com.cloud.utils.db.DbProperties;
 import com.cloud.utils.db.DbUtil;
 import com.cloud.utils.db.Filter;
@@ -215,13 +221,68 @@ public class MetricsServiceImpl extends MutualExclusiveIdsManagerBase implements
      * Searches for Volume stats based on the {@code ListVolumesUsageHistoryCmd} parameters.
      *
      * @param cmd the {@link ListVolumesUsageHistoryCmd} specifying what should be searched.
-     * @return the list of VM metrics stats found.
+     * @return the list of Volume metrics stats found.
      */
     @Override
     public ListResponse<VolumeMetricsStatsResponse> searchForVolumeMetricsStats(ListVolumesUsageHistoryCmd cmd) {
         Pair<List<VolumeVO>, Integer> volumeList = searchForVolumesInternal(cmd);
         Map<Long,List<VolumeStatsVO>> volumeStatsList = searchForVolumeMetricsStatsInternal(cmd, volumeList.first());
         return createVolumeMetricsStatsResponse(volumeList, volumeStatsList);
+    }
+
+    /**
+     * Searches for resource stats based on the {@code ListResourcesMetricsStatsCmd} parameters.
+     *
+     * @param cmd the {@link ListResourcesMetricsStatsCmd} specifying what should be searched.
+     * @return the list of resource metrics stats found.
+     */
+    @Override
+    public ListResponse<ResourceMetricsStatsResponse> searchForResourceMetricsStats(ListResourcesMetricsStatsCmd cmd) {
+        Date startDate = cmd.getStartDate();
+        Date endDate = cmd.getEndDate();
+        Long startIndex = cmd.getStartIndex();
+        Long pageSize = cmd.getPageSizeVal();
+        List<String> ids = cmd.getResourceIds();
+        if (CollectionUtils.isEmpty(ids)) {
+            throw new InvalidParameterValueException("Invalid resource ID");
+        }
+        for (String id : ids) {
+            if (StringUtils.isEmpty(id) || !UuidUtils.validateUUID(id)) {
+                throw new InvalidParameterValueException(String.format("Invalid resource ID: %s", id));
+            }
+        }
+        validateDateParams(startDate, endDate);
+        Map<Long, List<Object>> statsMap = new HashMap<>();
+        if (ResourceTag.ResourceObjectType.UserVm.equals(cmd.getResourceType())) {
+            Filter searchFilter = new Filter(UserVmVO.class, "id", true, cmd.getStartIndex(), cmd.getPageSizeVal());
+            SearchBuilder<UserVmVO> sb =  userVmDao.createSearchBuilder();
+            sb.and("uuidIN", sb.entity().getUuid(), SearchCriteria.Op.IN);
+            SearchCriteria<UserVmVO> sc = sb.create();
+            sc.setParameters("uuidIN", ids.toArray());
+            List<UserVmVO> userVmList = userVmDao.search(sc, searchFilter);
+            Map<Long,List<VmStatsVO>> vmStatsList = new HashMap<>();
+            for (UserVmVO userVmVO : userVmList) {
+                Long vmId = userVmVO.getId();
+                List<Object> stats = new ArrayList<>(findVmStatsAccordingToDateParams(vmId, startDate, endDate));
+                statsMap.put(vmId, stats);
+            }
+            return createResourceMetricsStatsResponse(cmd.getResourceType(), new ArrayList<>(userVmList), statsMap);
+        } else if (ResourceTag.ResourceObjectType.Volume.equals(cmd.getResourceType())) {
+            Filter searchFilter = new Filter(VolumeVO.class, "id", true, cmd.getStartIndex(), cmd.getPageSizeVal());
+            SearchBuilder<VolumeVO> sb =  volumeDao.createSearchBuilder();
+            sb.and("uuidIN", sb.entity().getUuid(), SearchCriteria.Op.IN);
+            SearchCriteria<VolumeVO> sc = sb.create();
+            sc.setParameters("uuidIN", ids.toArray());
+            List<VolumeVO> volumeList = volumeDao.search(sc, searchFilter);
+            Map<Long,List<VolumeStatsVO>> volumeStatsList = new HashMap<>();
+            for (VolumeVO volumeVO : volumeList) {
+                Long volumeId = volumeVO.getId();
+                List<Object> stats = new ArrayList<>(findVolumeStatsAccordingToDateParams(volumeId, startDate, endDate));
+                statsMap.put(volumeId, stats);
+            }
+            return createResourceMetricsStatsResponse(cmd.getResourceType(), new ArrayList<>(volumeList), statsMap);
+        }
+        return createResourceMetricsStatsResponse(null,null, null);
     }
 
     /**
@@ -465,7 +526,7 @@ public class MetricsServiceImpl extends MutualExclusiveIdsManagerBase implements
         List<VolumeMetricsStatsResponse> responses = new ArrayList<>();
         for (VolumeVO volumeVO : volumeList.first()) {
             VolumeMetricsStatsResponse volumeMetricsStatsResponse = new VolumeMetricsStatsResponse();
-            volumeMetricsStatsResponse.setObjectName("virtualmachine");
+            volumeMetricsStatsResponse.setObjectName("volume");
             volumeMetricsStatsResponse.setId(volumeVO.getUuid());
             volumeMetricsStatsResponse.setName(volumeVO.getName());
 
@@ -499,6 +560,43 @@ public class MetricsServiceImpl extends MutualExclusiveIdsManagerBase implements
             statsResponseList.add(response);
         }
         return statsResponseList;
+    }
+
+    protected ListResponse<ResourceMetricsStatsResponse> createResourceMetricsStatsResponse(
+            ResourceTag.ResourceObjectType type, List<Object> resourceList,
+            Map<Long,List<Object>> resourceStatsList) {
+        List<ResourceMetricsStatsResponse> responses = new ArrayList<>();
+        for (Object object : resourceList) {
+            ResourceMetricsStatsResponse resourceMetricsStatsResponse = new ResourceMetricsStatsResponse();
+            resourceMetricsStatsResponse.setObjectName(type.toString().toLowerCase());
+            try {
+                Method m = object.getClass().getMethod("getUuid");
+                resourceMetricsStatsResponse.setId((String)m.invoke(object));
+                m = object.getClass().getMethod("geName");
+                resourceMetricsStatsResponse.setName((String)m.invoke(object));
+            } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException ignored) {}
+            if (object instanceof InternalIdentity) {
+                if (ResourceTag.ResourceObjectType.UserVm.equals(type)) {
+                    UserVmVO userVmVO = (UserVmVO)object;
+                    List<VmStatsVO> vmStatsVOS = new ArrayList<>();
+                    for (Object stat : resourceStatsList.get(userVmVO.getId())) {
+                        vmStatsVOS.add((VmStatsVO)stat);
+                    }
+                    resourceMetricsStatsResponse.setStats(createStatsResponse(vmStatsVOS));
+                } else if (ResourceTag.ResourceObjectType.Volume.equals(type)) {
+                    VolumeVO volumeVO = (VolumeVO)object;
+                    List<VolumeStatsVO> volumeStatsVOS = new ArrayList<>();
+                    for (Object stat : resourceStatsList.get(volumeVO.getId())) {
+                        volumeStatsVOS.add((VolumeStatsVO)stat);
+                    }
+                    resourceMetricsStatsResponse.setStats(createVolumeStatsResponse(volumeStatsVOS));
+                }
+            }
+        }
+
+        ListResponse<ResourceMetricsStatsResponse> response = new ListResponse<>();
+        response.setResponses(responses);
+        return response;
     }
 
 

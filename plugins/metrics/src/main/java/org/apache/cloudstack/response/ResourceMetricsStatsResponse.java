@@ -26,21 +26,29 @@ import org.apache.cloudstack.api.response.StatsResponse;
 import com.cloud.serializer.Param;
 import com.google.gson.annotations.SerializedName;
 
-public class VolumeMetricsStatsResponse extends BaseResponse {
+public class ResourceMetricsStatsResponse extends BaseResponse {
     @SerializedName(ApiConstants.ID)
-    @Param(description = "the ID of the volume")
+    @Param(description = "the ID of the resource")
     private String id;
 
+    @SerializedName(ApiConstants.RESOURCE_TYPE)
+    @Param(description = "the type of the resource")
+    private String resourceType;
+
     @SerializedName(ApiConstants.NAME)
-    @Param(description = "the name of the volume")
+    @Param(description = "the name of the resource")
     private String name;
 
     @SerializedName("stats")
-    @Param(description = "the list of volume stats")
+    @Param(description = "the list of resource stats")
     private List<StatsResponse> stats;
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public void setResourceType(String resourceType) {
+        this.resourceType = resourceType;
     }
 
     public void setName(String name) {

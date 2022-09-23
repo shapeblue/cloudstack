@@ -24,16 +24,16 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.cloudstack.api.response.UserVmResponse;
-import org.apache.cloudstack.api.response.VolumeResponse;
 import org.apache.cloudstack.metrics.MetricsService;
-import org.apache.cloudstack.response.VolumeMetricsStatsResponse;
+import org.apache.cloudstack.response.ResourceMetricsStatsResponse;
 
-@APICommand(name = ListVolumesUsageHistoryCmd.APINAME, description = "Lists Volume stats", responseObject = VolumeMetricsStatsResponse.class,
+import com.cloud.server.ResourceTag;
+
+@APICommand(name = ListResourcesMetricsStatsCmd.APINAME, description = "Lists VM stats", responseObject = ResourceMetricsStatsResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false, since = "4.18.0",
         authorized = {RoleType.Admin,  RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
-public class ListVolumesUsageHistoryCmd extends BaseListCmd {
-    public static final String APINAME = "listVolumesUsageHistory";
+public class ListResourcesMetricsStatsCmd extends BaseListCmd {
+    public static final String APINAME = "listResourcesUsageHistory";
 
     @Inject
     private MetricsService metricsService;
@@ -41,21 +41,21 @@ public class ListVolumesUsageHistoryCmd extends BaseListCmd {
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
+    @Parameter(name = ApiConstants.RESOURCE_IDS,
+            type = BaseCmd.CommandType.LIST,
+            required = true,
+            collectionType = BaseCmd.CommandType.STRING,
+            description = "list of resources for stats to be listed")
+    private List<String> resourceIds;
 
-    @Parameter(name = ApiConstants.ID, type = CommandType.UUID, entityType = VolumeResponse.class, description = "the ID of the volume.")
-    private Long id;
+    @Parameter(name = ApiConstants.RESOURCE_TYPE, type = BaseCmd.CommandType.STRING, required = true, description = "type of the resource")
+    private String resourceType;
 
-    @Parameter(name=ApiConstants.IDS, type=CommandType.LIST, collectionType=CommandType.UUID, entityType=UserVmResponse.class, description="the IDs of the volumes, mutually exclusive with id.")
-    private List<Long> ids;
-
-    @Parameter(name = ApiConstants.NAME, type = CommandType.STRING, description = "name of the volume (a substring match is made against the parameter value returning the data for all matching Volumes).")
-    private String name;
-
-    @Parameter(name = ApiConstants.START_DATE, type = CommandType.DATE, description = "start date to filter Volume stats."
+    @Parameter(name = ApiConstants.START_DATE, type = CommandType.DATE, description = "start date to filter resource stats."
             + "Use format \"yyyy-MM-dd hh:mm:ss\")")
     private Date startDate;
 
-    @Parameter(name = ApiConstants.END_DATE, type = CommandType.DATE, description = "end date to filter Volume stats."
+    @Parameter(name = ApiConstants.END_DATE, type = CommandType.DATE, description = "end date to filter resource stats."
             + "Use format \"yyyy-MM-dd hh:mm:ss\")")
     private Date endDate;
 
@@ -63,16 +63,12 @@ public class ListVolumesUsageHistoryCmd extends BaseListCmd {
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
 
-    public Long getId() {
-        return id;
+    public List<String> getResourceIds() {
+        return resourceIds;
     }
 
-    public List<Long> getIds() {
-        return ids;
-    }
-
-    public String getName() {
-        return name;
+    public ResourceTag.ResourceObjectType getResourceType() {
+        return resourceManagerUtil.getResourceType(resourceType);
     }
 
     public Date getStartDate() {
@@ -94,7 +90,7 @@ public class ListVolumesUsageHistoryCmd extends BaseListCmd {
 
     @Override
     public void execute() {
-        ListResponse<VolumeMetricsStatsResponse> response = metricsService.searchForVolumeMetricsStats(this);
+        ListResponse<ResourceMetricsStatsResponse> response = metricsService.searchForResourceMetricsStats(this);
         response.setResponseName(getCommandName());
         setResponseObject(response);
     }
