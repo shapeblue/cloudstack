@@ -36,7 +36,26 @@
     </a-modal>
     <a-row class="chart-row">
       <a-col>
-        <span class="ant-tag">
+        <a-radio-group
+          v-model:value="durationSelectorValue"
+          buttonStyle="solid">
+          <a-radio-button value="">
+            {{ $t('Today') }}
+          </a-radio-button>
+          <a-radio-button value="24hrs">
+            {{ $t('24 hrs') }}
+          </a-radio-button>
+          <a-radio-button value="week">
+            {{ $t('7 days') }}
+          </a-radio-button>
+          <a-radio-button value="month">
+            {{ $t('1 month') }}
+          </a-radio-button>
+          <a-radio-button value="custom">
+            {{ $t('custom') }}
+          </a-radio-button>
+        </a-radio-group>
+        <span class="ant-tag" v-if="durationSelectorValue==='custom'">
           <a-button @click="openFilter()">
             <FilterOutlined/>
           </a-button>
@@ -229,6 +248,7 @@ export default {
   },
   data () {
     return {
+      durationSelectorValue: '',
       resourceTypeToShowInfo: null,
       showResourceInfoModal: false,
       resourceInfoModalTitle: null,
