@@ -116,6 +116,7 @@ import {
   NotificationOutlined,
   NumberOutlined,
   PaperClipOutlined,
+  PartitionOutlined,
   PauseCircleOutlined,
   PictureOutlined,
   PieChartOutlined,
@@ -262,6 +263,7 @@ export default {
     app.component('NotificationOutlined', NotificationOutlined)
     app.component('NumberOutlined', NumberOutlined)
     app.component('PaperClipOutlined', PaperClipOutlined)
+    app.component('PartitionOutlined', PartitionOutlined)
     app.component('PauseCircleOutlined', PauseCircleOutlined)
     app.component('PictureOutlined', PictureOutlined)
     app.component('PieChartOutlined', PieChartOutlined)

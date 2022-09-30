@@ -17,6 +17,7 @@
 
 <template>
   <resource-layout>
+    <!-- <template #left v-if="$route.query.tab !== 'account.network.overview'"> -->
     <template #left>
       <slot name="info-card">
         <info-card :resource="resource" :loading="loading" />
@@ -189,4 +190,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.right {
+  width: 100%;
+}
 </style>

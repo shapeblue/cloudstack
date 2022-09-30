@@ -17,7 +17,7 @@
 // $message.success(`${$t('label.copied.clipboard')} : ${name}`)
 <template>
   <a-spin :spinning="loading">
-    <a-card class="spin-content" :bordered="bordered" :title="title">
+    <a-card class="spin-content" :bordered="bordered" :title="title" v-if="$route.query.tab !== 'account.network.overview'">
       <div>
         <div class="resource-details">
           <div class="resource-details__name">
@@ -47,6 +47,9 @@
                   {{ name }}
                 </h4>
               </div>
+            </slot>
+            <slot name="action" v-if="$route.path.includes('account')">
+              <a-button @click="openAccNetVisualizer()" style="padding:5px; margin: 5px"> <router-link :to="{path: '/networkvisualizer/' + resource.id}"> Network Visualizer </router-link> </a-button>
             </slot>
           </div>
           <slot name="actions">
@@ -93,7 +96,6 @@
             </div>
           </slot>
         </div>
-
         <a-divider/>
 
         <div class="resource-detail-item" v-if="(resource.state || resource.status) && $route.meta.name !== 'zone'">
@@ -693,6 +695,7 @@
       </div>
     </a-card>
   </a-spin>
+  <!-- <account-network-overview :resource="resource" v-if="openVisualizer" /> -->
 </template>
 
 <script>
@@ -705,6 +708,7 @@ import UploadResourceIcon from '@/components/view/UploadResourceIcon'
 import eventBus from '@/config/eventBus'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import ResourceLabel from '@/components/widgets/ResourceLabel'
+import AccountNetworkOverview from '@/views/iam/AccountNetworkOverview.vue'
 
 export default {
   name: 'InfoCard',
@@ -715,7 +719,8 @@ export default {
     TooltipButton,
     UploadResourceIcon,
     ResourceIcon,
-    ResourceLabel
+    ResourceLabel,
+    AccountNetworkOverview
   },
   props: {
     resource: {
@@ -760,7 +765,8 @@ export default {
         vpc: '',
         network: ''
       },
-      newResource: {}
+      newResource: {},
+      openVisualizer: false
     }
   },
   watch: {
@@ -826,6 +832,13 @@ export default {
     }
   },
   methods: {
+    openAccNetVisualizer () {
+      // $routes.push({
+      //   path: '/networkvisualizer/' + this.resource.id,
+      //   component: AccountNetworkOverview
+      // })
+      this.openVisualizer = !this.openVisualizer
+    },
     updateResourceAdditionalData () {
       if (!this.resource) return
       this.resourceType = this.$route.meta.resourceType

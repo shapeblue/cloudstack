@@ -775,6 +775,11 @@ export default {
         }
         return true
       }
+    },
+    {
+      name: 'networkvisualizer',
+      title: 'label.network.visualizer',
+      icon: 'partition-outlined'
     }
   ]
 }

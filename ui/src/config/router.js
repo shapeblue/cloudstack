@@ -19,6 +19,7 @@
 import { UserLayout, BasicLayout, RouteView } from '@/layouts'
 import AutogenView from '@/views/AutogenView.vue'
 import IFramePlugin from '@/views/plugins/IFramePlugin.vue'
+// import AccountNetworkOverview from '@/views/iam/AccountNetworkOverview'
 
 import { shallowRef, defineAsyncComponent } from 'vue'
 import { vueProps } from '@/vue-app'
@@ -289,6 +290,12 @@ export function asyncRouterMap () {
       })
     })
   }
+
+  // routerMap[0].children.push({
+  //   path: '/account' + '/:id',
+  //   component: AccountNetworkOverview,
+  //   meta: { title: 'Network Visualizer', icon: 'partition-outlined', tab: 'account.network.overview' }
+  // })
 
   return routerMap
 }

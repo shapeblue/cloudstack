@@ -1129,6 +1129,7 @@
 "label.network.permissions": "Network permissions",
 "label.network.selection": "Network selection",
 "label.network.service.providers": "Network service providers",
+"label.network.visualizer": "Network Visualizer",
 "label.networkdevicetype": "Type",
 "label.networkdomain": "Network domain",
 "label.networkid": "Network",

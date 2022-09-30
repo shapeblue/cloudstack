@@ -79,6 +79,22 @@
                       <clock-circle-outlined v-if="['comment'].includes($route.name) && !['Admin'].includes($store.getters.userInfo.roletype) && filter === 'all'" />
                     </a-select-option>
                   </a-select>
+                  <a-select
+                    v-if="!dataView && $route.name === 'networkvisualizer'"
+                    :placeholder="$t('label.filterby')"
+                    :value="getAccounts()"
+                    style="min-width: 120px; margin-left: 10px"
+                    @change="changeAccountView"
+                    showSearch
+                    optionFilterProp="label"
+                    :filterOption="(input, option) => {
+                      return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                    }" >
+                    <a-select-option
+                      v-for="acc in accounts"
+                      :key="acc.name">
+                    </a-select-option>
+                  </a-select>
                 </a-tooltip>
               </template>
             </breadcrumb>
@@ -479,6 +495,7 @@ export default {
   data () {
     return {
       apiName: '',
+      accounts: [],
       loading: false,
       actionLoading: false,
       columnKeys: [],
@@ -1717,6 +1734,16 @@ export default {
       if (screenWidth <= 768) {
         this.modalWidth = '450px'
       }
+    },
+    getAccounts () {
+      api('listAccounts', {
+        listall: true
+      }).then(response => {
+        this.accounts = response?.listaccountsresponse?.account || []
+      })
+    },
+    changeAccountView (d) {
+      console.log(d)
     }
   }
 }
