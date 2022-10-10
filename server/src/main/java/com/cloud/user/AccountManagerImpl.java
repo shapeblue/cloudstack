@@ -292,7 +292,11 @@ public class AccountManagerImpl extends ManagerBase implements AccountManager, M
     @Inject
     private GlobalLoadBalancingRulesService _gslbService;
 
+    @Inject
+    public AccountService _accountService;
+
     private List<UserAuthenticator> _userAuthenticators;
+    private List<UserTwoFactorAuthenticator> _userTwoFactorAuthenticators;
     protected List<UserAuthenticator> _userPasswordEncoders;
     protected List<PluggableService> services;
     private List<APIChecker> apiAccessCheckers;
@@ -330,6 +334,14 @@ public class AccountManagerImpl extends ManagerBase implements AccountManager, M
 
     public void setUserAuthenticators(List<UserAuthenticator> authenticators) {
         _userAuthenticators = authenticators;
+    }
+
+    public List<UserTwoFactorAuthenticator> getUserTwoFactorAuthenticators() {
+        return _userTwoFactorAuthenticators;
+    }
+
+    public void setUserTwoFactorAuthenticators(List<UserTwoFactorAuthenticator> twoFactorAuthenticators) {
+        _userTwoFactorAuthenticators = _userTwoFactorAuthenticators;
     }
 
     public List<UserAuthenticator> getUserPasswordEncoders() {
@@ -3132,6 +3144,10 @@ public class AccountManagerImpl extends ManagerBase implements AccountManager, M
         return new ConfigKey<?>[] {UseSecretKeyInResponse, enable2FA, userTwoFactorAuthenticationProviderPlugin};
     }
 
+    public List<UserTwoFactorAuthenticator> getUserTwoFactorAuthenticationProviders() {
+        return userTwoFactorAuthenticationProviders;
+    }
+
     public void setUserTwoFactorAuthenticationProviders(final List<UserTwoFactorAuthenticator> userTwoFactorAuthenticationProviders) {
         this.userTwoFactorAuthenticationProviders = userTwoFactorAuthenticationProviders;
     }
@@ -3142,6 +3158,28 @@ public class AccountManagerImpl extends ManagerBase implements AccountManager, M
                 userTwoFactorAuthenticationProvidersMap.put(userTwoFactorAuthenticator.getName().toLowerCase(), userTwoFactorAuthenticator);
             }
         }
+    }
+
+    @Override
+    public UserTwoFactorAuthenticator getUserTwoFactorAuthenticator(Long domainId, Long userAccountId) {
+        if (userAccountId != null) {
+            UserAccount userAccount = _accountService.getUserAccountById(userAccountId);
+            if (userAccount.getUser2faProvider() != null) {
+                return getUserTwoFactorAuthenticator(userAccount.getUser2faProvider());
+            }
+        }
+        final String name = userTwoFactorAuthenticationProviderPlugin.valueIn(domainId);
+        return getUserTwoFactorAuthenticator(name);
+    }
+
+    public UserTwoFactorAuthenticator getUserTwoFactorAuthenticator(final String name) {
+        if (StringUtils.isEmpty(name)) {
+            throw new CloudRuntimeException("Invalid UserTwoFactorAuthenticator name provided");
+        }
+        if (!userTwoFactorAuthenticationProvidersMap.containsKey(name)) {
+            throw new CloudRuntimeException("Failed to find UserTwoFactorAuthenticator by the name: " + name);
+        }
+        return userTwoFactorAuthenticationProvidersMap.get(name);
     }
 
 }
