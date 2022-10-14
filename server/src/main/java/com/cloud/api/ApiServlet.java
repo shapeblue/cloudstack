@@ -315,6 +315,8 @@ public class ApiServlet extends HttpServlet {
                                         responseType);
                         HttpUtils.writeHttpResponse(resp, serializedResponse, HttpServletResponse.SC_UNAUTHORIZED, responseType, ApiServer.JSONcontentType.value());
 
+                    } else {
+
                     }
                 }
             }
