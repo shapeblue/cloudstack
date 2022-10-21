@@ -40,6 +40,7 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.api.auth.SetupUserTwoFactorAuthenticationCmd;
 import org.apache.cloudstack.acl.APIChecker;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.QuerySelector;
@@ -59,6 +60,7 @@ import org.apache.cloudstack.api.command.admin.user.GetUserKeysCmd;
 import org.apache.cloudstack.api.command.admin.user.MoveUserCmd;
 import org.apache.cloudstack.api.command.admin.user.RegisterCmd;
 import org.apache.cloudstack.api.command.admin.user.UpdateUserCmd;
+import org.apache.cloudstack.api.response.UserTwoFactorAuthenticationSetupResponse;
 import org.apache.cloudstack.auth.UserTwoFactorAuthenticator;
 import org.apache.cloudstack.config.ApiServiceConfiguration;
 import org.apache.cloudstack.context.CallContext;
@@ -3183,6 +3185,25 @@ public class AccountManagerImpl extends ManagerBase implements AccountManager, M
         }
         final String name = userTwoFactorAuthenticationProviderPlugin.valueIn(domainId);
         return getUserTwoFactorAuthenticator(name);
+    }
+
+    @Override
+    public UserTwoFactorAuthenticationSetupResponse setupUserTwoFactorAuthentication(SetupUserTwoFactorAuthenticationCmd cmd) {
+        String providerName = cmd.getProvider();
+
+        Account caller = CallContext.current().getCallingAccount();
+        Account owner = _accountService.getActiveAccountById(caller.getId());
+
+        checkAccess(caller, null, true, owner);
+
+        UserTwoFactorAuthenticator provider = getUserTwoFactorAuthenticationProvider(providerName);
+        UserAccount userAccount = _accountService.getUserAccountById(owner.getId());
+        String code = provider.setup2FAKey(userAccount);
+        UserTwoFactorAuthenticationSetupResponse response = new UserTwoFactorAuthenticationSetupResponse();
+        response.setId(owner.getUuid());
+        response.setSecretCode(code);
+
+        return response;
     }
 
     public UserTwoFactorAuthenticator getUserTwoFactorAuthenticator(final String name) {
