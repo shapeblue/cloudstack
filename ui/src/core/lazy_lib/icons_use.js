@@ -138,6 +138,7 @@ import {
   SaveOutlined,
   ScheduleOutlined,
   ScissorOutlined,
+  ScanOutlined,
   SearchOutlined,
   SettingOutlined,
   ShareAltOutlined,
@@ -284,6 +285,7 @@ export default {
     app.component('SafetyOutlined', SafetyOutlined)
     app.component('SaveOutlined', SaveOutlined)
     app.component('ScheduleOutlined', ScheduleOutlined)
+    app.component('ScanOutlined', ScanOutlined)
     app.component('ScissorOutlined', ScissorOutlined)
     app.component('SearchOutlined', SearchOutlined)
     app.component('SettingOutlined', SettingOutlined)
