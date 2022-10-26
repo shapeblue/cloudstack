@@ -49,3 +49,7 @@ ALTER TABLE `cloud`.`vpc`
     ADD COLUMN `dns2` varchar(255) DEFAULT NULL COMMENT 'second IPv4 DNS for the vpc' AFTER `dns1`,
     ADD COLUMN `ip6dns1` varchar(255) DEFAULT NULL COMMENT 'first IPv6 DNS for the vpc' AFTER `dns2`,
     ADD COLUMN `ip6dns2` varchar(255) DEFAULT NULL COMMENT 'second IPv6 DNS for the vpc' AFTER `ip6dns1`;
+
+ALTER TABLE `cloud`.`user` ADD COLUMN `two_factor_authentication_enabled` tinyint NOT NULL DEFAULT 0;
+ALTER TABLE `cloud`.`user` ADD COLUMN `key_for_2fa` varchar(255) default NULL;
+ALTER TABLE `cloud`.`user` ADD COLUMN `user_2fa_provider` varchar(255) default NULL;
