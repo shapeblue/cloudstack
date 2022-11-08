@@ -2172,7 +2172,7 @@
 "message.delete.tag.failed": "Failed to delete tag",
 "message.delete.tag.for.networkacl": "Remove tag for NetworkACL",
 "message.delete.tag.processing": "Deleting tag...",
-"message.delete.user": "Please confirm that you would like to delete this user.",
+"message.delete.user": "Please confirm that you domer like to delete this user.",
 "message.delete.vpn.connection": "Please confirm that you want to delete VPN connection.",
 "message.delete.vpn.customer.gateway": "Please confirm that you want to delete this VPN customer gateway.",
 "message.delete.vpn.gateway": "Please confirm that you want to delete this VPN Gateway.",
