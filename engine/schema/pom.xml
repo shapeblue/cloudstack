@@ -93,7 +93,6 @@
                                 def templateList = []
                                 templateList.add("systemvmtemplate-${csVersion}.${patch}-kvm")
                                 templateList.add("systemvmtemplate-${csVersion}.${patch}-vmware")
-                                templateList.add("systemvmtemplate-${csVersion}.${patch}-xen")
                                 templateList.add("systemvmtemplate-${csVersion}.${patch}-ovm")
                                 templateList.add("systemvmtemplate-${csVersion}.${patch}-hyperv")
                                 File file = new File("./engine/schema/dist/systemvm-templates/md5sum.txt")
