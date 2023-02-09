@@ -246,9 +246,15 @@ export default {
               isFetchData: false
             }
           })
+        }).catch(error => {
+          this.$notifyError(error)
+        }).finally(() => {
+          this.addLoading = false
         })
       }).catch(error => {
         this.formRef.value.scrollToField(error.errorFields[0].name)
+      }).finally(() => {
+        this.addLoading = false
       })
     },
     removeTag (uuid) {
@@ -282,6 +288,10 @@ export default {
             isFetchData: false
           }
         })
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.deleteLoading = false
       })
     },
     closeAction () {
