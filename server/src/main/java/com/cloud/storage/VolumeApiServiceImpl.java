@@ -37,7 +37,6 @@ import javax.inject.Inject;
 import org.apache.cloudstack.api.ApiConstants.IoDriverPolicy;
 import com.cloud.projects.Project;
 import com.cloud.projects.ProjectManager;
-import com.cloud.storage.dao.*;
 import org.apache.cloudstack.api.command.user.volume.AssignVolumeCmd;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
@@ -92,7 +91,14 @@ import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.DettachCommand;
 import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
-import org.apache.cloudstack.storage.datastore.db.*;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreVO;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailVO;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
+import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreVO;
 import org.apache.cloudstack.storage.image.datastore.ImageStoreEntity;
 import org.apache.cloudstack.utils.bytescale.ByteScaleUtils;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
@@ -156,6 +162,12 @@ import com.cloud.service.ServiceOfferingVO;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.service.dao.ServiceOfferingDetailsDao;
 import com.cloud.storage.Storage.ImageFormat;
+import com.cloud.storage.dao.DiskOfferingDao;
+import com.cloud.storage.dao.SnapshotDao;
+import com.cloud.storage.dao.StoragePoolTagsDao;
+import com.cloud.storage.dao.VMTemplateDao;
+import com.cloud.storage.dao.VolumeDao;
+import com.cloud.storage.dao.VolumeDetailsDao;
 import com.cloud.storage.snapshot.SnapshotApiService;
 import com.cloud.storage.snapshot.SnapshotManager;
 import com.cloud.template.TemplateManager;
@@ -3154,14 +3166,15 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
     }
 
     private boolean isScaleIOVolumeOnDifferentScaleIOStorageInstances(long srcPoolId, long destPoolId) {
+        String SCALEIO_STORAGE_POOL_SYSTEM_ID = "powerflex.storagepool.system.id";
         String srcPoolSystemId = null;
-        StoragePoolDetailVO srcPoolSystemIdDetail = storagePoolDetailsDao.findDetail(srcPoolId, ScaleIOGatewayClient.STORAGE_POOL_SYSTEM_ID);
+        StoragePoolDetailVO srcPoolSystemIdDetail = storagePoolDetailsDao.findDetail(srcPoolId, SCALEIO_STORAGE_POOL_SYSTEM_ID);
         if (srcPoolSystemIdDetail != null) {
             srcPoolSystemId = srcPoolSystemIdDetail.getValue();
         }
 
         String destPoolSystemId = null;
-        StoragePoolDetailVO destPoolSystemIdDetail = storagePoolDetailsDao.findDetail(destPoolId, ScaleIOGatewayClient.STORAGE_POOL_SYSTEM_ID);
+        StoragePoolDetailVO destPoolSystemIdDetail = storagePoolDetailsDao.findDetail(destPoolId, SCALEIO_STORAGE_POOL_SYSTEM_ID);
         if (destPoolSystemIdDetail != null) {
             destPoolSystemId = destPoolSystemIdDetail.getValue();
         }

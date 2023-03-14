@@ -32,6 +32,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.apache.cloudstack.engine.subsystem.api.storage.StoragePoolAllocator;
 import org.apache.cloudstack.framework.config.ConfigKey;
@@ -46,6 +48,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
+import org.mockito.stubbing.Answer;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import com.cloud.agent.AgentManager;
@@ -69,6 +72,7 @@ import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.DiskOfferingVO;
 import com.cloud.storage.ScopeType;
 import com.cloud.storage.StorageManager;
+import com.cloud.storage.Storage;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.StoragePoolHostVO;
 import com.cloud.storage.VMTemplateVO;
@@ -376,6 +380,13 @@ public class VirtualMachineManagerImplTest {
     @Test
     public void executeManagedStorageChecksWhenTargetStoragePoolProvidedTestCurrentStoragePoolEqualsTargetPool() {
         Mockito.doReturn(true).when(storagePoolVoMock).isManaged();
+        // return any storage type except powerflex/scaleio
+        List<Storage.StoragePoolType> values = Arrays.asList(Storage.StoragePoolType.values());
+        Mockito.doReturn(Storage.StoragePoolType.StorPool).when(storagePoolVoMock).getPoolType();
+        when(storagePoolVoMock.getPoolType()).thenAnswer((Answer<Storage.StoragePoolType>) invocation -> {
+            List<Storage.StoragePoolType> filteredValues = values.stream().filter(v -> v != Storage.StoragePoolType.PowerFlex).collect(Collectors.toList());
+            int randomIndex = new Random().nextInt(filteredValues.size());
+            return filteredValues.get(randomIndex); });
 
         virtualMachineManagerImpl.executeManagedStorageChecksWhenTargetStoragePoolProvided(storagePoolVoMock, volumeVoMock, storagePoolVoMock);
 
@@ -386,6 +397,13 @@ public class VirtualMachineManagerImplTest {
     @Test(expected = CloudRuntimeException.class)
     public void executeManagedStorageChecksWhenTargetStoragePoolProvidedTestCurrentStoragePoolNotEqualsTargetPool() {
         Mockito.doReturn(true).when(storagePoolVoMock).isManaged();
+        // return any storage type except powerflex/scaleio
+        List<Storage.StoragePoolType> values = Arrays.asList(Storage.StoragePoolType.values());
+        Mockito.doReturn(Storage.StoragePoolType.StorPool).when(storagePoolVoMock).getPoolType();
+        when(storagePoolVoMock.getPoolType()).thenAnswer((Answer<Storage.StoragePoolType>) invocation -> {
+            List<Storage.StoragePoolType> filteredValues = values.stream().filter(v -> v != Storage.StoragePoolType.PowerFlex).collect(Collectors.toList());
+            int randomIndex = new Random().nextInt(filteredValues.size());
+            return filteredValues.get(randomIndex); });
 
         virtualMachineManagerImpl.executeManagedStorageChecksWhenTargetStoragePoolProvided(storagePoolVoMock, volumeVoMock, Mockito.mock(StoragePoolVO.class));
     }
