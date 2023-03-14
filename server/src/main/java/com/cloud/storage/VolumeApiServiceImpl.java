@@ -35,6 +35,10 @@ import java.util.concurrent.ExecutionException;
 import javax.inject.Inject;
 
 import org.apache.cloudstack.api.ApiConstants.IoDriverPolicy;
+import com.cloud.projects.Project;
+import com.cloud.projects.ProjectManager;
+import com.cloud.storage.dao.*;
+import org.apache.cloudstack.api.command.user.volume.AssignVolumeCmd;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.user.volume.AssignVolumeCmd;
@@ -88,12 +92,7 @@ import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.DettachCommand;
 import org.apache.cloudstack.storage.command.TemplateOrVolumePostUploadCommand;
-import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
-import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
-import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreVO;
-import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreDao;
-import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreVO;
+import org.apache.cloudstack.storage.datastore.db.*;
 import org.apache.cloudstack.storage.image.datastore.ImageStoreEntity;
 import org.apache.cloudstack.utils.bytescale.ByteScaleUtils;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
@@ -157,12 +156,6 @@ import com.cloud.service.ServiceOfferingVO;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.service.dao.ServiceOfferingDetailsDao;
 import com.cloud.storage.Storage.ImageFormat;
-import com.cloud.storage.dao.DiskOfferingDao;
-import com.cloud.storage.dao.SnapshotDao;
-import com.cloud.storage.dao.StoragePoolTagsDao;
-import com.cloud.storage.dao.VMTemplateDao;
-import com.cloud.storage.dao.VolumeDao;
-import com.cloud.storage.dao.VolumeDetailsDao;
 import com.cloud.storage.snapshot.SnapshotApiService;
 import com.cloud.storage.snapshot.SnapshotManager;
 import com.cloud.template.TemplateManager;
@@ -323,9 +316,10 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
     private ManagementService managementService;
     @Inject
     protected SnapshotHelper snapshotHelper;
-
     @Inject
     protected ProjectManager projectManager;
+    @Inject
+    protected StoragePoolDetailsDao storagePoolDetailsDao;
 
     protected Gson _gson;
 
@@ -3018,6 +3012,14 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
             }
         }
 
+        // Offline volume migration check for scaleIO volumes across scaleio clusters
+        if (vm == null || !State.Running.equals(vm.getState())) {
+            StoragePoolVO sourceStoragePoolVO = _storagePoolDao.findById(vol.getPoolId());
+            if (sourceStoragePoolVO.getPoolType().equals(Storage.StoragePoolType.PowerFlex) && isScaleIOVolumeOnDifferentScaleIOStorageInstances(vol.getPoolId(), storagePoolId)) {
+                throw new InvalidParameterValueException("Volume needs to be attached to a VM to move across ScaleIO storages in different ScaleIO clusters");
+            }
+        }
+
         if (vm != null &&
                 HypervisorType.VMware.equals(vm.getHypervisorType()) &&
                 State.Stopped.equals(vm.getState())) {
@@ -3149,6 +3151,30 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         }
 
         return orchestrateMigrateVolume(vol, destPool, liveMigrateVolume, newDiskOffering);
+    }
+
+    private boolean isScaleIOVolumeOnDifferentScaleIOStorageInstances(long srcPoolId, long destPoolId) {
+        String srcPoolSystemId = null;
+        StoragePoolDetailVO srcPoolSystemIdDetail = storagePoolDetailsDao.findDetail(srcPoolId, ScaleIOGatewayClient.STORAGE_POOL_SYSTEM_ID);
+        if (srcPoolSystemIdDetail != null) {
+            srcPoolSystemId = srcPoolSystemIdDetail.getValue();
+        }
+
+        String destPoolSystemId = null;
+        StoragePoolDetailVO destPoolSystemIdDetail = storagePoolDetailsDao.findDetail(destPoolId, ScaleIOGatewayClient.STORAGE_POOL_SYSTEM_ID);
+        if (destPoolSystemIdDetail != null) {
+            destPoolSystemId = destPoolSystemIdDetail.getValue();
+        }
+
+        if (StringUtils.isAnyEmpty(srcPoolSystemId, destPoolSystemId)) {
+            throw new CloudRuntimeException("Failed to validate PowerFlex pools compatibility for migration as storage instance details are not available");
+        }
+
+        if (srcPoolSystemId.equals(destPoolSystemId)) {
+            return true;
+        }
+
+        return false;
     }
 
     private boolean isSourceOrDestNotOnStorPool(StoragePoolVO storagePoolVO, StoragePoolVO destinationStoragePoolVo) {
