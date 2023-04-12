@@ -19,6 +19,7 @@ import { vueApp, vueProps } from './vue-app'
 import router from './router'
 import store from './store'
 import { i18n, loadLanguageAsync } from './locales'
+import ShortKey from 'vue-shortkey'
 
 import bootstrap from './core/bootstrap'
 import './core/lazy_use'
@@ -53,6 +54,7 @@ vueApp.use(localesPlugin)
 vueApp.use(genericUtilPlugin)
 vueApp.use(extensions)
 vueApp.use(directives)
+vueApp.use(ShortKey, { prevent: ['input', 'textarea'] })
 
 fetch('config.json').then(response => response.json()).then(config => {
   vueProps.$config = config

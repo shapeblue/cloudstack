@@ -28,7 +28,9 @@
                   style="margin-bottom: 5px"
                   shape="round"
                   size="small"
-                  @click="fetchData({ irefresh: true })">
+                  @click="fetchData({ irefresh: true })"
+                  v-shortkey.once="['r']"
+                  @shortkey="fetchData({ irefresh: true })">
                   <template #icon><reload-outlined /></template>
                   {{ $t('label.refresh') }}
                 </a-button>
