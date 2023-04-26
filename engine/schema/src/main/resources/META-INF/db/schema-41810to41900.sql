@@ -180,3 +180,18 @@ CREATE TABLE `cloud`.`vm_scheduled_job` (
 -- Add support for different cluster types for kubernetes
 ALTER TABLE `cloud`.`kubernetes_cluster` ADD COLUMN `cluster_type` varchar(64) DEFAULT 'CloudManaged' COMMENT 'type of cluster';
 ALTER TABLE `cloud`.`kubernetes_cluster` MODIFY COLUMN `kubernetes_version_id` bigint unsigned NULL COMMENT 'the ID of the Kubernetes version of this Kubernetes cluster';
+
+DROP TABLE IF EXISTS `cloud`.`object_store`;
+CREATE TABLE `cloud`.`object_store` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `name` varchar(255) NOT NULL COMMENT 'name of object store',
+  `object_provider_name` varchar(255) NOT NULL COMMENT 'id of object_store_provider',
+  `protocol` varchar(255) NOT NULL COMMENT 'protocol of object store',
+  `url` varchar(255) NOT NULL COMMENT 'url of the object store',
+  `uuid` varchar(255) COMMENT 'uuid of object store',
+  `created` datetime COMMENT 'date the object store first signed on',
+  `removed` datetime COMMENT 'date removed if not null',
+  `total_size` bigint unsigned COMMENT 'storage total size statistics',
+  `used_bytes` bigint unsigned COMMENT 'storage available bytes statistics',
+  PRIMARY KEY(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
