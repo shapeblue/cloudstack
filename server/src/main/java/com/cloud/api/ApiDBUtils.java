@@ -299,6 +299,7 @@ import org.apache.cloudstack.api.response.HostTagResponse;
 import org.apache.cloudstack.api.response.ImageStoreResponse;
 import org.apache.cloudstack.api.response.InstanceGroupResponse;
 import org.apache.cloudstack.api.response.NetworkOfferingResponse;
+import org.apache.cloudstack.api.response.ObjectStoreResponse;
 import org.apache.cloudstack.api.response.ProjectAccountResponse;
 import org.apache.cloudstack.api.response.ProjectInvitationResponse;
 import org.apache.cloudstack.api.response.ProjectResponse;
@@ -328,6 +329,8 @@ import org.apache.cloudstack.framework.jobs.AsyncJob;
 import org.apache.cloudstack.framework.jobs.AsyncJobManager;
 import org.apache.cloudstack.framework.jobs.dao.AsyncJobDao;
 import org.apache.cloudstack.resourcedetail.dao.DiskOfferingDetailsDao;
+import org.apache.cloudstack.storage.datastore.db.ObjectStoreDao;
+import org.apache.cloudstack.storage.datastore.db.ObjectStoreVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 
@@ -471,6 +474,8 @@ public class ApiDBUtils {
     static BackupOfferingDao s_backupOfferingDao;
     static NicDao s_nicDao;
     static ResourceManagerUtil s_resourceManagerUtil;
+
+    static ObjectStoreDao s_objectStoreDao;
 
     @Inject
     private ManagementServer ms;
@@ -725,6 +730,8 @@ public class ApiDBUtils {
     private ResourceIconDao resourceIconDao;
     @Inject
     private ResourceManagerUtil resourceManagerUtil;
+    @Inject
+    private ObjectStoreDao objectStoreDao;
 
     @PostConstruct
     void init() {
@@ -855,6 +862,7 @@ public class ApiDBUtils {
         s_backupOfferingDao = backupOfferingDao;
         s_resourceIconDao = resourceIconDao;
         s_resourceManagerUtil = resourceManagerUtil;
+        s_objectStoreDao = objectStoreDao;
     }
 
     // ///////////////////////////////////////////////////////////
@@ -2161,5 +2169,13 @@ public class ApiDBUtils {
 
     public static NicSecondaryIpVO findSecondaryIpByIp4AddressAndNetworkId(String ip4Address, long networkId) {
         return s_nicSecondaryIpDao.findByIp4AddressAndNetworkId(ip4Address, networkId);
+    }
+
+    public static ObjectStoreResponse newObjectStoreResponse(ObjectStoreVO store) {
+        return s_objectStoreDao.newObjectStoreResponse(store);
+    }
+
+    public static ObjectStoreResponse fillObjectStoreDetails(ObjectStoreResponse storeData, ObjectStoreVO store) {
+        return s_objectStoreDao.setObjectStoreResponse(storeData, store);
     }
 }

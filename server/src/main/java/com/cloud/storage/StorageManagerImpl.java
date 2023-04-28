@@ -3472,12 +3472,9 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
         DataStoreProvider storeProvider = _dataStoreProviderMgr.getDataStoreProvider(providerName);
 
         if (storeProvider == null) {
-            storeProvider = _dataStoreProviderMgr.getDefaultObjectStoreProvider();
-            if (storeProvider == null) {
-                throw new InvalidParameterValueException("can't find object store provider: " + providerName);
-            }
-            providerName = storeProvider.getName(); // ignored passed provider name and use default image store provider name
+            throw new InvalidParameterValueException("can't find object store provider: " + providerName);
         }
+
 
         if (name == null) {
             name = url;
@@ -3492,7 +3489,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
         params.put("url", url);
         params.put("name", name);
         params.put("providerName", storeProvider.getName());
-        params.put("role", DataStoreRole.Image);
+        params.put("role", DataStoreRole.Object);
 
         DataStoreLifeCycle lifeCycle = storeProvider.getDataStoreLifeCycle();
 
@@ -3506,6 +3503,6 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
             throw new CloudRuntimeException("Failed to add object store: " + e.getMessage(), e);
         }
 
-        return (ObjectStore)_dataStoreMgr.getDataStore(store.getId(), DataStoreRole.Image);
+        return (ObjectStore)_dataStoreMgr.getDataStore(store.getId(), DataStoreRole.Object);
     }
 }
