@@ -38,8 +38,8 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.storage.Bucket;
 import com.cloud.storage.ObjectStore;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
@@ -66,6 +66,7 @@ import org.apache.cloudstack.api.response.AutoScaleVmProfileResponse;
 import org.apache.cloudstack.api.response.BackupOfferingResponse;
 import org.apache.cloudstack.api.response.BackupResponse;
 import org.apache.cloudstack.api.response.BackupScheduleResponse;
+import org.apache.cloudstack.api.response.BucketResponse;
 import org.apache.cloudstack.api.response.CapabilityResponse;
 import org.apache.cloudstack.api.response.CapacityResponse;
 import org.apache.cloudstack.api.response.ClusterResponse;
@@ -5059,6 +5060,18 @@ public class ApiResponseHelper implements ResponseGenerator {
         objectStoreResponse.setName(os.getName());
         objectStoreResponse.setProtocol(os.getProtocol());
         objectStoreResponse.setProviderName(os.getProviderName());
+        objectStoreResponse.setObjectName("objectstore");
         return objectStoreResponse;
+    }
+
+    @Override
+    public BucketResponse createBucketResponse(ResponseView responseView, Bucket bucket) {
+        BucketResponse bucketResponse = new BucketResponse();
+        bucketResponse.setName(bucket.getName());
+        bucketResponse.setId(bucket.getUuid());
+        //ToDo change to UUID
+        bucketResponse.setObjectStoragePoolId(""+bucket.getObjectStoreId());
+        bucketResponse.setObjectName("bucket");
+        return bucketResponse;
     }
 }
