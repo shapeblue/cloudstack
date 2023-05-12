@@ -46,7 +46,7 @@ jobs:
       - name: Build UI
         run: |
           cd ui
-          sudo npm install -g @vue/cli webpack eslint npm-check-updates
+          sudo npm install -g @vue/cli npm-check-updates
           npm install
           npm run build
           npm run lint
