@@ -444,54 +444,28 @@ export default {
       ]
     },
     {
-      name: 'backup',
-      title: 'label.backup',
-      icon: 'cloud-upload-outlined',
-      permission: ['listBackups'],
-      columns: [{ name: (record) => { return record.virtualmachinename } }, 'status', 'virtualmachinename', 'type', 'created', 'account', 'domain', 'zone'],
-      details: ['virtualmachinename', 'id', 'type', 'externalid', 'size', 'virtualsize', 'volumes', 'backupofferingname', 'zone', 'account', 'domain', 'created'],
+      name: 'buckets',
+      title: 'label.buckets',
+      icon: 'credit-card-outlined',
+      permission: ['listBuckets'],
+      columns: ['name', 'id', 'created', 'objectstorageid'],
+      details: ['id', 'name', 'objectstorageid', 'size', 'url', 'accesskey', 'usersecretkey', 'account', 'domain', 'created', 'quota', 'encryption', 'versioning', 'objectlocking', 'policy'],
       actions: [
         {
-          api: 'restoreBackup',
-          icon: 'sync-outlined',
-          docHelp: 'adminguide/virtual_machines.html#restoring-vm-backups',
-          label: 'label.backup.restore',
-          message: 'message.backup.restore',
+          api: 'updateBucket',
+          icon: 'edit-outlined',
+          docHelp: 'adminguide/object_storage.html#update-bucket',
+          label: 'label.bucket.update',
           dataView: true,
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/storage/UpdateBucket.vue'))),
           show: (record) => { return record.state !== 'Destroyed' }
         },
         {
-          api: 'restoreVolumeFromBackupAndAttachToVM',
-          icon: 'paper-clip-outlined',
-          label: 'label.backup.attach.restore',
-          message: 'message.backup.attach.restore',
-          dataView: true,
-          show: (record) => { return record.state !== 'Destroyed' },
-          popup: true,
-          component: shallowRef(defineAsyncComponent(() => import('@/views/storage/RestoreAttachBackupVolume.vue')))
-        },
-        {
-          api: 'removeVirtualMachineFromBackupOffering',
-          icon: 'scissor-outlined',
-          label: 'label.backup.offering.remove',
-          message: 'message.backup.offering.remove',
-          dataView: true,
-          show: (record) => { return record.state !== 'Destroyed' },
-          args: ['forced', 'virtualmachineid'],
-          mapping: {
-            forced: {
-              value: (record) => { return true }
-            },
-            virtualmachineid: {
-              value: (record) => { return record.virtualmachineid }
-            }
-          }
-        },
-        {
-          api: 'deleteBackup',
+          api: 'deleteBucket',
           icon: 'delete-outlined',
-          label: 'label.delete.backup',
-          message: 'message.delete.backup',
+          label: 'label.bucket.delete',
+          message: 'message.bucket.delete',
           dataView: true,
           show: (record) => { return record.state !== 'Destroyed' }
         }
