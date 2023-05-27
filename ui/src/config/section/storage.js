@@ -452,6 +452,15 @@ export default {
       details: ['id', 'name', 'objectstorageid', 'size', 'url', 'accesskey', 'usersecretkey', 'account', 'domain', 'created', 'quota', 'encryption', 'versioning', 'objectlocking', 'policy'],
       actions: [
         {
+          api: 'createBucket',
+          icon: 'plus-outlined',
+          docHelp: 'installguide/configuration.html#create-bucket',
+          label: 'label.create.bucket',
+          listView: true,
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/storage/CreateBucket.vue')))
+        },
+        {
           api: 'updateBucket',
           icon: 'edit-outlined',
           docHelp: 'adminguide/object_storage.html#update-bucket',
