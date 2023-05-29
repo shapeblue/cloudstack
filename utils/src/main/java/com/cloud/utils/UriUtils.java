@@ -27,6 +27,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -40,6 +41,8 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.function.Predicate;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -215,7 +218,7 @@ public class UriUtils {
     }
 
     // Get the size of a file from URL response header.
-    public static long getRemoteSize(String url) {
+    public static long getRemoteSize(String url, SSLContext sslContext) {
         long remoteSize = 0L;
         final String[] methods = new String[]{"HEAD", "GET"};
         IllegalArgumentException exception = null;
@@ -226,7 +229,12 @@ public class UriUtils {
             HttpURLConnection httpConn = null;
             try {
                 URI uri = new URI(url);
-                httpConn = (HttpURLConnection)uri.toURL().openConnection();
+                URLConnection urlConnection = uri.toURL().openConnection();
+                if (sslContext != null && urlConnection instanceof HttpsURLConnection) {
+                    HttpsURLConnection httpsConnection = (HttpsURLConnection)urlConnection;
+                    httpsConnection.setSSLSocketFactory(sslContext.getSocketFactory());
+                }
+                httpConn = (HttpURLConnection)urlConnection;
                 httpConn.setRequestMethod(method);
                 httpConn.setConnectTimeout(2000);
                 httpConn.setReadTimeout(5000);
@@ -256,6 +264,10 @@ public class UriUtils {
             throw exception;
         }
         return 0L;
+    }
+
+    public static long getRemoteSize(String url) {
+        return getRemoteSize(url, null);
     }
 
     public static Pair<String, Integer> validateUrl(String url) throws IllegalArgumentException {

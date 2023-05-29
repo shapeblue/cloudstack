@@ -19,23 +19,6 @@
 
 package com.cloud.agent.direct.download;
 
-import com.cloud.utils.Pair;
-import com.cloud.utils.exception.CloudRuntimeException;
-import com.cloud.utils.script.Script;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.commons.collections.MapUtils;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.ssl.SSLContexts;
-
-import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -48,6 +31,25 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Map;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+
+import org.apache.cloudstack.utils.security.SSLUtils;
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+
+import com.cloud.utils.Pair;
+import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.utils.script.Script;
 
 public class HttpsDirectTemplateDownloader extends HttpDirectTemplateDownloader {
 
@@ -81,20 +83,25 @@ public class HttpsDirectTemplateDownloader extends HttpDirectTemplateDownloader 
         }
     }
 
-    private SSLContext getSSLContext() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, KeyManagementException {
-        KeyStore trustStore  = KeyStore.getInstance("jks");
-        FileInputStream instream = new FileInputStream(new File("/etc/cloudstack/agent/cloud.jks"));
-        try {
+    public static SSLContext getSSLContext() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, KeyManagementException {
+        KeyStore customKeystore  = KeyStore.getInstance("jks");
+        try (FileInputStream instream = new FileInputStream(new File("/etc/cloudstack/agent/cloud.jks"))) {
             String privatePasswordFormat = "sed -n '/keystore.passphrase/p' '%s' 2>/dev/null  | sed 's/keystore.passphrase=//g' 2>/dev/null";
             String privatePasswordCmd = String.format(privatePasswordFormat, "/etc/cloudstack/agent/agent.properties");
             String privatePassword = Script.runSimpleBashScript(privatePasswordCmd);
-            trustStore.load(instream, privatePassword.toCharArray());
-        } finally {
-            instream.close();
+            customKeystore.load(instream, privatePassword.toCharArray());
         }
-        return SSLContexts.custom()
-                .loadTrustMaterial(trustStore, new TrustSelfSignedStrategy())
-                .build();
+        KeyStore defaultKeystore = KeyStore.getInstance(KeyStore.getDefaultType());
+        String relativeCacertsPath = "/lib/security/cacerts".replace("/", File.separator);
+        String filename = System.getProperty("java.home") + relativeCacertsPath;
+        try (FileInputStream is = new FileInputStream(filename)) {
+            String password = "changeit";
+            defaultKeystore.load(is, password.toCharArray());
+        }
+        TrustManager[] tm = HttpsMultiTrustManager.getTrustManagersFromKeyStores(customKeystore, defaultKeystore);
+        SSLContext sslContext = SSLUtils.getSSLContext();
+        sslContext.init(null, tm, null);
+        return sslContext;
     }
 
     @Override

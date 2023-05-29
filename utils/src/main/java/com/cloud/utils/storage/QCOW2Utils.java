@@ -25,10 +25,12 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 
 import org.apache.commons.compress.compressors.CompressorException;
-import org.apache.commons.compress.compressors.CompressorInputStream;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.log4j.Logger;
 
@@ -71,17 +73,25 @@ public final class QCOW2Utils {
         return NumbersUtil.bytesToLong(bytes);
     }
 
-    public static long getVirtualSize(String urlStr) {
+    private static BufferedInputStream getBufferedInputStreamFromUrl(String urlStr, SSLContext sslContext) throws IOException {
+        URL url = new URL(urlStr);
+        if (sslContext != null) {
+            HttpsURLConnection connection = (HttpsURLConnection)url.openConnection();
+            connection.setSSLSocketFactory(sslContext.getSocketFactory());
+            return  new BufferedInputStream(connection.getInputStream());
+        }
+        return new BufferedInputStream(url.openStream());
+    }
+
+    public static long getVirtualSize(String urlStr, SSLContext sslContext) {
         InputStream inputStream = null;
 
         try {
-            URL url = new URL(urlStr);
-            BufferedInputStream bufferedInputStream = new BufferedInputStream(url.openStream());
+            BufferedInputStream bufferedInputStream = getBufferedInputStreamFromUrl(urlStr, sslContext);
             inputStream = bufferedInputStream;
 
             try {
-                CompressorInputStream compressorInputStream = new CompressorStreamFactory().createCompressorInputStream(bufferedInputStream);
-                inputStream = compressorInputStream;
+                inputStream = new CompressorStreamFactory().createCompressorInputStream(bufferedInputStream);
             } catch (CompressorException e) {
                 LOGGER.warn(e.getMessage());
                 inputStream = bufferedInputStream;
@@ -93,7 +103,7 @@ public final class QCOW2Utils {
             inputMagicBytes.put(inputBytes, 0, MAGIC_HEADER_LENGTH);
 
             ByteBuffer qcow2MagicBytes = ByteBuffer.allocate(MAGIC_HEADER_LENGTH);
-            qcow2MagicBytes.put("QFI".getBytes(Charset.forName("UTF-8")));
+            qcow2MagicBytes.put("QFI".getBytes(StandardCharsets.UTF_8));
             qcow2MagicBytes.put((byte)0xfb);
 
             long virtualSize = 0L;
