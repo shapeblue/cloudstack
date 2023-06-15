@@ -25,7 +25,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
 
 import org.apache.cloudstack.agent.directdownload.CheckUrlAnswer;
 import org.apache.cloudstack.agent.directdownload.CheckUrlCommand;
@@ -81,11 +80,7 @@ public class LibvirtCheckUrlCommand extends CommandWrapper<CheckUrlCommand, Chec
             if (DirectDownloadCommand.DownloadProtocol.HTTPS.equals(protocol)) {
                 sslContext = HttpsDirectTemplateDownloader.getSSLContext();
             }
-            if (sslContext != null) {
-                checkHttpsUrlExistence(url, sslContext);
-            } else {
-                UriUtils.checkUrlExistence(url);
-            }
+            UriUtils.checkUrlExistence(url, sslContext);
 
             if ("qcow2".equalsIgnoreCase(cmd.getFormat())) {
                 remoteSize = QCOW2Utils.getVirtualSize(url, sslContext);

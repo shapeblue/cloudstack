@@ -59,8 +59,13 @@ import org.apache.commons.httpclient.methods.HeadMethod;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.log4j.Logger;
 import org.w3c.dom.Document;
@@ -412,6 +417,49 @@ public class UriUtils {
         return returnValues;
     }
 
+    protected static boolean validateMetalinkUrlResponse(InputStream is, CloseableHttpClient httpClient) {
+        Map<String, List<String>> metalinkUrls = getMultipleValuesFromXML(is, new String[] {"url"});
+        if (!metalinkUrls.containsKey("url")) {
+            return false;
+        }
+        List<String> urls = metalinkUrls.get("url");
+        for (String u : urls) {
+            if (u.endsWith("torrent")) {
+                continue;
+            }
+            try {
+                if (httpClient != null) {
+                    if (!u.toLowerCase().startsWith("http") && !u.toLowerCase().startsWith("https")) {
+                        continue;
+                    }
+                    checkUrlExistenceUsingClosableHttpClient(u, httpClient);
+                } else {
+                    checkUrlExistence(u);
+                }
+                return true;
+            } catch (IllegalArgumentException | IOException e) {
+                s_logger.warn(e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    protected static boolean checkUrlExistenceMetalinkUsingClosableHttpClient(String url, CloseableHttpClient httpClient) {
+        try {
+            HttpGet getMethod = new HttpGet(url);
+            httpClient.execute(getMethod, response -> {
+                if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+                    return false;
+                }
+                InputStream is = response.getEntity().getContent();
+                return validateMetalinkUrlResponse(is, httpClient);
+            });
+        } catch (IOException e) {
+            s_logger.warn(e.getMessage());
+        }
+        return false;
+    }
+
     /**
      * Check if there is at least one existent URL defined on metalink
      * @param url metalink url
@@ -423,25 +471,7 @@ public class UriUtils {
         try {
             if (httpClient.executeMethod(getMethod) == HttpStatus.SC_OK) {
                 InputStream is = getMethod.getResponseBodyAsStream();
-                Map<String, List<String>> metalinkUrls = getMultipleValuesFromXML(is, new String[] {"url"});
-                if (metalinkUrls.containsKey("url")) {
-                    List<String> urls = metalinkUrls.get("url");
-                    boolean validUrl = false;
-                    for (String u : urls) {
-                        if (url.endsWith("torrent")) {
-                            continue;
-                        }
-                        try {
-                            UriUtils.checkUrlExistence(u);
-                            validUrl = true;
-                            break;
-                        }
-                        catch (IllegalArgumentException e) {
-                            s_logger.warn(e.getMessage());
-                        }
-                    }
-                    return validUrl;
-                }
+                return validateMetalinkUrlResponse(is, null);
             }
         } catch (IOException e) {
             s_logger.warn(e.getMessage());
@@ -483,26 +513,57 @@ public class UriUtils {
         return urls;
     }
 
-    // use http HEAD method to validate url
-    public static void checkUrlExistence(String url) {
-        if (url.toLowerCase().startsWith("http") || url.toLowerCase().startsWith("https")) {
-            HttpClient httpClient = getHttpClient();
-            HeadMethod httphead = new HeadMethod(url);
-            try {
-                if (httpClient.executeMethod(httphead) != HttpStatus.SC_OK) {
-                    throw new IllegalArgumentException("Invalid URL: " + url);
-                }
-                if (url.endsWith("metalink") && !checkUrlExistenceMetalink(url)) {
-                    throw new IllegalArgumentException("Invalid URLs defined on metalink: " + url);
-                }
-            } catch (HttpException hte) {
-                throw new IllegalArgumentException("Cannot reach URL: " + url + " due to: " + hte.getMessage());
-            } catch (IOException ioe) {
-                throw new IllegalArgumentException("Cannot reach URL: " + url + " due to: " + ioe.getMessage());
-            } finally {
-                httphead.releaseConnection();
+    private static void checkUrlExistenceUsingClosableHttpClient(String url, CloseableHttpClient httpClient) throws IOException {
+        HttpHead httpHead = new HttpHead(url);
+        httpClient.execute(httpHead, response -> {
+            if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+                throw new IllegalArgumentException("Invalid URL: " + url);
             }
+            if (url.endsWith("metalink") && !checkUrlExistenceMetalinkUsingClosableHttpClient(url, httpClient)) {
+                throw new IllegalArgumentException("Invalid URLs defined on metalink: " + url);
+            }
+            return response;
+        });
+    }
+
+    private static void checkUrlExistenceWithSslContext(String url, SSLContext sslContext) {
+        SSLConnectionSocketFactory factory = new SSLConnectionSocketFactory(sslContext, SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+        try (CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(factory).build()) {
+            checkUrlExistenceUsingClosableHttpClient(url, httpClient);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Cannot reach URL: " + url + " due to: " + e.getMessage());
         }
+    }
+
+    // use http HEAD method to validate url
+    public static void checkUrlExistence(String url, SSLContext sslContext) {
+        if (!url.toLowerCase().startsWith("http") && !url.toLowerCase().startsWith("https")) {
+            return;
+        }
+        if (sslContext != null) {
+            checkUrlExistenceWithSslContext(url, sslContext);
+            return;
+        }
+        HttpClient httpClient = getHttpClient();
+        HeadMethod httphead = new HeadMethod(url);
+        try {
+            if (httpClient.executeMethod(httphead) != HttpStatus.SC_OK) {
+                throw new IllegalArgumentException("Invalid URL: " + url);
+            }
+            if (url.endsWith("metalink") && !checkUrlExistenceMetalink(url)) {
+                throw new IllegalArgumentException("Invalid URLs defined on metalink: " + url);
+            }
+        } catch (HttpException hte) {
+            throw new IllegalArgumentException("Cannot reach URL: " + url + " due to: " + hte.getMessage());
+        } catch (IOException ioe) {
+            throw new IllegalArgumentException("Cannot reach URL: " + url + " due to: " + ioe.getMessage());
+        } finally {
+            httphead.releaseConnection();
+        }
+    }
+
+    public static void checkUrlExistence(String url) {
+        checkUrlExistence(url, null);
     }
 
     public static final Set<String> COMMPRESSION_FORMATS = ImmutableSet.of("zip", "bz2", "gz");
