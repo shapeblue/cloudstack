@@ -4477,7 +4477,6 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         Object id = cmd.getId();
         Object name = cmd.getStoreName();
         String provider = cmd.getProvider();
-        String protocol = cmd.getProtocol();
         Object keyword = cmd.getKeyword();
         Long startIndex = cmd.getStartIndex();
         Long pageSize = cmd.getPageSizeVal();
@@ -4489,7 +4488,6 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         // ids
         sb.and("id", sb.entity().getId(), SearchCriteria.Op.EQ);
         sb.and("name", sb.entity().getName(), SearchCriteria.Op.EQ);
-        sb.and("protocol", sb.entity().getProtocol(), SearchCriteria.Op.EQ);
         sb.and("provider", sb.entity().getProviderName(), SearchCriteria.Op.EQ);
 
         SearchCriteria<ObjectStoreVO> sc = sb.create();
@@ -4513,9 +4511,6 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         if (provider != null) {
             sc.setParameters("provider", provider);
         }
-        if (protocol != null) {
-            sc.setParameters("protocol", protocol);
-        }
 
         // search Store details by ids
         Pair<List<ObjectStoreVO>, Integer> uniqueStorePair = objectStoreDao.searchAndCount(sc, searchFilter);
@@ -4531,7 +4526,7 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
             osIds[i++] = v.getId();
         }
         List<ObjectStoreVO> objectStores = objectStoreDao.searchByIds(osIds);
-        return new Pair<List<ObjectStoreVO>, Integer>(objectStores, count);
+        return new Pair<>(objectStores, count);
     }
 
 

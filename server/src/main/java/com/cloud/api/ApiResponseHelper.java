@@ -5063,7 +5063,6 @@ public class ApiResponseHelper implements ResponseGenerator {
         ObjectStoreResponse objectStoreResponse = new ObjectStoreResponse();
         objectStoreResponse.setId(os.getUuid());
         objectStoreResponse.setName(os.getName());
-        objectStoreResponse.setProtocol(os.getProtocol());
         objectStoreResponse.setProviderName(os.getProviderName());
         objectStoreResponse.setObjectName("objectstore");
         return objectStoreResponse;
