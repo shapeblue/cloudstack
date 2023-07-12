@@ -58,6 +58,11 @@ public class ActivityCheckTask extends BaseHATask {
         final HAConfig haConfig = getHaConfig();
         final HAResourceCounter counter = haManager.getHACounter(haConfig.getResourceId(), haConfig.getResourceType());
 
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("processing for provider %s result %b for resource %d of type %s in state %s",
+                    haConfig.getHaProvider(), result, haConfig.getResourceId(), haConfig.getResourceType(), haConfig.getState()));
+        }
+
         if (t != null && t instanceof HACheckerException) {
             haManager.transitionHAState(HAConfig.Event.Ineligible, getHaConfig());
             counter.resetActivityCounter();
@@ -65,6 +70,11 @@ public class ActivityCheckTask extends BaseHATask {
         }
 
         counter.incrActivityCounter(!result);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("counter state activity checks: %d (max: %d, activitycheckratio %d)",
+                    counter.getActivityCheckCounter(), maxActivityChecks, activityCheckFailureRatio));
+        }
 
         if (counter.getActivityCheckCounter() < maxActivityChecks) {
             haManager.transitionHAState(HAConfig.Event.TooFewActivityCheckSamples, haConfig);
