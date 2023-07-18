@@ -16,6 +16,8 @@
 // under the License.
 package com.cloud.utils.db;
 
+import static com.cloud.utils.AutoCloseableUtil.closeAutoCloseable;
+
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -43,12 +45,14 @@ import javax.persistence.Transient;
 
 import org.apache.log4j.Logger;
 
-import static com.cloud.utils.AutoCloseableUtil.closeAutoCloseable;
+import com.cloud.utils.db.locking.DBLockingManager;
 
 public class DbUtil {
     protected final static Logger LOGGER = Logger.getLogger(DbUtil.class);
 
     private static Map<String, Connection> s_connectionForGlobalLocks = new HashMap<String, Connection>();
+
+    private static DBLockingManager s_dbLockingManager;
 
     public static Connection getConnectionForGlobalLocks(String name, boolean forLock) {
         synchronized (s_connectionForGlobalLocks) {
@@ -196,6 +200,19 @@ public class DbUtil {
     }
 
     public static boolean getGlobalLock(String name, int timeoutSeconds) {
+        boolean locked = false;
+        long startTime = System.nanoTime();
+        String lockingService = s_dbLockingManager != null ? s_dbLockingManager.getLockingServiceName(): "default";
+        if (s_dbLockingManager != null && "hazelcast".equals(lockingService)) {
+            locked = s_dbLockingManager.getGlobalLock(name, timeoutSeconds);
+        } else {
+            locked = getGlobalLockInternal(name, timeoutSeconds);
+        }
+        LOGGER.debug(String.format("%s - getGlobalLock time for %s: %d", lockingService, name, (System.nanoTime()-startTime)/1000000));
+        return locked;
+    }
+
+    private static boolean getGlobalLockInternal(String name, int timeoutSeconds) {
         Connection conn = getConnectionForGlobalLocks(name, true);
         if (conn == null) {
             LOGGER.error("Unable to acquire DB connection for global lock system");
@@ -232,6 +249,19 @@ public class DbUtil {
     }
 
     public static boolean releaseGlobalLock(String name) {
+        boolean released = false;
+        long startTime = System.nanoTime();
+        String lockingService = s_dbLockingManager != null ? s_dbLockingManager.getLockingServiceName(): "default";
+        if (s_dbLockingManager != null && "hazelcast".equals(lockingService)) {
+            released = s_dbLockingManager.releaseGlobalLock(name);
+        } else {
+            released = releaseGlobalLockInternal(name);
+        }
+        LOGGER.debug(String.format("%s - releaseGlobalLock time for %s: %d", lockingService, name, (System.nanoTime()-startTime)/1000000));
+        return released;
+    }
+
+    private static boolean releaseGlobalLockInternal(String name) {
         try (Connection conn = getConnectionForGlobalLocks(name, false);) {
             if (conn == null) {
                 LOGGER.error("Unable to acquire DB connection for global lock system");
@@ -281,11 +311,10 @@ public class DbUtil {
     public static void closeConnection(final Connection connection) {
         closeAutoCloseable(connection, "exception while close connection.");
     }
-
     public static Map<String, String> getDbInfo(String type, String ... var) {
         String vars = String.join(",", var);
         Map<String, String> result = new HashMap<>();
-        String sql = String.format("SHOW %s WHERE FIND_IN_SET(Variable_name,?)",type);
+        String sql = String.format("SHOW %s WHERE FIND_IN_SET(Variable_name,?)", type);
         try (TransactionLegacy txn = TransactionLegacy.open("metrics")) {
             PreparedStatement pstmt = txn.prepareAutoCloseStatement(sql);
             pstmt.setString(1, vars);
@@ -300,6 +329,10 @@ public class DbUtil {
             LOGGER.debug("failed to get the database status", e);
         }
         return result;
+    }
+
+    public static void setDBLockingManager(DBLockingManager dbLockingManager) {
+        s_dbLockingManager = dbLockingManager;
     }
 
 }

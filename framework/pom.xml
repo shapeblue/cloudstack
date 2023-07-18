@@ -49,6 +49,7 @@
         <module>cluster</module>
         <module>config</module>
         <module>db</module>
+        <module>db-locking</module>
         <module>direct-download</module>
         <module>events</module>
         <module>ipc</module>

@@ -49,3 +49,6 @@ webapp.dir=/usr/share/cloudstack-management/webapp
 
 # The path to access log file
 access.log=/var/log/cloudstack/management/access.log
+
+# Locking service clients. Comma-separated list of management server IP addresses
+locking.service.clients=
