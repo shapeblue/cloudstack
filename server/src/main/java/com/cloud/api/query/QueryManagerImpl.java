@@ -4491,7 +4491,6 @@ public class QueryManagerImpl extends MutualExclusiveIdsManagerBase implements Q
         sb.and("provider", sb.entity().getProviderName(), SearchCriteria.Op.EQ);
 
         SearchCriteria<ObjectStoreVO> sc = sb.create();
-        sc.setParameters("role", DataStoreRole.Object);
 
         if (keyword != null) {
             SearchCriteria<ObjectStoreVO> ssc = objectStoreDao.createSearchCriteria();
