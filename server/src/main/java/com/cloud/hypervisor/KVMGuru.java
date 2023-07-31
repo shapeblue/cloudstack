@@ -51,6 +51,7 @@ import javax.inject.Inject;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.cloudstack.api.ApiConstants;
@@ -213,7 +214,11 @@ public class KVMGuru extends HypervisorGuruBase implements HypervisorGuru {
         Integer maxHostCpuCore = max.second();
 
         long minMemory = virtualMachineTo.getMinRam();
-        Long maxMemory = virtualMachineTo.getMaxRam();
+        long maxMemory = virtualMachineTo.getMaxRam();
+        if (Arrays.asList(VirtualMachine.Type.SecondaryStorageVm, VirtualMachine.Type.ConsoleProxy).contains(virtualMachineTo.getType())) {
+            minMemory = virtualMachineTo.getMaxRam();
+            maxMemory = minMemory;
+        }
         int minCpuCores = virtualMachineTo.getCpus();
         Integer maxCpuCores = minCpuCores;
 
