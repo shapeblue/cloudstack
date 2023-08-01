@@ -361,7 +361,7 @@ public class LibvirtVMDefTest extends TestCase {
 
     @Test
     public void memBalloonDefTestNone() {
-        String expectedXml = "<memballoon model='none' autodeflate='on'>\n</memballoon>";
+        String expectedXml = "<memballoon model='none'>\n</memballoon>";
         MemBalloonDef memBalloonDef = new MemBalloonDef();
         memBalloonDef.defNoneMemBalloon();
 
