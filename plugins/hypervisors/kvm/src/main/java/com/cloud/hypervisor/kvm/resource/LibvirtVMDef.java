@@ -1239,7 +1239,7 @@ public class LibvirtVMDef {
         public String toString() {
             StringBuilder memBalloonBuilder = new StringBuilder();
             memBalloonBuilder.append("<memballoon model='").append(memBalloonModel).append('\'');
-            if (memBalloonModel == MemBalloonModel.VIRTIO) {
+            if (! MemBalloonModel.NONE.equals(memBalloonModel)) {
                 memBalloonBuilder.append(" autodeflate='on'");
             }
             memBalloonBuilder.append(">\n");

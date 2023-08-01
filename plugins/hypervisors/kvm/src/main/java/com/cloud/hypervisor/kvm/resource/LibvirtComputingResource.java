@@ -323,6 +323,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     private String _clusterId;
     private final Properties _uefiProperties = new Properties();
 
+    protected long version;
+    protected long libVersion;
     private long _hvVersion;
     private Duration _timeout;
     /**
@@ -1099,14 +1101,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         }
 
         _hypervisorPath = getHypervisorPath(conn);
-        try {
-            _hvVersion = conn.getVersion();
-            _hvVersion = _hvVersion % 1000000 / 1000;
-            _hypervisorLibvirtVersion = conn.getLibVirVersion();
-            _hypervisorQemuVersion = conn.getVersion();
-        } catch (final LibvirtException e) {
-            s_logger.trace("Ignoring libvirt error.", e);
-        }
+        getVersions(conn);
 
         // Enable/disable IO driver for Qemu (in case it is not set CloudStack can also detect if its supported by qemu)
         enableIoUring = isIoUringEnabled();
@@ -1244,6 +1239,33 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         setupMemoryBalloonStatsPeriod(conn);
 
         return true;
+    }
+
+    private void getVersions(Connect conn) {
+        try {
+            version = conn.getVersion();
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug(String.format("version : %d", version));
+            }
+            libVersion = conn.getLibVersion();
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug(String.format("libraty version : %d", libVersion));
+            }
+            _hvVersion = version % 1000000 / 1000;
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug(String.format("internal hv version : %d", _hvVersion));
+            }
+            _hypervisorLibvirtVersion = conn.getLibVirVersion();
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug(String.format("deprecated libvirt version : %d", _hypervisorLibvirtVersion));
+            }
+            _hypervisorQemuVersion = conn.getVersion();
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug(String.format("deprecated qemu version : %d", _hypervisorQemuVersion));
+            }
+        } catch (final LibvirtException e) {
+            s_logger.trace("Ignoring libvirt error.", e);
+        }
     }
 
     /**
@@ -2778,7 +2800,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     protected GuestResourceDef createGuestResourceDef(VirtualMachineTO vmTO){
         GuestResourceDef grd = new GuestResourceDef();
 
-        grd.setMemBalloning(!_noMemBalloon);
+        grd.setMemBalloning(!_noMemBalloon && isCentosHost());
 
         long maxRam = ByteScaleUtils.bytesToKibibytes(vmTO.getMaxRam());
         long currRam = vmTO.getType() == VirtualMachine.Type.User ? getCurrentMemAccordingToMemBallooning(vmTO, maxRam) : maxRam;
