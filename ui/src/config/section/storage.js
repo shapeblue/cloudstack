@@ -502,8 +502,8 @@ export default {
       title: 'label.buckets',
       icon: 'credit-card-outlined',
       permission: ['listBuckets'],
-      columns: ['name', 'id', 'created', 'objectstorageid'],
-      details: ['id', 'name', 'objectstorageid', 'size', 'url', 'accesskey', 'usersecretkey', 'account', 'domain', 'created', 'quota', 'encryption', 'versioning', 'objectlocking', 'policy'],
+      columns: ['name', 'state', 'objectstore', 'size', 'account'],
+      details: ['id', 'name', 'state', 'objectstore', 'size', 'url', 'accesskey', 'usersecretkey', 'account', 'domain', 'created', 'quota', 'encryption', 'versioning', 'objectlocking', 'policy'],
       actions: [
         {
           api: 'createBucket',
@@ -530,7 +530,10 @@ export default {
           label: 'label.bucket.delete',
           message: 'message.bucket.delete',
           dataView: true,
-          show: (record) => { return record.state !== 'Destroyed' }
+          show: (record) => { return record.state !== 'Destroyed' },
+          groupAction: true,
+          popup: true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
         }
       ]
     }
