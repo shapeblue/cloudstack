@@ -202,7 +202,6 @@ import com.cloud.service.ServiceOfferingDetailsVO;
 import com.cloud.service.ServiceOfferingVO;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.service.dao.ServiceOfferingDetailsDao;
-import com.cloud.storage.BucketVO;
 import com.cloud.storage.DiskOfferingVO;
 import com.cloud.storage.GuestOS;
 import com.cloud.storage.GuestOSCategoryVO;
@@ -291,7 +290,6 @@ import org.apache.cloudstack.api.response.AsyncJobResponse;
 import org.apache.cloudstack.api.response.BackupOfferingResponse;
 import org.apache.cloudstack.api.response.BackupResponse;
 import org.apache.cloudstack.api.response.BackupScheduleResponse;
-import org.apache.cloudstack.api.response.BucketResponse;
 import org.apache.cloudstack.api.response.DiskOfferingResponse;
 import org.apache.cloudstack.api.response.DomainResponse;
 import org.apache.cloudstack.api.response.DomainRouterResponse;
@@ -2185,9 +2183,5 @@ public class ApiDBUtils {
 
     public static ObjectStoreResponse fillObjectStoreDetails(ObjectStoreResponse storeData, ObjectStoreVO store) {
         return s_objectStoreDao.setObjectStoreResponse(storeData, store);
-    }
-
-    public static BucketResponse newBucketResponse(BucketVO bucket) {
-        return s_bucketDao.newBucketResponse(bucket);
     }
 }

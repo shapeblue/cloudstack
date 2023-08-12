@@ -536,5 +536,5 @@ public interface ResponseGenerator {
 
     ObjectStoreResponse createObjectStoreResponse(ObjectStore os);
 
-    BucketResponse createBucketResponse(ResponseView responseView, Bucket bucket);
+    BucketResponse createBucketResponse(Bucket bucket);
 }
