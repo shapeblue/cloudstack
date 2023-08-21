@@ -3479,6 +3479,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
     }
 
     @Override
+    @ActionEvent(eventType = EventTypes.EVENT_OBJECT_STORE_CREATE, eventDescription = "creating object storage")
     public ObjectStore discoverObjectStore(String name, String url, String providerName, Map details)
             throws IllegalArgumentException, InvalidParameterValueException {
         DataStoreProvider storeProvider = _dataStoreProviderMgr.getDataStoreProvider(providerName);
@@ -3523,6 +3524,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
     }
 
     @Override
+    @ActionEvent(eventType = EventTypes.EVENT_OBJECT_STORE_DELETE, eventDescription = "deleting object storage")
     public boolean deleteObjectStore(DeleteObjectStoragePoolCmd cmd) {
         final long storeId = cmd.getId();
         // Verify that object store exists
@@ -3550,6 +3552,7 @@ public class StorageManagerImpl extends ManagerBase implements StorageManager, C
     }
 
     @Override
+    @ActionEvent(eventType = EventTypes.EVENT_OBJECT_STORE_UPDATE, eventDescription = "update object storage")
     public ObjectStore updateObjectStore(Long id, UpdateObjectStoragePoolCmd cmd) {
 
         // Input validation
