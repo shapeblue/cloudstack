@@ -178,6 +178,13 @@ public class ComponentContext implements ApplicationContextAware {
         return (T)s_appContext.getBean(name);
     }
 
+    /**
+     * only ever used to get the event bus
+     *
+     * @param beanType the component type to return
+     * @return one of the component registered for the requested type
+     * @param <T>
+     */
     public static <T> T getComponent(Class<T> beanType) {
         assert (s_appContext != null);
         Map<String, T> matchedTypes = getComponentsOfType(beanType);

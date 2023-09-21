@@ -100,7 +100,10 @@ public class KafkaEventBus extends ManagerBase implements EventBus {
 
     @Override
     public void publish(Event event) throws EventBusException {
-        ProducerRecord<String, String> record = new ProducerRecord<String,String>(_topic, event.getResourceUUID(), event.getDescription());
+        if (s_logger.isTraceEnabled()) {
+            s_logger.trace(String.format("publish %s", event));
+        }
+        ProducerRecord<String, String> record = new ProducerRecord<>(_topic, event.getResourceUUID(), event.getDescription());
         _producer.send(record);
     }
 

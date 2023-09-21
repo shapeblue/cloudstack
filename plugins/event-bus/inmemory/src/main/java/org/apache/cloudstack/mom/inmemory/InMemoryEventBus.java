@@ -87,7 +87,11 @@ public class InMemoryEventBus extends ManagerBase implements EventBus {
 
     @Override
     public void publish(Event event) throws EventBusException {
+        if (s_logger.isTraceEnabled()) {
+            s_logger.trace(String.format("publish %s", event));
+        }
         if (subscribers == null || subscribers.isEmpty()) {
+            s_logger.trace("no subscribers, no publish");
             return; // no subscriber to publish to, so just return
         }
 

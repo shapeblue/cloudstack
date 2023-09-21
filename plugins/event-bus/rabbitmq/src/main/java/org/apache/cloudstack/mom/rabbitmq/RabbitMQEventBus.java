@@ -267,6 +267,9 @@ public class RabbitMQEventBus extends ManagerBase implements EventBus {
     // publish event on to the exchange created on AMQP server
     @Override
     public void publish(Event event) throws EventBusException {
+        if (s_logger.isTraceEnabled()) {
+            s_logger.trace(String.format("publish %s", event));
+        }
 
         String routingKey = createRoutingKey(event);
         String eventDescription = event.getDescription();

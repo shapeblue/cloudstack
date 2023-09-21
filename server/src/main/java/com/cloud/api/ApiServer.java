@@ -97,6 +97,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.events.EventBus;
 import org.apache.cloudstack.framework.events.EventBusException;
+import org.apache.cloudstack.framework.events.EventDistributor;
 import org.apache.cloudstack.framework.jobs.AsyncJob;
 import org.apache.cloudstack.framework.jobs.AsyncJobManager;
 import org.apache.cloudstack.framework.jobs.impl.AsyncJobVO;
@@ -198,25 +199,27 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
     private static final String CONTROL_CHARACTERS = "[\000-\011\013-\014\016-\037\177]";
 
     @Inject
+    private AccountManager accountMgr;
+    @Inject
+    private APIAuthenticationManager authManager;
+    @Inject
     private ApiDispatcher dispatcher;
     @Inject
-    private DispatchChainFactory dispatchChainFactory;
+    private AsyncJobManager asyncMgr;
     @Inject
-    private AccountManager accountMgr;
+    private DispatchChainFactory dispatchChainFactory;
     @Inject
     private DomainManager domainMgr;
     @Inject
     private DomainDao domainDao;
     @Inject
-    private UUIDManager uuidMgr;
-    @Inject
-    private AsyncJobManager asyncMgr;
-    @Inject
     private EntityManager entityMgr;
     @Inject
-    private APIAuthenticationManager authManager;
+    private EventDistributor eventDistributor;
     @Inject
     private ProjectDao projectDao;
+    @Inject
+    private UUIDManager uuidMgr;
 
     private List<PluggableService> pluggableServices;
 
