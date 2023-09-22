@@ -36,6 +36,9 @@ public class EventDistributorImpl extends ManagerBase implements EventDistributo
 
     @PostConstruct
     public void init() {
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace(String.format("testing %d event busses", eventBusses.size()));
+        }
         for (EventBus bus : eventBusses) {
             try {
                 bus.publish(new Event("server", "NONE","starting", "server", "NONE"));
@@ -44,5 +47,4 @@ public class EventDistributorImpl extends ManagerBase implements EventDistributo
             }
         }
     }
-
 }

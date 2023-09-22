@@ -187,9 +187,12 @@ public class RabbitMQEventBus extends ManagerBase implements EventBus {
      */
     @Override
     public UUID subscribe(EventTopic topic, EventSubscriber subscriber) throws EventBusException {
-
         if (subscriber == null || topic == null) {
             throw new EventBusException("Invalid EventSubscriber/EventTopic object passed.");
+        }
+
+        if (s_logger.isDebugEnabled()) {
+            s_logger.debug(String.format("subscribing \'%s\' to events of type \'%s\' from \'%s\'",subscriber.toString(), topic.getEventType(), topic.getEventSource()));
         }
 
         // create a UUID, that will be used for managing subscriptions and also used as queue name
@@ -252,6 +255,9 @@ public class RabbitMQEventBus extends ManagerBase implements EventBus {
 
     @Override
     public void unsubscribe(UUID subscriberId, EventSubscriber subscriber) throws EventBusException {
+        if (s_logger.isDebugEnabled()) {
+            s_logger.debug(String.format("unsubscribing \'%s\'",subscriberId));
+        }
         try {
             String classname = subscriber.getClass().getName();
             String queueName = UUID.nameUUIDFromBytes(classname.getBytes()).toString();
@@ -268,7 +274,7 @@ public class RabbitMQEventBus extends ManagerBase implements EventBus {
     @Override
     public void publish(Event event) throws EventBusException {
         if (s_logger.isTraceEnabled()) {
-            s_logger.trace(String.format("publish %s", event));
+            s_logger.trace(String.format("publish \'%s\'", event.getDescription()));
         }
 
         String routingKey = createRoutingKey(event);
