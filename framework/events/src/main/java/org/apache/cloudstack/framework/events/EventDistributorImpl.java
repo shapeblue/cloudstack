@@ -23,6 +23,7 @@ import com.cloud.utils.component.ManagerBase;
 import org.apache.log4j.Logger;
 
 import javax.annotation.PostConstruct;
+import java.util.ArrayList;
 import java.util.List;
 
 public class EventDistributorImpl extends ManagerBase implements EventDistributor {
@@ -39,12 +40,21 @@ public class EventDistributorImpl extends ManagerBase implements EventDistributo
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace(String.format("testing %d event busses", eventBusses.size()));
         }
+        publish(new Event("server", "NONE","starting", "server", "NONE"));
+    }
+
+    @Override
+    public List<EventBusException> publish(Event event) {
+        List<EventBusException> exceptions = new ArrayList<>();
         for (EventBus bus : eventBusses) {
             try {
-                bus.publish(new Event("server", "NONE","starting", "server", "NONE"));
+                bus.publish(event);
             } catch (EventBusException e) {
-                LOGGER.debug(String.format("no publish for bus %s", bus.getClass().getName()), e);
+                LOGGER.warn(String.format("no publish for bus %s of event %s", bus.getClass().getName(), event.getDescription()));
+                exceptions.add(e);
             }
         }
+        return exceptions;
     }
+
 }
