@@ -500,10 +500,31 @@ export default {
     {
       name: 'buckets',
       title: 'label.buckets',
-      icon: 'credit-card-outlined',
+      icon: 'funnel-plot-outlined',
       permission: ['listBuckets'],
       columns: ['name', 'state', 'objectstore', 'size', 'account'],
       details: ['id', 'name', 'state', 'objectstore', 'size', 'url', 'accesskey', 'usersecretkey', 'account', 'domain', 'created', 'quota', 'encryption', 'versioning', 'objectlocking', 'policy'],
+      tabs: [
+        {
+          name: 'details',
+          component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
+        },
+        {
+          name: 'browser',
+          resourceType: 'ObjectStore',
+          component: shallowRef(defineAsyncComponent(() => import('@/components/view/ObjectStoreBrowser.vue')))
+        },
+        {
+          name: 'events',
+          resourceType: 'Volume',
+          component: shallowRef(defineAsyncComponent(() => import('@/components/view/EventsTab.vue'))),
+          show: () => { return 'listEvents' in store.getters.apis }
+        },
+        {
+          name: 'comments',
+          component: shallowRef(defineAsyncComponent(() => import('@/components/view/AnnotationsTab.vue')))
+        }
+      ],
       actions: [
         {
           api: 'createBucket',
