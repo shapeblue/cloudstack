@@ -511,18 +511,14 @@ export default {
         },
         {
           name: 'browser',
-          resourceType: 'ObjectStore',
+          resourceType: 'Bucket',
           component: shallowRef(defineAsyncComponent(() => import('@/components/view/ObjectStoreBrowser.vue')))
         },
         {
           name: 'events',
-          resourceType: 'Volume',
+          resourceType: 'Bucket',
           component: shallowRef(defineAsyncComponent(() => import('@/components/view/EventsTab.vue'))),
           show: () => { return 'listEvents' in store.getters.apis }
-        },
-        {
-          name: 'comments',
-          component: shallowRef(defineAsyncComponent(() => import('@/components/view/AnnotationsTab.vue')))
         }
       ],
       actions: [
