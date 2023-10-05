@@ -24,6 +24,8 @@ import com.cloud.agent.api.AgentControlCommand;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.StartupCommand;
+import com.cloud.api.query.dao.DomainRouterJoinDao;
+import com.cloud.api.query.vo.DomainRouterJoinVO;
 import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.deploy.DeployDestination;
@@ -50,6 +52,7 @@ import com.cloud.network.vpc.NetworkACLItem;
 import com.cloud.network.vpc.PrivateGateway;
 import com.cloud.network.vpc.StaticRouteProfile;
 import com.cloud.network.vpc.Vpc;
+import com.cloud.network.vpc.dao.VpcDao;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.resource.ResourceManager;
 import com.cloud.resource.ResourceStateAdapter;
@@ -59,11 +62,14 @@ import com.cloud.user.Account;
 import com.cloud.user.AccountManager;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.AdapterBase;
+import com.cloud.vm.DomainRouterVO;
 import com.cloud.vm.NicProfile;
 import com.cloud.vm.ReservationContext;
 import com.cloud.vm.VirtualMachineProfile;
+import com.cloud.vm.dao.DomainRouterDao;
 import net.sf.ehcache.config.InvalidConfigurationException;
 import org.apache.cloudstack.StartupNsxCommand;
+import org.apache.cloudstack.agent.api.CreateDhcpRelayCommand;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -96,6 +102,12 @@ public class NsxElement extends AdapterBase implements DhcpServiceProvider, DnsS
     PhysicalNetworkDao physicalNetworkDao;
     @Inject
     NetworkModel networkModel;
+    @Inject
+    private VpcDao vpcDao;
+    @Inject
+    private DomainRouterDao domainRouterDao;
+    @Inject
+    private DomainRouterJoinDao domainRouterJoinDao;
 
     private static final Logger LOGGER = Logger.getLogger(NsxElement.class);
 
@@ -123,6 +135,24 @@ public class NsxElement extends AdapterBase implements DhcpServiceProvider, DnsS
     }
     @Override
     public boolean addDhcpEntry(Network network, NicProfile nic, VirtualMachineProfile vm, DeployDestination dest, ReservationContext context) throws ConcurrentOperationException, InsufficientCapacityException, ResourceUnavailableException {
+        Long vpcId = network.getVpcId();
+        Vpc vpc = vpcDao.getActiveVpcById(vpcId);
+        if (vpc == null) {
+            String msg = String.format("Cannot find the VPC with ID %s for network %s", vpcId, network.getName());
+            LOGGER.error(msg);
+            return false;
+        }
+        List<DomainRouterVO> routers = domainRouterDao.listByVpcId(vpcId);
+        if (org.apache.commons.collections.CollectionUtils.isEmpty(routers)) {
+            String msg = String.format("Cannot find a Virtual Router for the VPC %s", vpc.getName());
+            LOGGER.error(msg);
+            return false;
+        }
+        DomainRouterVO router = routers.get(0);
+        DomainRouterJoinVO nsxRouter = domainRouterJoinDao.findByRouterVpcAndNetworkId(router.getId(), vpcId, network.getId());
+        String nsxRouterIpAddress = nsxRouter.getIpAddress();
+        String dhcpRelayName = String.format("%s-%s-Relay", vpc.getName(), network.getName());
+        CreateDhcpRelayCommand cmd = new CreateDhcpRelayCommand();
         return true;
     }
 
