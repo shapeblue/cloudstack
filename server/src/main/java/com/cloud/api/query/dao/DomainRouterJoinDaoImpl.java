@@ -352,11 +352,6 @@ public class DomainRouterJoinDaoImpl extends GenericDaoBase<DomainRouterJoinVO, 
     }
 
     @Override
-    public DomainRouterJoinVO findByRouterVpcAndNetworkId(Long routerId, Long vpcId, Long networkId) {
-        return null;
-    }
-
-    @Override
     public List<DomainRouterJoinVO> newDomainRouterView(VirtualRouter vr) {
 
         SearchCriteria<DomainRouterJoinVO> sc = vrIdSearch.create();
