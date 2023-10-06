@@ -16,25 +16,26 @@
 // under the License.
 package org.apache.cloudstack.agent.api;
 
-import java.util.List;
+import com.cloud.network.Network;
+import com.cloud.vm.NicProfile;
 
-public class CreateDhcpRelayCommand extends NsxCommand {
+public class CreateNsxDhcpRelayCommand extends NsxCommand {
 
-    private String dhcpRelayName;
-    private List<String> serverAddresses;
+    private Network network;
+    private NicProfile nicProfile;
 
-    public CreateDhcpRelayCommand(String zoneName, Long zoneId, String accountName, Long accountId,
-                                  String dhcpRelayName, List<String> serverAddresses) {
+    public CreateNsxDhcpRelayCommand(String zoneName, Long zoneId, String accountName, Long accountId,
+                                     Network network, NicProfile nicProfile) {
         super(zoneName, zoneId, accountName, accountId);
-        this.dhcpRelayName = dhcpRelayName;
-        this.serverAddresses = serverAddresses;
+        this.network = network;
+        this.nicProfile = nicProfile;
     }
 
-    public String getDhcpRelayName() {
-        return dhcpRelayName;
+    public Network getNetwork() {
+        return network;
     }
 
-    public List<String> getServerAddresses() {
-        return serverAddresses;
+    public NicProfile getNicProfile() {
+        return nicProfile;
     }
 }

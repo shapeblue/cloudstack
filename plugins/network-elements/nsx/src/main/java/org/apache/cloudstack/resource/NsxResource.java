@@ -26,9 +26,11 @@ import com.cloud.agent.api.ReadyCommand;
 import com.cloud.agent.api.StartupCommand;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.host.Host;
+import com.cloud.network.Network;
 import com.cloud.resource.ServerResource;
 import com.cloud.utils.exception.CloudRuntimeException;
 
+import com.cloud.vm.NicProfile;
 import com.vmware.nsx.model.TransportZone;
 import com.vmware.nsx.model.TransportZoneListResult;
 import com.vmware.nsx_policy.infra.DhcpRelayConfigs;
@@ -49,7 +51,7 @@ import com.vmware.vapi.bindings.Service;
 import com.vmware.vapi.std.errors.Error;
 import org.apache.cloudstack.NsxAnswer;
 import org.apache.cloudstack.StartupNsxCommand;
-import org.apache.cloudstack.agent.api.CreateDhcpRelayCommand;
+import org.apache.cloudstack.agent.api.CreateNsxDhcpRelayCommand;
 import org.apache.cloudstack.agent.api.CreateNsxSegmentCommand;
 import org.apache.cloudstack.agent.api.CreateNsxTier1GatewayCommand;
 import org.apache.cloudstack.agent.api.DeleteNsxSegmentCommand;
@@ -78,6 +80,7 @@ public class NsxResource implements ServerResource {
     private static final Logger LOGGER = Logger.getLogger(NsxResource.class);
     private static final String TIER_0_GATEWAY_PATH_PREFIX = "/infra/tier-0s/";
     private static final String TIER_1_GATEWAY_PATH_PREFIX = "/infra/tier-1s/";
+    private static final String DHCP_RELAY_CONFIGS_PATH_PREFIX = "/infra/dhcp-relay-configs/";
 
     private static final String Tier_1_LOCALE_SERVICE_ID = "default";
     private static final String TIER_1_RESOURCE_TYPE = "Tier1";
@@ -131,8 +134,8 @@ public class NsxResource implements ServerResource {
             return executeRequest((CreateNsxSegmentCommand) cmd);
         }  else if (cmd instanceof CreateNsxTier1GatewayCommand) {
             return executeRequest((CreateNsxTier1GatewayCommand) cmd);
-        } else if (cmd instanceof CreateDhcpRelayCommand) {
-            return executeRequest((CreateDhcpRelayCommand) cmd);
+        } else if (cmd instanceof CreateNsxDhcpRelayCommand) {
+            return executeRequest((CreateNsxDhcpRelayCommand) cmd);
         } else {
             return Answer.createUnsupportedCommandAnswer(cmd);
         }
@@ -240,23 +243,34 @@ public class NsxResource implements ServerResource {
         return true;
     }
 
-    private Answer executeRequest(CreateDhcpRelayCommand cmd) {
-        String dhcpRelayName = cmd.getDhcpRelayName();
-        List<String> addresses = cmd.getServerAddresses();
-        String msg = String.format("Creating DHCP relay with name %s for addresses %s", dhcpRelayName, addresses);
+    private String getDhcpRelayConfig(String zoneName, String accountName, Network network) {
+        return String.format("%s-%s-%s-Relay", zoneName, accountName, network.getName());
+    }
+
+    private Answer executeRequest(CreateNsxDhcpRelayCommand cmd) {
+        String zoneName = cmd.getZoneName();
+        String accountName = cmd.getAccountName();
+        Network network = cmd.getNetwork();
+        NicProfile nicProfile = cmd.getNicProfile();
+
+        String dhcpRelayConfigName = getDhcpRelayConfig(zoneName, accountName, network);
+        List<String> addresses = List.of(nicProfile.getIPv4Address());
+
+        String msg = String.format("Creating DHCP relay config with name %s for addresses %s on network %s",
+                dhcpRelayConfigName, nicProfile.getIPv4Address(), network.getName());
         LOGGER.debug(msg);
 
         try {
             DhcpRelayConfigs service = (DhcpRelayConfigs) nsxService.apply(DhcpRelayConfigs.class);
             DhcpRelayConfig config = new DhcpRelayConfig.Builder()
                     .setServerAddresses(addresses)
-                    .setId(dhcpRelayName)
-                    .setDisplayName(dhcpRelayName)
+                    .setId(dhcpRelayConfigName)
+                    .setDisplayName(dhcpRelayConfigName)
                     .build();
-            service.patch(dhcpRelayName, config);
+            service.patch(dhcpRelayConfigName, config);
         } catch (Error error) {
             ApiError ae = error.getData()._convertTo(ApiError.class);
-            msg = String.format("Error creating the DHCP relay with name %s: %s", dhcpRelayName, ae.getErrorMessage());
+            msg = String.format("Error creating the DHCP relay config with name %s: %s", dhcpRelayConfigName, ae.getErrorMessage());
             LOGGER.error(msg);
             return new NsxAnswer(cmd, new CloudRuntimeException(ae.getErrorMessage()));
         }
