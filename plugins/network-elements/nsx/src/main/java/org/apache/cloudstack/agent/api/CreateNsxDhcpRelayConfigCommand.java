@@ -18,14 +18,14 @@ package org.apache.cloudstack.agent.api;
 
 import java.util.List;
 
-public class CreateNsxDhcpRelayCommand extends NsxCommand {
+public class CreateNsxDhcpRelayConfigCommand extends NsxCommand {
 
     private String vpcName;
     private String networkName;
     private List<String> addresses;
 
-    public CreateNsxDhcpRelayCommand(String zoneName, Long zoneId, String accountName, Long accountId,
-                                     String vpcName, String networkName, List<String> addresses) {
+    public CreateNsxDhcpRelayConfigCommand(String zoneName, Long zoneId, String accountName, Long accountId,
+                                           String vpcName, String networkName, List<String> addresses) {
         super(zoneName, zoneId, accountName, accountId);
         this.vpcName = vpcName;
         this.networkName = networkName;

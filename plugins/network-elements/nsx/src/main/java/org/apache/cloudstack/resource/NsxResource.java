@@ -49,7 +49,7 @@ import com.vmware.vapi.bindings.Service;
 import com.vmware.vapi.std.errors.Error;
 import org.apache.cloudstack.NsxAnswer;
 import org.apache.cloudstack.StartupNsxCommand;
-import org.apache.cloudstack.agent.api.CreateNsxDhcpRelayCommand;
+import org.apache.cloudstack.agent.api.CreateNsxDhcpRelayConfigCommand;
 import org.apache.cloudstack.agent.api.CreateNsxSegmentCommand;
 import org.apache.cloudstack.agent.api.CreateNsxTier1GatewayCommand;
 import org.apache.cloudstack.agent.api.DeleteNsxSegmentCommand;
@@ -78,7 +78,7 @@ public class NsxResource implements ServerResource {
     private static final Logger LOGGER = Logger.getLogger(NsxResource.class);
     private static final String TIER_0_GATEWAY_PATH_PREFIX = "/infra/tier-0s/";
     private static final String TIER_1_GATEWAY_PATH_PREFIX = "/infra/tier-1s/";
-    private static final String DHCP_RELAY_CONFIGS_PATH_PREFIX = "/infra/dhcp-relay-configs/";
+    private static final String DHCP_RELAY_CONFIGS_PATH_PREFIX = "/infra/dhcp-relay-configs";
 
     private static final String Tier_1_LOCALE_SERVICE_ID = "default";
     private static final String TIER_1_RESOURCE_TYPE = "Tier1";
@@ -132,8 +132,8 @@ public class NsxResource implements ServerResource {
             return executeRequest((CreateNsxSegmentCommand) cmd);
         }  else if (cmd instanceof CreateNsxTier1GatewayCommand) {
             return executeRequest((CreateNsxTier1GatewayCommand) cmd);
-        } else if (cmd instanceof CreateNsxDhcpRelayCommand) {
-            return executeRequest((CreateNsxDhcpRelayCommand) cmd);
+        } else if (cmd instanceof CreateNsxDhcpRelayConfigCommand) {
+            return executeRequest((CreateNsxDhcpRelayConfigCommand) cmd);
         } else {
             return Answer.createUnsupportedCommandAnswer(cmd);
         }
@@ -245,7 +245,7 @@ public class NsxResource implements ServerResource {
         return String.format("%s-%s-%s-%s-Relay", zoneName, accountName, vpcName, networkName);
     }
 
-    private Answer executeRequest(CreateNsxDhcpRelayCommand cmd) {
+    private Answer executeRequest(CreateNsxDhcpRelayConfigCommand cmd) {
         String zoneName = cmd.getZoneName();
         String accountName = cmd.getAccountName();
         String vpcName = cmd.getVpcName();
@@ -272,6 +272,22 @@ public class NsxResource implements ServerResource {
             LOGGER.error(msg);
             return new NsxAnswer(cmd, new CloudRuntimeException(ae.getErrorMessage()));
         }
+
+        String segmentName = String.format("%s-%s-%s", accountName, vpcName, networkName);
+        String dhcpConfigPath = String.format("%s/%s", DHCP_RELAY_CONFIGS_PATH_PREFIX, dhcpRelayConfigName);
+        try {
+            LOGGER.debug(String.format("Adding the creating DHCP relay config %s to the segment %s", dhcpConfigPath, segmentName));
+            Segments segmentService = (Segments) nsxService.apply(Segments.class);
+            Segment segment = segmentService.get(segmentName);
+            segment.setDhcpConfigPath(dhcpConfigPath);
+            segmentService.patch(segmentName, segment);
+        } catch (Error error) {
+            ApiError ae = error.getData()._convertTo(ApiError.class);
+            msg = String.format("Error adding the DHCP relay config with name %s to the segment %s: %s", dhcpRelayConfigName, segmentName, ae.getErrorMessage());
+            LOGGER.error(msg);
+            return new NsxAnswer(cmd, new CloudRuntimeException(ae.getErrorMessage()));
+        }
+
         return new NsxAnswer(cmd, true, "");
     }
 

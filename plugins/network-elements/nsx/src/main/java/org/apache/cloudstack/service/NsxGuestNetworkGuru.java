@@ -46,7 +46,7 @@ import com.cloud.vm.ReservationContext;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineProfile;
 import org.apache.cloudstack.NsxAnswer;
-import org.apache.cloudstack.agent.api.CreateNsxDhcpRelayCommand;
+import org.apache.cloudstack.agent.api.CreateNsxDhcpRelayConfigCommand;
 import org.apache.cloudstack.agent.api.CreateNsxSegmentCommand;
 import org.apache.log4j.Logger;
 
@@ -214,7 +214,7 @@ public class NsxGuestNetworkGuru extends GuestNetworkGuru implements NetworkMigr
             // Create the DHCP relay config for the segment
             String iPv4Address = nicProfile.getIPv4Address();
             List<String> addresses = List.of(iPv4Address);
-            CreateNsxDhcpRelayCommand command = new CreateNsxDhcpRelayCommand(zone.getName(), zone.getId(),
+            CreateNsxDhcpRelayConfigCommand command = new CreateNsxDhcpRelayConfigCommand(zone.getName(), zone.getId(),
                     account.getAccountName(), network.getAccountId(),
                     vpc.getName(), network.getName(), addresses);
             NsxAnswer answer = nsxControllerUtils.sendNsxCommand(command, zone.getId());
