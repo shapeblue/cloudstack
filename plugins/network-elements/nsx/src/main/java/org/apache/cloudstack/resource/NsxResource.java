@@ -26,11 +26,9 @@ import com.cloud.agent.api.ReadyCommand;
 import com.cloud.agent.api.StartupCommand;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.host.Host;
-import com.cloud.network.Network;
 import com.cloud.resource.ServerResource;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-import com.cloud.vm.NicProfile;
 import com.vmware.nsx.model.TransportZone;
 import com.vmware.nsx.model.TransportZoneListResult;
 import com.vmware.nsx_policy.infra.DhcpRelayConfigs;
@@ -243,21 +241,21 @@ public class NsxResource implements ServerResource {
         return true;
     }
 
-    private String getDhcpRelayConfig(String zoneName, String accountName, Network network) {
-        return String.format("%s-%s-%s-Relay", zoneName, accountName, network.getName());
+    private String getDhcpRelayConfig(String zoneName, String accountName, String vpcName, String networkName) {
+        return String.format("%s-%s-%s-%s-Relay", zoneName, accountName, vpcName, networkName);
     }
 
     private Answer executeRequest(CreateNsxDhcpRelayCommand cmd) {
         String zoneName = cmd.getZoneName();
         String accountName = cmd.getAccountName();
-        Network network = cmd.getNetwork();
-        NicProfile nicProfile = cmd.getNicProfile();
+        String vpcName = cmd.getVpcName();
+        String networkName = cmd.getNetworkName();
+        List<String> addresses = cmd.getAddresses();
 
-        String dhcpRelayConfigName = getDhcpRelayConfig(zoneName, accountName, network);
-        List<String> addresses = List.of(nicProfile.getIPv4Address());
+        String dhcpRelayConfigName = getDhcpRelayConfig(zoneName, accountName, vpcName, networkName);
 
-        String msg = String.format("Creating DHCP relay config with name %s for addresses %s on network %s",
-                dhcpRelayConfigName, nicProfile.getIPv4Address(), network.getName());
+        String msg = String.format("Creating DHCP relay config with name %s on network %s of VPC %s",
+                dhcpRelayConfigName, networkName, vpcName);
         LOGGER.debug(msg);
 
         try {
