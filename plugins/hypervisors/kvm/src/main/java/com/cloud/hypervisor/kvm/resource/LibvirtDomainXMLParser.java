@@ -283,6 +283,10 @@ public class LibvirtDomainXMLParser {
                     continue;
                 }
 
+                if(path == null) {
+                    path = "";
+                }
+
                 ChannelDef def = null;
                 if (StringUtils.isBlank(state)) {
                     def = new ChannelDef(name, ChannelDef.ChannelType.valueOf(type.toUpperCase()), new File(path));
@@ -326,6 +330,14 @@ public class LibvirtDomainXMLParser {
                 String path = getTagValue("backend", rng);
                 String bytes = getAttrValue("rate", "bytes", rng);
                 String period = getAttrValue("rate", "period", rng);
+
+                if(bytes == null) {
+                    bytes = "0";
+                }
+
+                if(period == null) {
+                    period = "0";
+                }
 
                 if (StringUtils.isEmpty(backendModel)) {
                     def = new RngDef(path, Integer.parseInt(bytes), Integer.parseInt(period));
