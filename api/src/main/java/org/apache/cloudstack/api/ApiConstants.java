@@ -437,6 +437,7 @@ public class ApiConstants {
     public static final String TEMPLATE_ID = "templateid";
     public static final String TEMPLATE_IDS = "templateids";
     public static final String TEMPLATE_NAME = "templatename";
+    public static final String TEMPLATE_TYPE = "templatetype";
     public static final String TIMEOUT = "timeout";
     public static final String TIMEZONE = "timezone";
     public static final String TIMEZONEOFFSET = "timezoneoffset";
@@ -594,6 +595,8 @@ public class ApiConstants {
     public static final String SERVICE_CAPABILITY_LIST = "servicecapabilitylist";
     public static final String CAN_CHOOSE_SERVICE_CAPABILITY = "canchooseservicecapability";
     public static final String PROVIDER = "provider";
+    public static final String OAUTH_PROVIDER = "oauthprovider";
+    public static final String OAUTH_SECRET_KEY = "secretkey";
     public static final String MANAGED = "managed";
     public static final String CAPACITY_BYTES = "capacitybytes";
     public static final String CAPACITY_IOPS = "capacityiops";
@@ -970,6 +973,7 @@ public class ApiConstants {
     public static final String TARGET_ID = "targetid";
     public static final String FILES = "files";
     public static final String SRC_POOL = "srcpool";
+    public static final String DEST_POOL = "destpool";
     public static final String DEST_POOLS = "destpools";
     public static final String VOLUME_IDS = "volumeids";
 
@@ -1014,7 +1018,6 @@ public class ApiConstants {
     public static final String DEPLOY_AS_IS = "deployasis";
     public static final String DEPLOY_AS_IS_DETAILS = "deployasisdetails";
     public static final String CROSS_ZONES = "crossZones";
-    public static final String TEMPLATETYPE = "templatetype";
     public static final String SOURCETEMPLATEID = "sourcetemplateid";
     public static final String DYNAMIC_SCALING_ENABLED = "dynamicscalingenabled";
     public static final String IOTHREADS_ENABLED = "iothreadsenabled";
@@ -1050,6 +1053,18 @@ public class ApiConstants {
     public static final String DISK_PATH = "diskpath";
     public static final String IMPORT_SOURCE = "importsource";
     public static final String TEMP_PATH = "temppath";
+
+    public static final String MANAGEMENT = "management";
+    public static final String IS_VNF = "isvnf";
+    public static final String VNF_NICS = "vnfnics";
+    public static final String VNF_DETAILS = "vnfdetails";
+    public static final String CLEAN_UP_VNF_DETAILS = "cleanupvnfdetails";
+    public static final String CLEAN_UP_VNF_NICS = "cleanupvnfnics";
+    public static final String VNF_CONFIGURE_MANAGEMENT = "vnfconfiguremanagement";
+    public static final String VNF_CIDR_LIST = "vnfcidrlist";
+
+    public static final String CLIENT_ID = "clientid";
+    public static final String REDIRECT_URI = "redirecturi";
 
     /**
      * This enum specifies IO Drivers, each option controls specific policies on I/O.
@@ -1096,7 +1111,7 @@ public class ApiConstants {
     }
 
     public enum VMDetails {
-        all, group, nics, stats, secgrp, tmpl, servoff, diskoff, backoff, iso, volume, min, affgrp;
+        all, group, nics, stats, secgrp, tmpl, servoff, diskoff, backoff, iso, volume, min, affgrp, vnfnics;
     }
 
     public enum DomainDetails {
