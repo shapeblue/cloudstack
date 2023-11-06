@@ -271,7 +271,6 @@
                   :filterUnimplementedNetworks="true"
                   :hypervisor="this.cluster.hypervisortype"
                   filterMatchKey="broadcasturi"
-                  :hypervisor="this.cluster.hypervisortype"
                   @select-multi-network="updateMultiNetworkOffering" />
               </div>
               <a-row v-else style="margin: 12px 0" >
