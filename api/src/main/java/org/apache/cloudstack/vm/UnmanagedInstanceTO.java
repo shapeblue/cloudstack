@@ -146,7 +146,6 @@ public class UnmanagedInstanceTO {
         this.vncPassword = vncPassword;
     }
 
-
     public static class Disk {
         private String diskId;
 

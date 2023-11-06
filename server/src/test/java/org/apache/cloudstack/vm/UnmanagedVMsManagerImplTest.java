@@ -17,6 +17,7 @@
 
 package org.apache.cloudstack.vm;
 
+
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.GetUnmanagedInstancesAnswer;
@@ -31,6 +32,17 @@ import com.cloud.event.UsageEventUtils;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import com.cloud.exception.UnsupportedServiceException;
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
@@ -99,15 +111,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class UnmanagedVMsManagerImplTest {
@@ -279,7 +283,7 @@ public class UnmanagedVMsManagerImplTest {
         when(userVmManager.importVM(nullable(DataCenter.class), nullable(Host.class), nullable(VirtualMachineTemplate.class), nullable(String.class), nullable(String.class),
                 nullable(Account.class), nullable(String.class), nullable(Account.class), nullable(Boolean.class), nullable(String.class),
                 nullable(Long.class), nullable(Long.class), nullable(ServiceOffering.class), nullable(String.class),
-                nullable(String.class), nullable(Hypervisor.HypervisorType.class), nullable(Map.class), nullable(VirtualMachine.PowerState.class))).thenReturn(userVm);
+                nullable(String.class), nullable(Hypervisor.HypervisorType.class), nullable(Map.class), nullable(VirtualMachine.PowerState.class), nullable(LinkedHashMap.class))).thenReturn(userVm);
         NetworkVO networkVO = Mockito.mock(NetworkVO.class);
         when(networkVO.getGuestType()).thenReturn(Network.GuestType.L2);
         when(networkVO.getDataCenterId()).thenReturn(1L);

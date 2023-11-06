@@ -2269,7 +2269,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         return new Pair<Map<String, Integer>, Integer>(macAddressToNicNum, devNum);
     }
 
-    protected PowerState convertToPowerState(final DomainState ps) {
+    public PowerState convertToPowerState(final DomainState ps) {
         final PowerState state = POWER_STATES_TABLE.get(ps);
         return state == null ? PowerState.PowerUnknown : state;
     }
@@ -5274,6 +5274,27 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             } catch (NumberFormatException ex) {
                 s_logger.warn(String.format("VM details %s is not a valid Boolean value %s", VmDetailConstants.NIC_PACKED_VIRTQUEUES_ENABLED, nicPackedEnabled));
             }
+        }
+    }
+
+    /*
+    Scp volume from remote host to local directory
+     */
+    public String copyVolume(String srcIp, String username, String password, String localDir, String remoteFile, String tmpPath) {
+        try {
+            String outputFile = UUID.randomUUID().toString();
+            StringBuilder command = new StringBuilder("qemu-img convert -O qcow2 ");
+            command.append(remoteFile);
+            command.append(" "+tmpPath);
+            command.append(outputFile);
+            s_logger.debug("Converting remoteFile: "+remoteFile);
+            SshHelper.sshExecute(srcIp, 22, username, null, password, command.toString());
+            s_logger.debug("Copying remoteFile to: "+localDir);
+            SshHelper.scpFrom(srcIp, 22, username, null, password, localDir, tmpPath+outputFile);
+            s_logger.debug("Successfully copyied remoteFile to: "+localDir+"/"+outputFile);
+            return outputFile;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }
