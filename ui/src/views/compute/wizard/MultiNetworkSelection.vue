@@ -49,8 +49,7 @@
               v-for="network in validNetworks[record.id]"
               :key="network.id"
               :label="network.displaytext + (network.broadcasturi ? ' (' + network.broadcasturi + ')' : '')">
-              <div v-if="this.hypervisor === 'KVM'">{{ network.displaytext  + ' - ' + (network.id.slice(0,8)) }}</div>
-              <div v-else>{{ network.displaytext + (network.broadcasturi ? ' (' + network.broadcasturi + ')' : '') }}</div>
+              {{ network.displaytext + (network.broadcasturi ? ' (' + network.broadcasturi + ')' : '') }}
             </a-select-option>
           </a-select>
           <span v-else>
@@ -64,7 +63,7 @@
             :checkBoxLabel="$t('label.auto.assign.random.ip')"
             :defaultCheckBoxValue="true"
             :reversed="true"
-            :visible="(ipAddressesEnabled[record.id])"
+            :visible="(indexNum > 0 && ipAddressesEnabled[record.id])"
             @handle-checkinputpair-change="setIpAddress" />
         </template>
       </template>
@@ -134,6 +133,7 @@ export default {
       values: {},
       ipAddressesEnabled: {},
       ipAddresses: {},
+      indexNum: 1,
       sendValuesTimer: null
     }
   },
