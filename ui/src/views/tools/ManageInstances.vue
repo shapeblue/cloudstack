@@ -499,7 +499,8 @@ export default {
         name: 'unmanaged',
         label: 'Manage/Unmanage existing instances',
         sourceDestHypervisors: {
-          vmware: 'vmware'
+          vmware: 'vmware',
+          kvm: 'kvm'
         },
         wizardTitle: this.$t('label.desc.importexportinstancewizard'),
         wizardDescription: this.$t('message.desc.importexportinstancewizard')
