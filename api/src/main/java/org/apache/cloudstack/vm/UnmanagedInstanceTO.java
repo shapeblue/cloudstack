@@ -169,10 +169,9 @@ public class UnmanagedInstanceTO {
 
         private String datastoreHost;
 
-        private int datastorePort;
-
         private String datastorePath;
 
+        private int datastorePort;
         private String datastoreType;
 
         public String getDiskId() {
@@ -278,6 +277,7 @@ public class UnmanagedInstanceTO {
         public void setDatastoreType(String datastoreType) {
             this.datastoreType = datastoreType;
         }
+
 
         public void setDatastorePort(int datastorePort) {
             this.datastorePort = datastorePort;

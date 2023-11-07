@@ -612,6 +612,7 @@ public class LibvirtVMDef {
         public enum DiskType {
             FILE("file"), BLOCK("block"), DIRECTROY("dir"), NETWORK("network");
             String _diskType;
+
             DiskType(String type) {
                 _diskType = type;
             }
@@ -1404,7 +1405,6 @@ public class LibvirtVMDef {
         public void defEthernet(String targetName, String macAddr, NicModel model) {
             defEthernet(targetName, macAddr, model, null);
         }
-
 
         public void setHostNetType(HostNicType hostNetType) {
             _hostNetType = hostNetType;

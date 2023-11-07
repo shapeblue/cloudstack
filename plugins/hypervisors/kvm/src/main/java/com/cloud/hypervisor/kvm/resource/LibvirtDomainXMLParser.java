@@ -453,7 +453,6 @@ public class LibvirtDomainXMLParser {
     public String getVncPasswd() {
         return vncPasswd;
     }
-
     public MemBalloonDef getMemBalloon() {
         return memBalloonDef;
     }

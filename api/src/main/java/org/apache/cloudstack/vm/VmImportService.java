@@ -37,7 +37,6 @@ public interface VmImportService {
     }
 
     ListResponse<UnmanagedInstanceResponse> listUnmanagedInstances(ListUnmanagedInstancesCmd cmd);
-
     UserVmResponse importUnmanagedInstance(ImportUnmanagedInstanceCmd cmd);
 
     UserVmResponse importVm(ImportVmCmd cmd);
