@@ -55,6 +55,7 @@ import com.cloud.host.HostVO;
 import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.network.IpAddressManager;
 import com.cloud.network.Network;
 import com.cloud.network.NetworkModel;
 import com.cloud.network.Networks;
@@ -235,6 +236,8 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
     private NetworkOrchestrationService networkMgr;
     @Inject
     private PhysicalNetworkDao physicalNetworkDao;
+    @Inject
+    private IpAddressManager ipAddressManager;
 
     protected Gson gson;
 
@@ -1796,7 +1799,13 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
             }
         }
 
-        Network.IpAddresses requestedIpPair = new Network.IpAddresses(null, null);
+        String macAddress = networkModel.getNextAvailableMacAddressInNetwork(networkId);
+        String ipAddress = null;
+        if (network.getGuestType() != Network.GuestType.L2) {
+            ipAddress = ipAddressManager.acquireGuestIpAddress(network, null);
+        }
+
+        Network.IpAddresses requestedIpPair = new Network.IpAddresses(ipAddress, null, macAddress);
 
         NicProfile nicProfile = new NicProfile(requestedIpPair.getIp4Address(), requestedIpPair.getIp6Address(), requestedIpPair.getMacAddress());
         nicProfile.setOrderIndex(0);
@@ -1855,10 +1864,12 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
         checkVolumeCommand.setStorageFilerTO(storageTO);
         Answer answer = agentManager.easySend(dest.getHost().getId(), checkVolumeCommand);
         if (!(answer instanceof CheckVolumeAnswer)) {
+            cleanupFailedImportVM(userVm);
             throw new CloudRuntimeException("Disk not found or is invalid");
         }
         CheckVolumeAnswer checkVolumeAnswer = (CheckVolumeAnswer) answer;
         if(!checkVolumeAnswer.getResult()) {
+            cleanupFailedImportVM(userVm);
             throw new CloudRuntimeException("Disk not found or is invalid");
         }
         diskProfile.setSize(checkVolumeAnswer.getSize());
@@ -1879,7 +1890,7 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
             cleanupFailedImportVM(userVm);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Failed to import volumes while importing vm: %s. %s", instanceName, StringUtils.defaultString(e.getMessage())));
         }
-        networkOrchestrationService.importNic(null,0,network, true, userVm, null, true);
+        networkOrchestrationService.importNic(macAddress,0,network, true, userVm, requestedIpPair, true);
         publishVMUsageUpdateResourceCount(userVm, serviceOffering);
         return userVm;
     }
