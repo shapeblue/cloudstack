@@ -133,6 +133,21 @@
           </a-tag>
         </div>
       </template>
+      <template #tags="{ text, record, index }">
+        <a-input
+          :disabled="tungstenNetworkIndex > -1 && tungstenNetworkIndex !== index"
+          :value="text"
+          @change="e => onCellChange(record.key, 'tags', e.target.value)"
+          v-focus="true">
+          <template #suffix>
+            <a-tooltip
+              v-if="tungstenNetworkIndex > -1 && tungstenNetworkIndex !== index"
+              :title="$t('message.no.support.tungsten.fabric')">
+              <warning-outlined style="color: #f5222d" />
+            </a-tooltip>
+          </template>
+        </a-input>
+      </template>
       <template #actions="{ record, index }">
         <tooltip-button
           :tooltip="$t('label.delete')"
@@ -305,8 +320,14 @@ export default {
         title: this.$t('label.traffic.types'),
         key: 'traffics',
         dataIndex: 'traffics',
-        width: 250,
+        width: 200,
         slots: { customRender: 'traffics' }
+      })
+      columns.push({
+        title: this.$t('label.tags'),
+        dataIndex: 'tags',
+        slots: { customRender: 'tags' },
+        width: 150
       })
       if (this.isAdvancedZone) {
         columns.push({
