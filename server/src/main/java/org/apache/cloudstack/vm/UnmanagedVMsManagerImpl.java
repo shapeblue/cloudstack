@@ -695,16 +695,16 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
         }
         // If network is non L2, IP v4 is assigned and not set to auto-assign, check it is available for network
         if (!network.getGuestType().equals(Network.GuestType.L2) && ipAddresses != null && StringUtils.isNotEmpty(ipAddresses.getIp4Address()) && !ipAddresses.getIp4Address().equals("auto")) {
-            Set<Long> ips = networkModel.getAvailableIps(network, ipAddresses.getIp4Address());
-            if (LOGGER.isDebugEnabled() && ips != null) {
-                String s = ips.stream().map(NetUtils::long2Ip).collect(Collectors.joining(", "));
+            List<String> usedIps = networkModel.getUsedIpsInNetwork(network);
+            if (LOGGER.isDebugEnabled() && usedIps != null) {
+                String s = usedIps.stream().collect(Collectors.joining(", "));
                 LOGGER.debug(String.format("available IPs for network(ID: %s) are [%s]",network.getUuid(), s));
             }
-            if (CollectionUtils.isEmpty(ips)) {
-                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Cannot assign IP address %s to NIC(ID: %s) as no available IP addresses are found for network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
-            }
-            if (!ips.contains(NetUtils.ip2Long(ipAddresses.getIp4Address()))) {
-                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("IP address %s for NIC(ID: %s) is not available in network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
+            for (String usedIp : usedIps) {
+                // only half witted support for ipv6 here :(
+                if (usedIp.equals(ipAddresses.getIp4Address()) || usedIp.equals(ipAddresses.getIp6Address())) {
+                    throw new ServerApiException(ApiErrorCode.RESOURCE_IN_USE_ERROR, String.format("Cannot assign IP address %s to NIC(ID: %s) as it is in use in network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
+                }
             }
         }
     }
