@@ -174,6 +174,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -695,16 +697,30 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
         }
         // If network is non L2, IP v4 is assigned and not set to auto-assign, check it is available for network
         if (!network.getGuestType().equals(Network.GuestType.L2) && ipAddresses != null && StringUtils.isNotEmpty(ipAddresses.getIp4Address()) && !ipAddresses.getIp4Address().equals("auto")) {
-            List<String> usedIps = networkModel.getUsedIpsInNetwork(network);
-            if (LOGGER.isDebugEnabled() && usedIps != null) {
-                String s = usedIps.stream().collect(Collectors.joining(", "));
-                LOGGER.debug(String.format("available IPs for network(ID: %s) are [%s]",network.getUuid(), s));
+            canIpBeUsedForNicInNetwork(nic, network, ipAddresses);
+        }
+    }
+
+    private void canIpBeUsedForNicInNetwork(UnmanagedInstanceTO.Nic nic, Network network, Network.IpAddresses ipAddresses) {
+        List<String> usedIps = networkModel.getUsedIpsInNetwork(network);
+        if (LOGGER.isDebugEnabled() && usedIps != null) {
+            String s = usedIps.stream().collect(Collectors.joining(", "));
+            LOGGER.debug(String.format("used IPs for network(ID: %s) to check against are [%s]", network.getUuid(), s));
+        }
+        for (String usedIp : usedIps) {
+            // only half witted support for ipv6 here :(
+            if (usedIp.equals(ipAddresses.getIp4Address()) || usedIp.equals(ipAddresses.getIp6Address())) {
+                throw new ServerApiException(ApiErrorCode.RESOURCE_IN_USE_ERROR, String.format("Cannot assign IP address %s to NIC(ID: %s) as it is in use in network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
             }
-            for (String usedIp : usedIps) {
-                // only half witted support for ipv6 here :(
-                if (usedIp.equals(ipAddresses.getIp4Address()) || usedIp.equals(ipAddresses.getIp6Address())) {
-                    throw new ServerApiException(ApiErrorCode.RESOURCE_IN_USE_ERROR, String.format("Cannot assign IP address %s to NIC(ID: %s) as it is in use in network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
-                }
+        }
+        if (network.getCidr() != null) {
+            String[] cidrs = Arrays.asList(network.getCidr()).toArray(new String[0]);
+            try {
+                NetUtils.isIpInCidrList(InetAddress.getByName(ipAddresses.getIp4Address()), cidrs);
+            } catch (UnknownHostException e) {
+                String msg = String.format("request an invalid IP address during import %s, ignoring", ipAddresses.getIp4Address());
+                LOGGER.warn(msg);
+                throw new ServerApiException(ApiErrorCode.MALFORMED_PARAMETER_ERROR, msg, e);
             }
         }
     }
