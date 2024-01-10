@@ -2017,6 +2017,9 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel, Confi
     @Override
     public Set<Long> getAvailableIps(Network network, String requestedIp) {
         if (network.getCidr() == null) {
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug(String.format("network %s[%s] has no CIDR, returning empty addrress set.", network.getName(), network.getUuid()));
+            }
             return Collections.emptySet();
         }
         String[] cidr = network.getCidr().split("/");
@@ -2026,7 +2029,7 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel, Confi
         for (String ip : ips) {
             if (requestedIp != null && requestedIp.equals(ip)) {
                 s_logger.warn("Requested ip address " + requestedIp + " is already in use in network" + network);
-                return null;
+                return Collections.emptySet();
             }
 
             usedIps.add(NetUtils.ip2Long(ip));

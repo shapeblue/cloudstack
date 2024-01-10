@@ -696,7 +696,14 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
         // If network is non L2, IP v4 is assigned and not set to auto-assign, check it is available for network
         if (!network.getGuestType().equals(Network.GuestType.L2) && ipAddresses != null && StringUtils.isNotEmpty(ipAddresses.getIp4Address()) && !ipAddresses.getIp4Address().equals("auto")) {
             Set<Long> ips = networkModel.getAvailableIps(network, ipAddresses.getIp4Address());
-            if (CollectionUtils.isEmpty(ips) || !ips.contains(NetUtils.ip2Long(ipAddresses.getIp4Address()))) {
+            if (LOGGER.isDebugEnabled() && ips != null) {
+                String s = ips.stream().map(NetUtils::long2Ip).collect(Collectors.joining(", "));
+                LOGGER.debug(String.format("available IPs for network(ID: %s) are [%s]",network.getUuid(), s));
+            }
+            if (CollectionUtils.isEmpty(ips)) {
+                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("Cannot assign IP address %s to NIC(ID: %s) as no available IP addresses are found for network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
+            }
+            if (!ips.contains(NetUtils.ip2Long(ipAddresses.getIp4Address()))) {
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, String.format("IP address %s for NIC(ID: %s) is not available in network(ID: %s)", ipAddresses.getIp4Address(), nic.getNicId(), network.getUuid()));
             }
         }
@@ -1113,7 +1120,11 @@ public class UnmanagedVMsManagerImpl implements UnmanagedVMsManager {
         }
         allDetails.put(VmDetailConstants.ROOT_DISK_CONTROLLER, rootDisk.getController());
         if (cluster.getHypervisorType() != Hypervisor.HypervisorType.VMware) {
-            allDetails.put(VmDetailConstants.ROOT_DISK_SIZE, String.valueOf(rootDisk.getCapacity() / Resource.ResourceType.bytesToGiB));
+            long size = rootDisk.getCapacity() / Resource.ResourceType.bytesToGiB;
+            if (size <= 0) {
+                size = 1;
+            }
+            allDetails.put(VmDetailConstants.ROOT_DISK_SIZE, String.valueOf(size));
         }
 
         try {
