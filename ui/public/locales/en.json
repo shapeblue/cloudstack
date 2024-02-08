@@ -2055,6 +2055,7 @@
 "label.tcp": "TCP",
 "label.tcp.proxy": "TCP proxy",
 "label.template": "Select a Template",
+"label.templatetag": "Tag",
 "label.template.select.existing": "Select an existing Template",
 "label.template.temporary.import": "Use a temporary Template for import",
 "label.templatebody": "Body",
