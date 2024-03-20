@@ -50,9 +50,9 @@ public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
             description = "the type of the resource which need to be purged")
     private String resourceType;
 
-    @Parameter(name = ApiConstants.BATCH_SIZE, type = CommandType.LONG,
+    @Parameter(name = ApiConstants.BATCH_SIZE, type = CommandType.INTEGER,
             description = "the size of batch used during purging")
-    private Long batchSize;
+    private Integer batchSize;
 
     @Parameter(name = ApiConstants.START_DATE,
             type = CommandType.DATE,
@@ -75,7 +75,7 @@ public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
         return resourceType;
     }
 
-    public Long getBatchSize() {
+    public Integer getBatchSize() {
         return batchSize;
     }
 

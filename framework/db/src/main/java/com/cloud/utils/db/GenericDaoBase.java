@@ -20,6 +20,8 @@ import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
@@ -59,6 +61,8 @@ import javax.persistence.Enumerated;
 import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
 
 import com.cloud.utils.DateUtil;
@@ -73,8 +77,6 @@ import com.cloud.utils.db.SearchCriteria.SelectType;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.net.Ip;
 import com.cloud.utils.net.NetUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
@@ -1208,7 +1210,7 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
 
     // FIXME: Does not work for joins.
     @Override
-    public int expunge(final SearchCriteria<T> sc) {
+    public int expunge(final SearchCriteria<T> sc, final Filter filter) {
         if (sc == null) {
             throw new CloudRuntimeException("Call to throw new expunge with null search Criteria");
         }
@@ -1220,6 +1222,7 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
         if (sc != null && sc.getWhereClause().length() > 0) {
             str.append(sc.getWhereClause());
         }
+        addFilter(str, filter);
 
         final String sql = str.toString();
 
@@ -1237,6 +1240,43 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
         } catch (final Throwable e) {
             throw new CloudRuntimeException("Caught: " + pstmt, e);
         }
+    }
+    @Override
+    public int expunge(final SearchCriteria<T> sc) {
+        return expunge(sc, null);
+    }
+
+    @Override
+    public int batchExpunge(final SearchCriteria<T> sc, final Integer batchSize) {
+        Filter filter = null;
+        if (batchSize != null && batchSize > 0) {
+            filter = new Filter(batchSize.longValue());
+        }
+        int expunged = 0;
+        int currentExpunged = 0;
+        do {
+            currentExpunged = expunge(sc, filter);
+            expunged += currentExpunged;
+        } while (batchSize != null && batchSize > 0 && expunged >= batchSize);
+        return expunged;
+    }
+
+    @Override
+    public int expungeList(List<ID> ids) {
+        SearchBuilder<T> sb = createSearchBuilder();
+        Object obj = null;
+        try {
+            Method m = sb.entity().getClass().getMethod("getId");
+            obj = m.invoke(sb.entity());
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException ignored) {}
+        if (obj == null) {
+            s_logger.warn(String.format("Unable to get ID object for entity: %s", _entityBeanType.getSimpleName()));
+            return 0;
+        }
+        sb.and("id", obj, SearchCriteria.Op.IN);
+        SearchCriteria<T> sc = sb.create();
+        sc.setParameters("id", ids.toArray());
+        return expunge(sc);
     }
 
     @DB()

@@ -35,7 +35,7 @@ public interface ResourceCleanupService {
     ConfigKey<Integer> ExpungedResourcesPurgeDelay = new ConfigKey<>("Advanced", Integer.class,
             "expunged.resources.purge.delay", "0",
             "Initial delay (in seconds) to start purge expunged resources task", false);
-    ConfigKey<Long> ExpungedResourcesPurgeBatchSize = new ConfigKey<>("Advanced", Long.class,
+    ConfigKey<Integer> ExpungedResourcesPurgeBatchSize = new ConfigKey<>("Advanced", Integer.class,
             "expunged.resources.purge.batch size", "0",
             "Batch size to be used during expunged resources purging", true);
 

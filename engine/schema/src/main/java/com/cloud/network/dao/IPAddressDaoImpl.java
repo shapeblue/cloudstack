@@ -534,4 +534,13 @@ public class IPAddressDaoImpl extends GenericDaoBase<IPAddressVO, Long> implemen
         sc.setParameters("state", State.Allocated);
         return listBy(sc);
     }
+
+    @Override
+    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+        SearchBuilder<IPAddressVO> sb = createSearchBuilder();
+        sb.and("vmIds", sb.entity().getAssociatedWithVmId(), SearchCriteria.Op.IN);
+        SearchCriteria<IPAddressVO> sc = sb.create();
+        sc.setParameters("vmIds", vmIds.toArray());
+        return batchExpunge(sc, batchSize);
+    }
 }

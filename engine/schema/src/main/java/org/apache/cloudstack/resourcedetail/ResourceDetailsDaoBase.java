@@ -22,12 +22,13 @@ import java.util.Map;
 
 import org.apache.cloudstack.api.ResourceDetail;
 
+import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.GenericSearchBuilder;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
-import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.db.SearchCriteria.Op;
+import com.cloud.utils.db.TransactionLegacy;
 
 public abstract class ResourceDetailsDaoBase<R extends ResourceDetail> extends GenericDaoBase<R, Long> implements ResourceDetailsDao<R> {
     private SearchBuilder<R> AllFieldsSearch;
@@ -200,5 +201,22 @@ public abstract class ResourceDetailsDaoBase<R extends ResourceDetail> extends G
         sc.setParameters("value", values);
 
         return customSearch(sc, null);
+    }
+
+    @Override
+    public long batchExpungeForResources(List<Long> ids, Long batchSize) {
+        SearchBuilder<R> sb = createSearchBuilder();
+        sb.and("ids", sb.entity().getResourceId(), Op.IN);
+        sb.done();
+        SearchCriteria<R> sc = sb.create();
+        sc.setParameters("ids", ids.toArray());
+        int removed = 0;
+        long totalRemoved = 0;
+        Filter filter = new Filter(_entityBeanType, "id", true, 0L, batchSize);
+        do {
+            removed = expunge(sc, filter);
+            totalRemoved += removed;
+        } while (batchSize > 0 && removed >= batchSize);
+        return totalRemoved;
     }
 }
