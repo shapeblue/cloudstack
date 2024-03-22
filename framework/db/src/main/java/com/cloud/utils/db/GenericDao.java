@@ -243,7 +243,7 @@ public interface GenericDao<T, ID extends Serializable> {
      * @param batchSize
      * @return number of rows deleted
      */
-    int batchExpunge(final SearchCriteria<T> sc, final Integer batchSize);
+    int batchExpunge(final SearchCriteria<T> sc, final Long batchSize);
 
     int expungeList(final List<ID> ids);
 

@@ -261,7 +261,7 @@ public class HighAvailabilityDaoImpl extends GenericDaoBase<HaWorkVO, Long> impl
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<HaWorkVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getInstanceId(), SearchCriteria.Op.IN);
         SearchCriteria<HaWorkVO> sc = sb.create();

@@ -330,7 +330,7 @@ public class MockUsageEventDao implements UsageEventDao{
     }
 
     @Override
-    public int batchExpunge(SearchCriteria<UsageEventVO> sc, Integer batchSize) {
+    public int batchExpunge(SearchCriteria<UsageEventVO> sc, Long batchSize) {
         return 0;
     }
 

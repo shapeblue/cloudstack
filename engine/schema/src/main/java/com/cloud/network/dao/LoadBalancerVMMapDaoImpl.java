@@ -137,7 +137,7 @@ public class LoadBalancerVMMapDaoImpl extends GenericDaoBase<LoadBalancerVMMapVO
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<LoadBalancerVMMapVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getInstanceId(), SearchCriteria.Op.IN);
         SearchCriteria<LoadBalancerVMMapVO> sc = sb.create();

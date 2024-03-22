@@ -29,7 +29,7 @@ import com.cloud.utils.db.SearchCriteria;
 @Component
 public class OpRouterMonitorServiceDaoImpl extends GenericDaoBase<OpRouterMonitorServiceVO, Long> implements OpRouterMonitorServiceDao  {
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<OpRouterMonitorServiceVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getId(), SearchCriteria.Op.IN);
         SearchCriteria<OpRouterMonitorServiceVO> sc = sb.create();

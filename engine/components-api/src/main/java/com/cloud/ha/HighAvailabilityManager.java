@@ -153,5 +153,5 @@ public interface HighAvailabilityManager extends Manager {
     String getHaTag();
 
     DeploymentPlanner getHAPlanner();
-    int expungeWorkItemsByVmList(List<Long> vmIds, Integer batchSize);
+    int expungeWorkItemsByVmList(List<Long> vmIds, Long batchSize);
 }

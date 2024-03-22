@@ -40,6 +40,7 @@ import com.cloud.utils.DateUtil;
 import com.cloud.utils.Pair;
 import com.cloud.utils.db.Attribute;
 import com.cloud.utils.db.DB;
+import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.GenericSearchBuilder;
 import com.cloud.utils.db.JoinBuilder;
@@ -1017,5 +1018,22 @@ public class VMInstanceDaoImpl extends GenericDaoBase<VMInstanceVO, Long> implem
         sc.setParameters("lastHostId", String.valueOf(hostId));
         sc.setParameters("podId", String.valueOf(podId));
         return listBy(sc);
+    }
+
+    @Override
+    public List<VMInstanceVO> searcRemovedByRemoveDate(Date startDate, Date endDate, Long batchSize) {
+        SearchBuilder<VMInstanceVO> sb = createSearchBuilder();
+        sb.and("removed", sb.entity().getRemoved(), SearchCriteria.Op.NNULL);
+        sb.and("startDate", sb.entity().getRemoved(), SearchCriteria.Op.GTEQ);
+        sb.and("endDate", sb.entity().getRemoved(), SearchCriteria.Op.LTEQ);
+        SearchCriteria<VMInstanceVO> sc = sb.create();
+        if (startDate != null) {
+            sc.setParameters("startDate", startDate);
+        }
+        if (endDate != null) {
+            sc.setParameters("endDate", endDate);
+        }
+        Filter filter = new Filter(VMInstanceVO.class, "id", true, 0L, batchSize);
+        return searchIncludingRemoved(sc, filter, null, false);
     }
 }

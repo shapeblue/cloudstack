@@ -104,7 +104,7 @@ public class ItWorkDaoImpl extends GenericDaoBase<ItWorkVO, String> implements I
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<ItWorkVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getInstanceId(), SearchCriteria.Op.IN);
         SearchCriteria<ItWorkVO> sc = sb.create();

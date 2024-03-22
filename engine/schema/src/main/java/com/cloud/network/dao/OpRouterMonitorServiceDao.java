@@ -24,6 +24,6 @@ import com.cloud.utils.db.GenericDao;
 
 public interface OpRouterMonitorServiceDao extends GenericDao<OpRouterMonitorServiceVO, Long> {
 
-    int expungeByVmList(List<Long> vmIds, Integer batchSize);
+    int expungeByVmList(List<Long> vmIds, Long batchSize);
 
 }

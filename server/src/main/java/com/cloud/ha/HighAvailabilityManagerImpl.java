@@ -1068,7 +1068,7 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements Configur
     }
 
     @Override
-    public int expungeWorkItemsByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeWorkItemsByVmList(List<Long> vmIds, Long batchSize) {
         return _haDao.expungeByVmList(vmIds, batchSize);
     }
 }

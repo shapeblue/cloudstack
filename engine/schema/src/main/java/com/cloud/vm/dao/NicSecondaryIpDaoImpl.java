@@ -194,7 +194,7 @@ public class NicSecondaryIpDaoImpl extends GenericDaoBase<NicSecondaryIpVO, Long
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<NicSecondaryIpVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getVmId(), SearchCriteria.Op.IN);
         SearchCriteria<NicSecondaryIpVO> sc = sb.create();

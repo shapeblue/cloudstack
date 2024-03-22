@@ -536,7 +536,7 @@ public class IPAddressDaoImpl extends GenericDaoBase<IPAddressVO, Long> implemen
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<IPAddressVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getAssociatedWithVmId(), SearchCriteria.Op.IN);
         SearchCriteria<IPAddressVO> sc = sb.create();

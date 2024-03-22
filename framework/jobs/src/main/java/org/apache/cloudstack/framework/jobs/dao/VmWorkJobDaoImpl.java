@@ -215,7 +215,7 @@ public class VmWorkJobDaoImpl extends GenericDaoBase<VmWorkJobVO, Long> implemen
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<VmWorkJobVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getVmInstanceId(), SearchCriteria.Op.IN);
         SearchCriteria<VmWorkJobVO> sc = sb.create();

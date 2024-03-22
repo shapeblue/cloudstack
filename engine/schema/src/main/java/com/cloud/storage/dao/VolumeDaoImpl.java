@@ -42,6 +42,7 @@ import com.cloud.storage.VolumeVO;
 import com.cloud.tags.dao.ResourceTagDao;
 import com.cloud.utils.Pair;
 import com.cloud.utils.db.DB;
+import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.GenericSearchBuilder;
 import com.cloud.utils.db.SearchBuilder;
@@ -815,5 +816,16 @@ public class VolumeDaoImpl extends GenericDaoBase<VolumeVO, Long> implements Vol
             sc.setParameters("notVmIds", vmIds.toArray());
         }
         return listBy(sc);
+    }
+
+    @Override
+    public List<VolumeVO> searchRemovedByVms(List<Long> vmIds, Long batchSize) {
+        SearchBuilder<VolumeVO> sb = createSearchBuilder();
+        sb.and("vmIds", sb.entity().getInstanceId(), SearchCriteria.Op.IN);
+        sb.and("removed", sb.entity().getRemoved(), SearchCriteria.Op.NNULL);
+        SearchCriteria<VolumeVO> sc = sb.create();
+        sc.setParameters("vmIds", vmIds.toArray());
+        Filter filter = new Filter(VolumeVO.class, "id", true, 0L, batchSize);
+        return searchIncludingRemoved(sc, filter, null, false);
     }
 }

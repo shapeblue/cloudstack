@@ -59,7 +59,7 @@ public class CommandExecLogDaoImpl extends GenericDaoBase<CommandExecLogVO, Long
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<CommandExecLogVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getInstanceId(), SearchCriteria.Op.IN);
         SearchCriteria<CommandExecLogVO> sc = sb.create();

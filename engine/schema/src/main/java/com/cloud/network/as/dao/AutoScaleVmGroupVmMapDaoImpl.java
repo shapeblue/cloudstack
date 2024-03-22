@@ -116,7 +116,7 @@ public class AutoScaleVmGroupVmMapDaoImpl extends GenericDaoBase<AutoScaleVmGrou
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<AutoScaleVmGroupVmMapVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getInstanceId(), SearchCriteria.Op.IN);
         SearchCriteria<AutoScaleVmGroupVmMapVO> sc = sb.create();

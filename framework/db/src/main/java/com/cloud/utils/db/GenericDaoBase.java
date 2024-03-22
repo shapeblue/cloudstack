@@ -1247,7 +1247,7 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
     }
 
     @Override
-    public int batchExpunge(final SearchCriteria<T> sc, final Integer batchSize) {
+    public int batchExpunge(final SearchCriteria<T> sc, final Long batchSize) {
         Filter filter = null;
         if (batchSize != null && batchSize > 0) {
             filter = new Filter(batchSize.longValue());

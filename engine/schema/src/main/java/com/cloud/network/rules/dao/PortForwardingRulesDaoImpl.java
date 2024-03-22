@@ -172,7 +172,7 @@ public class PortForwardingRulesDaoImpl extends GenericDaoBase<PortForwardingRul
     }
 
     @Override
-    public int expungeByVmList(List<Long> vmIds, Integer batchSize) {
+    public int expungeByVmList(List<Long> vmIds, Long batchSize) {
         SearchBuilder<PortForwardingRuleVO> sb = createSearchBuilder();
         sb.and("vmIds", sb.entity().getVirtualMachineId(), SearchCriteria.Op.IN);
         SearchCriteria<PortForwardingRuleVO> sc = sb.create();
