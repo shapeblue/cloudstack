@@ -154,7 +154,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         SearchBuilder<SnapshotVO> sb = snapshotDao.createSearchBuilder();
         sb.and("volumeIds", sb.entity().getVolumeId(), SearchCriteria.Op.IN);
         sb.and("removed", sb.entity().getRemoved(), SearchCriteria.Op.NNULL);
-        // ToDo: add a condition that volume should not have any un-removed snapshot
+        // ToDo: Check if volume entries for active snapshots need to be preserved
         SearchCriteria<SnapshotVO> sc = sb.create();
         sc.setParameters("volumeIds", volumeIds.toArray());
         int removed = 0;
@@ -210,6 +210,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
     }
 
     protected long expungeVMSnapshots(final List<Long> vmIds, final Long batchSize) {
+        // ToDo: Check if VM entries for active snapshots need to be preserved
         int removed = 0;
         long totalRemoved = 0;
         do {
@@ -226,6 +227,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         expungeVMVolumes(vmIds, batchSize);
         expungeVMNics(vmIds, batchSize);
         userVmDetailsDao.batchExpungeForResources(vmIds, batchSize);
+        // ToDo: Check if we need to remove entries from  specific VM tables
 //        userVmDao.expunge();
 //        consoleProxyDao.expunge();
 //        secondaryStorageVmDao.expunge();
@@ -274,6 +276,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
             if (!CLEANUP_SUPPORTED_RESOURCE_TYPES.contains(resourceType)) {
                 throw new InvalidParameterValueException("Invalid resource type specified");
             }
+            expungeVMEntities(Long.valueOf(batchSize), startDate, endDate);
         }
         if (batchSize != null && batchSize <= 0) {
             throw new InvalidParameterValueException(String.format("Invalid %s specified", ApiConstants.BATCH_SIZE));
