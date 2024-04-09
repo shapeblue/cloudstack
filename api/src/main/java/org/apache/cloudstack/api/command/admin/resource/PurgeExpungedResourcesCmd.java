@@ -20,6 +20,8 @@ package org.apache.cloudstack.api.command.admin.resource;
 
 import java.util.Date;
 
+import javax.inject.Inject;
+
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -31,6 +33,9 @@ import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.resource.ResourceCleanupService;
+
+import com.cloud.event.EventTypes;
 
 @APICommand(name = "purgeExpungedResources",
         description = "Purge expunged resources",
@@ -42,6 +47,9 @@ import org.apache.cloudstack.context.CallContext;
         since = "4.12.0")
 public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
 
+    @Inject
+    ResourceCleanupService resourceCleanupService;
+
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
@@ -50,9 +58,9 @@ public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
             description = "the type of the resource which need to be purged")
     private String resourceType;
 
-    @Parameter(name = ApiConstants.BATCH_SIZE, type = CommandType.INTEGER,
+    @Parameter(name = ApiConstants.BATCH_SIZE, type = CommandType.LONG,
             description = "the size of batch used during purging")
-    private Integer batchSize;
+    private Long batchSize;
 
     @Parameter(name = ApiConstants.START_DATE,
             type = CommandType.DATE,
@@ -75,7 +83,7 @@ public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
         return resourceType;
     }
 
-    public Integer getBatchSize() {
+    public Long getBatchSize() {
         return batchSize;
     }
 
@@ -94,12 +102,12 @@ public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventType() {
-        return null;
+        return EventTypes.EVENT_PURGE_EXPUNGED_RESOURCES;
     }
 
     @Override
     public String getEventDescription() {
-        return null;
+        return "Purging expunged resources";
     }
 
     /////////////////////////////////////////////////////
@@ -109,7 +117,7 @@ public class PurgeExpungedResourcesCmd extends BaseAsyncCmd {
     @Override
     public void execute() {
         try {
-            boolean result = true; // ToDo: Implement
+            boolean result = resourceCleanupService.purgeExpungedResources(this);
             if (result) {
                 SuccessResponse response = new SuccessResponse(getCommandName());
                 setResponseObject(response);

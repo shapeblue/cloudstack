@@ -858,7 +858,7 @@ public class VolumeDaoImpl extends GenericDaoBase<VolumeVO, Long> implements Vol
         sb.and("removed", sb.entity().getRemoved(), SearchCriteria.Op.NNULL);
         SearchCriteria<VolumeVO> sc = sb.create();
         sc.setParameters("vmIds", vmIds.toArray());
-        Filter filter = new Filter(VolumeVO.class, "id", true, 0L, batchSize);
+        Filter filter = new Filter(VolumeVO.class, "id", true, null, batchSize);
         return searchIncludingRemoved(sc, filter, null, false);
     }
 }

@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.cloudstack.api.ResourceDetail;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
 
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDaoBase;
@@ -205,6 +207,9 @@ public abstract class ResourceDetailsDaoBase<R extends ResourceDetail> extends G
 
     @Override
     public long batchExpungeForResources(List<Long> ids, Long batchSize) {
+        if (CollectionUtils.isEmpty(ids)) {
+            return 0;
+        }
         SearchBuilder<R> sb = createSearchBuilder();
         sb.and("ids", sb.entity().getResourceId(), Op.IN);
         sb.done();
@@ -212,11 +217,12 @@ public abstract class ResourceDetailsDaoBase<R extends ResourceDetail> extends G
         sc.setParameters("ids", ids.toArray());
         int removed = 0;
         long totalRemoved = 0;
-        Filter filter = new Filter(_entityBeanType, "id", true, 0L, batchSize);
+        Filter filter = new Filter(_entityBeanType, "id", true, null, batchSize);
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
         do {
             removed = expunge(sc, filter);
             totalRemoved += removed;
-        } while (batchSize > 0 && removed >= batchSize);
+        } while (batchSizeFinal > 0 && removed >= batchSizeFinal);
         return totalRemoved;
     }
 }

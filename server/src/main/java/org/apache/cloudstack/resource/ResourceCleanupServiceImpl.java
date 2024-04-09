@@ -35,6 +35,8 @@ import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreDao;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
@@ -151,6 +153,9 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
     }
 
     protected long expungeVolumeSnapshots(final List<Long> volumeIds, final Long batchSize) {
+        if (CollectionUtils.isEmpty(volumeIds)) {
+            return 0;
+        }
         SearchBuilder<SnapshotVO> sb = snapshotDao.createSearchBuilder();
         sb.and("volumeIds", sb.entity().getVolumeId(), SearchCriteria.Op.IN);
         sb.and("removed", sb.entity().getRemoved(), SearchCriteria.Op.NNULL);
@@ -159,18 +164,22 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         sc.setParameters("volumeIds", volumeIds.toArray());
         int removed = 0;
         long totalRemoved = 0;
-        Filter filter = new Filter(SnapshotVO.class, "id", true, 0L, batchSize);
+        Filter filter = new Filter(SnapshotVO.class, "id", true, null, batchSize);
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
         do {
             List<SnapshotVO> volumes = snapshotDao.searchIncludingRemoved(sc, filter, null, false);
             List<Long> snapshotIds = volumes.stream().map(SnapshotVO::getId).collect(Collectors.toList());
             expungeLinkedSnapshotEntities(snapshotIds, batchSize);
             removed = snapshotDao.expungeList(snapshotIds);
             totalRemoved += removed;
-        } while (batchSize > 0 && removed >= batchSize);
+        } while (batchSizeFinal > 0 && removed >= batchSizeFinal);
         return totalRemoved;
     }
 
     protected void expungeLinkedVolumeEntities(final List<Long> volumeIds, final Long batchSize) {
+        if (CollectionUtils.isEmpty(volumeIds)) {
+            return;
+        }
         volumeDetailsDao.batchExpungeForResources(volumeIds, batchSize);
         volumeDataStoreDao.expungeByVolumeList(volumeIds, batchSize);
         expungeVolumeSnapshots(volumeIds, batchSize);
@@ -178,15 +187,19 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
     }
 
     protected long expungeVMVolumes(final List<Long> vmIds, final Long batchSize) {
+        if (CollectionUtils.isEmpty(vmIds)) {
+            return 0;
+        }
         int removed = 0;
         long totalRemoved = 0;
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
         do {
             List<VolumeVO> volumes = volumeDao.searchRemovedByVms(vmIds, batchSize);
             List<Long> volumeIds = volumes.stream().map(VolumeVO::getId).collect(Collectors.toList());
             expungeLinkedVolumeEntities(volumeIds, batchSize);
             removed = volumeDao.expungeList(volumeIds);
             totalRemoved += removed;
-        } while (batchSize > 0 && removed >= batchSize);
+        } while (batchSizeFinal > 0 && removed >= batchSizeFinal);
         return totalRemoved;
     }
 
@@ -197,33 +210,44 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
     }
 
     protected long expungeVMNics(final List<Long> vmIds, final Long batchSize) {
+        if (CollectionUtils.isEmpty(vmIds)) {
+            return 0;
+        }
         int removed = 0;
         long totalRemoved = 0;
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
         do {
             List<NicVO> nics = nicDao.searchRemovedByVms(vmIds, batchSize);
             List<Long> nicIds = nics.stream().map(NicVO::getId).collect(Collectors.toList());
             expungeLinkedNicEntities(nicIds, batchSize);
             removed = nicDao.expungeList(nicIds);
             totalRemoved += removed;
-        } while (batchSize > 0 && removed >= batchSize);
+        } while (batchSizeFinal > 0 && removed >= batchSizeFinal);
         return totalRemoved;
     }
 
     protected long expungeVMSnapshots(final List<Long> vmIds, final Long batchSize) {
+        if (CollectionUtils.isEmpty(vmIds)) {
+            return 0;
+        }
         // ToDo: Check if VM entries for active snapshots need to be preserved
         int removed = 0;
         long totalRemoved = 0;
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
         do {
             List<VMSnapshotVO> vmSnapshots = vmSnapshotDao.searchRemovedByVms(vmIds, batchSize);
             List<Long> ids = vmSnapshots.stream().map(VMSnapshotVO::getId).collect(Collectors.toList());
             vmSnapshotDetailsDao.batchExpungeForResources(ids, batchSize);
             removed = vmSnapshotDao.expungeList(ids);
             totalRemoved += removed;
-        } while (batchSize > 0 && removed >= batchSize);
+        } while (batchSizeFinal > 0 && removed >= batchSizeFinal);
         return totalRemoved;
     }
 
     protected void expungeVMLinkedEntities(final List<Long> vmIds, final Long batchSize) {
+        if (CollectionUtils.isEmpty(vmIds)) {
+            return;
+        }
         expungeVMVolumes(vmIds, batchSize);
         expungeVMNics(vmIds, batchSize);
         userVmDetailsDao.batchExpungeForResources(vmIds, batchSize);
@@ -249,22 +273,32 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
     protected long expungeVMEntities(final Long batchSize, final Date startDate, final Date endDate) {
         int removed = 0;
         long totalRemoved = 0;
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
         do {
             List<VMInstanceVO> vms = vmInstanceDao.searcRemovedByRemoveDate(startDate, endDate, batchSize);
             List<Long> vmIds = vms.stream().map(VMInstanceVO::getId).collect(Collectors.toList());
             expungeVMLinkedEntities(vmIds, batchSize);
             removed = vmInstanceDao.expungeList(vmIds);
             totalRemoved += removed;
-        } while (batchSize > 0 && removed >= batchSize);
+        } while (batchSizeFinal > 0 && removed >= batchSizeFinal);
         return totalRemoved;
+    }
+
+    protected long expungeEntities(final Resource.ResourceType resourceType, final Long batchSize,
+            final Date startDate, final Date endDate) {
+        long totalExpunged = 0;
+        if (resourceType == null || Resource.ResourceType.user_vm.equals(resourceType)) {
+            totalExpunged += expungeVMEntities(batchSize, startDate, endDate);
+        }
+        return totalExpunged;
     }
 
     @Override
     public boolean purgeExpungedResources(PurgeExpungedResourcesCmd cmd) {
         final String resourceTypeStr = cmd.getResourceType();
-        final Integer batchSize = cmd.getBatchSize();
         final Date startDate = cmd.getStartDate();
         final Date endDate = cmd.getEndDate();
+        Long batchSize = cmd.getBatchSize();
 
         Resource.ResourceType resourceType = null;
         if (StringUtils.isNotBlank(resourceTypeStr)) {
@@ -284,7 +318,12 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         if (endDate != null && startDate != null && endDate.before(startDate)) {
             throw new InvalidParameterValueException(String.format("Invalid %s specified", ApiConstants.END_DATE));
         }
-        return false;
+        Integer globalBatchSize = ExpungedResourcesPurgeBatchSize.value();
+        if (batchSize == null && globalBatchSize > 0) {
+            batchSize = globalBatchSize.longValue();
+        }
+        long expungedCount = expungeEntities(resourceType, batchSize, startDate, endDate);
+        return expungedCount > 0;
     }
 
     @Override
@@ -305,7 +344,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
 
     @Override
     public String getConfigComponentName() {
-        return null;
+        return ResourceCleanupService.class.getName();
     }
 
     @Override
@@ -314,7 +353,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
                 ExpungedResourcePurgeEnabled,
                 ExpungedResourcesPurgeInterval,
                 ExpungedResourcesPurgeDelay,
-                ExpungedResourcesPurgeDelay
+                ExpungedResourcesPurgeBatchSize
         };
     }
 

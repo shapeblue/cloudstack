@@ -61,6 +61,7 @@ import javax.persistence.Enumerated;
 import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
@@ -1266,20 +1267,24 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
     @Override
     public int batchExpunge(final SearchCriteria<T> sc, final Long batchSize) {
         Filter filter = null;
-        if (batchSize != null && batchSize > 0) {
-            filter = new Filter(batchSize.longValue());
+        final long batchSizeFinal = ObjectUtils.defaultIfNull(batchSize, 0L);
+        if (batchSizeFinal > 0) {
+            filter = new Filter(batchSizeFinal);
         }
         int expunged = 0;
         int currentExpunged = 0;
         do {
             currentExpunged = expunge(sc, filter);
             expunged += currentExpunged;
-        } while (batchSize != null && batchSize > 0 && expunged >= batchSize);
+        } while (batchSizeFinal > 0 && expunged >= batchSizeFinal);
         return expunged;
     }
 
     @Override
     public int expungeList(List<ID> ids) {
+        if (org.apache.commons.collections.CollectionUtils.isEmpty(ids)) {
+            return 0;
+        }
         SearchBuilder<T> sb = createSearchBuilder();
         Object obj = null;
         try {

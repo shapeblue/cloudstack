@@ -1033,7 +1033,7 @@ public class VMInstanceDaoImpl extends GenericDaoBase<VMInstanceVO, Long> implem
         if (endDate != null) {
             sc.setParameters("endDate", endDate);
         }
-        Filter filter = new Filter(VMInstanceVO.class, "id", true, 0L, batchSize);
+        Filter filter = new Filter(VMInstanceVO.class, "id", true, null, batchSize);
         return searchIncludingRemoved(sc, filter, null, false);
     }
 }
