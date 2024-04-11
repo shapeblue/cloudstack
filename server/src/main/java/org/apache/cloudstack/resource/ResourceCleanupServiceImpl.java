@@ -349,7 +349,8 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
                 AsyncCallbackDispatcher.create(this);
         caller.setCallback(caller.getTarget().expungedResourcePurgeCallback(null, null))
                 .setContext(context);
-        ExpungedResourcePurgeThread job = new ExpungedResourcePurgeThread(resourceType, batchSize, startDate, endDate);
+        ExpungedResourcePurgeThread job = new ExpungedResourcePurgeThread(resourceType, batchSize, startDate, endDate,
+                caller);
         expungedResourcesPurgeJobExecutor.submit(job);
         long expungedCount;
         try {
@@ -364,7 +365,6 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         }
         if (expungedCount <= 0) {
             logger.debug("No resource expunged during purgeExpungedResources execution");
-            return false;
         }
         return true;
     }
@@ -457,15 +457,18 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         Date endDate;
         AsyncCompletionCallback<ExpungedResourcePurgeResult> callback;
         public ExpungedResourcePurgeThread(final Resource.ResourceType resourceType, final Long batchSize,
-               final Date startDate, final Date endDate) {
+               final Date startDate, final Date endDate,
+               AsyncCompletionCallback<ExpungedResourcePurgeResult> callback) {
             this.resourceType = resourceType;
             this.batchSize = batchSize;
             this.startDate = startDate;
             this.endDate = endDate;
+            this.callback = callback;
         }
         @Override
         protected void runInContext() {
-            logger.info(String.format("---------------------------------Executing purge, start: %s, end: %s", startDate, endDate));
+            logger.trace(String.format("Executing purge for resource type: %s with batch size: %d start: %s, end: %s",
+                    resourceType, batchSize, startDate, endDate));
             GlobalLock gcLock = GlobalLock.getInternLock("Expunged.Resource.Cleanup.Lock");
             try {
                 if (gcLock.lock(3)) {
@@ -482,9 +485,7 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
 
         public void reallyRun() {
             try {
-                logger.info(String.format("---------------------------------reallyRun, start: %s, end: %s", startDate, endDate));
                 long purged = expungeEntities(resourceType, batchSize, startDate, endDate);
-                logger.info(String.format("---------------------------------reallyRun, purged: %d", purged));
                 callback.complete(new ExpungedResourcePurgeResult(resourceType, batchSize, startDate, endDate, purged));
             } catch (CloudRuntimeException e) {
                 logger.error("Caught exception while expunging resources: ", e);
