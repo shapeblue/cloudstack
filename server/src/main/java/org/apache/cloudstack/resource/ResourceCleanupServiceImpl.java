@@ -18,8 +18,12 @@
 package org.apache.cloudstack.resource;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -28,10 +32,15 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.resource.PurgeExpungedResourcesCmd;
+import org.apache.cloudstack.framework.async.AsyncCallFuture;
+import org.apache.cloudstack.framework.async.AsyncCallbackDispatcher;
+import org.apache.cloudstack.framework.async.AsyncCompletionCallback;
+import org.apache.cloudstack.framework.async.AsyncRpcContext;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.jobs.dao.VmWorkJobDao;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
+import org.apache.cloudstack.storage.command.CommandResult;
 import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreDao;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
@@ -60,10 +69,12 @@ import com.cloud.storage.dao.VolumeDao;
 import com.cloud.storage.dao.VolumeDetailsDao;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
+import com.cloud.utils.concurrency.NamedThreadFactory;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.ItWorkDao;
 import com.cloud.vm.NicVO;
 import com.cloud.vm.VMInstanceVO;
@@ -84,6 +95,7 @@ import com.cloud.vm.snapshot.dao.VMSnapshotDetailsDao;
 public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceCleanupService, PluggableService,
         Configurable {
     private static final Logger logger = Logger.getLogger(ResourceCleanupServiceImpl.class);
+    public static final String EXPUNGED_RESOURCES_PURGE_JOB_POOL_THREAD_PREFIX = "Expunged-Resource-Purge-Job-Executor";
 
     @Inject
     VMInstanceDao vmInstanceDao;
@@ -144,7 +156,8 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
     @Inject
     ManagementServerHostDao managementServerHostDao;
 
-    ScheduledExecutorService expungedResourcesCleanupExecutor;
+    private ScheduledExecutorService expungedResourcesCleanupExecutor;
+    private ExecutorService expungedResourcesPurgeJobExecutor;
 
     protected void expungeLinkedSnapshotEntities(final List<Long> snapshotIds, final Long batchSize) {
         snapshotDetailsDao.batchExpungeForResources(snapshotIds, batchSize);
@@ -293,6 +306,14 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         return totalExpunged;
     }
 
+    protected Void expungedResourcePurgeCallback(
+            AsyncCallbackDispatcher<ResourceCleanupServiceImpl, ExpungedResourcePurgeResult> callback,
+            ExpungedResourcesContext<ExpungedResourcePurgeResult> context) {
+        ExpungedResourcePurgeResult result = callback.getResult();
+        context.future.complete(result);
+        return null;
+    }
+
     @Override
     public boolean purgeExpungedResources(PurgeExpungedResourcesCmd cmd) {
         final String resourceTypeStr = cmd.getResourceType();
@@ -310,7 +331,6 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
             if (!CLEANUP_SUPPORTED_RESOURCE_TYPES.contains(resourceType)) {
                 throw new InvalidParameterValueException("Invalid resource type specified");
             }
-            expungeVMEntities(Long.valueOf(batchSize), startDate, endDate);
         }
         if (batchSize != null && batchSize <= 0) {
             throw new InvalidParameterValueException(String.format("Invalid %s specified", ApiConstants.BATCH_SIZE));
@@ -322,8 +342,31 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
         if (batchSize == null && globalBatchSize > 0) {
             batchSize = globalBatchSize.longValue();
         }
-        long expungedCount = expungeEntities(resourceType, batchSize, startDate, endDate);
-        return expungedCount > 0;
+        AsyncCallFuture<ExpungedResourcePurgeResult> future = new AsyncCallFuture<>();
+        ExpungedResourcesContext<ExpungedResourcePurgeResult> context =
+                new ExpungedResourcesContext<>(null, future);
+        AsyncCallbackDispatcher<ResourceCleanupServiceImpl, ExpungedResourcePurgeResult> caller =
+                AsyncCallbackDispatcher.create(this);
+        caller.setCallback(caller.getTarget().expungedResourcePurgeCallback(null, null))
+                .setContext(context);
+        ExpungedResourcePurgeThread job = new ExpungedResourcePurgeThread(resourceType, batchSize, startDate, endDate);
+        expungedResourcesPurgeJobExecutor.submit(job);
+        long expungedCount;
+        try {
+            ExpungedResourcePurgeResult result = future.get();
+            if (result.isFailed()) {
+                throw new CloudRuntimeException(String.format("Failed to purge expunged resources due to: %s", result.getResult()));
+            }
+            expungedCount = result.getExpungedCount();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error(String.format("Failed to purge expunged resources due to: %s", e.getMessage()), e);
+            throw new CloudRuntimeException("Failed to purge expunged resources");
+        }
+        if (expungedCount <= 0) {
+            logger.debug("No resource expunged during purgeExpungedResources execution");
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -332,6 +375,14 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
             expungedResourcesCleanupExecutor.scheduleWithFixedDelay(new ExpungedResourceCleanupWorker(),
                     ExpungedResourcesPurgeDelay.value(), ExpungedResourcesPurgeInterval.value(), TimeUnit.SECONDS);
         }
+        expungedResourcesPurgeJobExecutor = Executors.newFixedThreadPool(3,
+                new NamedThreadFactory(EXPUNGED_RESOURCES_PURGE_JOB_POOL_THREAD_PREFIX));
+        return true;
+    }
+
+    @Override
+    public boolean stop() {
+        expungedResourcesPurgeJobExecutor.shutdown();
         return true;
     }
 
@@ -353,7 +404,8 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
                 ExpungedResourcePurgeEnabled,
                 ExpungedResourcesPurgeInterval,
                 ExpungedResourcesPurgeDelay,
-                ExpungedResourcesPurgeBatchSize
+                ExpungedResourcesPurgeBatchSize,
+                ExpungedResourcesPurgeEndTimeDifference
         };
     }
 
@@ -385,10 +437,119 @@ public class ResourceCleanupServiceImpl extends ManagerBase implements ResourceC
 
         public void reallyRun() {
             try {
-                // do cleanup
+                Integer batchSize = ExpungedResourcesPurgeBatchSize.value();
+                Calendar cal = Calendar.getInstance();
+                Date endDate = new Date();
+                cal.setTime(endDate);
+                cal.add(Calendar.DATE, -1 * ExpungedResourcesPurgeEndTimeDifference.value());
+                endDate = cal.getTime();
+                expungeEntities(null, batchSize.longValue(), null, endDate);
             } catch (Exception e) {
                 logger.warn("Caught exception while running expunged resources cleanup task: ", e);
             }
         }
+    }
+
+    protected class ExpungedResourcePurgeThread extends ManagedContextRunnable {
+        Resource.ResourceType resourceType;
+        Long batchSize;
+        Date startDate;
+        Date endDate;
+        AsyncCompletionCallback<ExpungedResourcePurgeResult> callback;
+        public ExpungedResourcePurgeThread(final Resource.ResourceType resourceType, final Long batchSize,
+               final Date startDate, final Date endDate) {
+            this.resourceType = resourceType;
+            this.batchSize = batchSize;
+            this.startDate = startDate;
+            this.endDate = endDate;
+        }
+        @Override
+        protected void runInContext() {
+            logger.info(String.format("---------------------------------Executing purge, start: %s, end: %s", startDate, endDate));
+            GlobalLock gcLock = GlobalLock.getInternLock("Expunged.Resource.Cleanup.Lock");
+            try {
+                if (gcLock.lock(3)) {
+                    try {
+                        reallyRun();
+                    } finally {
+                        gcLock.unlock();
+                    }
+                }
+            } finally {
+                gcLock.releaseRef();
+            }
+        }
+
+        public void reallyRun() {
+            try {
+                logger.info(String.format("---------------------------------reallyRun, start: %s, end: %s", startDate, endDate));
+                long purged = expungeEntities(resourceType, batchSize, startDate, endDate);
+                logger.info(String.format("---------------------------------reallyRun, purged: %d", purged));
+                callback.complete(new ExpungedResourcePurgeResult(resourceType, batchSize, startDate, endDate, purged));
+            } catch (CloudRuntimeException e) {
+                logger.error("Caught exception while expunging resources: ", e);
+                callback.complete(new ExpungedResourcePurgeResult(resourceType, batchSize, startDate, endDate, e.getMessage()));
+            }
+        }
+    }
+
+    public static class ExpungedResourcePurgeResult extends CommandResult {
+        Resource.ResourceType resourceType;
+        Long batchSize;
+        Date startDate;
+        Date endDate;
+        Long expungedCount;
+
+        public ExpungedResourcePurgeResult(final Resource.ResourceType resourceType, final Long batchSize,
+                 final Date startDate, final Date endDate, final long expungedCount) {
+            super();
+            this.resourceType = resourceType;
+            this.batchSize = batchSize;
+            this.startDate = startDate;
+            this.endDate = endDate;
+            this.expungedCount = expungedCount;
+            this.setSuccess(true);
+        }
+
+        public ExpungedResourcePurgeResult(final Resource.ResourceType resourceType, final Long batchSize,
+               final Date startDate, final Date endDate, final String error) {
+            super();
+            this.resourceType = resourceType;
+            this.batchSize = batchSize;
+            this.startDate = startDate;
+            this.endDate = endDate;
+            this.setResult(error);
+        }
+
+        public Resource.ResourceType getResourceType() {
+            return resourceType;
+        }
+
+        public Long getBatchSize() {
+            return batchSize;
+        }
+
+        public Date getStartDate() {
+            return startDate;
+        }
+
+        public Date getEndDate() {
+            return endDate;
+        }
+
+        public Long getExpungedCount() {
+            return expungedCount;
+        }
+    }
+
+    public static class ExpungedResourcesContext<T> extends AsyncRpcContext<T> {
+        final AsyncCallFuture<ExpungedResourcePurgeResult> future;
+
+        public ExpungedResourcesContext(AsyncCompletionCallback<T> callback,
+                AsyncCallFuture<ExpungedResourcePurgeResult> future) {
+            super(callback);
+            this.future = future;
+        }
+
     }
 }

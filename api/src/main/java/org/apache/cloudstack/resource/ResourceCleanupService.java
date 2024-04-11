@@ -30,14 +30,17 @@ public interface ResourceCleanupService {
             "Purge expunged resources",
             false, ConfigKey.Scope.Global);
     ConfigKey<Integer> ExpungedResourcesPurgeInterval = new ConfigKey<>("Advanced", Integer.class,
-            "expunged.resources.purge.interval", "0",
+            "expunged.resources.purge.interval", "86400",
             "Interval (in seconds) to purge expunged resources", false);
     ConfigKey<Integer> ExpungedResourcesPurgeDelay = new ConfigKey<>("Advanced", Integer.class,
-            "expunged.resources.purge.delay", "0",
+            "expunged.resources.purge.delay", "120",
             "Initial delay (in seconds) to start purge expunged resources task", false);
     ConfigKey<Integer> ExpungedResourcesPurgeBatchSize = new ConfigKey<>("Advanced", Integer.class,
-            "expunged.resources.purge.batch size", "0",
+            "expunged.resources.purge.batch.size", "50",
             "Batch size to be used during expunged resources purging", true);
+    ConfigKey<Integer> ExpungedResourcesPurgeEndTimeDifference = new ConfigKey<>("Advanced", Integer.class,
+            "expunged.resources.purge.end.time.difference", "5",
+            "Difference(in days) to calculate end time for cleaning up purged resources", true);
 
     List<Resource.ResourceType> CLEANUP_SUPPORTED_RESOURCE_TYPES = List.of(Resource.ResourceType.user_vm);
     boolean purgeExpungedResources(PurgeExpungedResourcesCmd cmd);
