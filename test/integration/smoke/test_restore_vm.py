@@ -64,7 +64,7 @@ class TestRestoreVM(cloudstackTestCase):
         super(TestRestoreVM, cls).tearDownClass()
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(parallel=True, tags=["advanced", "basic"], required_hardware="false")
     def test_01_restore_vm(self):
         """Test restore virtual machine
         """
@@ -86,7 +86,7 @@ class TestRestoreVM(cloudstackTestCase):
         self.assertEqual(root_vol.state, 'Ready', "Volume should be in Ready state")
         self.assertEqual(root_vol.size, self.template_t2.size, "Size of volume and template should match")
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic"], required_hardware="false", parallel=True)
     def test_02_restore_vm_allocated_root(self):
         """Test restore virtual machine with root disk in allocated state
         """

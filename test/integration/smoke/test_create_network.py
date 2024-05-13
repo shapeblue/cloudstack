@@ -104,7 +104,7 @@ class TestNetworkManagement(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["adeancedsg"], required_hardware="false")
+    @attr(parallel=True, tags=["adeancedsg"], required_hardware="false")
     def test_01_create_network_without_start_end_ip(self):
         """Create Shared network without start and end ip
 
@@ -190,7 +190,7 @@ class TestNetworkManagement(cloudstackTestCase):
 
         self.cleanup.append(self.network_offering)
 
-    @attr(tags=["adeancedsg"], required_hardware="false")
+    @attr(parallel=True, tags=["adeancedsg"], required_hardware="false")
     def test_02_create_network_with_same_name(self):
         """Create Shared network with same name in same account
 
@@ -290,7 +290,7 @@ class TestNetworkManagement(cloudstackTestCase):
 
         self.cleanup.append(self.network_offering)
 
-    @attr(tags=["adeancedsg", "Simulator"], required_hardware="false")
+    @attr(parallel=True, tags=["adeancedsg", "Simulator"], required_hardware="false")
     def test_03_create_network_with_empty_displayText(self):
         """Create Shared network with empty displayText
            and verify value of displayText after network

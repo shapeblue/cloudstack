@@ -80,7 +80,7 @@ class TestAsyncJob(cloudstackTestCase):
     def tearDown(self):
         super(TestAsyncJob,self).tearDown()
 
-    @attr(tags=["advanced", "eip", "advancedns", "basic", "sg"], required_hardware="false")
+    @attr(parallel=True, tags=["advanced", "eip", "advancedns", "basic", "sg"], required_hardware="false")
     def test_query_async_job_result(self):
         """
         Test queryAsyncJobResult API for expected values

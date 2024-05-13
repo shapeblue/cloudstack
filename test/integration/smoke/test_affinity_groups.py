@@ -88,7 +88,7 @@ class TestDeployVmWithAffinityGroup(cloudstackTestCase):
         ]
         return
 
-    @attr(tags=["basic", "advanced", "multihost"], required_hardware="false")
+    @attr(paralle=True, tags=["basic", "advanced", "multihost"], required_hardware="false")
     def test_DeployVmAntiAffinityGroup(self):
         """
         test DeployVM in anti-affinity groups
@@ -164,7 +164,7 @@ class TestDeployVmWithAffinityGroup(cloudstackTestCase):
         self.assertNotEqual(host_of_vm1, host_of_vm2,
             msg="Both VMs of affinity group %s are on the same host" % self.ag.name)
 
-    @attr(tags=["basic", "advanced", "multihost"], required_hardware="false")
+    @attr(paralle=True, tags=["basic", "advanced", "multihost"], required_hardware="false")
     def test_DeployVmAffinityGroup(self):
         """
         test DeployVM in affinity groups

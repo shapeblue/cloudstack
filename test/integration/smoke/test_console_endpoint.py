@@ -96,7 +96,7 @@ class TestConsoleEndpoint(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(parallel=True, tags=["basic", "advanced"], required_hardware="false")
     def test_console_endpoint_permissions(self):
         cmd = createConsoleEndpoint.createConsoleEndpointCmd()
         cmd.virtualmachineid=self.vm1.id

@@ -104,7 +104,7 @@ class TestDeployVmWithAffinityGroup(cloudstackTestCase):
     def tearDown(self):
         super(TestDeployVmWithAffinityGroup,self).tearDown()
 
-    @attr(tags=["basic", "advanced", "multihost"], required_hardware="false")
+    @attr(parallel=True, tags=["basic", "advanced", "multihost"], required_hardware="false")
     def test_DeployVmAntiAffinityGroup_in_project(self):
         """
         test DeployVM in anti-affinity groups for project

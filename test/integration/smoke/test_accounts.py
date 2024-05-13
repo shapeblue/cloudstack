@@ -164,7 +164,7 @@ class TestAccounts(cloudstackTestCase):
     def tearDown(self):
         super(TestAccounts,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "advanced",
             "basic",
@@ -257,7 +257,7 @@ class TestAccounts(cloudstackTestCase):
         return
 
 
-    @attr(tags=["advanced", "basic", "eip", "advancedns", "sg"],
+    @attr(parallel=True, tags=["advanced", "basic", "eip", "advancedns", "sg"],
           required_hardware="false")
     def test_02_update_account(self):
         """
@@ -354,7 +354,7 @@ class TestRemoveUserFromAccount(cloudstackTestCase):
     def tearDown(self):
         super(TestRemoveUserFromAccount,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "advanced",
             "basic",
@@ -507,7 +507,7 @@ class TestNonRootAdminsPrivileges(cloudstackTestCase):
     def tearDown(self):
         super(TestNonRootAdminsPrivileges,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "advanced",
             "basic",
@@ -626,7 +626,7 @@ class TestServiceOfferingSiblings(cloudstackTestCase):
     def tearDown(self):
         super(TestServiceOfferingSiblings,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "advanced",
             "basic",
@@ -740,7 +740,7 @@ class TestServiceOfferingHierarchy(cloudstackTestCase):
     def tearDown(self):
         super(TestServiceOfferingHierarchy,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "advanced",
             "basic",
@@ -872,7 +872,7 @@ class TestTemplateHierarchy(cloudstackTestCase):
     def tearDown(self):
         super(TestTemplateHierarchy,self).tearDown()
 
-    @attr(tags=["advanced", "basic", "eip", "advancedns", "sg"], required_hardware="true")
+    @attr(parallel=True, tags=["advanced", "basic", "eip", "advancedns", "sg"], required_hardware="true")
     def test_01_template_hierarchy(self):
         """Test to verify template at same level in hierarchy"""
 
@@ -1020,7 +1020,7 @@ class TestAddVmToSubDomain(cloudstackTestCase):
     def tearDown(self):
         super(TestAddVmToSubDomain,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "advanced",
             "basic",
@@ -1106,7 +1106,7 @@ class TestUserDetails(cloudstackTestCase):
     def tearDown(self):
         super(TestUserDetails,self).tearDown()
 
-    @attr(tags=[
+    @attr(parallel=True, tags=[
         "role",
         "accounts",
         "simulator",
@@ -1193,7 +1193,7 @@ class TestUserDetails(cloudstackTestCase):
         )
         return
 
-    @attr(tags=[
+    @attr(parallel=True, tags=[
         "role",
         "accounts",
         "simulator",
@@ -1280,7 +1280,7 @@ class TestUserDetails(cloudstackTestCase):
         )
         return
 
-    @attr(tags=[
+    @attr(parallel=True, tags=[
         "role",
         "accounts",
         "simulator",
@@ -1395,7 +1395,7 @@ class TestUserLogin(cloudstackTestCase):
     def tearDown(self):
         super(TestUserLogin,self).tearDown()
 
-    @attr(tags=["login", "accounts", "simulator", "advanced",
+    @attr(parallel=True, tags=["login", "accounts", "simulator", "advanced",
                 "advancedns", "basic", "eip", "sg"])
     def test_LoginApiUuidResponse(self):
         """Test if Login API does not return UUID's
@@ -1436,7 +1436,7 @@ class TestUserLogin(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["simulator", "advanced",
+    @attr(parallel=True, tags=["simulator", "advanced",
                 "advancedns", "basic", "eip", "sg"])
     def test_ApiListDomain(self):
         """Test case to check the correctness of List domain API, to make sure that no field is missed in the output.
@@ -1518,7 +1518,7 @@ class TestUserLogin(cloudstackTestCase):
 
         return
 
-    @attr(tags=["login", "accounts", "simulator", "advanced",
+    @attr(parallel=True, tags=["login", "accounts", "simulator", "advanced",
                 "advancedns", "basic", "eip", "sg"])
     def test_LoginApiDomain(self):
         """Test login API with domain
@@ -1642,7 +1642,7 @@ class TestUserAPIKeys(cloudstackTestCase):
     def tearDown(self):
         super(TestUserAPIKeys,self).tearDown()
 
-    @attr(tags=[
+    @attr(parallel=True, tags=[
         "role",
         "accounts",
         "simulator",
@@ -1725,7 +1725,7 @@ class TestUserAPIKeys(cloudstackTestCase):
         keypair = self.apiclient.getUserKeys(cmd)
         return keypair.secretkey
 
-    @attr(tags=[
+    @attr(parallel=True, tags=[
         "role",
         "accounts",
         "simulator",
@@ -1784,7 +1784,7 @@ class TestDomainForceRemove(cloudstackTestCase):
     def tearDown(self):
         super(TestDomainForceRemove,self).tearDown()
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "domains",
             "advanced",
@@ -1975,7 +1975,7 @@ class TestDomainForceRemove(cloudstackTestCase):
             )
         return
 
-    @attr(
+    @attr(parallel=True,
         tags=[
             "domains",
             "advanced",
@@ -2199,7 +2199,7 @@ class TestMoveUser(cloudstackTestCase):
     def tearDown(self):
         super(TestMoveUser,self).tearDownClass()
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(parallel=True, tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
     def test_move_user_to_accountID(self):
 
         self.user.move(self.api_client, dest_accountid=self.account2.id)
@@ -2211,7 +2211,7 @@ class TestMoveUser(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(parallel=True, tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
     def test_move_user_to_account_name(self):
 
         self.user.move(self.api_client, dest_account=self.account2.name)
@@ -2223,7 +2223,7 @@ class TestMoveUser(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(parallel=True, tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
     def test_move_user_to_different_domain(self):
         domain2 = Domain.create(self.api_client,
                                 self.testdata["domain"],
@@ -2246,7 +2246,7 @@ class TestMoveUser(cloudstackTestCase):
 
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(parallel=True, tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
     def test_move_user_incorrect_account_id(self):
 
         try:
@@ -2257,7 +2257,7 @@ class TestMoveUser(cloudstackTestCase):
             self.fail("moving to non-existing account should not be possible, failing")
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(parallel=True, tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
     def test_move_user_incorrect_account_name(self):
 
         try:

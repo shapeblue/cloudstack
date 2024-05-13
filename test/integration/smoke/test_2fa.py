@@ -159,7 +159,7 @@ class TestUserLogin(cloudstackTestCase):
 
         super(TestUserLogin,self).tearDown()
 
-    @attr(tags=["login", "accounts", "simulator", "advanced",
+    @attr(parallel=True, tags=["login", "accounts", "simulator", "advanced",
                 "advancedns", "basic", "eip", "sg"])
     def test_2FA_enabled(self):
         """Test if Login API does not return UUID's
@@ -211,7 +211,7 @@ class TestUserLogin(cloudstackTestCase):
 
         return
 
-    @attr(tags=["login", "accounts", "simulator", "advanced",
+    @attr(parallel=True, tags=["login", "accounts", "simulator", "advanced",
                 "advancedns", "basic", "eip", "sg"])
     def test_2FA_setup(self):
         """Test if Login API does not return UUID's

@@ -245,7 +245,7 @@ class TestMultipleVolumeAttach(cloudstackTestCase):
                   str(e))
             return FAILED
 
-    @attr(tags = ["advanced", "advancedns", "basic", "blob"], required_hardware="true")
+    @attr(parallel=True, tags = ["advanced", "advancedns", "basic", "blob"], required_hardware="true")
     def test_attach_multiple_volumes(self):
         """Attach multiple Volumes simultaneously to a Running VM
         """
@@ -308,10 +308,10 @@ class TestMultipleVolumeAttach(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "basic", "bla"], required_hardware="true")
+    @attr(parallel=True, tags = ["advanced", "advancedns", "basic", "bla"], required_hardware="true")
     def test_attach_and_distribute_multiple_volumes(self):
         """
-        Test volume distribution over storages
+        Test volume distribution over storagestest_backup_recovery_dummy.py
 
         Given multiple primary storage pools
         Attach multiple Volumes to a VM
