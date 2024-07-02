@@ -21,6 +21,7 @@ import os.path
 import sys
 from xml.dom import minidom
 from xml.parsers.expat import ExpatError
+import difflib
 
 
 ROOT_ADMIN = 'r'
@@ -62,7 +63,7 @@ known_categories = {
     'StaticNat': 'NAT',
     'IpForwarding': 'NAT',
     'Host': 'Host',
-    'OutOfBand': 'Out-of-band Management',
+    'OutOfBandManagement': 'Out-of-band Management',
     'Cluster': 'Cluster',
     'Account': 'Account',
     'Role': 'Role',
@@ -78,6 +79,7 @@ known_categories = {
     'Configuration': 'Configuration',
     'Capabilities': 'Configuration',
     'Pod': 'Pod',
+    'updatePodManagementNetworkIpRange': 'Pod',
     'PublicIpRange': 'Network',
     'Zone': 'Zone',
     'Vmware' : 'Zone',
@@ -88,52 +90,7 @@ known_categories = {
     'OpenDaylight': 'Network',
     'createServiceInstance': 'Network',
     'addGloboDnsHost': 'Network',
-    'createTungstenFabricProvider': 'Tungsten',
-    'listTungstenFabricProviders': 'Tungsten',
-    'configTungstenFabricService': 'Tungsten',
-    'createTungstenFabricPublicNetwork': 'Tungsten',
-    'synchronizeTungstenFabricData': 'Tungsten',
-    'addTungstenFabricPolicyRule': 'Tungsten',
-    'createTungstenFabricPolicy': 'Tungsten',
-    'deleteTungstenFabricPolicy': 'Tungsten',
-    'removeTungstenFabricPolicyRule': 'Tungsten',
-    'listTungstenFabricTag': 'Tungsten',
-    'listTungstenFabricTagType': 'Tungsten',
-    'listTungstenFabricPolicy': 'Tungsten',
-    'listTungstenFabricPolicyRule': 'Tungsten',
-    'listTungstenFabricNetwork': 'Tungsten',
-    'listTungstenFabricVm': 'Tungsten',
-    'listTungstenFabricNic': 'Tungsten',
-    'createTungstenFabricTag': 'Tungsten',
-    'createTungstenFabricTagType': 'Tungsten',
-    'deleteTungstenFabricTag': 'Tungsten',
-    'deleteTungstenFabricTagType': 'Tungsten',
-    'applyTungstenFabricPolicy': 'Tungsten',
-    'applyTungstenFabricTag': 'Tungsten',
-    'removeTungstenFabricTag': 'Tungsten',
-    'removeTungstenFabricPolicy': 'Tungsten',
-    'createTungstenFabricApplicationPolicySet': 'Tungsten',
-    'createTungstenFabricFirewallPolicy': 'Tungsten',
-    'createTungstenFabricFirewallRule': 'Tungsten',
-    'createTungstenFabricServiceGroup': 'Tungsten',
-    'createTungstenFabricAddressGroup': 'Tungsten',
-    'createTungstenFabricLogicalRouter': 'Tungsten',
-    'addTungstenFabricNetworkGatewayToLogicalRouter': 'Tungsten',
-    'listTungstenFabricApplicationPolicySet': 'Tungsten',
-    'listTungstenFabricFirewallPolicy': 'Tungsten',
-    'listTungstenFabricFirewallRule': 'Tungsten',
-    'listTungstenFabricServiceGroup': 'Tungsten',
-    'listTungstenFabricAddressGroup': 'Tungsten',
-    'listTungstenFabricLogicalRouter': 'Tungsten',
-    'deleteTungstenFabricApplicationPolicySet': 'Tungsten',
-    'deleteTungstenFabricFirewallPolicy': 'Tungsten',
-    'deleteTungstenFabricFirewallRule': 'Tungsten',
-    'deleteTungstenFabricAddressGroup': 'Tungsten',
-    'deleteTungstenFabricServiceGroup': 'Tungsten',
-    'deleteTungstenFabricLogicalRouter': 'Tungsten',
-    'removeTungstenFabricNetworkGatewayFromLogicalRouter': 'Tungsten',
-    'updateTungstenFabricLBHealthMonitor': 'Tungsten',
-    'listTungstenFabricLBHealthMonitor': 'Tungsten',
+    'TungstenFabric': 'Tungsten',
     'listNsxControllers': 'NSX',
     'addNsxController': 'NSX',
     'deleteNsxController': 'NSX',
@@ -174,8 +131,8 @@ known_categories = {
     'ExternalLoadBalancer': 'Ext Load Balancer',
     'ExternalFirewall': 'Ext Firewall',
     'Usage': 'Usage',
-    'TrafficMonitor': 'Usage',
-    'TrafficType': 'Usage',
+    'TrafficMonitor': 'Network',
+    'TrafficType': 'Network',
     'Product': 'Product',
     'LB': 'Load Balancer',
     'ldap': 'LDAP',
@@ -229,6 +186,7 @@ known_categories = {
     'OvsElement' : 'Ovs Element',
     'StratosphereSsp' : ' Stratosphere SSP',
     'Metrics' : 'Metrics',
+    'listZonesMetrics': 'Metrics',
     'Infrastructure' : 'Metrics',
     'listNetscalerControlCenter' : 'Load Balancer',
     'listRegisteredServicePackages': 'Load Balancer',
@@ -286,9 +244,17 @@ categories = {}
 
 
 def choose_category(fn):
+    possible_known_categories = []
     for k, v in known_categories.items():
         if k in fn:
-            return v
+            possible_known_categories.append(k)
+
+    if len(possible_known_categories) > 0:
+        close_matches = difflib.get_close_matches(fn, possible_known_categories, n=1, cutoff=0.1)
+        if len(close_matches) > 0:
+            return known_categories[close_matches[0]]
+        else:
+            return known_categories[possible_known_categories[0]]
     raise Exception('Need to add a category for %s to %s:known_categories' %
                     (fn, __file__))
     sys.exit(1)
@@ -342,7 +308,6 @@ def xml_for(command):
 def write_xml(out, user):
     with open(out, 'w') as f:
         cat_strings = []
-
         for category in categories.keys():
             strings = []
             for command in categories[category]:
