@@ -1,35 +1,57 @@
 // Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
+// or more contributor license agreements. See the NOTICE file
 // distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
+// regarding copyright ownership. The ASF licenses this file
 // to you under the Apache License, Version 2.0 (the
 // "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
+// with the License. You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing,
 // software distributed under the License is distributed on an
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
+// KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations
 // under the License.
 
 <template>
-  <a-tag
-    v-if="!isTag"
-    closable
-    @close="() => $emit('close', searchFilter.key)"
+  <a-row
+    style="overflow: auto"
+    :wrap="false"
   >
-    {{ retrieveFieldLabel(searchFilter.key) }}: {{ searchFilter.value }}
-  </a-tag>
-  <a-tag
-    v-else
-    closable
-    @close="() => $emit('close', searchFilter.key)"
-  >
-    {{ $t('label.tag') }}: {{ searchFilter.key }}={{ searchFilter.value }}
-  </a-tag>
+    <template
+      v-for="(filter) in this.searchFilters"
+      :key="filter"
+    >
+      <a-col v-if="!['page', 'pagesize', 'q', 'keyword', 'tags'].includes(filter.key)">
+        <a-tag
+          v-if="!filter.isTag"
+          closable
+          @close="() => $emit('close', filter.key)"
+        >
+          <a-tooltip
+            :title="retrieveFieldLabel(filter.key) + ': ' + filter.value"
+            :placement="tooltipPlacement"
+          >
+            {{ retrieveFieldLabel(filter.key) }} : {{ getTrimmedText(filter.value, 20) }}
+          </a-tooltip>
+        </a-tag>
+        <a-tag
+          v-else
+          closable
+          @close="() => $emit('close', filter.key)"
+        >
+          <a-tooltip
+            :title="$t('label.tag') + ': ' + filter.key + '=' + filter.value"
+            :placement="tooltipPlacement"
+          >
+            {{ $t('label.tag') }}: {{ filter.key }}={{ getTrimmedText(filter.value, 20) }}
+          </a-tooltip>
+        </a-tag>
+      </a-col>
+    </template>
+  </a-row>
 </template>
 
 <script>
@@ -38,6 +60,10 @@ import { api } from '@/api'
 export default {
   name: 'SearchFilter',
   props: {
+    filters: {
+      type: Array,
+      default: () => []
+    },
     apiName: {
       type: String,
       default: () => ''
@@ -58,17 +84,124 @@ export default {
   emits: ['close'],
   data () {
     return {
-      alertTypes: {},
-      searchFilter: {
-        key: this.filterKey,
-        value: this.filterKey
+      searchFilters: [],
+      apiMap: {
+        type: this.getType,
+        hypervisor: this.getHypervisor,
+        zoneid: {
+          apiName: 'listZones',
+          responseKey1: 'listzonesresponse',
+          responseKey2: 'zone',
+          field: 'name'
+        },
+        domainid: {
+          apiName: 'listDomains',
+          responseKey1: 'listdomainsresponse',
+          responseKey2: 'domain',
+          field: 'name'
+        },
+        account: {
+          apiName: 'listAccounts',
+          responseKey1: 'listaccountsresponse',
+          responseKey2: 'account',
+          field: 'name'
+        },
+        imagestoreid: {
+          apiName: 'listImageStores',
+          responseKey1: 'listimagestoresresponse',
+          responseKey2: 'imagestore',
+          field: 'name'
+        },
+        storageid: {
+          apiName: 'listStoragePools',
+          responseKey1: 'liststoragepoolsresponse',
+          responseKey2: 'storagepool',
+          field: 'name'
+        },
+        podid: {
+          apiName: 'listPods',
+          responseKey1: 'listpodsresponse',
+          responseKey2: 'pod',
+          field: 'name'
+        },
+        clusterid: {
+          apiName: 'listClusters',
+          responseKey1: 'listclustersresponse',
+          responseKey2: 'cluster',
+          field: 'name'
+        },
+        groupid: {
+          apiName: 'listInstanceGroups',
+          responseKey1: 'listinstancegroupsresponse',
+          responseKey2: 'instancegroup',
+          field: 'name'
+        },
+        managementserverid: {
+          apiName: 'listManagementServers',
+          responseKey1: 'listmanagementserversresponse',
+          responseKey2: 'managementserver',
+          field: 'name'
+        },
+        serviceofferingid: {
+          apiName: 'listServiceOfferings',
+          responseKey1: 'listserviceofferingsresponse',
+          responseKey2: 'serviceoffering',
+          field: 'name'
+        },
+        diskofferingid: {
+          apiName: 'listDiskOfferings',
+          responseKey1: 'listdiskofferingsresponse',
+          responseKey2: 'diskoffering',
+          field: 'name'
+        },
+        networkid: {
+          apiName: 'listNetworks',
+          responseKey1: 'listnetworksresponse',
+          responseKey2: 'network',
+          field: 'name'
+        }
       }
     }
   },
-  created () {
-    this.getSearchFilters()
+  updated () {
+    this.searchFilters = this.filters
+    const promises = []
+    for (const idx in this.filters) {
+      const filter = this.filters[idx]
+      if (this.searchFilters[idx] && this.searchFilters[idx].value !== filter.value) {
+        continue
+      }
+      promises.push(new Promise((resolve) => {
+        if (this.searchFilters[idx] && this.searchFilters[idx].value !== filter.value) {
+          resolve()
+        }
+        if (filter.key === 'tags') {
+          this.searchFilters[idx] = {
+            key: filter.key,
+            value: filter.value,
+            isTag: true
+          }
+        } else {
+          this.getSearchFilters(filter.key, filter.value).then((value) => {
+            this.searchFilters[idx] = {
+              key: filter.key,
+              value: value,
+              isTag: filter.isTag
+            }
+          })
+        }
+        resolve()
+      }))
+    }
+    Promise.all(promises)
   },
   methods: {
+    getTrimmedText (text, length) {
+      if (!text) {
+        return ''
+      }
+      return (text.length <= length) ? text : (text.substring(0, length - 3) + '...')
+    },
     retrieveFieldLabel (fieldName) {
       if (fieldName === 'groupid') {
         fieldName = 'group'
@@ -82,50 +215,12 @@ export default {
       }
       return this.$t('label.' + fieldName)
     },
-    getSearchFilters () {
-      if (this.filterKey === 'domainid' && !('listDomains' in this.$store.getters.apis)) {
-        return true
-      }
-      if (this.filterKey === 'account' && !('listAccounts' in this.$store.getters.apis)) {
-        return true
-      }
-      if (this.filterKey === 'account' && !('addAccountToProject' in this.$store.getters.apis || 'createAccount' in this.$store.getters.apis)) {
-        return true
-      }
-      if (this.filterKey === 'podid' && !('listPods' in this.$store.getters.apis)) {
-        return true
-      }
-      if (this.filterKey === 'clusterid' && !('listClusters' in this.$store.getters.apis)) {
-        return true
-      }
-      if (this.filterKey === 'groupid' && !('listInstanceGroups' in this.$store.getters.apis)) {
-        return true
-      }
-      this.searchFilter = {
-        key: this.filterKey,
-        value: this.filterValue
-      }
-      let value = this.getStaticFieldValue(this.filterKey, this.filterValue)
-      if (value !== '') {
-        this.searchFilter = {
-          key: this.filterKey,
-          value: value
-        }
+    async getSearchFilters (key, value) {
+      const val = this.getStaticFieldValue(key, value)
+      if (val !== '') {
+        return val
       } else {
-        value = this.getDynamicFieldValue(this.filterKey, this.filterValue)
-        value.then((result) => {
-          if (result) {
-            this.searchFilter = {
-              key: this.filterKey,
-              value: result
-            }
-          } else {
-            this.searchFilter = {
-              key: this.filterKey,
-              value: this.filterValue
-            }
-          }
-        })
+        return this.getDynamicFieldValue(key, value)
       }
     },
     getStaticFieldValue (key, value) {
@@ -173,110 +268,24 @@ export default {
       if (key.includes('resourcetype')) {
         formattedValue = value
       }
-
-      this.searchFilter = {
-        key: this.filterKey,
-        value: formattedValue
-      }
       return formattedValue
     },
     async getDynamicFieldValue (key, value) {
       let formattedValue = ''
 
-      if (key.includes('type')) {
-        if (this.$route.path === '/alert') {
-          formattedValue = await this.getAlertType(value)
-        } else if (this.$route.path === '/affinitygroup') {
-          formattedValue = await this.getAffinityGroupType(value)
-        }
+      if (typeof this.apiMap[key] === 'function') {
+        formattedValue = await this.apiMap[key](value)
+      } else if (this.apiMap[key]) {
+        const apiName = this.apiMap[key].apiName
+        const responseKey1 = this.apiMap[key].responseKey1
+        const responseKey2 = this.apiMap[key].responseKey2
+        const field = this.apiMap[key].field
+        formattedValue = await this.getResourceNameById(apiName, responseKey1, responseKey2, value, field)
       }
-
-      if (key.includes('zoneid')) {
-        formattedValue = await this.getZone(value)
+      if (formattedValue === '') {
+        formattedValue = value
       }
-
-      if (key.includes('domainid')) {
-        formattedValue = await this.getDomain(value)
-      }
-
-      if (key.includes('account')) {
-        formattedValue = await this.getAccount(value)
-      }
-
-      if (key.includes('hypervisor')) {
-        formattedValue = await this.getHypervisor(value)
-      }
-
-      if (key.includes('imagestoreid')) {
-        formattedValue = await this.getImageStore(value)
-      }
-
-      if (key.includes('storageid')) {
-        formattedValue = await this.getStoragePool(value)
-      }
-
-      if (key.includes('podid')) {
-        formattedValue = await this.getPod(value)
-      }
-
-      if (key.includes('clusterid')) {
-        formattedValue = await this.getCluster(value)
-      }
-
-      if (key.includes('groupid')) {
-        formattedValue = await this.getInstanceGroup(value)
-      }
-
-      if (key.includes('managementserverid')) {
-        formattedValue = await this.getManagementServer(value)
-      }
-
-      if (key.includes('serviceofferingid')) {
-        formattedValue = await this.getServiceOffering(value)
-      }
-
-      if (key.includes('diskofferingid')) {
-        formattedValue = await this.getDiskOffering(value)
-      }
-
       return formattedValue
-    },
-    getZone (zoneId) {
-      return new Promise((resolve) => {
-        api('listZones', { showicon: true, id: zoneId }).then(json => {
-          if (json?.listzonesresponse?.zone) {
-            resolve(json.listzonesresponse.zone[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getDomain (domainId) {
-      return new Promise((resolve) => {
-        api('listDomains', { listAll: true, showicon: true, id: domainId }).then(json => {
-          if (json?.listdomainsresponse?.domain) {
-            resolve(json.listdomainsresponse.domain[0].path)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getAccount (accountId) {
-      return new Promise((resolve) => {
-        if (!this.$isValidUuid(accountId)) {
-          resolve(accountId)
-        }
-        const params = { listAll: true, isrecursive: false, showicon: true, id: accountId }
-        api('listAccounts', params).then(json => {
-          if (json?.listaccountsresponse?.account) {
-            resolve(json.listaccountsresponse.account[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
     },
     getHypervisor (value) {
       return new Promise((resolve) => {
@@ -294,139 +303,59 @@ export default {
         })
       })
     },
-    getImageStore (storeId) {
+    getResourceNameById (apiName, responseKey1, responseKey2, id, field) {
       return new Promise((resolve) => {
-        api('listImageStores', { listAll: true, showicon: true, id: storeId }).then(json => {
-          if (json?.listimagestoresresponse?.imagestore) {
-            resolve(json.listimagestoresresponse.imagestore[0].name)
+        if (!this.$isValidUuid(id)) {
+          return resolve('')
+        }
+        api(apiName, { listAll: true, id: id }).then(json => {
+          if (json[responseKey1] && json[responseKey1][responseKey2]) {
+            resolve(json[responseKey1][responseKey2][0][field])
           }
         }).catch(() => {
-          resolve(null)
+          resolve('')
         })
       })
     },
-    getStoragePool (poolId) {
-      return new Promise((resolve) => {
-        api('listStoragePools', { listAll: true, showicon: true, id: poolId }).then(json => {
-          if (json?.liststoragepoolsresponse?.storagepool) {
-            resolve(json.liststoragepoolsresponse.storagepool[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getPod (podId) {
-      return new Promise((resolve) => {
-        api('listPods', { id: podId }).then(json => {
-          if (json?.listpodsresponse?.pod) {
-            resolve(json.listpodsresponse.pod[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getCluster (clusterId) {
-      return new Promise((resolve) => {
-        api('listClusters', { id: clusterId }).then(json => {
-          if (json?.listclustersresponse?.cluster) {
-            resolve(json.listclustersresponse.cluster[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getInstanceGroup (groupId) {
-      return new Promise((resolve) => {
-        api('listInstanceGroups', { listAll: true, id: groupId }).then(json => {
-          if (json?.listinstancegroupsresponse?.instancegroup) {
-            resolve(json.listinstancegroupsresponse.instancegroup[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getServiceOffering (offeringId) {
-      return new Promise((resolve) => {
-        api('listServiceOfferings', { listAll: true, id: offeringId }).then(json => {
-          if (json?.listserviceofferingsresponse?.serviceoffering) {
-            resolve(json.listserviceofferingsresponse.serviceoffering[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
-    },
-    getDiskOffering (offeringId) {
-      return new Promise((resolve) => {
-        api('listDiskOfferings', { listAll: true, id: offeringId }).then(json => {
-          if (json?.listdiskofferingsresponse?.diskoffering) {
-            resolve(json.listdiskofferingsresponse.diskoffering[0].name)
-          }
-        }).catch(() => {
-          resolve(null)
-        })
-      })
+    getType (type) {
+      if (this.$route.path === '/alert') {
+        return this.getAlertType(type)
+      } else if (this.$route.path === '/affinitygroup') {
+        return this.getAffinityGroupType(type)
+      }
     },
     getAlertType (type) {
-      if (this.alertTypes.length > 0) {
-        return new Promise((resolve) => {
-          resolve(this.alertTypes[type])
+      return new Promise((resolve) => {
+        api('listAlertTypes').then(json => {
+          const alertTypes = {}
+          for (const key in json.listalerttypesresponse.alerttype) {
+            const alerttype = json.listalerttypesresponse.alerttype[key]
+            alertTypes[alerttype.id] = alerttype.name
+          }
+          resolve(alertTypes[type])
+        }).catch(() => {
+          resolve(null)
         })
-      } else {
-        return new Promise((resolve) => {
-          api('listAlertTypes').then(json => {
-            const alertTypes = {}
-            for (const key in json.listalerttypesresponse.alerttype) {
-              const alerttype = json.listalerttypesresponse.alerttype[key]
-              alertTypes[alerttype.id] = alerttype.name
-            }
-            this.alertTypes = alertTypes
-            resolve(alertTypes[type])
-          }).catch(() => {
-            resolve(null)
-          })
-        })
-      }
+      })
     },
     getAffinityGroupType (type) {
-      if (this.alertTypes.length > 0) {
-        return new Promise((resolve) => {
-          resolve(this.alertTypes[type])
-        })
-      } else {
-        return new Promise((resolve) => {
-          api('listAffinityGroupTypes').then(json => {
-            const alertTypes = {}
-            for (const key in json.listaffinitygrouptypesresponse.affinityGroupType) {
-              const affinityGroupType = json.listaffinitygrouptypesresponse.affinityGroupType[key]
-              if (affinityGroupType.type === 'host anti-affinity') {
-                alertTypes[affinityGroupType.type] = 'host anti-affinity (Strict)'
-              } else if (affinityGroupType.type === 'host affinity') {
-                alertTypes[affinityGroupType.type] = 'host affinity (Strict)'
-              } else if (affinityGroupType.type === 'non-strict host anti-affinity') {
-                alertTypes[affinityGroupType.type] = 'host anti-affinity (Non-Strict)'
-              } else if (affinityGroupType.type === 'non-strict host affinity') {
-                alertTypes[affinityGroupType.type] = 'host affinity (Non-Strict)'
-              }
-            }
-            this.alertTypes = alertTypes
-            resolve(alertTypes[type])
-          }).catch(() => {
-            resolve(null)
-          })
-        })
-      }
-    },
-    getManagementServer (msId) {
       return new Promise((resolve) => {
-        api('listManagementServers', { listAll: true, id: msId }).then(json => {
-          if (json?.listmanagementserversresponse?.managementserver) {
-            resolve(json.listmanagementserversresponse.managementserver[0].name)
+        api('listAffinityGroupTypes').then(json => {
+          const alertTypes = {}
+          for (const key in json.listaffinitygrouptypesresponse.affinityGroupType) {
+            const affinityGroupType = json.listaffinitygrouptypesresponse.affinityGroupType[key]
+            if (affinityGroupType.type === 'host anti-affinity') {
+              alertTypes[affinityGroupType.type] = 'host anti-affinity (Strict)'
+            } else if (affinityGroupType.type === 'host affinity') {
+              alertTypes[affinityGroupType.type] = 'host affinity (Strict)'
+            } else if (affinityGroupType.type === 'non-strict host anti-affinity') {
+              alertTypes[affinityGroupType.type] = 'host anti-affinity (Non-Strict)'
+            } else if (affinityGroupType.type === 'non-strict host affinity') {
+              alertTypes[affinityGroupType.type] = 'host affinity (Non-Strict)'
+            }
           }
+          this.alertTypes = alertTypes
+          resolve(alertTypes[type])
         }).catch(() => {
           resolve(null)
         })

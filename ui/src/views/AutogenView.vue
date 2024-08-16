@@ -106,17 +106,15 @@
               @change-filter="changeFilter"/>
           </a-col>
         </a-row>
-        <a-row v-if="!dataView" style="min-height: 40px;" :wrap="true">
-          <a-col style="margin-top: 15px" v-for="filter in getActiveFilters()" :key="filter">
-            <search-filter
-              v-if="!['page', 'pagesize', 'q', 'keyword', 'tags'].includes(filter.key)"
-              :apiName="apiName"
-              :filterKey="filter.key"
-              :filterValue="filter.value"
-              :isTag="filter.isTag"
-              @close="removeFilter(filter)"
-              />
-          </a-col>
+        <a-row
+          v-if="!dataView"
+          style="min-height: 36px; padding-top: 12px;"
+        >
+          <search-filter
+            :filters="getActiveFilters()"
+            :apiName="apiName"
+            @close="removeFilter(filter)"
+            />
         </a-row>
       </a-card>
     </a-affix>
