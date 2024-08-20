@@ -30,6 +30,7 @@ import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.AdminCmd;
 import org.apache.cloudstack.api.response.KubernetesSupportedVersionResponse;
+import org.apache.cloudstack.api.response.TemplateResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.commons.lang3.StringUtils;
@@ -70,6 +71,10 @@ public class AddKubernetesSupportedVersionCmd extends BaseCmd implements AdminCm
     @Parameter(name = ApiConstants.URL, type = CommandType.STRING,
             description = "the URL of the binaries ISO for Kubernetes supported version")
     private String url;
+
+    @Parameter(name = ApiConstants.ISO_ID, type = CommandType.UUID, entityType = TemplateResponse.class,
+            description = "the ID of the binaries ISO for Kubernetes supported version")
+    private Long isoId;
 
     @Parameter(name = ApiConstants.CHECKSUM, type = CommandType.STRING,
             description = "the checksum value of the binaries ISO. " + ApiConstants.CHECKSUM_PARAMETER_PREFIX_DESCRIPTION)
@@ -112,6 +117,10 @@ public class AddKubernetesSupportedVersionCmd extends BaseCmd implements AdminCm
 
     public String getUrl() {
         return url;
+    }
+
+    public Long getIsoId() {
+        return isoId;
     }
 
     public String getChecksum() {

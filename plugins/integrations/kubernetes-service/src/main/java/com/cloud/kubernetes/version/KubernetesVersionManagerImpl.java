@@ -22,6 +22,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import org.apache.cloudstack.acl.SecurityChecker;
 import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.command.admin.kubernetes.version.AddKubernetesSupportedVersionCmd;
@@ -312,6 +313,7 @@ public class KubernetesVersionManagerImpl extends ManagerBase implements Kuberne
         final String semanticVersion = cmd.getSemanticVersion();
         final Long zoneId = cmd.getZoneId();
         final String isoUrl = cmd.getUrl();
+        final Long isoId = cmd.getIsoId();
         final String isoChecksum = cmd.getChecksum();
         final Integer minimumCpu = cmd.getMinimumCpu();
         final Integer minimumRamSize = cmd.getMinimumRamSize();
@@ -334,8 +336,8 @@ public class KubernetesVersionManagerImpl extends ManagerBase implements Kuberne
                 throw new InvalidParameterValueException(String.format("Zone: %s supports only direct download Kubernetes versions", zone.getName()));
             }
         }
-        if (StringUtils.isEmpty(isoUrl)) {
-            throw new InvalidParameterValueException(String.format("Invalid URL for ISO specified, %s", isoUrl));
+        if (StringUtils.isEmpty(isoUrl) && isoId == null) {
+            throw new InvalidParameterValueException(String.format("Either %s or %s parameter is required", ApiConstants.URL, ApiConstants.ISO_ID));
         }
         if (StringUtils.isEmpty(name)) {
             name = String.format("v%s", semanticVersion);
@@ -345,12 +347,23 @@ public class KubernetesVersionManagerImpl extends ManagerBase implements Kuberne
         }
 
         VMTemplateVO template = null;
-        try {
-            VirtualMachineTemplate vmTemplate = registerKubernetesVersionIso(zoneId, name, isoUrl, isoChecksum, isDirectDownload);
-            template = templateDao.findById(vmTemplate.getId());
-        } catch (IllegalAccessException | NoSuchFieldException | IllegalArgumentException | ResourceAllocationException ex) {
-            logger.error(String.format("Unable to register binaries ISO for supported kubernetes version, %s, with url: %s", name, isoUrl), ex);
-            throw new CloudRuntimeException(String.format("Unable to register binaries ISO for supported kubernetes version, %s, with url: %s", name, isoUrl));
+
+        if (isoId != null) {
+            template = templateDao.findById(isoId);
+            if (template == null) {
+                throw new InvalidParameterValueException(String.format("Invalid ISO ID specified, %s", isoId));
+            }
+            accountManager.checkAccess(CallContext.current().getCallingAccount(), SecurityChecker.AccessType.UseEntry, true, template);
+        }
+        if (template == null) {
+            try {
+                VirtualMachineTemplate vmTemplate = registerKubernetesVersionIso(zoneId, name, isoUrl, isoChecksum, isDirectDownload);
+                template = templateDao.findById(vmTemplate.getId());
+            } catch (IllegalAccessException | NoSuchFieldException | IllegalArgumentException |
+                     ResourceAllocationException ex) {
+                logger.error(String.format("Unable to register binaries ISO for supported kubernetes version, %s, with url: %s", name, isoUrl), ex);
+                throw new CloudRuntimeException(String.format("Unable to register binaries ISO for supported kubernetes version, %s, with url: %s", name, isoUrl));
+            }
         }
 
         KubernetesSupportedVersionVO supportedVersionVO = new KubernetesSupportedVersionVO(name, semanticVersion, template.getId(), zoneId, minimumCpu, minimumRamSize);
