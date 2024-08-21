@@ -17,6 +17,7 @@
 
 import { shallowRef, defineAsyncComponent } from 'vue'
 import store from '@/store'
+import { i18n } from '@/locales'
 
 export default {
   name: 'image',
@@ -389,7 +390,41 @@ export default {
           label: 'label.kubernetes.version.add',
           listView: true,
           popup: true,
-          component: shallowRef(defineAsyncComponent(() => import('@/views/image/AddKubernetesSupportedVersion.vue')))
+          args: ['semanticversion', 'name', 'zoneid', 'isoid', 'url', 'checksum', 'mincpunumber', 'minmemory', 'directdownload'],
+          rules: {
+            semanticversion: [{ required: true, message: i18n.global.t('message.error.kuberversion') }],
+            zoneid: [{
+              type: 'number',
+              validator: async (rule, value) => {
+                if (value && value.length > 1 && value.indexOf(0) !== -1) {
+                  return Promise.reject(i18n.global.t('message.error.zone.combined'))
+                }
+                return Promise.resolve()
+              }
+            }],
+            mincpunumber: [
+              { required: true, message: i18n.global.t('message.please.enter.value') },
+              {
+                validator: async (rule, value) => {
+                  if (value && (isNaN(value) || value <= 0)) {
+                    return Promise.reject(i18n.global.t('message.validate.number'))
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ],
+            minmemory: [
+              { required: true, message: i18n.global.t('message.please.enter.value') },
+              {
+                validator: async (rule, value) => {
+                  if (value && (isNaN(value) || value <= 0)) {
+                    return Promise.reject(i18n.global.t('message.validate.number'))
+                  }
+                  Promise.resolve()
+                }
+              }
+            ]
+          }
         },
         {
           api: 'updateKubernetesSupportedVersion',
