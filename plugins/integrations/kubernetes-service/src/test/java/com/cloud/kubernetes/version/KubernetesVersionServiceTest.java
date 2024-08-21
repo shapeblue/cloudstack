@@ -61,7 +61,6 @@ import com.cloud.kubernetes.version.dao.KubernetesSupportedVersionDao;
 import com.cloud.storage.VMTemplateVO;
 import com.cloud.storage.dao.VMTemplateDao;
 import com.cloud.template.TemplateApiService;
-import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.user.Account;
 import com.cloud.user.AccountManager;
 import com.cloud.user.AccountVO;
@@ -213,8 +212,6 @@ public class KubernetesVersionServiceTest {
         when(cmd.getChecksum()).thenReturn(null);
         when(cmd.getMinimumCpu()).thenReturn(KubernetesClusterService.MIN_KUBERNETES_CLUSTER_NODE_CPU);
         when(cmd.getMinimumRamSize()).thenReturn(KubernetesClusterService.MIN_KUBERNETES_CLUSTER_NODE_RAM_SIZE);
-        Account systemAccount =  new AccountVO("system", 1L, "", Account.Type.ADMIN, "uuid");
-        when(accountManager.getSystemAccount()).thenReturn(systemAccount);
         CallContext callContext = Mockito.mock(CallContext.class);
         try (MockedStatic<ComponentContext> mockedComponentContext = Mockito.mockStatic(ComponentContext.class);
             MockedStatic<CallContext> mockedCallContext = Mockito.mockStatic(CallContext.class)) {
@@ -222,8 +219,6 @@ public class KubernetesVersionServiceTest {
                     new RegisterIsoCmd());
             mockedCallContext.when(CallContext::current).thenReturn(callContext);
 
-            when(templateService.registerIso(Mockito.any(RegisterIsoCmd.class))).thenReturn(
-                    Mockito.mock(VirtualMachineTemplate.class));
             VMTemplateVO templateVO = Mockito.mock(VMTemplateVO.class);
             when(templateVO.getId()).thenReturn(1L);
             when(templateDao.findById(Mockito.anyLong())).thenReturn(templateVO);
