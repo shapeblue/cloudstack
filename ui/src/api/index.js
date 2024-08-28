@@ -17,6 +17,7 @@
 
 import { axios, sourceToken } from '@/utils/request'
 import { message, notification } from 'ant-design-vue'
+import Cookies from 'js-cookie'
 
 export function api (command, args = {}, method = 'GET', data = {}) {
   let params = {}
@@ -30,10 +31,13 @@ export function api (command, args = {}, method = 'GET', data = {}) {
     })
   }
 
+  const jSessionId = Cookies.get('JSESSIONID')?.split('.')[0]
+
   return axios({
     params: {
       ...args
     },
+    headers: { 'ACS-SESSION': jSessionId },
     url: '/',
     method,
     data: params || {}
