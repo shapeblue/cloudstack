@@ -203,13 +203,13 @@ public class ApiServlet extends HttpServlet {
 
             if (session != null) {
                 String sessionId = session.getId();
-                s_logger.debug("Session is [%s].", sessionId);
+                s_logger.debug(String.format("Session is [%s].", sessionId));
 
                 String acsSessionHeaderValue = req.getHeader(ApiConstants.ACS_SESSION_HEADER_NAME);
-                s_logger.debug("%s is [%s].", ApiConstants.ACS_SESSION_HEADER_NAME, acsSessionHeaderValue);
+                s_logger.debug(String.format("%s is [%s].", ApiConstants.ACS_SESSION_HEADER_NAME, acsSessionHeaderValue));
 
                 if (!org.apache.commons.lang3.StringUtils.equals(sessionId, acsSessionHeaderValue)) {
-                    s_logger.warn("Session and %s are different. This could mean a CSRF attack; invalidating this API call.", ApiConstants.ACS_SESSION_HEADER_NAME);
+                    s_logger.warn(String.format("Session and %s are different. This could mean a CSRF attack; invalidating this API call.", ApiConstants.ACS_SESSION_HEADER_NAME));
                     session = null;
                 }
             }
