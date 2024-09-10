@@ -113,7 +113,10 @@ public class HttpUtils {
         if (params != null) {
             sessionKeyFromParams = (String[]) params.get(sessionKeyString);
         }
+        final String jsessionidFromCookie = HttpUtils.findCookie(cookies, "JSESSIONID");
         if ((sessionKey == null)
+                || (jsessionidFromCookie == null)
+                || !(jsessionidFromCookie.startsWith(session.getId() + '.'))
                 || (sessionKeyFromParams == null && sessionKeyFromCookie == null)
                 || (sessionKeyFromParams != null && !sessionKey.equals(sessionKeyFromParams[0]))
                 || (sessionKeyFromCookie != null && !sessionKey.equals(sessionKeyFromCookie))) {
