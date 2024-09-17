@@ -69,7 +69,6 @@ export function login (arg) {
 }
 
 export function logout () {
-  sourceToken.cancel()
   message.destroy()
   notification.destroy()
   return api('logout')

@@ -24,6 +24,7 @@ import router from '@/router'
 import store from '@/store'
 import { login, logout, api } from '@/api'
 import { i18n } from '@/locales'
+import { sourceToken } from '@/utils/request'
 
 import {
   ACCESS_TOKEN,
@@ -332,10 +333,11 @@ const user = {
         }).catch(() => {
           resolve()
         }).finally(() => {
-            Object.keys(Cookies.get()).forEach(cookieName => {
-                Cookies.remove(cookieName)
-                Cookies.remove(cookieName, { path: '/client' })
-            })
+          sourceToken.cancel()
+          Object.keys(Cookies.get()).forEach(cookieName => {
+            Cookies.remove(cookieName)
+            Cookies.remove(cookieName, { path: '/client' })
+          })
         })
       })
     },
