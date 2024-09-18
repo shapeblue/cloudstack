@@ -152,10 +152,10 @@ public class Qcow2Inspector {
         validateQcowMagicString(fieldValue, qcow2LogReference);
 
         fieldValue = headerFieldsAndValues.get(Qcow2HeaderField.BACKING_FILE_OFFSET.name());
-        validateBackingFileReference(NumbersUtil.bytesToLong(fieldValue), qcow2LogReference);
+        validateAbsenceOfBackingFileReference(NumbersUtil.bytesToLong(fieldValue), qcow2LogReference);
 
         fieldValue = headerFieldsAndValues.get(Qcow2HeaderField.INCOMPATIBLE_FEATURES.name());
-        validateIncompatibleFeatures(fieldValue, qcow2LogReference);
+        validateAbsenceOfIncompatibleFeatures(fieldValue, qcow2LogReference);
     }
 
     /**
@@ -180,7 +180,7 @@ public class Qcow2Inspector {
      * @param qcow2LogReference A reference (like the filename) of the QCOW2 being unraveled to print in the logs and exceptions.
      * @throws SecurityException If the QCOW2 has a backing file reference.
      */
-    private static void validateBackingFileReference(long backingFileOffset, String qcow2LogReference) throws SecurityException {
+    private static void validateAbsenceOfBackingFileReference(long backingFileOffset, String qcow2LogReference) throws SecurityException {
         LOGGER.debug(String.format("Verifying if [%s] has a backing file reference.", qcow2LogReference));
 
         if (backingFileOffset != 0) {
@@ -197,7 +197,7 @@ public class Qcow2Inspector {
      * @param qcow2LogReference A reference (like the filename) of the QCOW2 being unraveled to print in the logs and exceptions.
      * @throws SecurityException If the QCOW2 has an external data file reference or unknown incompatible features.
      */
-    private static void validateIncompatibleFeatures(byte[] incompatibleFeatures, String qcow2LogReference) throws SecurityException {
+    private static void validateAbsenceOfIncompatibleFeatures(byte[] incompatibleFeatures, String qcow2LogReference) throws SecurityException {
         LOGGER.debug(String.format("Verifying if [%s] has incompatible features.", qcow2LogReference));
 
         if (NumbersUtil.bytesToLong(incompatibleFeatures) == 0) {
@@ -207,8 +207,8 @@ public class Qcow2Inspector {
 
         LOGGER.debug(String.format("[%s] has incompatible features.", qcow2LogReference));
 
-        validateExternalDataFileReference(incompatibleFeatures, qcow2LogReference);
-        validateUnknownIncompatibleFeatures(incompatibleFeatures, qcow2LogReference);
+        validateAbsenceOfExternalDataFileReference(incompatibleFeatures, qcow2LogReference);
+        validateAbsenceOfUnknownIncompatibleFeatures(incompatibleFeatures, qcow2LogReference);
     }
 
     /**
@@ -217,7 +217,7 @@ public class Qcow2Inspector {
      * @param qcow2LogReference A reference (like the filename) of the QCOW2 being unraveled to print in the logs and exceptions.
      * @throws SecurityException If the QCOW2 has an external data file reference.
      */
-    private static void validateExternalDataFileReference(byte[] incompatibleFeatures, String qcow2LogReference) throws SecurityException {
+    private static void validateAbsenceOfExternalDataFileReference(byte[] incompatibleFeatures, String qcow2LogReference) throws SecurityException {
         LOGGER.debug(String.format("Verifying if [%s] has an external data file reference.", qcow2LogReference));
 
         if ((incompatibleFeatures[EXTERNAL_DATA_FILE_BYTE_POSITION] & EXTERNAL_DATA_FILE_BITMASK) != 0) {
@@ -238,7 +238,7 @@ public class Qcow2Inspector {
      * @param qcow2LogReference A reference (like the filename) of the QCOW2 being unraveled to print in the logs and exceptions.
      * @throws SecurityException If the QCOW2 has unknown incompatible features.
      */
-    private static void validateUnknownIncompatibleFeatures(byte[] incompatibleFeatures, String qcow2LogReference) throws SecurityException {
+    private static void validateAbsenceOfUnknownIncompatibleFeatures(byte[] incompatibleFeatures, String qcow2LogReference) throws SecurityException {
         LOGGER.debug(String.format("Verifying if [%s] has unknown incompatible features [%s].", qcow2LogReference, ArrayUtils.toString(incompatibleFeatures)));
 
         for (int byteNum = incompatibleFeatures.length - 1; byteNum >= 0; byteNum--) {
