@@ -52,6 +52,7 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.mgmt.JmxUtil;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 
 /**
  * Transaction abstracts away the Connection object in JDBC.  It allows the
@@ -544,6 +545,18 @@ public class TransactionLegacy implements Closeable {
         return pstmt;
     }
 
+    private void logHikariPoolStats(DataSource ds) {
+        if (!(s_ds instanceof HikariDataSource)) {
+            return;
+        }
+        HikariDataSource hDs = (HikariDataSource)ds;
+        HikariPoolMXBean hBean = hDs.getHikariPoolMXBean();
+        LOGGER.info("HikariPoolStats-{}--------------[Total Connections: {}, Active " +
+                        "Connections: {}, Idle Connections: {}, Threads Awaiting Connection: {}]",
+                hDs.getPoolName(), hBean.getTotalConnections(), hBean.getActiveConnections(),
+                hBean.getIdleConnections(), hBean.getThreadsAwaitingConnection());
+    }
+
     /**
      * Returns the db connection.
      *
@@ -560,6 +573,7 @@ public class TransactionLegacy implements Closeable {
             switch (_dbId) {
             case CLOUD_DB:
                 if (s_ds != null) {
+                    logHikariPoolStats(s_ds);
                     _conn = s_ds.getConnection();
                 } else {
                     LOGGER.warn("A static-initialized variable becomes null, process is dying?");
@@ -568,6 +582,7 @@ public class TransactionLegacy implements Closeable {
                 break;
             case USAGE_DB:
                 if (s_usageDS != null) {
+                    logHikariPoolStats(s_usageDS);
                     _conn = s_usageDS.getConnection();
                 } else {
                     LOGGER.warn("A static-initialized variable becomes null, process is dying?");
@@ -576,6 +591,7 @@ public class TransactionLegacy implements Closeable {
                 break;
             case SIMULATOR_DB:
                 if (s_simulatorDS != null) {
+                    logHikariPoolStats(s_simulatorDS);
                     _conn = s_simulatorDS.getConnection();
                 } else {
                     LOGGER.warn("A static-initialized variable becomes null, process is dying?");
