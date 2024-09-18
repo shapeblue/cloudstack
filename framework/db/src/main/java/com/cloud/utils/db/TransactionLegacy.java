@@ -98,7 +98,7 @@ public class TransactionLegacy implements Closeable {
         }
     }
 
-    private static final String CONNECTION_POOL_LIB_DBCP = "dbcp";
+    private static final String CONNECTION_POOL_LIB_HIKARICP= "hikaricp";
 
     private final LinkedList<StackElement> _stack;
     private long _id;
@@ -1263,12 +1263,12 @@ public class TransactionLegacy implements Closeable {
                Long connectionTimeout, Long keepAliveTime, Integer isolationLevel, String dsName) {
         LOGGER.debug("Creating datasource for database: {} with connection pool lib: {}", dsName,
                 connectionPoolLib);
-        if (CONNECTION_POOL_LIB_DBCP.equals(connectionPoolLib)) {
-            return createDbcpDataSource(uri, username, password, maxActive, maxIdle, maxWait, timeBtwnEvictionRuns,
-                    minEvictableIdleTime, testWhileIdle, testOnBorrow, validationQuery, isolationLevel);
+        if (CONNECTION_POOL_LIB_HIKARICP.equals(connectionPoolLib)) {
+            return createHikaricpDataSource(uri, username, password, maxActive, maxIdle, maxWait, minIdleConnections,
+                    connectionTimeout, keepAliveTime, isolationLevel, dsName);
         }
-        return createHikaricpDataSource(uri, username, password, maxActive, maxIdle, maxWait, minIdleConnections,
-                connectionTimeout, keepAliveTime, isolationLevel, dsName);
+        return createDbcpDataSource(uri, username, password, maxActive, maxIdle, maxWait, timeBtwnEvictionRuns,
+                minEvictableIdleTime, testWhileIdle, testOnBorrow, validationQuery, isolationLevel);
     }
 
     private static DataSource createHikaricpDataSource(String uri, String username, String password,
@@ -1365,10 +1365,10 @@ public class TransactionLegacy implements Closeable {
     private static DataSource getDefaultDataSource(final String connectionPoolLib, final String database) {
         LOGGER.debug("Creating default datasource for database: {} with connection pool lib: {}",
                 database, connectionPoolLib);
-        if (CONNECTION_POOL_LIB_DBCP.equalsIgnoreCase(connectionPoolLib)) {
-            return getDefaultDbcpDataSource(database);
+        if (CONNECTION_POOL_LIB_HIKARICP.equalsIgnoreCase(connectionPoolLib)) {
+            return getDefaultHikaricpDataSource(database);
         }
-        return getDefaultHikaricpDataSource(database);
+        return getDefaultDbcpDataSource(database);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

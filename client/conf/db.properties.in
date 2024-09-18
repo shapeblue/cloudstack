@@ -34,7 +34,7 @@ db.cloud.uri=
 
 
 # CloudStack database tuning parameters
-db.cloud.connectionPoolLib=hikaricp
+db.cloud.connectionPoolLib=dbcp
 db.cloud.maxActive=250
 db.cloud.maxIdle=30
 db.cloud.maxWait=600000
@@ -74,7 +74,7 @@ db.usage.uri=
 
 
 # usage database tuning parameters
-db.usage.connectionPoolLib=hikaricp
+db.usage.connectionPoolLib=dbcp
 db.usage.maxActive=100
 db.usage.maxIdle=30
 db.usage.maxWait=600000
@@ -90,7 +90,7 @@ db.simulator.host=@DBHOST@
 db.simulator.driver=@DBDRIVER@
 db.simulator.port=3306
 db.simulator.name=simulator
-db.simulator.connectionPoolLib=hikaricp
+db.simulator.connectionPoolLib=dbcp
 db.simulator.maxActive=250
 db.simulator.maxIdle=30
 db.simulator.maxWait=600000
