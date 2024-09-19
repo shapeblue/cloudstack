@@ -237,7 +237,7 @@ public class ApiServlet extends HttpServlet {
                         session = req.getSession(true);
 
                         if (ApiServer.EnableSecureSessionCookie.value()) {
-                            resp.setHeader("SET-COOKIE", String.format("JSESSIONID=%s;Secure;HttpOnly;SameSite=Lax;Path=/client", session.getId()));
+                            resp.setHeader("SET-COOKIE", String.format("JSESSIONID=%s;Secure;HttpOnly;Path=/client", session.getId()));
                             if (LOGGER.isDebugEnabled()) {
                                 LOGGER.debug("Session cookie is marked secure!");
                             }
@@ -251,7 +251,9 @@ public class ApiServlet extends HttpServlet {
                         }
                         responseString = apiAuthenticator.authenticate(command, params, session, remoteAddress, responseType, auditTrailSb, req, resp);
                         if (session != null && session.getAttribute(ApiConstants.SESSIONKEY) != null) {
-                            resp.addHeader("SET-COOKIE", String.format("%s=%s;HttpOnly;SameSite=Lax", ApiConstants.SESSIONKEY, session.getAttribute(ApiConstants.SESSIONKEY)));
+                            String sameSite = getCookieSameSite();
+                            LOGGER.debug("Session cookie " + sameSite);
+                            resp.addHeader("SET-COOKIE", String.format("%s=%s;HttpOnly;%s", ApiConstants.SESSIONKEY, session.getAttribute(ApiConstants.SESSIONKEY), sameSite));
                         }
                     } catch (ServerApiException e) {
                         httpResponseCode = e.getErrorCode().getHttpCode();
@@ -371,6 +373,19 @@ public class ApiServlet extends HttpServlet {
             }
             // cleanup user context to prevent from being peeked in other request context
             CallContext.unregister();
+        }
+    }
+
+    private String getCookieSameSite() {
+        String sameSite = ApiServer.CookieSameSiteSetting.value();
+        if ("Strict".equalsIgnoreCase(sameSite)) {
+            return "SameSite=Strict";
+        } else if ("None".equalsIgnoreCase(sameSite)) {
+            return "SameSite=None";
+        } else if ("NoneAndSecure".equalsIgnoreCase(sameSite)) {
+            return "SameSite=None;Secure";
+        } else {
+            return "SameSite=Lax";
         }
     }
 

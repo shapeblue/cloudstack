@@ -306,6 +306,15 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             , true
             , ConfigKey.Scope.Global);
 
+    static final ConfigKey<String> CookieSameSiteSetting = new ConfigKey<>(String.class
+            , "session.cookies.samesite"
+            , ConfigKey.CATEGORY_ADVANCED
+            , "Lax"
+            , "The SameSite attribute of cookies. Valid options are: Lax (Default), Strict, None, NoneAndSecure."
+            , true
+            , ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select,
+            "Lax, Strict, None, NoneAndSecure");
+
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
         messageBus.subscribe(AsyncJob.Topics.JOB_EVENT_PUBLISH, MessageDispatcher.getDispatcher(this));
@@ -1531,7 +1540,8 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 JSONDefaultContentType,
                 proxyForwardList,
                 useForwardHeader,
-                listOfForwardHeaders
+                listOfForwardHeaders,
+                CookieSameSiteSetting
         };
     }
 }
