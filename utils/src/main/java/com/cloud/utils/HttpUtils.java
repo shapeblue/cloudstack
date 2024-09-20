@@ -103,7 +103,7 @@ public class HttpUtils {
         return null;
     }
 
-    public static boolean validateSessionKey(final HttpSession session, final Map<String, Object[]> params, final Cookie[] cookies, final String sessionKeyString) {
+    public static boolean validateSessionKey(final HttpSession session, final Map<String, Object[]> params, final Cookie[] cookies, final String sessionKeyString, final boolean sessionKeyFromCookieEnabled) {
         if (session == null || sessionKeyString == null) {
             return false;
         }
@@ -112,6 +112,9 @@ public class HttpUtils {
         String[] sessionKeyFromParams = null;
         if (params != null) {
             sessionKeyFromParams = (String[]) params.get(sessionKeyString);
+        }
+        if (sessionKeyFromParams == null && !sessionKeyFromCookieEnabled) {
+            return false;
         }
         final String jsessionidFromCookie = HttpUtils.findCookie(cookies, "JSESSIONID");
         if ((sessionKey == null)

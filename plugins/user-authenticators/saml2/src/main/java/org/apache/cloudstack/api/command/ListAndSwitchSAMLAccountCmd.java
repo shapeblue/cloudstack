@@ -104,7 +104,7 @@ public class ListAndSwitchSAMLAccountCmd extends BaseCmd implements APIAuthentic
                     params, responseType));
         }
 
-        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY)) {
+        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY, true)) {
             throw new ServerApiException(ApiErrorCode.UNAUTHORIZED, _apiServer.getSerializedApiError(ApiErrorCode.UNAUTHORIZED.getHttpCode(),
                     "Unauthorized session, please re-login",
                     params, responseType));

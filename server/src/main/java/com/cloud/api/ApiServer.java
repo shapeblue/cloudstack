@@ -306,7 +306,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             , true
             , ConfigKey.Scope.Global);
 
-    static final ConfigKey<String> CookieSameSiteSetting = new ConfigKey<>(String.class
+    static final ConfigKey<String> SessionCookieSameSiteSetting = new ConfigKey<>(String.class
             , "session.cookies.samesite"
             , ConfigKey.CATEGORY_ADVANCED
             , "Lax"
@@ -314,6 +314,14 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             , true
             , ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select,
             "Lax, Strict, None, NoneAndSecure");
+
+    static final ConfigKey<Boolean> ApiSessionKeyFromCookieEnabled = new ConfigKey<>(ConfigKey.CATEGORY_ADVANCED
+            , Boolean.class
+            , "api.sessionkey.from.cookie.enabled"
+            , "false"
+            , "enables/disables sessionkey of API commands from session cookie. It might lead to CSRF vulnerability if it is set to true, be careful."
+            , true
+            , ConfigKey.Scope.Global);
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
@@ -1541,7 +1549,8 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 proxyForwardList,
                 useForwardHeader,
                 listOfForwardHeaders,
-                CookieSameSiteSetting
+                SessionCookieSameSiteSetting,
+                ApiSessionKeyFromCookieEnabled
         };
     }
 }

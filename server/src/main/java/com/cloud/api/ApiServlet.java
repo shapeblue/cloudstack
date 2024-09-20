@@ -377,7 +377,7 @@ public class ApiServlet extends HttpServlet {
     }
 
     private String getCookieSameSite() {
-        String sameSite = ApiServer.CookieSameSiteSetting.value();
+        String sameSite = ApiServer.SessionCookieSameSiteSetting.value();
         if ("Strict".equalsIgnoreCase(sameSite)) {
             return "SameSite=Strict";
         } else if ("None".equalsIgnoreCase(sameSite)) {
@@ -524,7 +524,7 @@ public class ApiServlet extends HttpServlet {
     }
 
     private boolean invalidateHttpSessionIfNeeded(HttpServletRequest req, HttpServletResponse resp, StringBuilder auditTrailSb, String responseType, Map<String, Object[]> params, HttpSession session, String account) {
-        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY)) {
+        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY, ApiServer.ApiSessionKeyFromCookieEnabled.value())) {
             String msg = String.format("invalidating session %s for account %s", session.getId(), account);
             invalidateHttpSession(session, msg);
             auditTrailSb.append(" " + HttpServletResponse.SC_UNAUTHORIZED + " " + "unable to verify user credentials");

@@ -17,6 +17,10 @@
 
 import { axios, sourceToken } from '@/utils/request'
 import { message, notification } from 'ant-design-vue'
+import { vueProps } from '@/vue-app'
+import {
+  ACCESS_TOKEN
+} from '@/store/mutation-types'
 
 export function api (command, args = {}, method = 'GET', data = {}) {
   let params = {}
@@ -28,6 +32,11 @@ export function api (command, args = {}, method = 'GET', data = {}) {
     Object.entries(data).forEach(([key, value]) => {
       params.append(key, value)
     })
+  }
+
+  const sessionkey = vueProps.$localStorage.get(ACCESS_TOKEN)
+  if (sessionkey) {
+    args.sessionkey = sessionkey
   }
 
   return axios({
