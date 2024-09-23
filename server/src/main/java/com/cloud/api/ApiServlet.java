@@ -47,6 +47,7 @@ import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.managed.context.ManagedContext;
 import org.apache.cloudstack.utils.consoleproxy.ConsoleAccessUtils;
 import org.apache.log4j.Logger;
+import org.apache.commons.lang3.EnumUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.support.SpringBeanAutowiringSupport;
@@ -524,7 +525,9 @@ public class ApiServlet extends HttpServlet {
     }
 
     private boolean invalidateHttpSessionIfNeeded(HttpServletRequest req, HttpServletResponse resp, StringBuilder auditTrailSb, String responseType, Map<String, Object[]> params, HttpSession session, String account) {
-        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY, ApiServer.ApiSessionKeyFromCookieEnabled.value())) {
+        HttpUtils.ApiSessionKeyCheckOption sessionKeyCheckOption = EnumUtils.getEnumIgnoreCase(HttpUtils.ApiSessionKeyCheckOption.class,
+                ApiServer.ApiSessionKeyCheckLocations.value(), HttpUtils.ApiSessionKeyCheckOption.CookieAndParameter);
+        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY, sessionKeyCheckOption)) {
             String msg = String.format("invalidating session %s for account %s", session.getId(), account);
             invalidateHttpSession(session, msg);
             auditTrailSb.append(" " + HttpServletResponse.SC_UNAUTHORIZED + " " + "unable to verify user credentials");

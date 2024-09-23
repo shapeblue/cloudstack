@@ -33,6 +33,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +48,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -168,6 +170,7 @@ import com.cloud.user.UserVO;
 import com.cloud.utils.ConstantTimeComparator;
 import com.cloud.utils.DateUtil;
 import com.cloud.utils.HttpUtils;
+import com.cloud.utils.HttpUtils.ApiSessionKeyCheckOption;
 import com.cloud.utils.Pair;
 import com.cloud.utils.ReflectUtil;
 import com.cloud.utils.StringUtils;
@@ -315,13 +318,14 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             , ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select,
             "Lax, Strict, None, NoneAndSecure");
 
-    static final ConfigKey<Boolean> ApiSessionKeyFromCookieEnabled = new ConfigKey<>(ConfigKey.CATEGORY_ADVANCED
-            , Boolean.class
-            , "api.sessionkey.from.cookie.enabled"
-            , "false"
-            , "enables/disables sessionkey of API commands from session cookie. It might lead to CSRF vulnerability if it is set to true, be careful."
+    static final ConfigKey<String> ApiSessionKeyCheckLocations = new ConfigKey<>(String.class
+            , "api.sessionkey.check.locations"
+            , ConfigKey.CATEGORY_ADVANCED
+            , ApiSessionKeyCheckOption.CookieAndParameter.name()
+            , "The SameSite attribute of cookies. Valid options are: CookieOrParameter, ParameterOnly, CookieAndParameter (default)."
             , true
-            , ConfigKey.Scope.Global);
+            , ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select,
+            EnumSet.allOf(ApiSessionKeyCheckOption.class).stream().map(Enum::toString).collect(Collectors.joining(", ")));
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
@@ -1550,7 +1554,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 useForwardHeader,
                 listOfForwardHeaders,
                 SessionCookieSameSiteSetting,
-                ApiSessionKeyFromCookieEnabled
+                ApiSessionKeyCheckLocations
         };
     }
 }

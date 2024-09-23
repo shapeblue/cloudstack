@@ -37,6 +37,10 @@ public class HttpUtils {
     public static final String JSON_CONTENT_TYPE = "application/json; charset=UTF-8";
     public static final String XML_CONTENT_TYPE = "text/xml; charset=UTF-8";
 
+    public enum ApiSessionKeyCheckOption {
+        CookieOrParameter, ParameterOnly, CookieAndParameter
+    }
+
     public static void addSecurityHeaders(final HttpServletResponse resp) {
         if (resp.containsHeader("X-Content-Type-Options")) {
             resp.setHeader("X-Content-Type-Options", "nosniff");
@@ -103,29 +107,43 @@ public class HttpUtils {
         return null;
     }
 
-    public static boolean validateSessionKey(final HttpSession session, final Map<String, Object[]> params, final Cookie[] cookies, final String sessionKeyString, final boolean sessionKeyFromCookieEnabled) {
+    public static boolean validateSessionKey(final HttpSession session, final Map<String, Object[]> params, final Cookie[] cookies, final String sessionKeyString, final ApiSessionKeyCheckOption apiSessionKeyCheckLocations) {
         if (session == null || sessionKeyString == null) {
             return false;
         }
+        final String jsessionidFromCookie = HttpUtils.findCookie(cookies, "JSESSIONID");
+        if (jsessionidFromCookie == null
+                || !(jsessionidFromCookie.startsWith(session.getId() + '.'))) {
+            LOGGER.error("JSESSIONID from cookie is invalid.");
+            return false;
+        }
         final String sessionKey = (String) session.getAttribute(sessionKeyString);
+        if (sessionKey == null) {
+            LOGGER.error("sessionkey attribute of the session is null.");
+            return false;
+        }
         final String sessionKeyFromCookie = HttpUtils.findCookie(cookies, sessionKeyString);
+        boolean isSessionKeyFromCookieValid = sessionKeyFromCookie != null && sessionKey.equals(sessionKeyFromCookie);
+
         String[] sessionKeyFromParams = null;
         if (params != null) {
             sessionKeyFromParams = (String[]) params.get(sessionKeyString);
         }
-        if (sessionKeyFromParams == null && !sessionKeyFromCookieEnabled) {
-            return false;
+        boolean isSessionKeyFromParamsValid = sessionKeyFromParams != null && sessionKey.equals(sessionKeyFromParams[0]);
+
+        switch (apiSessionKeyCheckLocations) {
+            case CookieOrParameter:
+                return (sessionKeyFromCookie != null || sessionKeyFromParams != null)
+                        && (sessionKeyFromCookie == null || isSessionKeyFromCookieValid)
+                        && (sessionKeyFromParams == null || isSessionKeyFromParamsValid);
+            case ParameterOnly:
+                return sessionKeyFromParams != null && isSessionKeyFromParamsValid
+                        && (sessionKeyFromCookie == null || isSessionKeyFromCookieValid);
+            case CookieAndParameter:
+            default:
+                return sessionKeyFromCookie != null && isSessionKeyFromCookieValid
+                        && sessionKeyFromParams != null && isSessionKeyFromParamsValid;
         }
-        final String jsessionidFromCookie = HttpUtils.findCookie(cookies, "JSESSIONID");
-        if ((sessionKey == null)
-                || (jsessionidFromCookie == null)
-                || !(jsessionidFromCookie.startsWith(session.getId() + '.'))
-                || (sessionKeyFromParams == null && sessionKeyFromCookie == null)
-                || (sessionKeyFromParams != null && !sessionKey.equals(sessionKeyFromParams[0]))
-                || (sessionKeyFromCookie != null && !sessionKey.equals(sessionKeyFromCookie))) {
-            return false;
-        }
-        return true;
     }
 
 }
