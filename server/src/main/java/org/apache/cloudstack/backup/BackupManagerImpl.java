@@ -393,7 +393,6 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
         try {
             vm.setBackupOfferingId(null);
             vm.setBackupExternalId(null);
-            vm.setBackupVolumes(null);
             result = backupProvider.removeVMFromBackupOffering(vm);
             if (result && backupProvider.willDeleteBackupsOnOfferingRemoval()) {
                 final List<Backup> backups = backupDao.listByVmId(null, vm.getId());
