@@ -322,7 +322,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             , "api.sessionkey.check.locations"
             , ConfigKey.CATEGORY_ADVANCED
             , ApiSessionKeyCheckOption.CookieAndParameter.name()
-            , "The SameSite attribute of cookies. Valid options are: CookieOrParameter, ParameterOnly, CookieAndParameter (default)."
+            , "The locations of 'sessionkey' during the validation of the API requests. Valid options are: CookieOrParameter, ParameterOnly, CookieAndParameter (default)."
             , true
             , ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select,
             EnumSet.allOf(ApiSessionKeyCheckOption.class).stream().map(Enum::toString).collect(Collectors.joining(", ")));
