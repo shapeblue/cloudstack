@@ -378,14 +378,14 @@ public class ApiServlet extends HttpServlet {
     }
 
     private String getCookieSameSite() {
-        String sameSite = ApiServer.SessionCookieSameSiteSetting.value();
+        String sameSite = ApiServer.ApiSessionKeyCookieSameSiteSetting.value();
         if ("Strict".equalsIgnoreCase(sameSite)) {
             return "SameSite=Strict";
-        } else if ("None".equalsIgnoreCase(sameSite)) {
-            return "SameSite=None";
         } else if ("NoneAndSecure".equalsIgnoreCase(sameSite)) {
             return "SameSite=None;Secure";
-        } else {
+        } else if ("Null".equalsIgnoreCase(sameSite)) {
+            return "";
+        } else  {
             return "SameSite=Lax";
         }
     }

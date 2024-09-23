@@ -309,14 +309,14 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             , true
             , ConfigKey.Scope.Global);
 
-    static final ConfigKey<String> SessionCookieSameSiteSetting = new ConfigKey<>(String.class
-            , "session.cookies.samesite"
+    static final ConfigKey<String> ApiSessionKeyCookieSameSiteSetting = new ConfigKey<>(String.class
+            , "api.sessionkey.cookie.samesite"
             , ConfigKey.CATEGORY_ADVANCED
             , "Lax"
-            , "The SameSite attribute of cookies. Valid options are: Lax (Default), Strict, None, NoneAndSecure."
+            , "The SameSite attribute of cookie 'sessionkey'. Valid options are: Lax (default), Strict, NoneAndSecure and Null."
             , true
             , ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select,
-            "Lax, Strict, None, NoneAndSecure");
+            "Lax, Strict, NoneAndSecure, Null");
 
     static final ConfigKey<String> ApiSessionKeyCheckLocations = new ConfigKey<>(String.class
             , "api.sessionkey.check.locations"
@@ -1553,7 +1553,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 proxyForwardList,
                 useForwardHeader,
                 listOfForwardHeaders,
-                SessionCookieSameSiteSetting,
+                ApiSessionKeyCookieSameSiteSetting,
                 ApiSessionKeyCheckLocations
         };
     }
