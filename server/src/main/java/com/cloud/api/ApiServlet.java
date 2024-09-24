@@ -200,20 +200,6 @@ public class ApiServlet extends HttpServlet {
             resp.setContentType(HttpUtils.XML_CONTENT_TYPE);
 
             HttpSession session = req.getSession(false);
-
-            if (session != null) {
-                String sessionId = session.getId();
-                s_logger.trace(String.format("Session is [%s].", sessionId));
-
-                String acsSessionHeaderValue = req.getHeader(ApiConstants.ACS_SESSION_HEADER_NAME);
-                s_logger.trace(String.format("%s is [%s].", ApiConstants.ACS_SESSION_HEADER_NAME, acsSessionHeaderValue));
-
-                if (!org.apache.commons.lang3.StringUtils.equals(sessionId, acsSessionHeaderValue)) {
-                    s_logger.warn(String.format("Session and %s are different. This could mean a CSRF attack; invalidating this API call.", ApiConstants.ACS_SESSION_HEADER_NAME));
-                    session = null;
-                }
-            }
-
             if (s_logger.isTraceEnabled()) {
                 s_logger.trace(String.format("session found: %s", session));
             }
