@@ -27,6 +27,7 @@ import com.cloud.exception.StorageConflictException;
 import com.cloud.host.Host;
 import com.cloud.host.HostVO;
 import com.cloud.host.Status;
+import com.cloud.host.dao.HostDao;
 import com.cloud.resource.ResourceManager;
 import com.cloud.resource.ResourceState;
 import com.cloud.storage.DataStoreRole;
@@ -61,6 +62,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -118,6 +120,9 @@ public class CloudStackPrimaryDataStoreLifeCycleImplTest extends TestCase {
     @Mock
     PrimaryDataStoreHelper primaryDataStoreHelper;
 
+    @Mock
+    HostDao hostDao;
+
     AutoCloseable closeable;
 
     @Before
@@ -132,7 +137,7 @@ public class CloudStackPrimaryDataStoreLifeCycleImplTest extends TestCase {
         List<HostVO> hostList = new ArrayList<HostVO>();
         HostVO host1 = new HostVO(1L, "aa01", Host.Type.Routing, "192.168.1.1", "255.255.255.0", null, null, null, null, null, null, null, null, null, null,
                 UUID.randomUUID().toString(), Status.Up, "1.0", null, null, 1L, null, 0, 0, "aa", 0, Storage.StoragePoolType.NetworkFilesystem);
-        HostVO host2 = new HostVO(1L, "aa02", Host.Type.Routing, "192.168.1.1", "255.255.255.0", null, null, null, null, null, null, null, null, null, null,
+        HostVO host2 = new HostVO(2L, "aa02", Host.Type.Routing, "192.168.1.1", "255.255.255.0", null, null, null, null, null, null, null, null, null, null,
                 UUID.randomUUID().toString(), Status.Up, "1.0", null, null, 1L, null, 0, 0, "aa", 0, Storage.StoragePoolType.NetworkFilesystem);
 
         host1.setResourceState(ResourceState.Enabled);
@@ -154,7 +159,10 @@ public class CloudStackPrimaryDataStoreLifeCycleImplTest extends TestCase {
         storageMgr.registerHostListener("default", hostListener);
 
 
-        when(_resourceMgr.listAllUpHosts(eq(Host.Type.Routing), anyLong(), anyLong(), anyLong())).thenReturn(hostList);
+        when(hostDao.listIdsForUpRouting(anyLong(), anyLong(), anyLong()))
+                .thenReturn(hostList.stream().map(HostVO::getId).collect(Collectors.toList()));
+        when(hostDao.findById(host1.getId())).thenReturn(host1);
+        when(hostDao.findById(host2.getId())).thenReturn(host2);
         when(agentMgr.easySend(anyLong(), Mockito.any(ModifyStoragePoolCommand.class))).thenReturn(answer);
         when(answer.getResult()).thenReturn(true);
 
