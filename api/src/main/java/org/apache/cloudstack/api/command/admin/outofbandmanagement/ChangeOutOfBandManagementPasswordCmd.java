@@ -26,10 +26,10 @@ import com.cloud.host.Host;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiArgValidator;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
-import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.HostResponse;
@@ -40,11 +40,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
 
-@APICommand(name = ChangeOutOfBandManagementPasswordCmd.APINAME, description = "Changes out-of-band management interface password on the host and updates the interface configuration in CloudStack if the operation succeeds, else reverts the old password",
+@APICommand(name = "changeOutOfBandManagementPassword", description = "Changes out-of-band management interface password on the host and updates the interface configuration in CloudStack if the operation succeeds, else reverts the old password",
         responseObject = OutOfBandManagementResponse.class, requestHasSensitiveInfo = true, responseHasSensitiveInfo = false,
         since = "4.9.0", authorized = {RoleType.Admin})
 public class ChangeOutOfBandManagementPasswordCmd extends BaseAsyncCmd {
-    public static final String APINAME = "changeOutOfBandManagementPassword";
 
     @Inject
     private OutOfBandManagementService outOfBandManagementService;
@@ -80,11 +79,6 @@ public class ChangeOutOfBandManagementPasswordCmd extends BaseAsyncCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return CallContext.current().getCallingAccountId();
     }
@@ -108,5 +102,15 @@ public class ChangeOutOfBandManagementPasswordCmd extends BaseAsyncCmd {
     @Override
     public String getEventDescription() {
         return "change out-of-band management password for host: " + getHostId();
+    }
+
+    @Override
+    public Long getApiResourceId() {
+        return getHostId();
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.Host;
     }
 }

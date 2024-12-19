@@ -37,7 +37,6 @@ import org.apache.cloudstack.api.response.DiskOfferingResponse;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.offering.ServiceOffering;
@@ -47,8 +46,6 @@ import com.cloud.user.Account;
 @APICommand(name = "createServiceOffering", description = "Creates a service offering.", responseObject = ServiceOfferingResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class CreateServiceOfferingCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(CreateServiceOfferingCmd.class.getName());
-    private static final String s_name = "createserviceofferingresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -57,10 +54,14 @@ public class CreateServiceOfferingCmd extends BaseCmd {
     @Parameter(name = ApiConstants.CPU_NUMBER, type = CommandType.INTEGER, required = false, description = "the CPU number of the service offering")
     private Integer cpuNumber;
 
-    @Parameter(name = ApiConstants.CPU_SPEED, type = CommandType.INTEGER, required = false, description = "the CPU speed of the service offering in MHz.")
+    @Parameter(name = ApiConstants.CPU_SPEED, type = CommandType.INTEGER, required = false, description = "For VMware and Xen based hypervisors this is the CPU speed of the service offering in MHz.\n" +
+            "For the KVM hypervisor," +
+            " the values of the parameters cpuSpeed and cpuNumber will be used to calculate the `shares` value. This value is used by the KVM hypervisor to calculate how much time" +
+            " the VM will have access to the host's CPU. The `shares` value does not have a unit, and its purpose is being a weight value for the host to compare between its guest" +
+            " VMs. For more information, see https://libvirt.org/formatdomain.html#cpu-tuning.")
     private Integer cpuSpeed;
 
-    @Parameter(name = ApiConstants.DISPLAY_TEXT, type = CommandType.STRING, required = true, description = "the display text of the service offering")
+    @Parameter(name = ApiConstants.DISPLAY_TEXT, type = CommandType.STRING, description = "The display text of the service offering, defaults to 'name'.")
     private String displayText;
 
     @Parameter(name = ApiConstants.PROVISIONINGTYPE, type = CommandType.STRING, description = "provisioning type used to create volumes. Valid values are thin, sparse, fat.")
@@ -190,7 +191,7 @@ public class CreateServiceOfferingCmd extends BaseCmd {
             since = "4.14")
     private String cacheMode;
 
-    // Introduce 4 new optional paramaters to work custom compute offerings
+    // Introduce 4 new optional parameters to work custom compute offerings
     @Parameter(name = ApiConstants.CUSTOMIZED,
             type = CommandType.BOOLEAN,
             since = "4.13",
@@ -242,6 +243,16 @@ public class CreateServiceOfferingCmd extends BaseCmd {
             since = "4.17")
     private Boolean diskOfferingStrictness;
 
+    @Parameter(name = ApiConstants.ENCRYPT_ROOT, type = CommandType.BOOLEAN, description = "VMs using this offering require root volume encryption", since="4.18")
+    private Boolean encryptRoot;
+
+    @Parameter(name = ApiConstants.PURGE_RESOURCES, type = CommandType.BOOLEAN,
+            description = "Whether to cleanup instance and its associated resource from database upon expunge of the instance",
+            since="4.20")
+    private Boolean purgeResources;
+
+
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -255,10 +266,7 @@ public class CreateServiceOfferingCmd extends BaseCmd {
     }
 
     public String getDisplayText() {
-        if (StringUtils.isEmpty(displayText)) {
-            throw new InvalidParameterValueException("Failed to create service offering because the offering display text has not been spified.");
-        }
-        return displayText;
+        return StringUtils.isEmpty(displayText) ? serviceOfferingName : displayText;
     }
 
     public String getProvisioningType() {
@@ -271,7 +279,7 @@ public class CreateServiceOfferingCmd extends BaseCmd {
 
     public String getServiceOfferingName() {
         if (StringUtils.isEmpty(serviceOfferingName)) {
-            throw new InvalidParameterValueException("Failed to create service offering because offering name has not been spified.");
+            throw new InvalidParameterValueException("Failed to create service offering because offering name has not been specified.");
         }
         return serviceOfferingName;
     }
@@ -472,14 +480,20 @@ public class CreateServiceOfferingCmd extends BaseCmd {
         return diskOfferingStrictness == null ? false : diskOfferingStrictness;
     }
 
+    public boolean getEncryptRoot() {
+        if (encryptRoot != null) {
+            return encryptRoot;
+        }
+        return false;
+    }
+
+    public boolean isPurgeResources() {
+        return Boolean.TRUE.equals(purgeResources);
+    }
+
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

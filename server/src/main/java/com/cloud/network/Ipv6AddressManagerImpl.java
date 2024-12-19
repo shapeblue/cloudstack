@@ -23,7 +23,6 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
-import org.apache.log4j.Logger;
 
 import com.cloud.configuration.Config;
 import com.cloud.dc.DataCenter;
@@ -42,6 +41,7 @@ import com.cloud.network.dao.NetworkDetailsDao;
 import com.cloud.network.dao.UserIpv6AddressDao;
 import com.cloud.user.Account;
 import com.cloud.utils.NumbersUtil;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.net.NetUtils;
@@ -51,7 +51,6 @@ import com.cloud.vm.dao.NicSecondaryIpVO;
 import com.googlecode.ipv6.IPv6Address;
 
 public class Ipv6AddressManagerImpl extends ManagerBase implements Ipv6AddressManager {
-    public static final Logger s_logger = Logger.getLogger(Ipv6AddressManagerImpl.class.getName());
 
     String _name = null;
     int _ipv6RetryMax = 0;
@@ -134,7 +133,7 @@ public class Ipv6AddressManagerImpl extends ManagerBase implements Ipv6AddressMa
     /**
      * Allocates a public IPv6 address for the guest NIC. It will throw exceptions in the following cases:
      * <ul>
-     *    <li>the the requested IPv6 address is already in use in the network;</li>
+     *    <li>the requested IPv6 address is already in use in the network;</li>
      *    <li>IPv6 address is equals to the Gateway;</li>
      *    <li>the network offering is empty;</li>
      *    <li>the IPv6 address is not in the network.</li>
@@ -150,7 +149,7 @@ public class Ipv6AddressManagerImpl extends ManagerBase implements Ipv6AddressMa
     /**
      * Performs some checks on the given IPv6 address. It will throw exceptions in the following cases:
      * <ul>
-     *    <li>the the requested IPv6 address is already in use in the network;</li>
+     *    <li>the requested IPv6 address is already in use in the network;</li>
      *    <li>IPv6 address is equals to the Gateway;</li>
      *    <li>the network offering is empty;</li>
      *    <li>the IPv6 address is not in the network.</li>
@@ -204,14 +203,14 @@ public class Ipv6AddressManagerImpl extends ManagerBase implements Ipv6AddressMa
     public void setNicIp6Address(final NicProfile nic, final DataCenter dc, final Network network) throws InsufficientAddressCapacityException {
         if (network.getIp6Gateway() != null) {
             if (nic.getIPv6Address() == null) {
-                s_logger.debug("Found IPv6 CIDR " + network.getIp6Cidr() + " for Network " + network);
+                logger.debug("Found IPv6 CIDR " + network.getIp6Cidr() + " for Network " + network);
                 nic.setIPv6Cidr(network.getIp6Cidr());
                 nic.setIPv6Gateway(network.getIp6Gateway());
 
                 setNicPropertiesFromNetwork(nic, network);
 
                 IPv6Address ipv6addr = NetUtils.EUI64Address(network.getIp6Cidr(), nic.getMacAddress());
-                s_logger.info("Calculated IPv6 address " + ipv6addr + " using EUI-64 for NIC " + nic.getUuid());
+                logger.info("Calculated IPv6 address " + ipv6addr + " using EUI-64 for NIC " + nic.getUuid());
                 nic.setIPv6Address(ipv6addr.toString());
 
                 if (nic.getIPv4Address() != null) {
@@ -226,8 +225,9 @@ public class Ipv6AddressManagerImpl extends ManagerBase implements Ipv6AddressMa
                             IPv6Address.class.getName(), null);
                 }
             }
-            nic.setIPv6Dns1(dc.getIp6Dns1());
-            nic.setIPv6Dns2(dc.getIp6Dns2());
+            Pair<String, String> dns = _networkModel.getNetworkIp6Dns(network, dc);
+            nic.setIPv6Dns1(dns.first());
+            nic.setIPv6Dns2(dns.second());
         }
     }
 

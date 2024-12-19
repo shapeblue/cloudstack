@@ -31,7 +31,6 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.user.UserCmd;
 import org.apache.cloudstack.api.response.NetworkOfferingResponse;
 import org.apache.cloudstack.api.response.NetworkResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 import com.cloud.exception.ConcurrentOperationException;
@@ -43,7 +42,6 @@ import com.cloud.offering.NetworkOffering;
 @APICommand(name = "updateNetwork", description = "Updates a network", responseObject = NetworkResponse.class, responseView = ResponseView.Restricted, entityType = {Network.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateNetworkCmd extends BaseAsyncCustomIdCmd implements UserCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateNetworkCmd.class.getName());
 
     private static final String s_name = "updatenetworkresponse";
 
@@ -78,11 +76,34 @@ public class UpdateNetworkCmd extends BaseAsyncCustomIdCmd implements UserCmd {
 
     @Parameter(name = ApiConstants.DISPLAY_NETWORK,
                type = CommandType.BOOLEAN,
- description = "an optional field, whether to the display the network to the end user or not.", authorized = {RoleType.Admin})
+               description = "an optional field, whether to the display the network to the end user or not.", authorized = {RoleType.Admin})
     private Boolean displayNetwork;
 
     @Parameter(name= ApiConstants.FORCED, type = CommandType.BOOLEAN, description = "Setting this to true will cause a forced network update,", authorized = {RoleType.Admin})
     private Boolean forced;
+
+    @Parameter(name = ApiConstants.PUBLIC_MTU, type = CommandType.INTEGER,
+            description = "MTU to be configured on the network VR's public facing interfaces", since = "4.18.0")
+    private Integer publicMtu;
+
+    @Parameter(name = ApiConstants.PRIVATE_MTU, type = CommandType.INTEGER,
+            description = "MTU to be configured on the network VR's public facing interfaces", since = "4.18.0")
+    private Integer privateMtu;
+
+    @Parameter(name = ApiConstants.DNS1, type = CommandType.STRING, description = "the first IPv4 DNS for the network. Empty string will update the first IPv4 DNS with the value from the zone", since = "4.18.0")
+    private String ip4Dns1;
+
+    @Parameter(name = ApiConstants.DNS2, type = CommandType.STRING, description = "the second IPv4 DNS for the network. Empty string will update the second IPv4 DNS with the value from the zone", since = "4.18.0")
+    private String ip4Dns2;
+
+    @Parameter(name = ApiConstants.IP6_DNS1, type = CommandType.STRING, description = "the first IPv6 DNS for the network. Empty string will update the first IPv6 DNS with the value from the zone", since = "4.18.0")
+    private String ip6Dns1;
+
+    @Parameter(name = ApiConstants.IP6_DNS2, type = CommandType.STRING, description = "the second IPv6 DNS for the network. Empty string will update the second IPv6 DNS with the value from the zone", since = "4.18.0")
+    private String ip6Dns2;
+
+    @Parameter(name = ApiConstants.SOURCE_NAT_IP, type = CommandType.STRING, description = "IPV4 address to be assigned to the public interface of the network router. This address must already be acquired for this network", since = "4.19")
+    private String sourceNatIP;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -136,6 +157,35 @@ public class UpdateNetworkCmd extends BaseAsyncCustomIdCmd implements UserCmd {
         }
         return forced;
     }
+
+    public Integer getPublicMtu() {
+        return publicMtu;
+    }
+
+    public Integer getPrivateMtu() {
+        return privateMtu;
+    }
+
+    public String getIp4Dns1() {
+        return ip4Dns1;
+    }
+
+    public String getIp4Dns2() {
+        return ip4Dns2;
+    }
+
+    public String getIp6Dns1() {
+        return ip6Dns1;
+    }
+
+    public String getIp6Dns2() {
+        return ip6Dns2;
+    }
+
+    public String getSourceNatIP() {
+        return sourceNatIP;
+    }
+
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////

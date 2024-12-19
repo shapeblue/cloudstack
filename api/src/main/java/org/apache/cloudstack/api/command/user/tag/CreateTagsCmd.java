@@ -20,7 +20,6 @@ package org.apache.cloudstack.api.command.user.tag;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -38,9 +37,7 @@ import com.cloud.server.ResourceTag.ResourceObjectType;
 @APICommand(name = "createTags", description = "Creates resource tag(s)", responseObject = SuccessResponse.class, since = "4.0.0", entityType = {ResourceTag.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class CreateTagsCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(CreateTagsCmd.class.getName());
 
-    private static final String s_name = "createtagsresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -88,11 +85,6 @@ public class CreateTagsCmd extends BaseAsyncCmd {
     // ///////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         //FIXME - validate the owner here
         return 1;
@@ -106,17 +98,17 @@ public class CreateTagsCmd extends BaseAsyncCmd {
             SuccessResponse response = new SuccessResponse(getCommandName());
             setResponseObject(response);
         } else {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to upload resource icon");
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create resource tag(s)");
         }
     }
 
     @Override
     public String getEventType() {
-        return EventTypes.EVENT_RESOURCE_ICON_UPLOAD;
+        return EventTypes.EVENT_TAGS_CREATE;
     }
 
     @Override
     public String getEventDescription() {
-        return "Uploading resource icon";
+        return "Creating resource tag(s)";
     }
 }

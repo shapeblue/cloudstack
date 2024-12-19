@@ -20,6 +20,7 @@ package org.apache.cloudstack.api.command.admin.acl.project;
 import org.apache.cloudstack.acl.ProjectRole;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
@@ -30,11 +31,10 @@ import org.apache.cloudstack.context.CallContext;
 
 import com.cloud.user.Account;
 
-@APICommand(name = CreateProjectRoleCmd.APINAME, description = "Creates a Project role", responseObject = ProjectRoleResponse.class,
+@APICommand(name = "createProjectRole", description = "Creates a Project role", responseObject = ProjectRoleResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.DomainAdmin, RoleType.ResourceAdmin, RoleType.User}, since = "4.15.0")
 public class CreateProjectRoleCmd extends ProjectRoleCmd {
-    public static final String APINAME = "createProjectRole";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -67,13 +67,17 @@ public class CreateProjectRoleCmd extends ProjectRoleCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
     }
 
+    @Override
+    public Long getApiResourceId() {
+        return getProjectId();
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.Project;
+    }
 }

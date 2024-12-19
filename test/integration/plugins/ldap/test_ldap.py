@@ -101,11 +101,13 @@ class TestLDAP(cloudstackTestCase):
     def tearDownClass(cls):
         cls.logger.info("Tearing Down Class")
         try:
-            cleanup_resources(cls.apiclient, reversed(cls._cleanup))
-            cls.remove_ldap_configuration_for_domains()
-            cls.logger.debug("done cleaning up resources in tearDownClass(cls) %s")
-        except Exception as e:
-            cls.logger.debug("Exception in tearDownClass(cls): %s" % e)
+            super(TestLDAP, cls).tearDownClass()
+        finally:
+            try:
+                cls.remove_ldap_configuration_for_domains()
+                cls.logger.debug("done cleaning up resources in tearDownClass(cls) %s")
+            except Exception as e:
+                cls.logger.debug("Exception in tearDownClass(cls): %s" % e)
 
     def setUp(self):
         self.cleanup = []
@@ -116,11 +118,7 @@ class TestLDAP(cloudstackTestCase):
         return
 
     def tearDown(self):
-        try:
-            cleanup_resources(self.apiclient, self.cleanup)
-        except Exception as e:
-            raise Exception("Warning: Exception during cleanup : %s" % e)
-        return
+        super(TestLDAP, self).tearDown()
 
     @attr(tags=["smoke", "advanced"], required_hardware="false")
     def test_01_manual(self):
@@ -231,7 +229,7 @@ class TestLDAP(cloudstackTestCase):
         some ldap accounts are linked and present with the same uid
         some ldap accounts are not yet linked but present at other locations in cloudstack
 
-        NOTE 1: if this test is run last only the explicitely imported test user from test_03_sync
+        NOTE 1: if this test is run last only the explicitly imported test user from test_03_sync
          is in the system. The accounts from test_01_manual and test_02_import should have been cleared
          by the test tearDown(). We can not depend on test_03_sync having run so the test must avoid
          depending on it either being available or not.
@@ -349,8 +347,8 @@ class TestLDAP(cloudstackTestCase):
         if parent_domain:
             domain_to_create["parentdomainid"] = parent_domain
         tmpDomain = Domain.create(cls.apiclient, domain_to_create)
-        cls.logger.debug("Created domain %s with id %s " % (tmpDomain.name, tmpDomain.id))
         cls._cleanup.append(tmpDomain)
+        cls.logger.debug("Created domain %s with id %s " % (tmpDomain.name, tmpDomain.id))
         return tmpDomain
 
     @classmethod

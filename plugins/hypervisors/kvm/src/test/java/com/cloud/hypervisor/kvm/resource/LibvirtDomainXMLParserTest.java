@@ -25,13 +25,21 @@ import java.util.List;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.ChannelDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.DiskDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.InterfaceDef;
+import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.MemBalloonDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.RngDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.WatchDogDef;
 
 import junit.framework.TestCase;
+import org.apache.cloudstack.utils.qemu.QemuObject;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
 
+@RunWith(MockitoJUnitRunner.class)
 public class LibvirtDomainXMLParserTest extends TestCase {
 
+    @Test
     public void testDomainXMLParser() {
         int vncPort = 5900;
 
@@ -50,6 +58,10 @@ public class LibvirtDomainXMLParserTest extends TestCase {
 
         String diskLabel ="vda";
         String diskPath = "/var/lib/libvirt/images/my-test-image.qcow2";
+
+        String diskLabel2 ="vdb";
+        String diskPath2 = "/var/lib/libvirt/images/my-test-image2.qcow2";
+        String secretUuid = "5644d664-a238-3a9b-811c-961f609d29f4";
 
         String xml = "<domain type='kvm' id='10'>" +
                      "<name>s-2970-VM</name>" +
@@ -86,6 +98,16 @@ public class LibvirtDomainXMLParserTest extends TestCase {
                      "<target dev='" + diskLabel + "' bus='" + diskBus.toString() + "'/>" +
                      "<alias name='virtio-disk0'/>" +
                      "<address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>" +
+                     "</disk>" +
+                     "<disk type='" + diskType.toString() + "' device='" + deviceType.toString() + "'>" +
+                     "<driver name='qemu' type='" + diskFormat.toString() + "' cache='" + diskCache.toString() + "'/>" +
+                     "<source file='" + diskPath2 + "'/>" +
+                     "<target dev='" + diskLabel2 +"' bus='" + diskBus.toString() + "'/>" +
+                     "<alias name='virtio-disk1'/>" +
+                     "<encryption format='luks'>" +
+                     "<secret type='passphrase' uuid='" + secretUuid + "'/>" +
+                     "</encryption>" +
+                     "<address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>" +
                      "</disk>" +
                      "<disk type='file' device='cdrom'>" +
                      "<driver name='qemu' type='raw' cache='none'/>" +
@@ -165,6 +187,7 @@ public class LibvirtDomainXMLParserTest extends TestCase {
                      "<address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>" +
                      "</video>" +
                      "<memballoon model='virtio'>" +
+                     "<stats period='60'/>" +
                      "<alias name='balloon0'/>" +
                      "<address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>" +
                      "</memballoon>" +
@@ -200,6 +223,11 @@ public class LibvirtDomainXMLParserTest extends TestCase {
         assertEquals(deviceType, disks.get(diskId).getDeviceType());
         assertEquals(diskFormat, disks.get(diskId).getDiskFormatType());
 
+        DiskDef.LibvirtDiskEncryptDetails encryptDetails = disks.get(1).getLibvirtDiskEncryptDetails();
+        assertNotNull(encryptDetails);
+        assertEquals(QemuObject.EncryptFormat.LUKS, encryptDetails.getEncryptFormat());
+        assertEquals(secretUuid, encryptDetails.getPassphraseUuid());
+
         List<ChannelDef> channels = parser.getChannels();
         for (int i = 0; i < channels.size(); i++) {
             assertEquals(channelType, channels.get(i).getChannelType());
@@ -218,6 +246,10 @@ public class LibvirtDomainXMLParserTest extends TestCase {
             assertEquals("vnet" + i, ifs.get(i).getDevName());
         }
 
+        MemBalloonDef memBalloon = parser.getMemBalloon();
+        assertEquals(MemBalloonDef.MemBalloonModel.VIRTIO, memBalloon.getMemBalloonModel());
+        assertEquals("60", memBalloon.getMemBalloonStatsPeriod());
+
         List<RngDef> rngs = parser.getRngs();
         assertEquals("/dev/random", rngs.get(0).getPath());
         assertEquals(RngDef.RngBackendModel.RANDOM, rngs.get(0).getRngBackendModel());
@@ -227,5 +259,131 @@ public class LibvirtDomainXMLParserTest extends TestCase {
         List<WatchDogDef> watchDogs = parser.getWatchDogs();
         assertEquals(WatchDogDef.WatchDogModel.I6300ESB, watchDogs.get(0).getModel());
         assertEquals(WatchDogDef.WatchDogAction.RESET, watchDogs.get(0).getAction());
+    }
+
+    @Test
+    public void testDomainXMLParserWithoutModelName() {
+        String xml = "<domain type='kvm'>\n" +
+                "  <name>testkiran</name>\n" +
+                "  <uuid>aafaaabc-8657-4efc-9c52-3422d4e04088</uuid>\n" +
+                "  <memory unit='KiB'>2097152</memory>\n" +
+                "  <currentMemory unit='KiB'>2097152</currentMemory>\n" +
+                "  <vcpu placement='static'>8</vcpu>\n" +
+                "  <os>\n" +
+                "    <type arch='x86_64' machine='pc-i440fx-rhel7.0.0'>hvm</type>\n" +
+                "    <boot dev='hd'/>\n" +
+                "  </os>\n" +
+                "  <features>\n" +
+                "    <acpi/>\n" +
+                "    <apic/>\n" +
+                "  </features>\n" +
+                "  <cpu mode='host-model' check='partial'>\n" +
+                "    <model fallback='allow'/>\n" +
+                "    <topology sockets='1' cores='4' threads='2' />" +
+                "  </cpu>\n" +
+                "  <clock offset='utc'>\n" +
+                "    <timer name='rtc' tickpolicy='catchup'/>\n" +
+                "    <timer name='pit' tickpolicy='delay'/>\n" +
+                "    <timer name='hpet' present='no'/>\n" +
+                "  </clock>\n" +
+                "  <on_poweroff>destroy</on_poweroff>\n" +
+                "  <on_reboot>restart</on_reboot>\n" +
+                "  <on_crash>destroy</on_crash>\n" +
+                "  <pm>\n" +
+                "    <suspend-to-mem enabled='no'/>\n" +
+                "    <suspend-to-disk enabled='no'/>\n" +
+                "  </pm>\n" +
+                "  <devices>\n" +
+                "    <emulator>/usr/libexec/qemu-kvm</emulator>\n" +
+                "    <disk type='file' device='disk'>\n" +
+                "      <driver name='qemu' type='qcow2'/>\n" +
+                "      <source file='/var/lib/libvirt/images/ubuntu-22.04.qcow2'/>\n" +
+                "      <target dev='vda' bus='virtio'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>\n" +
+                "    </disk>\n" +
+                "    <disk type='file' device='disk'>\n" +
+                "      <driver name='qemu' type='qcow2'/>\n" +
+                "      <source file='/var/lib/libvirt/images/testkiran.qcow2'/>\n" +
+                "      <target dev='vdb' bus='virtio'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>\n" +
+                "    </disk>\n" +
+                "    <controller type='usb' index='0' model='ich9-ehci1'>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x7'/>\n" +
+                "    </controller>\n" +
+                "    <controller type='usb' index='0' model='ich9-uhci1'>\n" +
+                "      <master startport='0'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0' multifunction='on'/>\n" +
+                "    </controller>\n" +
+                "    <controller type='usb' index='0' model='ich9-uhci2'>\n" +
+                "      <master startport='2'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x1'/>\n" +
+                "    </controller>\n" +
+                "    <controller type='usb' index='0' model='ich9-uhci3'>\n" +
+                "      <master startport='4'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x2'/>\n" +
+                "    </controller>\n" +
+                "    <controller type='pci' index='0' model='pci-root'/>\n" +
+                "    <controller type='virtio-serial' index='0'>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>\n" +
+                "    </controller>\n" +
+                "    <interface type='network'>\n" +
+                "      <mac address='52:54:00:09:73:b8'/>\n" +
+                "      <source network='default'/>\n" +
+                "      <model type='virtio'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>\n" +
+                "    </interface>\n" +
+                "    <serial type='pty'>\n" +
+                "      <target type='isa-serial' port='0'>\n" +
+                "        <model name='isa-serial'/>\n" +
+                "      </target>\n" +
+                "    </serial>\n" +
+                "    <console type='pty'>\n" +
+                "      <target type='serial' port='0'/>\n" +
+                "    </console>\n" +
+                "    <channel type='spicevmc'>\n" +
+                "      <target type='virtio' name='com.redhat.spice.0'/>\n" +
+                "      <address type='virtio-serial' controller='0' bus='0' port='1'/>\n" +
+                "    </channel>\n" +
+                "    <input type='tablet' bus='usb'>\n" +
+                "      <address type='usb' bus='0' port='1'/>\n" +
+                "    </input>\n" +
+                "    <input type='mouse' bus='ps2'/>\n" +
+                "    <input type='keyboard' bus='ps2'/>\n" +
+                "    <graphics type='vnc' port='-1' autoport='yes'>\n" +
+                "      <listen type='address'/>\n" +
+                "    </graphics>\n" +
+                "    <graphics type='spice' autoport='yes'>\n" +
+                "      <listen type='address'/>\n" +
+                "      <image compression='off'/>\n" +
+                "    </graphics>\n" +
+                "    <sound model='ich6'>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>\n" +
+                "    </sound>\n" +
+                "    <video>\n" +
+                "      <model type='qxl' ram='65536' vram='65536' vgamem='16384' heads='1' primary='yes'/>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>\n" +
+                "    </video>\n" +
+                "    <redirdev bus='usb' type='spicevmc'>\n" +
+                "      <address type='usb' bus='0' port='2'/>\n" +
+                "    </redirdev>\n" +
+                "    <redirdev bus='usb' type='spicevmc'>\n" +
+                "      <address type='usb' bus='0' port='3'/>\n" +
+                "    </redirdev>\n" +
+                "    <memballoon model='virtio'>\n" +
+                "      <address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>\n" +
+                "    </memballoon>\n" +
+                "  </devices>\n" +
+                "</domain>";
+
+        LibvirtDomainXMLParser libvirtDomainXMLParser = new LibvirtDomainXMLParser();
+        try {
+            libvirtDomainXMLParser.parseDomainXML(xml);
+        } catch (Exception e) {
+            System.out.println("Got exception " + e.getMessage());
+            throw e;
+        }
+        Assert.assertEquals("CPU socket count is parsed", 1, libvirtDomainXMLParser.getCpuModeDef().getSockets());
+        Assert.assertEquals("CPU cores count is parsed", 4, libvirtDomainXMLParser.getCpuModeDef().getCoresPerSocket());
+        Assert.assertEquals("CPU threads count is parsed", 2, libvirtDomainXMLParser.getCpuModeDef().getThreadsPerCore());
     }
 }

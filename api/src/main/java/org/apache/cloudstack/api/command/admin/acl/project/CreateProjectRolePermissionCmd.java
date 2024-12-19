@@ -22,6 +22,7 @@ import org.apache.cloudstack.acl.ProjectRolePermission;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiArgValidator;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.Parameter;
@@ -32,11 +33,10 @@ import org.apache.cloudstack.api.response.ProjectRolePermissionResponse;
 import org.apache.cloudstack.api.response.ProjectRoleResponse;
 import org.apache.cloudstack.context.CallContext;
 
-@APICommand(name = CreateProjectRolePermissionCmd.APINAME, description = "Adds API permissions to a project role", responseObject = ProjectRolePermissionResponse.class,
+@APICommand(name = "createProjectRolePermission", description = "Adds API permissions to a project role", responseObject = ProjectRolePermissionResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false, authorized = {
         RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}, since = "4.15.0")
 public class CreateProjectRolePermissionCmd extends BaseRolePermissionCmd {
-    public static final String APINAME = "createProjectRolePermission";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -81,11 +81,6 @@ public class CreateProjectRolePermissionCmd extends BaseRolePermissionCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + RESPONSE_SUFFIX;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return CallContext.current().getCallingAccountId();
     }
@@ -101,5 +96,15 @@ public class CreateProjectRolePermissionCmd extends BaseRolePermissionCmd {
         response.setResponseName(getCommandName());
         response.setObjectName("projectrolepermission");
         setResponseObject(response);
+    }
+
+    @Override
+    public Long getApiResourceId() {
+        return getProjectId();
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.Project;
     }
 }

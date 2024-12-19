@@ -20,7 +20,6 @@ import com.cloud.user.Account;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.APICommand;
@@ -34,8 +33,6 @@ import org.apache.cloudstack.util.solidfire.SolidFireIntegrationTestUtil;
 @APICommand(name = "getSolidFireVolumeAccessGroupIds", responseObject = ApiSolidFireVolumeAccessGroupIdsResponse.class, description = "Get the SF Volume Access Group IDs",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class GetSolidFireVolumeAccessGroupIdsCmd extends BaseCmd {
-    private static final Logger LOGGER = Logger.getLogger(GetSolidFireVolumeAccessGroupIdsCmd.class.getName());
-    private static final String NAME = "getsolidfirevolumeaccessgroupidsresponse";
 
     @Parameter(name = ApiConstants.CLUSTER_ID, type = CommandType.STRING, description = "Cluster UUID", required = true)
     private String clusterUuid;
@@ -50,11 +47,6 @@ public class GetSolidFireVolumeAccessGroupIdsCmd extends BaseCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return NAME;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         Account account = CallContext.current().getCallingAccount();
 
@@ -67,7 +59,7 @@ public class GetSolidFireVolumeAccessGroupIdsCmd extends BaseCmd {
 
     @Override
     public void execute() {
-        LOGGER.info("'GetSolidFireVolumeAccessGroupIdsCmd.execute' method invoked");
+        logger.info("'GetSolidFireVolumeAccessGroupIdsCmd.execute' method invoked");
 
         long[] sfVagIds = manager.getSolidFireVolumeAccessGroupIds(clusterUuid, storagePoolUuid);
 

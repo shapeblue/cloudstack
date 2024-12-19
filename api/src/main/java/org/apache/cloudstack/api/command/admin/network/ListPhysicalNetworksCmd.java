@@ -19,7 +19,6 @@ package org.apache.cloudstack.api.command.admin.network;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -38,9 +37,7 @@ import com.cloud.utils.Pair;
 @APICommand(name = "listPhysicalNetworks", description = "Lists physical networks", responseObject = PhysicalNetworkResponse.class, since = "3.0.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListPhysicalNetworksCmd extends BaseListCmd {
-    public static final Logger s_logger = Logger.getLogger(ListPhysicalNetworksCmd.class.getName());
 
-    private static final String s_name = "listphysicalnetworksresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -74,11 +71,6 @@ public class ListPhysicalNetworksCmd extends BaseListCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

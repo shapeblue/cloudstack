@@ -30,7 +30,6 @@ import org.apache.cloudstack.api.response.RouterHealthCheckResultResponse;
 import org.apache.cloudstack.api.response.RouterHealthCheckResultsListResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.commons.lang.BooleanUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.ResourceUnavailableException;
@@ -39,7 +38,7 @@ import com.cloud.user.Account;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachine;
 
-@APICommand(name = GetRouterHealthCheckResultsCmd.APINAME,
+@APICommand(name = "getRouterHealthCheckResults",
         responseObject = RouterHealthCheckResultsListResponse.class,
         description = "Starts a router.",
         entityType = {VirtualMachine.class},
@@ -47,8 +46,6 @@ import com.cloud.vm.VirtualMachine;
         responseHasSensitiveInfo = false,
         since = "4.14.0")
 public class GetRouterHealthCheckResultsCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(GetRouterHealthCheckResultsCmd.class.getName());
-    public static final String APINAME = "getRouterHealthCheckResults";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -77,11 +74,6 @@ public class GetRouterHealthCheckResultsCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
 
     @Override
     public long getEntityOwnerId() {

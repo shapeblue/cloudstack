@@ -60,6 +60,8 @@ public interface VirtualMachineProfile {
 
     void setConfigDriveLocation(NetworkElement.Location location);
 
+    void setServiceOffering(ServiceOffering offering);
+
     public static class Param {
 
         public static final Param VmPassword = new Param("VmPassword");
@@ -75,6 +77,7 @@ public interface VirtualMachineProfile {
         public static final Param BootType = new Param("BootType");
         public static final Param BootIntoSetup = new Param("enterHardwareSetup");
         public static final Param PreserveNics = new Param("PreserveNics");
+        public static final Param ConsiderLastHost = new Param("ConsiderLastHost");
 
         private String name;
 
@@ -188,6 +191,10 @@ public interface VirtualMachineProfile {
     BootloaderType getBootLoaderType();
 
     Map<Param, Object> getParameters();
+
+    void setCpuOvercommitRatio(Float cpuOvercommitRatio);
+
+    void setMemoryOvercommitRatio(Float memoryOvercommitRatio);
 
     Float getCpuOvercommitRatio();
 

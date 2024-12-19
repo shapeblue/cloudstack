@@ -26,7 +26,6 @@ import org.apache.cloudstack.api.response.LDAPConfigResponse;
 import org.apache.cloudstack.api.response.LDAPRemoveResponse;
 import org.apache.cloudstack.ldap.LdapConfigurationVO;
 import org.apache.cloudstack.ldap.LdapManager;
-import org.apache.log4j.Logger;
 
 import com.cloud.user.Account;
 import com.cloud.utils.Pair;
@@ -38,12 +37,10 @@ import com.cloud.utils.Pair;
 @APICommand(name = "ldapRemove", description = "(Deprecated , use deleteLdapConfiguration) Remove the LDAP context for this site.", responseObject = LDAPConfigResponse.class, since = "3.0.1",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class LDAPRemoveCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(LDAPRemoveCmd.class.getName());
 
     @Inject
     private LdapManager _ldapManager;
 
-    private static final String s_name = "ldapremoveresponse";
 
     @Override
     public void execute() {
@@ -63,11 +60,6 @@ public class LDAPRemoveCmd extends BaseCmd {
             _ldapManager.deleteConfiguration(config.getHostname(), 0, null);
         }
         return true;
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

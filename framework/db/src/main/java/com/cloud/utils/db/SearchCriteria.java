@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import com.cloud.utils.Pair;
 import com.cloud.utils.db.SearchBase.Condition;
 import com.cloud.utils.db.SearchBase.Select;
@@ -104,7 +106,7 @@ public class SearchCriteria<K> {
             for (Map.Entry<String, JoinBuilder<SearchBase<?, ?, ?>>> entry : sb._joins.entrySet()) {
                 JoinBuilder<SearchBase<?, ?, ?>> value = entry.getValue();
                 _joins.put(entry.getKey(),
-                    new JoinBuilder<SearchCriteria<?>>(value.getT().create(), value.getFirstAttribute(), value.getSecondAttribute(), value.getType()));
+                    new JoinBuilder<SearchCriteria<?>>(entry.getKey(), value.getT().create(), value.getFirstAttributes(), value.getSecondAttribute(), value.getType(), value.getCondition()));
             }
         }
         _selects = sb._selects;
@@ -155,6 +157,12 @@ public class SearchCriteria<K> {
         }
 
         return fields;
+    }
+
+    public void setParametersIfNotNull(String conditionName, Object... params) {
+        if (ArrayUtils.isNotEmpty(params) && (params.length > 1 || params[0] != null)) {
+            setParameters(conditionName, params);
+        }
     }
 
     public void setParameters(String conditionName, Object... params) {
@@ -242,7 +250,7 @@ public class SearchCriteria<K> {
         _additionals.add(condition);
     }
 
-    public String getWhereClause() {
+    public String getWhereClause(String tableAlias) {
         StringBuilder sql = new StringBuilder();
         int i = 0;
         for (Condition condition : _conditions) {
@@ -251,7 +259,7 @@ public class SearchCriteria<K> {
             }
             Object[] params = _params.get(condition.name);
             if ((condition.op == null || condition.op.params == 0) || (params != null)) {
-                condition.toSql(sql, params, i++);
+                condition.toSql(sql, tableAlias, params, i++);
             }
         }
 
@@ -261,11 +269,15 @@ public class SearchCriteria<K> {
             }
             Object[] params = _params.get(condition.name);
             if ((condition.op.params == 0) || (params != null)) {
-                condition.toSql(sql, params, i++);
+                condition.toSql(sql, tableAlias, params, i++);
             }
         }
 
         return sql.toString();
+    }
+
+    public String getWhereClause() {
+        return getWhereClause(null);
     }
 
     public List<Pair<Attribute, Object>> getValues() {

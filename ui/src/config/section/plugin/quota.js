@@ -16,6 +16,8 @@
 // under the License.
 
 import { shallowRef, defineAsyncComponent } from 'vue'
+import { i18n } from '@/locales'
+
 export default {
   name: 'quota',
   title: 'label.quota',
@@ -28,7 +30,15 @@ export default {
       title: 'label.quota.summary',
       icon: 'bars-outlined',
       permission: ['quotaSummary'],
-      columns: ['account', 'domain', 'state', 'currency', 'balance', 'quota'],
+      columns: ['account',
+        {
+          state: (record) => record.state.toLowerCase()
+        },
+        {
+          quotastate: (record) => record.quotaenabled ? 'Enabled' : 'Disabled'
+        }, 'domain', 'currency', 'balance'
+      ],
+      columnNames: ['account', 'accountstate', 'quotastate', 'domain', 'currency', 'currentbalance'],
       details: ['account', 'domain', 'state', 'currency', 'balance', 'quota', 'startdate', 'enddate'],
       component: shallowRef(() => import('@/views/plugins/quota/QuotaSummary.vue')),
       tabs: [
@@ -70,9 +80,102 @@ export default {
       icon: 'credit-card-outlined',
       docHelp: 'plugins/quota.html#quota-tariff',
       permission: ['quotaTariffList'],
-      columns: ['usageName', 'description', 'usageUnit', 'tariffValue', 'tariffActions'],
-      details: ['usageName', 'description', 'usageUnit', 'tariffValue'],
-      component: shallowRef(() => import('@/views/plugins/quota/QuotaTariff.vue'))
+      customParamHandler: (params, query) => {
+        params.listall = false
+
+        if (['all', 'removed'].includes(query.filter) || params.id) {
+          params.listall = true
+        }
+
+        if (['removed'].includes(query.filter)) {
+          params.listonlyremoved = true
+        }
+
+        return params
+      },
+      columns: [
+        'name',
+        {
+          field: 'usageName',
+          customTitle: 'usageType',
+          usageName: (record) => i18n.global.t(record.usageName)
+        },
+        {
+          field: 'usageUnit',
+          customTitle: 'usageUnit',
+          usageUnit: (record) => i18n.global.t(record.usageUnit)
+        },
+        {
+          field: 'tariffValue',
+          customTitle: 'quota.tariff.value'
+        },
+        {
+          field: 'executionPosition',
+          customTitle: 'quota.tariff.position',
+          executionPosition: (record) => record.position
+        },
+        {
+          field: 'effectiveDate',
+          customTitle: 'start.date'
+        },
+        {
+          field: 'endDate',
+          customTitle: 'end.date'
+        },
+        'removed'
+      ],
+      details: [
+        'uuid',
+        'name',
+        'description',
+        {
+          field: 'usageName',
+          customTitle: 'usageType'
+        },
+        'usageUnit',
+        {
+          field: 'tariffValue',
+          customTitle: 'quota.tariff.value'
+        },
+        {
+          field: 'effectiveDate',
+          customTitle: 'start.date'
+        },
+        {
+          field: 'endDate',
+          customTitle: 'end.date'
+        },
+        'removed'
+      ],
+      filters: ['all', 'active', 'removed'],
+      searchFilters: ['usagetype'],
+      actions: [
+        {
+          api: 'quotaTariffCreate',
+          icon: 'plus-outlined',
+          label: 'label.action.quota.tariff.create',
+          listView: true,
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/plugins/quota/CreateQuotaTariff.vue')))
+        },
+        {
+          api: 'quotaTariffUpdate',
+          icon: 'edit-outlined',
+          label: 'label.action.quota.tariff.edit',
+          dataView: true,
+          popup: true,
+          show: (record) => !record.removed,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/plugins/quota/EditQuotaTariff.vue')))
+        },
+        {
+          api: 'quotaTariffDelete',
+          icon: 'delete-outlined',
+          label: 'label.action.quota.tariff.remove',
+          message: 'message.action.quota.tariff.remove',
+          dataView: true,
+          show: (record) => !record.removed
+        }
+      ]
     },
     {
       name: 'quotaemailtemplate',

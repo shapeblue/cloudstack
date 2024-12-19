@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.host;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -32,9 +31,7 @@ import com.cloud.user.Account;
 @APICommand(name = "deleteHost", description = "Deletes a host.", responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteHostCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteHostCmd.class.getName());
 
-    private static final String s_name = "deletehostresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -65,7 +62,7 @@ public class DeleteHostCmd extends BaseCmd {
         return (forced != null) ? forced : false;
     }
 
-    public boolean isForceDestoryLocalStorage() {
+    public boolean isForceDestroyLocalStorage() {
         return (forceDestroyLocalStorage != null) ? forceDestroyLocalStorage : true;
     }
 
@@ -74,18 +71,13 @@ public class DeleteHostCmd extends BaseCmd {
     // ///////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
     }
 
     @Override
     public void execute() {
-        boolean result = _resourceService.deleteHost(getId(), isForced(), isForceDestoryLocalStorage());
+        boolean result = _resourceService.deleteHost(getId(), isForced(), isForceDestroyLocalStorage());
         if (result) {
             SuccessResponse response = new SuccessResponse(getCommandName());
             this.setResponseObject(response);

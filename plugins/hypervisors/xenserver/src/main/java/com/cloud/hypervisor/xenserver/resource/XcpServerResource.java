@@ -16,7 +16,7 @@
 // under the License.
 package com.cloud.hypervisor.xenserver.resource;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.xmlrpc.XmlRpcException;
 
 import com.xensource.xenapi.Connection;
@@ -28,7 +28,6 @@ import static com.cloud.utils.NumbersUtil.toHumanReadableSize;
 
 public class XcpServerResource extends CitrixResourceBase {
 
-    private final static Logger s_logger = Logger.getLogger(XcpServerResource.class);
     private final static long mem_32m = 33554432L;
 
     @Override
@@ -88,8 +87,8 @@ public class XcpServerResource extends CitrixResourceBase {
     @Override
     protected void setMemory(final Connection conn, final VM vm, final long minMemsize, final long maxMemsize) throws XmlRpcException, XenAPIException {
         //setMemoryLimits(staticMin, staticMax, dynamicMin, dynamicMax)
-        if (s_logger.isDebugEnabled()) {
-           s_logger.debug("Memory Limits for VM [" + vm.getNameLabel(conn) + "[staticMin:" + toHumanReadableSize(mem_32m) + ", staticMax:" + toHumanReadableSize(maxMemsize) + ", dynamicMin: " + toHumanReadableSize(minMemsize) +
+        if (logger.isDebugEnabled()) {
+           logger.debug("Memory Limits for VM [" + vm.getNameLabel(conn) + "[staticMin:" + toHumanReadableSize(mem_32m) + ", staticMax:" + toHumanReadableSize(maxMemsize) + ", dynamicMin: " + toHumanReadableSize(minMemsize) +
                     ", dynamicMax:" + toHumanReadableSize(maxMemsize) + "]]");
         }
         vm.setMemoryLimits(conn, mem_32m, maxMemsize, minMemsize, maxMemsize);
@@ -100,5 +99,28 @@ public class XcpServerResource extends CitrixResourceBase {
         //Dynamic Memory Control (DMC) is a technology provided by Xen Cloud Platform (XCP), starting from the 0.5 release
         //For the supported XCPs dmc is default enabled, XCP 1.0.0, 1.1.0, 1.4.x, 1.5 beta, 1.6.x;
         return true;
+    }
+
+    @Override
+    public String networkUsage(final Connection conn, final String privateIpAddress, final String option, final String vif, final String publicIp) {
+        String args = "";
+        if (option.equals("get")) {
+            args += "-g";
+            if (StringUtils.isNotEmpty(publicIp)) {
+                args += " -l " + publicIp;
+            }
+        } else if (option.equals("create")) {
+            args += "-c";
+        } else if (option.equals("reset")) {
+            args += "-r";
+        } else if (option.equals("addVif")) {
+            args += "-a ";
+            args += vif;
+        } else if (option.equals("deleteVif")) {
+            args += "-d ";
+            args += vif;
+        }
+
+        return executeInVR(privateIpAddress, "netusage.sh", args).getDetails();
     }
 }

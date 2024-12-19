@@ -230,6 +230,24 @@ public interface GenericDao<T, ID extends Serializable> {
     int expunge(final SearchCriteria<T> sc);
 
     /**
+     * remove the entity bean specified by the search criteria and filter
+     * @param sc
+     * @param filter
+     * @return number of rows deleted
+     */
+    int expunge(final SearchCriteria<T> sc, final Filter filter);
+
+    /**
+     * remove the entity bean specified by the search criteria and batchSize
+     * @param sc
+     * @param batchSize
+     * @return number of rows deleted
+     */
+    int batchExpunge(final SearchCriteria<T> sc, final Long batchSize);
+
+    int expungeList(List<ID> ids);
+
+    /**
      * expunge the removed rows.
      */
     void expunge();
@@ -258,6 +276,8 @@ public interface GenericDao<T, ID extends Serializable> {
 
     public T findOneBy(final SearchCriteria<T> sc);
 
+    T findOneBy(SearchCriteria<T> sc, Filter filter);
+
     /**
      * @return
      */
@@ -269,6 +289,8 @@ public interface GenericDao<T, ID extends Serializable> {
      * @return
      */
     Pair<List<T>, Integer> searchAndCount(SearchCriteria<T> sc, Filter filter);
+
+    Pair<List<T>, Integer> searchAndCount(SearchCriteria<T> sc, Filter filter, boolean includeRemoved);
 
     /**
      * @param sc
@@ -282,4 +304,6 @@ public interface GenericDao<T, ID extends Serializable> {
     Pair<List<T>, Integer> searchAndDistinctCount(final SearchCriteria<T> sc, final Filter filter, final String[] distinctColumns);
 
     Integer countAll();
+
+    List<T> findByUuids(String... uuidArray);
 }

@@ -25,6 +25,8 @@ import com.cloud.kubernetes.version.KubernetesSupportedVersion;
 import com.cloud.serializer.Param;
 import com.google.gson.annotations.SerializedName;
 
+import java.util.Date;
+
 @SuppressWarnings("unused")
 @EntityReference(value = {KubernetesSupportedVersion.class})
 public class KubernetesSupportedVersionResponse extends BaseResponse {
@@ -79,6 +81,14 @@ public class KubernetesSupportedVersionResponse extends BaseResponse {
     @SerializedName(ApiConstants.MIN_MEMORY)
     @Param(description = "the minimum RAM size in MB needed for the Kubernetes supported version")
     private Integer minimumRamSize;
+
+    @SerializedName(ApiConstants.CREATED)
+    @Param(description = "the date when this Kubernetes supported version was created")
+    private Date created;
+
+    @SerializedName(ApiConstants.DIRECT_DOWNLOAD)
+    @Param(description = "KVM Only: true if the ISO for the Kubernetes supported version is directly downloaded to Primary Storage bypassing Secondary Storage", since = "4.18.2")
+    private Boolean directDownload;
 
     public String getId() {
         return id;
@@ -182,5 +192,13 @@ public class KubernetesSupportedVersionResponse extends BaseResponse {
 
     public void setSupportsAutoscaling(Boolean supportsAutoscaling) {
         this.supportsAutoscaling = supportsAutoscaling;
+    }
+
+    public void setCreated(Date created) {
+        this.created = created;
+    }
+
+    public void setDirectDownload(Boolean directDownload) {
+        this.directDownload = directDownload;
     }
 }

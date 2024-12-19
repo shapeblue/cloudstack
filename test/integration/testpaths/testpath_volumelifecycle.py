@@ -732,7 +732,7 @@ class TestPathVolume(cloudstackTestCase):
         self.assertGreater(
             len(list_pool),
             0,
-            "Check the list list storagepoolresponse for vm id:  %s" %
+            "Check the list storagepoolresponse for vm id:  %s" %
             list_volume[0].storageid)
         list_pools = StoragePool.list(self.apiclient,
                                       scope=list_pool[0].scope
@@ -995,7 +995,7 @@ class TestPathVolume(cloudstackTestCase):
                                                  )
             self.fail("Volume got attached to a destroyed vm ")
         except Exception:
-            self.debug("Volume cant not be attached to a destroyed vm ")
+            self.debug("Volume can't not be attached to a destroyed vm ")
 
         # 11.Upload the volume  by providing the URL of the downloaded
         # volume, but specify a wrong format (not supported by the hypervisor)

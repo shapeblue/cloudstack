@@ -1,8 +1,8 @@
 # UI Development
 
-The modern CloudStack UI is role-based progressive app that uses VueJS and Ant Design.
+The modern CloudStack UI is role-based progressive app that uses Vue.js and Ant Design.
 
-Javascript, VueJS references:
+JavaScript, Vue.js references:
 - https://www.w3schools.com/js/
 - https://www.geeksforgeeks.org/javascript-tutorial/
 - https://vuejs.org/v2/guide/
@@ -96,7 +96,7 @@ The children should have:
 - `tabs`: Array of custom components that will get rendered as tabs in the
   resource view
 - `component`: The custom component for rendering the route view
-- `related`: A list of associated entitiy types that can be listed via passing
+- `related`: A list of associated entity types that can be listed via passing
   the current resource's id as a parameter in their respective list APIs
 - `actions`: Array of actions that can be performed on the resource
 
@@ -177,7 +177,7 @@ The columns that should be made available while displaying the list of
   or a function in case we need to selectively (i.e., based on certain
   conditions) restrict the view of certain columns.
 
-It also contains router-links to the resouce and other related data such as the
+It also contains router-links to the resource and other related data such as the
   account, domain, etc of the resource if present
 
 For example:
@@ -207,7 +207,7 @@ The Resource View has 2 sections:
   with the related entities
 - DetailsTab to the right which provide the basic details about the resource.
 
-Custom tabs to render custom details, addtional information of the resource
+Custom tabs to render custom details, additional information of the resource
   The list of fields to be displayed maybe defined as an array
   or a function in case we need to selectively (i.e., based on certain
   conditions) restrict the view of certain columns. The names specified in the

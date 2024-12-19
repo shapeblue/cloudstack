@@ -6,16 +6,16 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
- 
+
 
 # cloud-build-api-doc.sh -- builds api documentation.
 #set -x
@@ -59,8 +59,12 @@ fi
 # Default case for Linux sed, just use "-i"
 sedi='-i'
 case "$(uname)" in
-  # For macOS, use two parameters
-  Darwin*) sedi='-i ""'
+  # For macOS, use two parameters, if gnu sed is not set up
+  Darwin*)
+    if ! $(which sed | grep -q gnu); then
+      sedi='-i ""'
+    fi
+  ;;
 esac
 
 set -e
@@ -77,10 +81,10 @@ set -e
      gen_toc_file="`cygpath -w $thisdir`\\gen_toc.py"
      for file in `find . -type f`; do
          echo "Parse file $file";
-         python $gen_toc_file $file;
+         python3 $gen_toc_file $file;
      done
  else
-     python "$thisdir/gen_toc.py" $(find . -type f)
+     python3 "$thisdir/gen_toc.py" $(find . -type f)
  fi
 
  cat generatetoc_include.xsl >> generatetoc.xsl

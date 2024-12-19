@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.ArrayList;
 
 import com.cloud.vm.VirtualMachine;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -49,9 +48,7 @@ import com.cloud.user.Account;
             requestHasSensitiveInfo = false,
             responseHasSensitiveInfo = false)
 public class RemoveFromLoadBalancerRuleCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(RemoveFromLoadBalancerRuleCmd.class.getName());
 
-    private static final String s_name = "removefromloadbalancerruleresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -96,11 +93,6 @@ public class RemoveFromLoadBalancerRuleCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {
@@ -159,7 +151,7 @@ public class RemoveFromLoadBalancerRuleCmd extends BaseAsyncCmd {
         CallContext.current().setEventDetails("Load balancer Id: " + getId() + " VmIds: " + StringUtils.join(getVirtualMachineIds(), ","));
         Map<Long, List<String>> vmIdIpsMap = getVmIdIpListMap();
         try {
-            boolean result = _lbService.removeFromLoadBalancer(id, virtualMachineIds, vmIdIpsMap);
+            boolean result = _lbService.removeFromLoadBalancer(id, virtualMachineIds, vmIdIpsMap, false);
             if (result) {
                 SuccessResponse response = new SuccessResponse(getCommandName());
                 this.setResponseObject(response);

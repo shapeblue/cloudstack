@@ -25,13 +25,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
+import org.apache.cloudstack.utils.security.ParserUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.contrib.ssl.EasySSLProtocolSocketFactory;
 import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -47,7 +47,7 @@ public class CiscoVnmcConnectionImpl implements CiscoVnmcConnection {
     private final String _password;
     private String _cookie;
 
-    private static final Logger s_logger = Logger.getLogger(CiscoVnmcConnectionImpl.class);
+    protected static Logger LOGGER = LogManager.getLogger(CiscoVnmcConnectionImpl.class);
 
     private enum VnmcXml {
         LOGIN("login.xml", "mgmt-controller"),
@@ -142,7 +142,7 @@ public class CiscoVnmcConnectionImpl implements CiscoVnmcConnection {
 
                 return xml;
             } catch (Exception e) {
-                s_logger.debug(e);
+                LOGGER.debug(e);
                 return null;
             }
         }
@@ -1289,10 +1289,10 @@ public class CiscoVnmcConnectionImpl implements CiscoVnmcConnection {
         Document doc = null;
 
         try {
-            doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlSource);
+            doc = ParserUtils.getSaferDocumentBuilderFactory().newDocumentBuilder().parse(xmlSource);
 
         } catch (Exception e) {
-            s_logger.error(e);
+            LOGGER.error(e);
             throw new ExecutionException(e.getMessage());
         }
 

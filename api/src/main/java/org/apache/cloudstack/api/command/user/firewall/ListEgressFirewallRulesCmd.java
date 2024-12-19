@@ -20,7 +20,6 @@ package org.apache.cloudstack.api.command.user.firewall;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
@@ -39,8 +38,6 @@ import com.cloud.utils.Pair;
 @APICommand(name = "listEgressFirewallRules", description = "Lists all egress firewall rules for network ID.", responseObject = FirewallResponse.class, entityType = {FirewallRule.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListEgressFirewallRulesCmd extends BaseListTaggedResourcesCmd implements IListFirewallRulesCmd {
-    public static final Logger s_logger = Logger.getLogger(ListEgressFirewallRulesCmd.class.getName());
-    private static final String s_name = "listegressfirewallrulesresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -94,11 +91,6 @@ public class ListEgressFirewallRulesCmd extends BaseListTaggedResourcesCmd imple
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public void execute() {

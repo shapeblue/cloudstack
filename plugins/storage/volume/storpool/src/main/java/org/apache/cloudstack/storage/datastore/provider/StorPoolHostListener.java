@@ -37,7 +37,11 @@ import org.apache.cloudstack.storage.datastore.util.StorPoolHelper;
 import org.apache.cloudstack.storage.datastore.util.StorPoolUtil;
 import org.apache.cloudstack.storage.datastore.util.StorPoolUtil.SpApiResponse;
 import org.apache.cloudstack.storage.datastore.util.StorPoolUtil.SpConnectionDesc;
-import org.apache.log4j.Logger;
+import org.apache.cloudstack.storage.snapshot.StorPoolConfigurationManager;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
@@ -46,6 +50,7 @@ import com.cloud.agent.api.storage.StorPoolModifyStoragePoolCommand;
 import com.cloud.agent.manager.AgentAttache;
 import com.cloud.alert.AlertManager;
 import com.cloud.dc.ClusterDetailsDao;
+import com.cloud.dc.ClusterDetailsVO;
 import com.cloud.dc.dao.ClusterDao;
 import com.cloud.exception.StorageConflictException;
 import com.cloud.host.HostVO;
@@ -58,7 +63,7 @@ import com.cloud.storage.dao.StoragePoolHostDao;
 import com.cloud.utils.exception.CloudRuntimeException;
 
 public class StorPoolHostListener implements HypervisorHostListener {
-    private static final Logger log = Logger.getLogger(StorPoolHostListener .class);
+    protected Logger logger = LogManager.getLogger(getClass());
 
     @Inject
     private AgentManager agentMgr;
@@ -118,21 +123,22 @@ public class StorPoolHostListener implements HypervisorHostListener {
         final Answer answer = agentMgr.easySend(hostId, cmd);
 
         StoragePoolHostVO poolHost = storagePoolHostDao.findByPoolHost(pool.getId(), hostId);
+        boolean isPoolConnectedToTheHost = poolHost != null;
 
         if (answer == null) {
+            StorPoolUtil.spLog("Storage pool [%s] is not connected to the host [%s]", poolVO.getName(), host.getName());
+            deleteVolumeWhenHostCannotConnectPool(conn, volumeOnPool);
+            removePoolOnHost(poolHost, isPoolConnectedToTheHost);
             throw new CloudRuntimeException("Unable to get an answer to the modify storage pool command" + pool.getId());
         }
 
         if (!answer.getResult()) {
-            if (answer.getDetails() != null) {
-                if (answer.getDetails().equals("objectDoesNotExist")) {
-                    StorPoolUtil.volumeDelete(StorPoolStorageAdaptor.getVolumeNameFromPath(volumeOnPool.getValue(), true), conn);
-                    storagePoolDetailsDao.remove(volumeOnPool.getId());
-                    return false;
-                } else if (answer.getDetails().equals("spNotFound")) {
-                    return false;
-                }
+            StorPoolUtil.spLog("Storage pool [%s] is not connected to the host [%s]", poolVO.getName(), host.getName());
+            removePoolOnHost(poolHost, isPoolConnectedToTheHost);
 
+            if (answer.getDetails() != null && isStorPoolVolumeOrStorageNotExistsOnHost(answer)) {
+                deleteVolumeWhenHostCannotConnectPool(conn, volumeOnPool);
+                return false;
             }
             String msg = "Unable to attach storage pool" + poolId + " to the host" + hostId;
             alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, pool.getDataCenterId(), pool.getPodId(), msg, msg);
@@ -140,32 +146,50 @@ public class StorPoolHostListener implements HypervisorHostListener {
                 pool.getId());
         }
 
-        StorPoolUtil.spLog("hostConnect: hostId=%d, poolId=%d", hostId, poolId);
-
         StorPoolModifyStoragePoolAnswer mspAnswer = (StorPoolModifyStoragePoolAnswer)answer;
         if (mspAnswer.getLocalDatastoreName() != null && pool.isShared()) {
             String datastoreName = mspAnswer.getLocalDatastoreName();
             List<StoragePoolVO> localStoragePools = primaryStoreDao.listLocalStoragePoolByPath(pool.getDataCenterId(), datastoreName);
             for (StoragePoolVO localStoragePool : localStoragePools) {
                 if (datastoreName.equals(localStoragePool.getPath())) {
-                    log.warn("Storage pool: " + pool.getId() + " has already been added as local storage: " + localStoragePool.getName());
+                    logger.warn("Storage pool: " + pool.getId() + " has already been added as local storage: " + localStoragePool.getName());
                     throw new StorageConflictException("Cannot add shared storage pool: " + pool.getId() + " because it has already been added as local storage:"
                             + localStoragePool.getName());
                 }
             }
         }
 
-        if (poolHost == null) {
+        if (!isPoolConnectedToTheHost) {
             poolHost = new StoragePoolHostVO(pool.getId(), hostId, mspAnswer.getPoolInfo().getLocalPath().replaceAll("//", "/"));
             storagePoolHostDao.persist(poolHost);
         } else {
             poolHost.setLocalPath(mspAnswer.getPoolInfo().getLocalPath().replaceAll("//", "/"));
         }
 
+        if (host.getParent() == null && mspAnswer.getClientNodeId() != null) {
+            host.setParent(mspAnswer.getClientNodeId());
+            hostDao.update(host.getId(), host);
+        }
+
         StorPoolHelper.setSpClusterIdIfNeeded(hostId, mspAnswer.getClusterId(), clusterDao, hostDao, clusterDetailsDao);
 
-        log.info("Connection established between storage pool " + pool + " and host " + hostId);
+        StorPoolUtil.spLog("Connection established between storage pool [%s] and host [%s]", poolVO.getName(), host.getName());
         return true;
+    }
+
+    private boolean isStorPoolVolumeOrStorageNotExistsOnHost(final Answer answer) {
+        return StringUtils.equalsAny(answer.getDetails(), "objectDoesNotExist", "spNotFound");
+    }
+
+    private void deleteVolumeWhenHostCannotConnectPool(SpConnectionDesc conn, StoragePoolDetailVO volumeOnPool) {
+        StorPoolUtil.volumeDelete(StorPoolStorageAdaptor.getVolumeNameFromPath(volumeOnPool.getValue(), true), conn);
+        storagePoolDetailsDao.remove(volumeOnPool.getId());
+    }
+
+    private void removePoolOnHost(StoragePoolHostVO poolHost, boolean isPoolConnectedToTheHost) {
+        if (isPoolConnectedToTheHost) {
+            storagePoolHostDao.remove(poolHost.getId());
+        }
     }
 
     private synchronized StoragePoolDetailVO verifyVolumeIsOnCluster(long poolId, SpConnectionDesc conn, long clusterId) {
@@ -199,8 +223,21 @@ public class StorPoolHostListener implements HypervisorHostListener {
     }
 
     @Override
-    public boolean hostRemoved(long hostId, long clusterId) {
+    public synchronized boolean hostRemoved(long hostId, long clusterId) {
+        List<HostVO> hosts = hostDao.findByClusterId(clusterId);
+        if (CollectionUtils.isNotEmpty(hosts) && hosts.size() == 1) {
+            removeSPClusterIdWhenTheLastHostIsRemoved(clusterId);
+        }
         return true;
+    }
+
+    private void removeSPClusterIdWhenTheLastHostIsRemoved(long clusterId) {
+        ClusterDetailsVO clusterDetailsVo = clusterDetailsDao.findDetail(clusterId,
+                StorPoolConfigurationManager.StorPoolClusterId.key());
+        if (clusterDetailsVo != null && (clusterDetailsVo.getValue() != null && !clusterDetailsVo.getValue().equals(StorPoolConfigurationManager.StorPoolClusterId.defaultValue())) ){
+            clusterDetailsVo.setValue(StorPoolConfigurationManager.StorPoolClusterId.defaultValue());
+            clusterDetailsDao.update(clusterDetailsVo.getId(), clusterDetailsVo);
+        }
     }
 
     //workaround: we need this "hack" to add our command StorPoolModifyStoragePoolCommand in AgentAttache.s_commandsAllowedInMaintenanceMode
@@ -223,7 +260,7 @@ public class StorPoolHostListener implements HypervisorHostListener {
         } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
             String err = "Could not add StorPoolModifyStoragePoolCommand to s_commandsAllowedInMaintenanceMode array due to: %s";
             StorPoolUtil.spLog(err, e.getMessage());
-            log.warn(String.format(err, e.getMessage()));
+            logger.warn(String.format(err, e.getMessage()));
         }
     }
 

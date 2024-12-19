@@ -31,6 +31,8 @@ public class NetworkProfile implements Network {
     private final long domainId;
     private String dns1;
     private String dns2;
+    private String ip6Dns1;
+    private String ip6Dns2;
     private URI broadcastUri;
     private final State state;
     private boolean isRedundant;
@@ -39,8 +41,8 @@ public class NetworkProfile implements Network {
     private final Mode mode;
     private final BroadcastDomainType broadcastDomainType;
     private TrafficType trafficType;
-    private final String gateway;
-    private final String cidr;
+    private String gateway;
+    private String cidr;
     private final String networkCidr;
     private final String ip6Gateway;
     private final String ip6Cidr;
@@ -60,6 +62,7 @@ public class NetworkProfile implements Network {
     private final String guruName;
     private boolean strechedL2Subnet;
     private String externalId;
+    private Integer networkCidrSize;
 
     public NetworkProfile(Network network) {
         id = network.getId();
@@ -96,12 +99,15 @@ public class NetworkProfile implements Network {
         isRedundant = network.isRedundant();
         isRollingRestart = network.isRollingRestart();
         externalId = network.getExternalId();
+        networkCidrSize = network.getNetworkCidrSize();
     }
 
+    @Override
     public String getDns1() {
         return dns1;
     }
 
+    @Override
     public String getDns2() {
         return dns2;
     }
@@ -112,6 +118,24 @@ public class NetworkProfile implements Network {
 
     public void setDns2(String dns2) {
         this.dns2 = dns2;
+    }
+
+    @Override
+    public String getIp6Dns1() {
+        return ip6Dns1;
+    }
+
+    @Override
+    public String getIp6Dns2() {
+        return ip6Dns2;
+    }
+
+    public void setIp6Dns1(String ip6Dns1) {
+        this.ip6Dns1 = ip6Dns1;
+    }
+
+    public void setIp6Dns2(String ip6Dns2) {
+        this.ip6Dns2 = ip6Dns2;
     }
 
     @Override
@@ -189,8 +213,18 @@ public class NetworkProfile implements Network {
     }
 
     @Override
+    public void setGateway(String gateway) {
+        this.gateway = gateway;
+    }
+
+    @Override
     public String getCidr() {
         return cidr;
+    }
+
+    @Override
+    public void setCidr(String cidr) {
+        this.cidr = cidr;
     }
 
     @Override
@@ -333,6 +367,21 @@ public class NetworkProfile implements Network {
     @Override
     public Date getCreated() {
         return null;
+    }
+
+    @Override
+    public Integer getPublicMtu() {
+        return null;
+    }
+
+    @Override
+    public Integer getPrivateMtu() {
+        return null;
+    }
+
+    @Override
+    public Integer getNetworkCidrSize() {
+        return networkCidrSize;
     }
 
 }

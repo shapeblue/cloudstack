@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.user.volume;
 
 import java.util.Map;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -33,8 +32,6 @@ import com.cloud.server.ResourceTag;
 @APICommand(name = "addResourceDetail", description = "Adds detail for the Resource.", responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class AddResourceDetailCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(AddResourceDetailCmd.class.getName());
-    private static final String s_name = "addresourcedetailresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -79,11 +76,6 @@ public class AddResourceDetailCmd extends BaseAsyncCmd {
 /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

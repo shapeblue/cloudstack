@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.user.autoscale;
 
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -43,13 +42,18 @@ import com.cloud.user.Account;
             requestHasSensitiveInfo = false,
             responseHasSensitiveInfo = false)
 public class CreateAutoScalePolicyCmd extends BaseAsyncCreateCmd {
-    public static final Logger s_logger = Logger.getLogger(CreateAutoScalePolicyCmd.class.getName());
 
     private static final String s_name = "autoscalepolicyresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
     // ///////////////////////////////////////////////////
+
+    @Parameter(name = ApiConstants.NAME,
+            type = CommandType.STRING,
+            description = "the name of the autoscale policy",
+            since = "4.18.0")
+    private String name;
 
     @Parameter(name = ApiConstants.ACTION,
                type = CommandType.STRING,
@@ -60,12 +64,12 @@ public class CreateAutoScalePolicyCmd extends BaseAsyncCreateCmd {
     @Parameter(name = ApiConstants.DURATION,
                type = CommandType.INTEGER,
                required = true,
-               description = "the duration for which the conditions have to be true before action is taken")
+               description = "the duration in which the conditions have to be true before action is taken")
     private int duration;
 
     @Parameter(name = ApiConstants.QUIETTIME,
                type = CommandType.INTEGER,
-               description = "the cool down period for which the policy should not be evaluated after the action has been taken")
+               description = "the cool down period in which the policy should not be evaluated after the action has been taken")
     private Integer quietTime;
 
     @Parameter(name = ApiConstants.CONDITION_IDS,
@@ -82,6 +86,10 @@ public class CreateAutoScalePolicyCmd extends BaseAsyncCreateCmd {
 
     private Long conditionDomainId;
     private Long conditionAccountId;
+
+    public String getName() {
+        return name;
+    }
 
     public int getDuration() {
         return duration;

@@ -24,7 +24,6 @@ import com.cloud.exception.ResourceUnavailableException;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.BaseListCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
@@ -36,13 +35,12 @@ import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.direct.download.DirectDownloadCertificate;
 import org.apache.cloudstack.direct.download.DirectDownloadCertificateHostMap;
 import org.apache.cloudstack.direct.download.DirectDownloadManager;
-import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-@APICommand(name = ListTemplateDirectDownloadCertificatesCmd.APINAME,
+@APICommand(name = "listTemplateDirectDownloadCertificates",
         description = "List the uploaded certificates for direct download templates",
         responseObject = DirectDownloadCertificateResponse.class,
         since = "4.17.0",
@@ -64,8 +62,6 @@ public class ListTemplateDirectDownloadCertificatesCmd extends BaseListCmd {
             description = "if set to true: include the hosts where the certificate is uploaded to")
     private Boolean listHosts;
 
-    private static final Logger LOG = Logger.getLogger(ListTemplateDirectDownloadCertificatesCmd.class);
-    public static final String APINAME = "listTemplateDirectDownloadCertificates";
 
     public boolean isListHosts() {
         return listHosts != null && listHosts;
@@ -96,11 +92,6 @@ public class ListTemplateDirectDownloadCertificatesCmd extends BaseListCmd {
             ConcurrentOperationException, ResourceAllocationException, NetworkRuleConflictException {
         List<DirectDownloadCertificate> certificates = directDownloadManager.listDirectDownloadCertificates(id, zoneId);
         createResponse(certificates);
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     @Override

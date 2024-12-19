@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.user.loadbalancer;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -41,9 +40,7 @@ import org.apache.cloudstack.network.tls.CertService;
 @APICommand(name = "uploadSslCert", description = "Upload a certificate to CloudStack", responseObject = SslCertResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UploadSslCertCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(UploadSslCertCmd.class.getName());
 
-    private static final String s_name = "uploadsslcertresponse";
 
     @Inject
     CertService _certService;
@@ -136,11 +133,6 @@ public class UploadSslCertCmd extends BaseCmd {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
         }
 
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

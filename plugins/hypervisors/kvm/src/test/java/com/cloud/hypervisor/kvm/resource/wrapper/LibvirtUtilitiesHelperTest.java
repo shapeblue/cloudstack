@@ -23,13 +23,13 @@ import org.libvirt.Connect;
 import org.libvirt.LibvirtException;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.cloud.utils.Pair;
 
 import junit.framework.TestCase;
 
-@RunWith(PowerMockRunner.class)
+@RunWith(MockitoJUnitRunner.class)
 public class LibvirtUtilitiesHelperTest extends TestCase {
 
     LibvirtUtilitiesHelper libvirtUtilitiesHelperSpy = Mockito.spy(LibvirtUtilitiesHelper.class);
@@ -42,7 +42,7 @@ public class LibvirtUtilitiesHelperTest extends TestCase {
         Mockito.doThrow(LibvirtException.class).when(connectMock).getLibVirVersion();
         Pair<String, Boolean> result = LibvirtUtilitiesHelper.isLibvirtVersionEqualOrHigherThanVersionInParameter(connectMock, 0l);
 
-        Assert.assertEquals("Unknow due to [null]", result.first());
+        Assert.assertEquals("Unknown due to [null]", result.first());
         Assert.assertFalse(result.second());
     }
 

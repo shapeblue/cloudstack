@@ -22,12 +22,15 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.cloudstack.utils.security.ParserUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.cloudstack.utils.qemu.QemuObject;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -39,26 +42,32 @@ import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.ChannelDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.DiskDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.InterfaceDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.InterfaceDef.NicModel;
+import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.MemBalloonDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.RngDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.RngDef.RngBackendModel;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.WatchDogDef;
-import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.WatchDogDef.WatchDogModel;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.WatchDogDef.WatchDogAction;
+import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.WatchDogDef.WatchDogModel;
 
 public class LibvirtDomainXMLParser {
-    private static final Logger s_logger = Logger.getLogger(LibvirtDomainXMLParser.class);
+    protected Logger logger = LogManager.getLogger(getClass());
     private final List<InterfaceDef> interfaces = new ArrayList<InterfaceDef>();
+    private MemBalloonDef memBalloonDef = new MemBalloonDef();
     private final List<DiskDef> diskDefs = new ArrayList<DiskDef>();
     private final List<RngDef> rngDefs = new ArrayList<RngDef>();
     private final List<ChannelDef> channels = new ArrayList<ChannelDef>();
     private final List<WatchDogDef> watchDogDefs = new ArrayList<WatchDogDef>();
     private Integer vncPort;
+    private  String vncPasswd;
     private String desc;
+    private LibvirtVMDef.CpuTuneDef cpuTuneDef;
+    private LibvirtVMDef.CpuModeDef cpuModeDef;
+    private String name;
 
     public boolean parseDomainXML(String domXML) {
         DocumentBuilder builder;
         try {
-            builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            builder = ParserUtils.getSaferDocumentBuilderFactory().newDocumentBuilder();
 
             InputSource is = new InputSource();
             is.setCharacterStream(new StringReader(domXML));
@@ -67,6 +76,7 @@ public class LibvirtDomainXMLParser {
             Element rootElement = doc.getDocumentElement();
 
             desc = getTagValue("description", rootElement);
+            name = getTagValue("name", rootElement);
 
             Element devices = (Element)rootElement.getElementsByTagName("devices").item(0);
             NodeList disks = devices.getElementsByTagName("disk");
@@ -81,7 +91,7 @@ public class LibvirtDomainXMLParser {
                     String protocol = getAttrValue("source", "protocol", disk);
                     String authUserName = getAttrValue("auth", "username", disk);
                     String poolUuid = getAttrValue("secret", "uuid", disk);
-                    String host = getAttrValue("host", "name", disk);
+                    String host = LibvirtStoragePoolXMLParser.getStorageHosts(disk);
                     int port = 0;
                     String xmlPort = getAttrValue("host", "port", disk);
                     if (StringUtils.isNotBlank(xmlPort)) {
@@ -117,7 +127,7 @@ public class LibvirtDomainXMLParser {
                             }
                             def.defFileBasedDisk(diskFile, diskLabel, DiskDef.DiskBus.valueOf(bus.toUpperCase()), fmt);
                         } else if (device.equalsIgnoreCase("cdrom")) {
-                            def.defISODisk(diskFile , i+1);
+                            def.defISODisk(diskFile, i+1, diskLabel);
                         }
                     } else if (type.equalsIgnoreCase("block")) {
                         def.defBlockBasedDisk(diskDev, diskLabel,
@@ -192,8 +202,19 @@ public class LibvirtDomainXMLParser {
                     }
                 }
 
+                NodeList encryption = disk.getElementsByTagName("encryption");
+                if (encryption.getLength() != 0) {
+                    Element encryptionElement = (Element) encryption.item(0);
+                    String passphraseUuid = getAttrValue("secret", "uuid", encryptionElement);
+                    QemuObject.EncryptFormat encryptFormat = QemuObject.EncryptFormat.enumValue(encryptionElement.getAttribute("format"));
+                    DiskDef.LibvirtDiskEncryptDetails encryptDetails = new DiskDef.LibvirtDiskEncryptDetails(passphraseUuid, encryptFormat);
+                    def.setLibvirtDiskEncryptDetails(encryptDetails);
+                }
+
                 diskDefs.add(def);
             }
+
+            memBalloonDef = parseMemBalloonTag(devices);
 
             NodeList nics = devices.getElementsByTagName("interface");
             for (int i = 0; i < nics.getLength(); i++) {
@@ -234,6 +255,15 @@ public class LibvirtDomainXMLParser {
                     def.setDpdkOvsPath(ovsPath);
                     def.setInterfaceMode(mode);
                 }
+                String multiQueueNumber = getAttrValue("driver", "queues", nic);
+                if (StringUtils.isNotBlank(multiQueueNumber)) {
+                    def.setMultiQueueNumber(Integer.valueOf(multiQueueNumber));
+                }
+
+                String packedOn = getAttrValue("driver", "packed", nic);
+                if (StringUtils.isNotBlank(packedOn)) {
+                    def.setPackedVirtQueues("on".equalsIgnoreCase(packedOn));
+                }
 
                 if (StringUtils.isNotBlank(slot)) {
                     def.setSlot(Integer.parseInt(slot, 16));
@@ -250,6 +280,14 @@ public class LibvirtDomainXMLParser {
                 String path = getAttrValue("source", "path", channel);
                 String name = getAttrValue("target", "name", channel);
                 String state = getAttrValue("target", "state", channel);
+
+                if (ChannelDef.ChannelType.valueOf(type.toUpperCase()).equals(ChannelDef.ChannelType.SPICEVMC)) {
+                    continue;
+                }
+
+                if (path == null) {
+                    path = "";
+                }
 
                 ChannelDef def = null;
                 if (StringUtils.isBlank(state)) {
@@ -278,6 +316,12 @@ public class LibvirtDomainXMLParser {
                         vncPort = null;
                     }
                 }
+
+                String passwd = graphic.getAttribute("passwd");
+                if (passwd != null) {
+                    vncPasswd = passwd;
+                }
+
             }
 
             NodeList rngs = devices.getElementsByTagName("rng");
@@ -288,15 +332,39 @@ public class LibvirtDomainXMLParser {
                 String path = getTagValue("backend", rng);
                 String bytes = getAttrValue("rate", "bytes", rng);
                 String period = getAttrValue("rate", "period", rng);
+                if (StringUtils.isAnyEmpty(bytes, period)) {
+                    logger.debug(String.format("Bytes and period in the rng section should not be null, please check the VM %s", name));
+                }
+
+                if (bytes == null) {
+                    bytes = "0";
+                }
+
+                if (period == null) {
+                    period = "0";
+                }
+
+                if (bytes == null) {
+                    bytes = "0";
+                }
+
+                if (period == null) {
+                    period = "0";
+                }
 
                 if (StringUtils.isEmpty(backendModel)) {
                     def = new RngDef(path, Integer.parseInt(bytes), Integer.parseInt(period));
                 } else {
-                    def = new RngDef(path, RngBackendModel.valueOf(backendModel.toUpperCase()),
-                                     Integer.parseInt(bytes), Integer.parseInt(period));
+                    if (StringUtils.isEmpty(backendModel)) {
+                        def = new RngDef(path, Integer.parseInt(bytes), Integer.parseInt(period));
+                    } else {
+                        def = new RngDef(path, RngBackendModel.valueOf(backendModel.toUpperCase()),
+                                Integer.parseInt(bytes), Integer.parseInt(period));
+                    }
                 }
-
-                rngDefs.add(def);
+                if (def != null) {
+                    rngDefs.add(def);
+                }
             }
 
             NodeList watchDogs = devices.getElementsByTagName("watchdog");
@@ -319,19 +387,42 @@ public class LibvirtDomainXMLParser {
 
                 watchDogDefs.add(def);
             }
-
+            extractCpuTuneDef(rootElement);
+            extractCpuModeDef(rootElement);
             return true;
         } catch (ParserConfigurationException e) {
-            s_logger.debug(e.toString());
+            logger.debug(e.toString());
         } catch (SAXException e) {
-            s_logger.debug(e.toString());
+            logger.debug(e.toString());
         } catch (IOException e) {
-            s_logger.debug(e.toString());
+            logger.debug(e.toString());
         }
         return false;
     }
 
+    /**
+     * Parse the memballoon tag.
+     * @param devices the devices tag.
+     * @return the MemBalloonDef.
+     */
+    private MemBalloonDef parseMemBalloonTag(Element devices) {
+        MemBalloonDef def = new MemBalloonDef();
+        NodeList memBalloons = devices.getElementsByTagName("memballoon");
+        if (memBalloons != null && memBalloons.getLength() != 0) {
+            Element memBalloon = (Element)memBalloons.item(0);
+            String model = memBalloon.getAttribute("model");
+            if (model.equalsIgnoreCase("virtio")) {
+                String statsPeriod = getAttrValue("stats", "period", memBalloon);
+                def.defVirtioMemBalloon(statsPeriod);
+            }
+        }
+        return def;
+    }
+
     private static String getTagValue(String tag, Element eElement) {
+        if (eElement == null) {
+            return null;
+        }
         NodeList tagNodeList = eElement.getElementsByTagName(tag);
         if (tagNodeList == null || tagNodeList.getLength() == 0) {
             return null;
@@ -339,14 +430,20 @@ public class LibvirtDomainXMLParser {
 
         NodeList nlList = tagNodeList.item(0).getChildNodes();
 
+        if (nlList == null || nlList.getLength() == 0) {
+            return null;
+        }
         Node nValue = nlList.item(0);
 
         return nValue.getNodeValue();
     }
 
     private static String getAttrValue(String tag, String attr, Element eElement) {
+        if (eElement == null) {
+            return null;
+        }
         NodeList tagNode = eElement.getElementsByTagName(tag);
-        if (tagNode.getLength() == 0) {
+        if (tag == null || tagNode.getLength() == 0) {
             return null;
         }
         Element node = (Element)tagNode.item(0);
@@ -359,6 +456,14 @@ public class LibvirtDomainXMLParser {
 
     public List<InterfaceDef> getInterfaces() {
         return interfaces;
+    }
+
+    public String getVncPasswd() {
+        return vncPasswd;
+    }
+
+    public MemBalloonDef getMemBalloon() {
+        return memBalloonDef;
     }
 
     public List<DiskDef> getDisks() {
@@ -379,5 +484,71 @@ public class LibvirtDomainXMLParser {
 
     public String getDescription() {
         return desc;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public LibvirtVMDef.CpuTuneDef getCpuTuneDef() {
+        return cpuTuneDef;
+    }
+
+    public LibvirtVMDef.CpuModeDef getCpuModeDef() {
+        return cpuModeDef;
+    }
+
+    private void extractCpuTuneDef(final Element rootElement) {
+        NodeList cpuTunesList = rootElement.getElementsByTagName("cputune");
+        if (cpuTunesList.getLength() > 0) {
+            cpuTuneDef = new LibvirtVMDef.CpuTuneDef();
+            final Element cpuTuneDefElement = (Element) cpuTunesList.item(0);
+            final String cpuShares = getTagValue("shares", cpuTuneDefElement);
+            if (StringUtils.isNotBlank(cpuShares)) {
+                cpuTuneDef.setShares((Integer.parseInt(cpuShares)));
+            }
+
+            final String quota = getTagValue("quota", cpuTuneDefElement);
+            if (StringUtils.isNotBlank(quota)) {
+                cpuTuneDef.setQuota((Integer.parseInt(quota)));
+            }
+
+            final String period = getTagValue("period", cpuTuneDefElement);
+            if (StringUtils.isNotBlank(period)) {
+                cpuTuneDef.setPeriod((Integer.parseInt(period)));
+            }
+        }
+    }
+
+    private void extractCpuModeDef(final Element rootElement){
+        NodeList cpuModeList = rootElement.getElementsByTagName("cpu");
+        if (cpuModeList.getLength() > 0){
+            cpuModeDef = new LibvirtVMDef.CpuModeDef();
+            final Element cpuModeDefElement = (Element) cpuModeList.item(0);
+            final String cpuModel = getTagValue("model", cpuModeDefElement);
+            if (StringUtils.isNotBlank(cpuModel)){
+                cpuModeDef.setModel(cpuModel);
+            }
+            NodeList cpuFeatures = cpuModeDefElement.getElementsByTagName("features");
+            if (cpuFeatures.getLength() > 0) {
+                final ArrayList<String> features = new ArrayList<>(cpuFeatures.getLength());
+                for (int i = 0; i < cpuFeatures.getLength(); i++) {
+                    final Element feature = (Element)cpuFeatures.item(i);
+                    final String policy = feature.getAttribute("policy");
+                    String featureName = feature.getAttribute("name");
+                    if ("disable".equals(policy)) {
+                        featureName = "-" + featureName;
+                    }
+                    features.add(featureName);
+                }
+                cpuModeDef.setFeatures(features);
+            }
+            final String sockets = getAttrValue("topology", "sockets", cpuModeDefElement);
+            final String cores = getAttrValue("topology", "cores", cpuModeDefElement);
+            final String threads = getAttrValue("topology", "threads", cpuModeDefElement);
+            if (StringUtils.isNotBlank(sockets) && StringUtils.isNotBlank(cores) && StringUtils.isNotBlank(threads)) {
+                cpuModeDef.setTopology(Integer.parseInt(cores), Integer.parseInt(threads), Integer.parseInt(sockets));
+            }
+        }
     }
 }

@@ -19,6 +19,7 @@ package com.cloud.api.query.vo;
 import java.util.Date;
 
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -26,6 +27,7 @@ import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
+import com.cloud.cpu.CPU;
 import com.cloud.user.Account;
 import org.apache.cloudstack.engine.subsystem.api.storage.ObjectInDataStoreStateMachine;
 
@@ -36,6 +38,8 @@ import com.cloud.storage.VMTemplateStorageResourceAssoc.Status;
 import com.cloud.template.VirtualMachineTemplate;
 import com.cloud.template.VirtualMachineTemplate.State;
 import com.cloud.utils.db.GenericDao;
+import org.apache.cloudstack.util.CPUArchConverter;
+import org.apache.cloudstack.util.HypervisorTypeConverter;
 
 @Entity
 @Table(name = "template_view")
@@ -67,6 +71,10 @@ public class TemplateJoinVO extends BaseViewWithTagInformationVO implements Cont
 
     @Column(name = "hvm")
     private boolean requiresHvm;
+
+    @Column(name = "arch")
+    @Convert(converter = CPUArchConverter.class)
+    private CPU.CPUArch arch;
 
     @Column(name = "bits")
     private int bits;
@@ -114,7 +122,7 @@ public class TemplateJoinVO extends BaseViewWithTagInformationVO implements Cont
     private boolean crossZones = false;
 
     @Column(name = "hypervisor_type")
-    @Enumerated(value = EnumType.STRING)
+    @Convert(converter = HypervisorTypeConverter.class)
     private HypervisorType hypervisorType;
 
     @Column(name = "extractable")
@@ -235,6 +243,21 @@ public class TemplateJoinVO extends BaseViewWithTagInformationVO implements Cont
 
     @Column(name = "deploy_as_is")
     private boolean deployAsIs;
+
+    @Column(name = "user_data_id")
+    private Long userDataId;
+
+    @Column(name = "user_data_uuid")
+    private String userDataUuid;
+
+    @Column(name = "user_data_name")
+    private String userDataName;
+
+    @Column(name = "user_data_policy")
+    private String userDataPolicy;
+
+    @Column(name = "user_data_params")
+    private String userDataParams;
 
     public TemplateJoinVO() {
     }
@@ -507,4 +530,27 @@ public class TemplateJoinVO extends BaseViewWithTagInformationVO implements Cont
         return parentTemplateUuid;
     }
 
+    public Long getUserDataId() {
+        return userDataId;
+    }
+
+    public String getUserDataUUid() {
+        return userDataUuid;
+    }
+
+    public String getUserDataName() {
+        return userDataName;
+    }
+
+    public String getUserDataPolicy() {
+        return userDataPolicy;
+    }
+
+    public String getUserDataParams() {
+        return userDataParams;
+    }
+
+    public CPU.CPUArch getArch() {
+        return arch;
+    }
 }

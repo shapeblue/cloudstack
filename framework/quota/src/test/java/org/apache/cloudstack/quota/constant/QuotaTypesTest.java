@@ -22,7 +22,7 @@ import org.apache.cloudstack.api.response.UsageTypeResponse;
 import org.apache.cloudstack.usage.UsageTypes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.List;
 import java.util.Map;
@@ -43,6 +43,6 @@ public class QuotaTypesTest extends TestCase {
     @Test
     public void testQuotaTypeDescription() {
         assertNull(QuotaTypes.getDescription(-1));
-        assertNotNull(QuotaTypes.getDescription(QuotaTypes.MEMORY));
+        assertNotNull(QuotaTypes.getDescription(QuotaTypes.VOLUME));
     }
 }

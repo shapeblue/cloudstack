@@ -19,10 +19,14 @@
 package com.cloud.storage;
 
 import java.net.MalformedURLException;
+import java.util.List;
 import java.util.Map;
 
+import com.cloud.utils.Pair;
+import org.apache.cloudstack.api.command.user.volume.AssignVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.AttachVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.ChangeOfferingForVolumeCmd;
+import org.apache.cloudstack.api.command.user.volume.CheckAndRepairVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.CreateVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.DetachVolumeCmd;
 import org.apache.cloudstack.api.command.user.volume.ExtractVolumeCmd;
@@ -35,6 +39,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.user.Account;
+import com.cloud.utils.fsm.NoTransitionException;
 
 public interface VolumeApiService {
 
@@ -45,6 +50,14 @@ public interface VolumeApiService {
             , "Limits number of migrations that can be handled per datastore concurrently; default is 0 - unlimited"
             , true // not sure if this is to be dynamic
             , ConfigKey.Scope.Global);
+
+    ConfigKey<Boolean> UseHttpsToUpload = new ConfigKey<Boolean>("Advanced",
+            Boolean.class,
+            "use.https.to.upload",
+            "true",
+            "Determines the protocol (HTTPS or HTTP) ACS will use to generate links to upload ISOs, volumes, and templates. When set as 'true', ACS will use protocol HTTPS, otherwise, it will use protocol HTTP. Default value is 'true'.",
+            true,
+            ConfigKey.Scope.StoragePool);
 
     /**
      * Creates the database object for a volume based on the given criteria
@@ -89,18 +102,24 @@ public interface VolumeApiService {
 
     boolean deleteVolume(long volumeId, Account caller);
 
+    Volume changeDiskOfferingForVolumeInternal(Long volumeId, Long newDiskOfferingId, Long newSize, Long newMinIops, Long newMaxIops, boolean autoMigrateVolume, boolean shrinkOk) throws ResourceAllocationException;
+
     Volume attachVolumeToVM(AttachVolumeCmd command);
+
+    Volume attachVolumeToVM(Long vmId, Long volumeId, Long deviceId, Boolean allowAttachForSharedFS);
 
     Volume detachVolumeViaDestroyVM(long vmId, long volumeId);
 
     Volume detachVolumeFromVM(DetachVolumeCmd cmd);
 
-    Snapshot takeSnapshot(Long volumeId, Long policyId, Long snapshotId, Account account, boolean quiescevm, Snapshot.LocationType locationType, boolean asyncBackup, Map<String, String> tags)
+    Snapshot takeSnapshot(Long volumeId, Long policyId, Long snapshotId, Account account, boolean quiescevm, Snapshot.LocationType locationType, boolean asyncBackup, Map<String, String> tags, List<Long> zoneIds)
             throws ResourceAllocationException;
 
-    Snapshot allocSnapshot(Long volumeId, Long policyId, String snapshotName, Snapshot.LocationType locationType) throws ResourceAllocationException;
+    Snapshot allocSnapshot(Long volumeId, Long policyId, String snapshotName, Snapshot.LocationType locationType, List<Long> zoneIds) throws ResourceAllocationException;
 
-    Volume updateVolume(long volumeId, String path, String state, Long storageId, Boolean displayVolume, String customId, long owner, String chainInfo, String name);
+    Volume updateVolume(long volumeId, String path, String state, Long storageId,
+                        Boolean displayVolume, Boolean deleteProtection,
+                        String customId, long owner, String chainInfo, String name);
 
     /**
      * Extracts the volume to a particular location.
@@ -110,6 +129,8 @@ public interface VolumeApiService {
      *            id (the id of the volume)
      */
     String extractVolume(ExtractVolumeCmd cmd);
+
+    Volume assignVolumeToAccount(AssignVolumeCmd cmd) throws ResourceAllocationException;
 
     boolean isDisplayResourceEnabled(Long id);
 
@@ -152,9 +173,21 @@ public interface VolumeApiService {
 
     Volume destroyVolume(long volumeId, Account caller, boolean expunge, boolean forceExpunge);
 
+    void destroyVolume(long volumeId);
+
     Volume recoverVolume(long volumeId);
+
+    void validateCustomDiskOfferingSizeRange(Long sizeInGB);
 
     boolean validateVolumeSizeInBytes(long size);
 
+    void validateDestroyVolume(Volume volume, Account caller, boolean expunge, boolean forceExpunge);
+
     Volume changeDiskOfferingForVolume(ChangeOfferingForVolumeCmd cmd) throws ResourceAllocationException;
+
+    void publishVolumeCreationUsageEvent(Volume volume);
+
+    boolean stateTransitTo(Volume vol, Volume.Event event) throws NoTransitionException;
+
+    Pair<String, String> checkAndRepairVolume(CheckAndRepairVolumeCmd cmd) throws ResourceAllocationException;
 }

@@ -93,6 +93,14 @@ setup_interface() {
        echo "  address $ip " >> /etc/network/interfaces
        echo "  netmask $mask" >> /etc/network/interfaces
      fi
+
+     if [ ! -z "$PRIVATEMTU" ] && [ $intf == "eth0" ]; then
+       echo "  mtu $PRIVATEMTU" >> /etc/network/interfaces
+     fi
+
+     if [ ! -z "$PUBLICMTU" ] && [ $intf == "eth2" ]; then
+       echo "  mtu $PUBLICMTU" >> /etc/network/interfaces
+     fi
   fi
 
   if [ "$ip" == "0.0.0.0" -o "$ip" == "" ]
@@ -318,7 +326,10 @@ setup_common() {
   then
     setup_interface "0" $ETH0_IP $ETH0_MASK $GW
   fi
-  setup_interface "1" $ETH1_IP $ETH1_MASK $GW
+  if [ -n "$ETH1_IP" ]
+  then
+    setup_interface "1" $ETH1_IP $ETH1_MASK $GW
+  fi
   if [ -n "$ETH2_IP" ]
   then
     setup_interface "2" $ETH2_IP $ETH2_MASK $GW
@@ -576,6 +587,25 @@ setup_vpc_apache2() {
   setup_apache2_common
 }
 
+setup_vpc_mgmt_route() {
+  log_it "Set up route for management network: $MGMTNET via local gateway: $LOCAL_GW for device eth$1 for hypervisor: $HYPERVISOR"
+  if [ -n "$MGMTNET"  -a -n "$LOCAL_GW" ]
+  then
+    mgmt_route_rule="$MGMTNET via $LOCAL_GW dev eth${1}"
+    if [ "$HYPERVISOR" == "vmware" ] || [ "$HYPERVISOR" == "hyperv" ];
+    then
+      exist=`sudo ip route show $mgmt_route_rule | wc -l`
+      if [ $exist -eq 0 ]
+      then
+          log_it "Add route for management network via local gateway, hypervisor: $HYPERVISOR, rule: $mgmt_route_rule"
+          sudo ip route add $mgmt_route_rule
+          # workaround to activate vSwitch under VMware
+          timeout 3 ping -n -c 3 $LOCAL_GW || true
+      fi
+    fi
+  fi
+}
+
 clean_ipalias_config() {
   rm -f /etc/apache2/conf.d/ports.*.meta-data.conf
   rm -f /etc/apache2/sites-available/ipAlias*
@@ -671,15 +701,15 @@ setup_ntp() {
 }
 
 routing_svcs() {
-   echo "haproxy apache2" > /var/cache/cloud/enabled_svcs
+   echo "haproxy apache2 frr" > /var/cache/cloud/enabled_svcs
    echo "cloud nfs-common portmap" > /var/cache/cloud/disabled_svcs
    if [ "$RROUTER" -eq "1" ]
    then
-       echo "keepalived conntrackd" >> /var/cache/cloud/enabled_svcs
-       echo "dnsmasq" >> /var/cache/cloud/disabled_svcs
+       echo "keepalived" >> /var/cache/cloud/enabled_svcs
+       echo "dnsmasq conntrackd" >> /var/cache/cloud/disabled_svcs
    else
        echo "dnsmasq" >> /var/cache/cloud/enabled_svcs
-       echo "keepalived conntrackd " >> /var/cache/cloud/disabled_svcs
+       echo "keepalived conntrackd" >> /var/cache/cloud/disabled_svcs
    fi
 }
 
@@ -770,6 +800,9 @@ parse_cmd_line() {
             ;;
         ip6firewall)
             export IP6_FIREWALL=$VALUE
+            ;;
+        is_routed)
+            export IS_ROUTED=$VALUE
             ;;
         domain)
             export DOMAIN=$VALUE
@@ -881,6 +914,21 @@ parse_cmd_line() {
           ;;
         privatekey)
           export PRIVATEKEY=$VALUE
+          ;;
+        logrotatefrequency)
+          export LOGROTATE_FREQUENCY=$VALUE
+          ;;
+        publicMtu)
+          export PUBLICMTU=$VALUE
+          ;;
+        privateMtu)
+          export PRIVATEMTU=$VALUE
+          ;;
+        useHttpsToUpload)
+          export USEHTTPS=$VALUE
+          ;;
+        vncport)
+          export VNCPORT=$VALUE
           ;;
       esac
   done

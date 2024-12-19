@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.usage;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -34,9 +33,7 @@ import com.cloud.user.Account;
 @APICommand(name = "deleteTrafficType", description = "Deletes traffic type of a physical network", responseObject = SuccessResponse.class, since = "3.0.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteTrafficTypeCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteTrafficTypeCmd.class.getName());
 
-    private static final String s_name = "deletetraffictyperesponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -55,11 +52,6 @@ public class DeleteTrafficTypeCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

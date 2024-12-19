@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.admin.region;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -35,8 +34,6 @@ import com.cloud.user.Account;
 @APICommand(name = "updateRegion", description = "Updates a region", responseObject = RegionResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateRegionCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateRegionCmd.class.getName());
-    private static final String s_name = "updateregionresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -73,11 +70,6 @@ public class UpdateRegionCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

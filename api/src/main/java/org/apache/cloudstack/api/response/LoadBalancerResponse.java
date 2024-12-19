@@ -64,7 +64,7 @@ public class LoadBalancerResponse extends BaseResponse implements ControlledEnti
     private String networkId;
 
     @SerializedName(ApiConstants.CIDR_LIST)
-    @Param(description = "the cidr list to forward traffic from. Multiple entries are separated by a single comma character (,).")
+    @Param(description = "the CIDR list to allow traffic, all other CIDRs will be blocked. Multiple entries must be separated by a single comma character (,).")
     private String cidrList;
 
     @SerializedName(ApiConstants.ACCOUNT)
@@ -86,6 +86,10 @@ public class LoadBalancerResponse extends BaseResponse implements ControlledEnti
     @SerializedName(ApiConstants.DOMAIN)
     @Param(description = "the domain of the load balancer rule")
     private String domainName;
+
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the domain to which the load balancer rule belongs", since = "4.19.2.0")
+    private String domainPath;
 
     @SerializedName(ApiConstants.STATE)
     @Param(description = "the state of the rule")
@@ -156,6 +160,11 @@ public class LoadBalancerResponse extends BaseResponse implements ControlledEnti
     @Override
     public void setDomainName(String domainName) {
         this.domainName = domainName;
+    }
+
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
     }
 
     public void setState(String state) {

@@ -17,8 +17,6 @@
 
 package org.apache.cloudstack.api.response;
 
-import java.util.List;
-
 import com.google.gson.annotations.SerializedName;
 
 import org.apache.cloudstack.api.ApiConstants;
@@ -43,9 +41,17 @@ public class ConditionResponse extends BaseResponse implements ControlledEntityR
     @Param(description = "Relational Operator to be used with threshold.")
     private String relationalOperator;
 
+    @SerializedName("counterid")
+    @Param(description = "the Id of the Counter.")
+    private String counterId;
+
+    @SerializedName("countername")
+    @Param(description = "the Name of the Counter.")
+    private String counterName;
+
     @SerializedName("counter")
     @Param(description = "Details of the Counter.")
-    private List<CounterResponse> counterResponse;
+    private CounterResponse counterResponse;
 
     @SerializedName(ApiConstants.DOMAIN_ID)
     @Param(description = "the domain id of the Condition owner")
@@ -54,6 +60,10 @@ public class ConditionResponse extends BaseResponse implements ControlledEntityR
     @SerializedName(ApiConstants.DOMAIN)
     @Param(description = "the domain name of the owner.")
     private String domain;
+
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the domain to which the Condition owner belongs", since = "4.19.2.0")
+    private String domainPath;
 
     @SerializedName(ApiConstants.ZONE_ID)
     @Param(description = "zone id of counter")
@@ -84,6 +94,14 @@ public class ConditionResponse extends BaseResponse implements ControlledEntityR
         return this.id;
     }
 
+    public void setCounterId(String counterId) {
+        this.counterId = counterId;
+    }
+
+    public void setCounterName(String counterName) {
+        this.counterName = counterName;
+    }
+
     public void setThreshold(long threshold) {
         this.threshold = threshold;
     }
@@ -92,7 +110,7 @@ public class ConditionResponse extends BaseResponse implements ControlledEntityR
         this.relationalOperator = relationalOperator;
     }
 
-    public void setCounterResponse(List<CounterResponse> counterResponse) {
+    public void setCounterResponse(CounterResponse counterResponse) {
         this.counterResponse = counterResponse;
     }
 
@@ -123,5 +141,10 @@ public class ConditionResponse extends BaseResponse implements ControlledEntityR
     @Override
     public void setDomainName(String domainName) {
         this.domain = domainName;
+    }
+
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
     }
 }

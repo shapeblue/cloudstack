@@ -22,6 +22,7 @@ public class ConsoleProxyClientParam {
     private int clientHostPort;
     private String clientHostPassword;
     private String clientTag;
+    private String clientDisplayName;
     private String ticket;
     private String locale;
     private String clientTunnelUrl;
@@ -33,8 +34,30 @@ public class ConsoleProxyClientParam {
     private String username;
     private String password;
 
+    /**
+     * IP that has generated the console endpoint
+     */
     private String sourceIP;
+
+    /**
+     * IP of the client that has connected to the console
+     */
+    private String clientIp;
+
     private String websocketUrl;
+
+    private String sessionUuid;
+
+    /**
+     * The server-side generated value for extra console endpoint validation
+     */
+    private String extraSecurityToken;
+
+    /**
+     * The extra parameter received in the console URL, must be compared against the server-side generated value
+     * for extra validation (if has been enabled)
+     */
+    private String clientProvidedExtraSecurityToken;
 
     public ConsoleProxyClientParam() {
         clientHostPort = 0;
@@ -71,6 +94,10 @@ public class ConsoleProxyClientParam {
     public void setClientTag(String clientTag) {
         this.clientTag = clientTag;
     }
+
+    public String getClientDisplayName() { return this.clientDisplayName; }
+
+    public void setClientDisplayName(String clientDisplayName) { this.clientDisplayName = clientDisplayName; }
 
     public String getTicket() {
         return ticket;
@@ -158,5 +185,37 @@ public class ConsoleProxyClientParam {
 
     public void setWebsocketUrl(String websocketUrl) {
         this.websocketUrl = websocketUrl;
+    }
+
+    public String getSessionUuid() {
+        return sessionUuid;
+    }
+
+    public String getExtraSecurityToken() {
+        return extraSecurityToken;
+    }
+
+    public void setExtraSecurityToken(String extraSecurityToken) {
+        this.extraSecurityToken = extraSecurityToken;
+    }
+
+    public String getClientProvidedExtraSecurityToken() {
+        return clientProvidedExtraSecurityToken;
+    }
+
+    public void setClientProvidedExtraSecurityToken(String clientProvidedExtraSecurityToken) {
+        this.clientProvidedExtraSecurityToken = clientProvidedExtraSecurityToken;
+    }
+
+    public void setSessionUuid(String sessionUuid) {
+        this.sessionUuid = sessionUuid;
+    }
+
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
     }
 }

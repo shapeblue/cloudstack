@@ -17,13 +17,7 @@
 
 package com.cloud.network;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.naming.ConfigurationException;
-
+import com.cloud.dc.DataCenter;
 import com.cloud.dc.Vlan;
 import com.cloud.exception.InsufficientAddressCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
@@ -44,10 +38,17 @@ import com.cloud.offering.NetworkOffering;
 import com.cloud.offering.NetworkOffering.Detail;
 import com.cloud.offerings.NetworkOfferingVO;
 import com.cloud.user.Account;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.vm.Nic;
 import com.cloud.vm.NicProfile;
 import com.cloud.vm.VirtualMachine;
+
+import javax.naming.ConfigurationException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
 
@@ -236,7 +237,7 @@ public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
      * @see com.cloud.network.NetworkModel#getNetworkWithSGWithFreeIPs(java.lang.Long)
      */
     @Override
-    public NetworkVO getNetworkWithSGWithFreeIPs(Long zoneId) {
+    public NetworkVO getNetworkWithSGWithFreeIPs(Account account, Long zoneId) {
         // TODO Auto-generated method stub
         return null;
     }
@@ -337,6 +338,11 @@ public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
     @Override
     public boolean isProviderSupportServiceInNetwork(long networkId, Service service, Provider provider) {
         // TODO Auto-generated method stub
+        return false;
+    }
+
+    @Override
+    public boolean isAnyServiceSupportedInNetwork(long networkId, Provider provider, Service... services) {
         return false;
     }
 
@@ -838,7 +844,11 @@ public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
     @Override
     public void checkIp6Parameters(String startIPv6, String endIPv6, String ip6Gateway, String ip6Cidr) throws InvalidParameterValueException {
         // TODO Auto-generated method stub
+    }
 
+    @Override
+    public void checkIp6CidrSizeEqualTo64(String ip6Cidr) throws InvalidParameterValueException {
+        // TODO Auto-generated method stub
     }
 
     @Override
@@ -909,7 +919,7 @@ public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
     }
 
     @Override
-    public List<String[]> generateVmData(String userData, String serviceOffering, long datacenterId, String vmName, String vmHostName, long vmId, String vmUuid, String guestIpAddress, String publicKey, String password, Boolean isWindows, String hostname) {
+    public List<String[]> generateVmData(String userData, String userDataDetails, String serviceOffering, long datacenterId, String vmName, String vmHostName, long vmId, String vmUuid, String guestIpAddress, String publicKey, String password, Boolean isWindows, String hostname) {
         return null;
     }
 
@@ -918,4 +928,29 @@ public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
         return null;
     }
 
+    @Override
+    public Pair<String, String> getNetworkIp4Dns(Network network, DataCenter zone) {
+        return new Pair<>(null, null);
+    }
+
+    @Override
+    public Pair<String, String> getNetworkIp6Dns(Network network, DataCenter zone) {
+        return new Pair<>(null, null);
+    }
+
+    @Override
+    public void verifyIp4DnsPair(String ip4Dns1, String ip4Dns2) {}
+
+    @Override
+    public void verifyIp6DnsPair(String ip4Dns1, String ip4Dns2) {}
+
+    @Override
+    public boolean isSecurityGroupSupportedForZone(Long zoneId) {
+        return false;
+    }
+
+    @Override
+    public boolean checkSecurityGroupSupportForNetwork(Account account, DataCenter zone, List<Long> networkIds, List<Long> securityGroupsIds) {
+        return false;
+    }
 }

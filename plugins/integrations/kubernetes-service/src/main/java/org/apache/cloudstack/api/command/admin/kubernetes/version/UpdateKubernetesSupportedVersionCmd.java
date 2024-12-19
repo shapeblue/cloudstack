@@ -21,6 +21,7 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
@@ -29,22 +30,20 @@ import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.command.admin.AdminCmd;
 import org.apache.cloudstack.api.response.KubernetesSupportedVersionResponse;
-import org.apache.log4j.Logger;
+import org.apache.cloudstack.context.CallContext;
 
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.kubernetes.version.KubernetesSupportedVersion;
 import com.cloud.kubernetes.version.KubernetesVersionService;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-@APICommand(name = UpdateKubernetesSupportedVersionCmd.APINAME,
+@APICommand(name = "updateKubernetesSupportedVersion",
         description = "Update a supported Kubernetes version",
         responseObject = KubernetesSupportedVersionResponse.class,
         responseView = ResponseObject.ResponseView.Full,
         entityType = {KubernetesSupportedVersion.class},
         authorized = {RoleType.Admin})
 public class UpdateKubernetesSupportedVersionCmd extends BaseCmd implements AdminCmd {
-    public static final Logger LOGGER = Logger.getLogger(UpdateKubernetesSupportedVersionCmd.class.getName());
-    public static final String APINAME = "updateKubernetesSupportedVersion";
 
     @Inject
     private KubernetesVersionService kubernetesVersionService;
@@ -75,13 +74,18 @@ public class UpdateKubernetesSupportedVersionCmd extends BaseCmd implements Admi
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + "response";
+    public long getEntityOwnerId() {
+        return CallContext.current().getCallingAccountId();
     }
 
     @Override
-    public long getEntityOwnerId() {
-        return 0;
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.KubernetesSupportedVersion;
+    }
+
+    @Override
+    public Long getApiResourceId() {
+        return getId();
     }
 
     /////////////////////////////////////////////////////

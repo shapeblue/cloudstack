@@ -20,21 +20,25 @@ import java.net.URI;
 import java.util.Date;
 
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+import com.cloud.host.Status;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.network.Network.GuestType;
 import com.cloud.network.Networks.TrafficType;
 import com.cloud.network.router.VirtualRouter;
 import com.cloud.network.router.VirtualRouter.RedundantState;
+import com.cloud.resource.ResourceState;
 import com.cloud.user.Account;
 import com.cloud.utils.db.GenericDao;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.State;
+import org.apache.cloudstack.util.HypervisorTypeConverter;
 
 @Entity
 @Table(name = "domain_router_view")
@@ -129,8 +133,14 @@ public class DomainRouterJoinVO extends BaseViewVO implements ControlledViewEnti
     @Column(name = "host_name", nullable = false)
     private String hostName;
 
+    @Column(name = "host_status")
+    private Status hostStatus;
+
+    @Column(name = "host_resource_state")
+    private ResourceState hostResourceState;
+
     @Column(name="hypervisor_type")
-    @Enumerated(value=EnumType.STRING)
+    @Convert(converter = HypervisorTypeConverter.class)
     private Hypervisor.HypervisorType hypervisorType;
 
     @Column(name = "template_id", updatable = true, nullable = true, length = 17)
@@ -254,6 +264,9 @@ public class DomainRouterJoinVO extends BaseViewVO implements ControlledViewEnti
     @Column(name = "software_version")
     private String softwareVersion;
 
+    @Column(name = "mtu")
+    private Integer mtu;
+
     public DomainRouterJoinVO() {
     }
 
@@ -349,6 +362,14 @@ public class DomainRouterJoinVO extends BaseViewVO implements ControlledViewEnti
 
     public String getHostName() {
         return hostName;
+    }
+
+    public Status getHostStatus() {
+        return hostStatus;
+    }
+
+    public ResourceState getHostResourceState() {
+        return hostResourceState;
     }
 
     public Hypervisor.HypervisorType getHypervisorType() {
@@ -540,5 +561,9 @@ public class DomainRouterJoinVO extends BaseViewVO implements ControlledViewEnti
 
     public String getSoftwareVersion() {
         return softwareVersion;
+    }
+
+    public Integer getMtu() {
+        return mtu;
     }
 }

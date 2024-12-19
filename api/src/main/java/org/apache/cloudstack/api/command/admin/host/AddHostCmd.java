@@ -19,7 +19,6 @@ package org.apache.cloudstack.api.command.admin.host;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -40,9 +39,7 @@ import com.cloud.user.Account;
 @APICommand(name = "addHost", description = "Adds a new host.", responseObject = HostResponse.class,
         requestHasSensitiveInfo = true, responseHasSensitiveInfo = false)
 public class AddHostCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(AddHostCmd.class.getName());
 
-    private static final String s_name = "addhostresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -127,11 +124,6 @@ public class AddHostCmd extends BaseCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
     }
@@ -156,7 +148,7 @@ public class AddHostCmd extends BaseCmd {
 
             this.setResponseObject(response);
         } catch (DiscoveryException ex) {
-            s_logger.warn("Exception: ", ex);
+            logger.warn("Exception: ", ex);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, ex.getMessage());
         }
     }

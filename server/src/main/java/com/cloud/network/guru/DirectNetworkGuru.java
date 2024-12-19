@@ -20,10 +20,9 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import com.cloud.offerings.dao.NetworkOfferingServiceMapDao;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
 
 import com.cloud.dc.DataCenter;
 import com.cloud.dc.DataCenter.NetworkType;
@@ -36,8 +35,6 @@ import com.cloud.exception.InsufficientAddressCapacityException;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.InsufficientVirtualNetworkCapacityException;
 import com.cloud.exception.InvalidParameterValueException;
-import com.cloud.network.dao.PhysicalNetworkDao;
-import com.cloud.network.dao.PhysicalNetworkVO;
 import com.cloud.network.IpAddressManager;
 import com.cloud.network.Network;
 import com.cloud.network.Network.GuestType;
@@ -54,8 +51,12 @@ import com.cloud.network.PhysicalNetwork.IsolationMethod;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.NetworkVO;
+import com.cloud.network.dao.PhysicalNetworkDao;
+import com.cloud.network.dao.PhysicalNetworkVO;
 import com.cloud.offering.NetworkOffering;
+import com.cloud.offerings.dao.NetworkOfferingServiceMapDao;
 import com.cloud.user.Account;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.AdapterBase;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.db.Transaction;
@@ -78,7 +79,6 @@ import com.cloud.vm.dao.NicSecondaryIpVO;
 
 
 public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
-    private static final Logger s_logger = Logger.getLogger(DirectNetworkGuru.class);
 
     @Inject
     DataCenterDao _dcDao;
@@ -126,7 +126,7 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
             List<String> isolationMethods = physicalNetwork.getIsolationMethods();
             if (CollectionUtils.isNotEmpty(isolationMethods)) {
                 for (String method : isolationMethods) {
-                    s_logger.debug(method + ": " + m.toString());
+                    logger.debug(method + ": " + m.toString());
                     if (method.equalsIgnoreCase(m.toString())) {
                         return true;
                     }
@@ -154,18 +154,18 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
                 && physnet.getIsolationMethods().contains("GRE")) {
             return true;
         } else {
-            s_logger.trace("We only take care of Shared Guest networks without Ovs or NiciraNvp provider");
+            logger.trace("We only take care of Shared Guest networks without Ovs or NiciraNvp provider");
             return false;
         }
     }
 
     @Override
-    public Network design(NetworkOffering offering, DeploymentPlan plan, Network userSpecified, Account owner) {
+    public Network design(NetworkOffering offering, DeploymentPlan plan, Network userSpecified, String name, Long vpcId, Account owner) {
         DataCenter dc = _dcDao.findById(plan.getDataCenterId());
         PhysicalNetworkVO physnet = _physicalNetworkDao.findById(plan.getPhysicalNetworkId());
 
         if (!canHandle(offering, dc, physnet)) {
-            s_logger.info("Refusing to design this network");
+            logger.info("Refusing to design this network");
             return null;
         }
 
@@ -217,6 +217,27 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
             if (userSpecified.getRouterIpv6() != null) {
                 config.setRouterIpv6(userSpecified.getRouterIpv6());
             }
+
+            if (userSpecified.getPublicMtu() != null) {
+                config.setPublicMtu(userSpecified.getPublicMtu());
+            }
+
+            if (userSpecified.getPrivateMtu() != null) {
+                config.setPrivateMtu(userSpecified.getPrivateMtu());
+            }
+
+            if (StringUtils.isNotBlank(userSpecified.getDns1())) {
+                config.setDns1(userSpecified.getDns1());
+            }
+            if (StringUtils.isNotBlank(userSpecified.getDns2())) {
+                config.setDns2(userSpecified.getDns2());
+            }
+            if (StringUtils.isNotBlank(userSpecified.getIp6Dns1())) {
+                config.setIp6Dns1(userSpecified.getIp6Dns1());
+            }
+            if (StringUtils.isNotBlank(userSpecified.getIp6Dns2())) {
+                config.setIp6Dns2(userSpecified.getIp6Dns2());
+            }
         }
 
         boolean isSecurityGroupEnabled = _networkModel.areServicesSupportedByNetworkOffering(offering.getId(), Service.SecurityGroup);
@@ -226,6 +247,11 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
         }
 
         return config;
+    }
+
+    @Override
+    public void setup(Network network, long networkId) {
+        // do nothing
     }
 
     protected DirectNetworkGuru() {
@@ -240,11 +266,13 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
     @Override
     public void updateNicProfile(NicProfile profile, Network network) {
         DataCenter dc = _dcDao.findById(network.getDataCenterId());
+        Pair<String, String> ip4Dns = _networkModel.getNetworkIp4Dns(network, dc);
+        Pair<String, String> ip6Dns = _networkModel.getNetworkIp6Dns(network, dc);
         if (profile != null) {
-            profile.setIPv4Dns1(dc.getDns1());
-            profile.setIPv4Dns2(dc.getDns2());
-            profile.setIPv6Dns1(dc.getIp6Dns1());
-            profile.setIPv6Dns2(dc.getIp6Dns2());
+            profile.setIPv4Dns1(ip4Dns.first());
+            profile.setIPv4Dns2(ip4Dns.second());
+            profile.setIPv6Dns1(ip6Dns.first());
+            profile.setIPv6Dns2(ip6Dns.second());
         }
     }
 
@@ -301,7 +329,7 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
                         if (vm.getType() == VirtualMachine.Type.DomainRouter) {
                             Nic placeholderNic = _networkModel.getPlaceholderNicForRouter(network, null);
                             if (placeholderNic == null) {
-                                s_logger.debug("Saving placeholder nic with ip4 address " + nic.getIPv4Address() + " and ipv6 address " + nic.getIPv6Address() +
+                                logger.debug("Saving placeholder nic with ip4 address " + nic.getIPv4Address() + " and ipv6 address " + nic.getIPv6Address() +
                                         " for the network " + network);
                                 _networkMgr.savePlaceholderNic(network, nic.getIPv4Address(), nic.getIPv6Address(), VirtualMachine.Type.DomainRouter);
                             }
@@ -330,8 +358,8 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
     @Override
     @DB
     public void deallocate(final Network network, final NicProfile nic, VirtualMachineProfile vm) {
-        if (s_logger.isDebugEnabled()) {
-            s_logger.debug("Deallocate network: networkId: " + nic.getNetworkId() + ", ip: " + nic.getIPv4Address());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Deallocate network: networkId: " + nic.getNetworkId() + ", ip: " + nic.getIPv4Address());
         }
 
         if (nic.getIPv4Address() != null) {
@@ -343,14 +371,14 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
                         // if the ip address a part of placeholder, don't release it
                         Nic placeholderNic = _networkModel.getPlaceholderNicForRouter(network, null);
                         if (placeholderNic != null && placeholderNic.getIPv4Address().equalsIgnoreCase(ip.getAddress().addr())) {
-                            s_logger.debug("Not releasing direct ip " + ip.getId() + " yet as its ip is saved in the placeholder");
+                            logger.debug("Not releasing direct ip " + ip.getId() + " yet as its ip is saved in the placeholder");
                         } else {
                             _ipAddrMgr.markIpAsUnavailable(ip.getId());
                             _ipAddressDao.unassignIpAddress(ip.getId());
                         }
 
                         //unassign nic secondary ip address
-                        s_logger.debug("remove nic " + nic.getId() + " secondary ip ");
+                        logger.debug("remove nic " + nic.getId() + " secondary ip ");
                         List<String> nicSecIps = null;
                         nicSecIps = _nicSecondaryIpDao.getSecondaryIpAddressesForNic(nic.getId());
                         for (String secIp : nicSecIps) {
@@ -390,12 +418,12 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
                     public void doInTransactionWithoutResult(TransactionStatus status) {
                         for (Nic nic : nics) {
                             if (nic.getIPv4Address() != null) {
-                                s_logger.debug("Releasing ip " + nic.getIPv4Address() + " of placeholder nic " + nic);
+                                logger.debug("Releasing ip " + nic.getIPv4Address() + " of placeholder nic " + nic);
                                 IPAddressVO ip = _ipAddressDao.findByIpAndSourceNetworkId(nic.getNetworkId(), nic.getIPv4Address());
                                 if (ip != null) {
                                     _ipAddrMgr.markIpAsUnavailable(ip.getId());
                                     _ipAddressDao.unassignIpAddress(ip.getId());
-                                    s_logger.debug("Removing placeholder nic " + nic);
+                                    logger.debug("Removing placeholder nic " + nic);
                                     _nicDao.remove(nic.getId());
                                 }
                             }
@@ -405,7 +433,7 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
             }
             return true;
         }catch (Exception e) {
-            s_logger.error("trash. Exception:" + e.getMessage());
+            logger.error("trash. Exception:" + e.getMessage());
             throw new CloudRuntimeException("trash. Exception:" + e.getMessage(),e);
         }
     }
@@ -413,7 +441,12 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
     @Override
     public void updateNetworkProfile(NetworkProfile networkProfile) {
         DataCenter dc = _dcDao.findById(networkProfile.getDataCenterId());
-        networkProfile.setDns1(dc.getDns1());
-        networkProfile.setDns2(dc.getDns2());
+        Network network = _networkModel.getNetwork(networkProfile.getId());
+        Pair<String, String> dns = _networkModel.getNetworkIp4Dns(network, dc);
+        networkProfile.setDns1(dns.first());
+        networkProfile.setDns2(dns.second());
+        dns = _networkModel.getNetworkIp6Dns(network, dc);
+        networkProfile.setIp6Dns1(dns.first());
+        networkProfile.setIp6Dns2(dns.second());
     }
 }

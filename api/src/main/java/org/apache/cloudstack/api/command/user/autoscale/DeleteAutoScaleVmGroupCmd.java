@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.autoscale;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
@@ -38,8 +37,6 @@ import com.cloud.user.Account;
 @APICommand(name = "deleteAutoScaleVmGroup", description = "Deletes a autoscale vm group.", responseObject = SuccessResponse.class, entityType = {AutoScaleVmGroup.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteAutoScaleVmGroupCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteAutoScaleVmGroupCmd.class.getName());
-    private static final String s_name = "deleteautoscalevmgroupresponse";
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
     // ///////////////////////////////////////////////////
@@ -52,6 +49,12 @@ public class DeleteAutoScaleVmGroupCmd extends BaseAsyncCmd {
                description = "the ID of the autoscale group")
     private Long id;
 
+    @Parameter(name = ApiConstants.CLEANUP,
+            type = CommandType.BOOLEAN,
+            description = "true if all VMs have to be cleaned up, false otherwise",
+            since = "4.18.0")
+    private Boolean cleanup;
+
     // ///////////////////////////////////////////////////
     // ///////////////// Accessors ///////////////////////
     // ///////////////////////////////////////////////////
@@ -60,14 +63,13 @@ public class DeleteAutoScaleVmGroupCmd extends BaseAsyncCmd {
         return id;
     }
 
+    public Boolean getCleanup() {
+        return cleanup != null && cleanup;
+    }
+
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {
@@ -93,13 +95,13 @@ public class DeleteAutoScaleVmGroupCmd extends BaseAsyncCmd {
     @Override
     public void execute() {
         CallContext.current().setEventDetails("AutoScale Vm Group Id: " + getId());
-        boolean result = _autoScaleService.deleteAutoScaleVmGroup(id);
+        boolean result = _autoScaleService.deleteAutoScaleVmGroup(id, getCleanup());
 
         if (result) {
             SuccessResponse response = new SuccessResponse(getCommandName());
             setResponseObject(response);
         } else {
-            s_logger.warn("Failed to delete autoscale vm group " + getId());
+            logger.warn("Failed to delete autoscale vm group " + getId());
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete autoscale vm group");
         }
     }

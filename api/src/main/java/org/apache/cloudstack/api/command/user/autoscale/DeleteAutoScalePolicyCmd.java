@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.autoscale;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
@@ -38,8 +37,6 @@ import com.cloud.user.Account;
 @APICommand(name = "deleteAutoScalePolicy", description = "Deletes a autoscale policy.", responseObject = SuccessResponse.class, entityType = {AutoScalePolicy.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteAutoScalePolicyCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteAutoScalePolicyCmd.class.getName());
-    private static final String s_name = "deleteautoscalepolicyresponse";
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
     // ///////////////////////////////////////////////////
@@ -63,11 +60,6 @@ public class DeleteAutoScalePolicyCmd extends BaseAsyncCmd {
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {
@@ -99,7 +91,7 @@ public class DeleteAutoScalePolicyCmd extends BaseAsyncCmd {
             SuccessResponse response = new SuccessResponse(getCommandName());
             setResponseObject(response);
         } else {
-            s_logger.warn("Failed to delete autoscale policy " + getId());
+            logger.warn("Failed to delete autoscale policy " + getId());
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete AutoScale Policy");
         }
     }

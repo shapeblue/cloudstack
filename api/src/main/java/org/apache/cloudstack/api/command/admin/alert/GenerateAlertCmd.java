@@ -27,7 +27,6 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.PodResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 
@@ -35,9 +34,7 @@ import com.cloud.event.EventTypes;
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class GenerateAlertCmd extends BaseAsyncCmd {
 
-    public static final Logger s_logger = Logger.getLogger(GenerateAlertCmd.class.getName());
 
-    private static final String s_name = "generatealertresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -61,11 +58,6 @@ public class GenerateAlertCmd extends BaseAsyncCmd {
     // ///////////////////////////////////////////////////
     // ///////////////// Accessors ///////////////////////
     // ///////////////////////////////////////////////////
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
     public Short getType() {
         return type;
     }

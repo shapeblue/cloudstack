@@ -5,9 +5,9 @@
 -- to you under the Apache License, Version 2.0 (the
 -- "License"); you may not use this file except in compliance
 -- with the License.  You may obtain a copy of the License at
--- 
+--
 --   http://www.apache.org/licenses/LICENSE-2.0
--- 
+--
 -- Unless required by applicable law or agreed to in writing,
 -- software distributed under the License is distributed on an
 -- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -44,7 +44,7 @@ ALTER TABLE `cloud`.`host` MODIFY COLUMN  `storage_ip_address` char(40);
 ALTER TABLE `cloud`.`resource_count` ADD UNIQUE `i_resource_count__type_accountId`(`type`, `account_id`);
 ALTER TABLE `cloud`.`resource_count` ADD UNIQUE `i_resource_count__type_domaintId`(`type`, `domain_id`);
 
-UPDATE configuration set description='Load Balancer(haproxy) stats visibilty, the value can be one of the following six parameters : global,guest-network,link-local,disabled,all,default' WHERE name='network.loadbalancer.haproxy.stats.visibility' ;
+UPDATE configuration set description='Load Balancer(haproxy) stats visibility, the value can be one of the following six parameters : global,guest-network,link-local,disabled,all,default' WHERE name='network.loadbalancer.haproxy.stats.visibility' ;
 
 UPDATE nics SET strategy="Managed" WHERE (ip4_address, network_id) IN (SELECT public_ip_address, source_network_id FROM user_ip_address WHERE source_nat=1) AND vm_type="DomainRouter";
 
@@ -60,4 +60,3 @@ CREATE TABLE IF NOT EXISTS `cloud`.`inline_load_balancer_nic_map` (
   CONSTRAINT `fk_inline_load_balancer_nic_map__load_balancer_id` FOREIGN KEY(`load_balancer_id`) REFERENCES `load_balancing_rules`(`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_inline_load_balancer_nic_map__nic_id` FOREIGN KEY(`nic_id`) REFERENCES `nics`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-

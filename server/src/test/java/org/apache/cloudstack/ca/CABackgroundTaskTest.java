@@ -19,10 +19,24 @@
 
 package org.apache.cloudstack.ca;
 
-import static org.apache.cloudstack.ca.CAManager.AutomaticCertRenewal;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.nullable;
+import com.cloud.host.Host;
+import com.cloud.host.HostVO;
+import com.cloud.host.Status;
+import com.cloud.host.dao.HostDao;
+import com.cloud.storage.Storage;
+import com.cloud.utils.exception.CloudRuntimeException;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.utils.identity.ManagementServerNode;
+import org.apache.cloudstack.utils.security.CertUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.lang.reflect.Field;
 import java.security.KeyPair;
@@ -31,24 +45,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.cloudstack.framework.config.ConfigKey;
-import org.apache.cloudstack.utils.identity.ManagementServerNode;
-import org.apache.cloudstack.utils.security.CertUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
-
-import com.cloud.host.Host;
-import com.cloud.host.HostVO;
-import com.cloud.host.Status;
-import com.cloud.host.dao.HostDao;
-import com.cloud.storage.Storage;
-import com.cloud.utils.exception.CloudRuntimeException;
+import static org.apache.cloudstack.ca.CAManager.AutomaticCertRenewal;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.nullable;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CABackgroundTaskTest {
@@ -93,7 +94,7 @@ public class CABackgroundTaskTest {
     @Test
     public void testNullCert() throws Exception {
         certMap.put(hostIp, null);
-        Assert.assertTrue(certMap.size() == 1);
+        Assume.assumeThat(certMap.size() == 1, is(true));
         task.runInContext();
         Assert.assertTrue(certMap.size() == 0);
     }
@@ -102,7 +103,7 @@ public class CABackgroundTaskTest {
     public void testNullHost() throws Exception {
         Mockito.when(hostDao.findByIp(Mockito.anyString())).thenReturn(null);
         certMap.put(hostIp, expiredCertificate);
-        Assert.assertTrue(certMap.size() == 1);
+        Assume.assumeThat(certMap.size() == 1, is(true));
         task.runInContext();
         Assert.assertTrue(certMap.size() == 0);
     }
@@ -112,7 +113,7 @@ public class CABackgroundTaskTest {
         overrideDefaultConfigValue(AutomaticCertRenewal, "_defaultValue", "true");
         host.setManagementServerId(ManagementServerNode.getManagementServerId());
         certMap.put(hostIp, expiredCertificate);
-        Assert.assertTrue(certMap.size() == 1);
+        Assume.assumeThat(certMap.size() == 1, is(true));
         task.runInContext();
         Mockito.verify(caManager, Mockito.times(1)).provisionCertificate(host, false, null);
         Mockito.verify(caManager, Mockito.times(0)).sendAlert(Mockito.any(Host.class), Mockito.anyString(), Mockito.anyString());
@@ -124,7 +125,7 @@ public class CABackgroundTaskTest {
         Mockito.when(caManager.provisionCertificate(any(Host.class), anyBoolean(), nullable(String.class))).thenThrow(new CloudRuntimeException("some error"));
         host.setManagementServerId(ManagementServerNode.getManagementServerId());
         certMap.put(hostIp, expiredCertificate);
-        Assert.assertTrue(certMap.size() == 1);
+        Assume.assumeThat(certMap.size() == 1, is(true));
         task.runInContext();
         Mockito.verify(caManager, Mockito.times(1)).provisionCertificate(host, false, null);
         Mockito.verify(caManager, Mockito.times(1)).sendAlert(Mockito.any(Host.class), Mockito.anyString(), Mockito.anyString());
@@ -134,7 +135,7 @@ public class CABackgroundTaskTest {
     public void testAutoRenewalDisabled() throws Exception {
         overrideDefaultConfigValue(AutomaticCertRenewal, "_defaultValue", "false");
         certMap.put(hostIp, expiredCertificate);
-        Assert.assertTrue(certMap.size() == 1);
+        Assume.assumeThat(certMap.size() == 1, is(true));
         // First round
         task.runInContext();
         Mockito.verify(caManager, Mockito.times(0)).provisionCertificate(Mockito.any(Host.class), anyBoolean(), Mockito.anyString());

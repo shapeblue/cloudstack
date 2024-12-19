@@ -36,6 +36,9 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineProfile;
 import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.utils.bytescale.ByteScaleUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,15 +46,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.cloudstack.framework.config.ConfigKey;
-import org.apache.cloudstack.utils.bytescale.ByteScaleUtils;
-import org.junit.Assert;
 
 @RunWith(MockitoJUnitRunner.class)
 public class KVMGuruTest {
@@ -176,7 +176,7 @@ public class KVMGuruTest {
 
         long result = guru.getVmMaxMemory(serviceOfferingVoMock, "Vm description", 1l);
 
-        Assert.assertEquals(ByteScaleUtils.mibToBytes(maxCustomOfferingMemory), result);
+        Assert.assertEquals(ByteScaleUtils.mebibytesToBytes(maxCustomOfferingMemory), result);
     }
 
     @Test
@@ -190,12 +190,12 @@ public class KVMGuruTest {
         Mockito.when(vmServiceOfferingMaxRAMSize.value()).thenReturn(maxMemoryConfig);
         long result = guru.getVmMaxMemory(serviceOfferingVoMock, "Vm description", 1l);
 
-        Assert.assertEquals(ByteScaleUtils.mibToBytes(maxMemoryConfig), result);
+        Assert.assertEquals(ByteScaleUtils.mebibytesToBytes(maxMemoryConfig), result);
     }
 
     @Test
     public void validateGetVmMaxMemoryReturnMaxHostMemory(){
-        long maxHostMemory = ByteScaleUtils.mibToBytes(2000);
+        long maxHostMemory = ByteScaleUtils.mebibytesToBytes(2000);
         Mockito.when(serviceOfferingVoMock.getDetail(ApiConstants.MAX_MEMORY)).thenReturn(null);
 
         ConfigKey<Integer> vmServiceOfferingMaxRAMSize = Mockito.mock(ConfigKey.class);
@@ -274,7 +274,7 @@ public class KVMGuruTest {
     public void validateGetHostMaxMemoryAndCpuCoresHostNullAndLastHostIdNotNullAndLastHostNull(){
         Long maxMemory = Long.MAX_VALUE;
         Integer maxCpuCores = Integer.MAX_VALUE;
-        guru._hostDao = hostDao;
+        guru.hostDao = hostDao;
 
         Mockito.when(virtualMachineMock.getLastHostId()).thenReturn(1l);
         Mockito.doReturn(null).when(hostDao).findById(Mockito.any());
@@ -288,7 +288,7 @@ public class KVMGuruTest {
     public void validateGetHostMaxMemoryAndCpuCoresHostNullAndLastHostIdNotNullAndLastHostNotNull(){
         Long maxMemory = 2048l;
         Integer maxCpuCores = 16;
-        guru._hostDao = hostDao;
+        guru.hostDao = hostDao;
 
         Mockito.when(virtualMachineMock.getLastHostId()).thenReturn(1l);
         Mockito.doReturn(host).when(hostDao).findById(Mockito.any());

@@ -89,12 +89,16 @@ public class PrivateGatewayResponse extends BaseResponseWithAssociatedNetwork im
     @Param(description = "the domain associated with the private gateway")
     private String domainName;
 
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the domain to which the private gateway belongs", since = "4.19.2.0")
+    private String domainPath;
+
     @SerializedName(ApiConstants.STATE)
     @Param(description = "State of the gateway, can be Creating, Ready, Deleting")
     private String state;
 
     @SerializedName(ApiConstants.SOURCE_NAT_SUPPORTED)
-    @Param(description = "Souce Nat enable status")
+    @Param(description = "Source Nat enable status")
     private Boolean sourceNat;
 
     @SerializedName(ApiConstants.ACL_ID)
@@ -165,6 +169,10 @@ public class PrivateGatewayResponse extends BaseResponseWithAssociatedNetwork im
         this.domainName = domainName;
     }
 
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
+    }
     @Override
     public void setProjectId(String projectId) {
         this.projectId = projectId;

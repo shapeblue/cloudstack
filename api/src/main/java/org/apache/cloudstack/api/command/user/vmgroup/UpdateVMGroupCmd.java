@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.vmgroup;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
@@ -35,8 +34,6 @@ import com.cloud.vm.InstanceGroup;
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateVMGroupCmd extends BaseCmd {
 
-    private static final String s_name = "updateinstancegroupresponse";
-    public static final Logger s_logger = Logger.getLogger(UpdateVMGroupCmd.class.getName());
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -63,11 +60,6 @@ public class UpdateVMGroupCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

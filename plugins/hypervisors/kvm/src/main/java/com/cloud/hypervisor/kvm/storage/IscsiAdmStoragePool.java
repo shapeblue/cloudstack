@@ -22,7 +22,10 @@ import java.util.Map;
 import org.apache.cloudstack.utils.qemu.QemuImg.PhysicalDiskFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.joda.time.Duration;
 
+import com.cloud.agent.api.to.HostTO;
+import com.cloud.hypervisor.kvm.resource.KVMHABase.HAStoragePool;
 import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.StoragePoolType;
 
@@ -89,7 +92,7 @@ public class IscsiAdmStoragePool implements KVMStoragePool {
     // from LibvirtComputingResource.createDiskFromTemplate(KVMPhysicalDisk, String, PhysicalDiskFormat, long, KVMStoragePool)
     // does not apply for iScsiAdmStoragePool
     @Override
-    public KVMPhysicalDisk createPhysicalDisk(String name, PhysicalDiskFormat format, Storage.ProvisioningType provisioningType, long size) {
+    public KVMPhysicalDisk createPhysicalDisk(String name, PhysicalDiskFormat format, Storage.ProvisioningType provisioningType, long size, byte[] passphrase) {
         throw new UnsupportedOperationException("Creating a physical disk is not supported.");
     }
 
@@ -97,7 +100,7 @@ public class IscsiAdmStoragePool implements KVMStoragePool {
     // from KVMStorageProcessor.createVolume(CreateObjectCommand)
     // does not apply for iScsiAdmStoragePool
     @Override
-    public KVMPhysicalDisk createPhysicalDisk(String name, Storage.ProvisioningType provisioningType, long size) {
+    public KVMPhysicalDisk createPhysicalDisk(String name, Storage.ProvisioningType provisioningType, long size, byte[] passphrase) {
         throw new UnsupportedOperationException("Creating a physical disk is not supported.");
     }
 
@@ -174,8 +177,44 @@ public class IscsiAdmStoragePool implements KVMStoragePool {
     }
 
     @Override
+    public Map<String, String> getDetails() {
+        return null;
+    }
+
+    @Override
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.JSON_STYLE).append("uuid", getUuid()).append("path", getLocalPath()).toString();
+    }
+
+    @Override
+    public boolean isPoolSupportHA() {
+        return false;
+    }
+
+    @Override
+    public String getHearthBeatPath() {
+        return null;
+    }
+
+    @Override
+    public String createHeartBeatCommand(HAStoragePool primaryStoragePool, String hostPrivateIp,
+            boolean hostValidation) {
+        return null;
+    }
+
+    @Override
+    public String getStorageNodeId() {
+        return null;
+    }
+
+    @Override
+    public Boolean checkingHeartBeat(HAStoragePool pool, HostTO host) {
+        return null;
+    }
+
+    @Override
+    public Boolean vmActivityCheck(HAStoragePool pool, HostTO host, Duration activityScriptTimeout, String volumeUUIDListString, String vmActivityCheckPath, long duration) {
+        return null;
     }
 
 }

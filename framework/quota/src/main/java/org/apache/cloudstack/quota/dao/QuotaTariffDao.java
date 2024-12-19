@@ -26,15 +26,11 @@ import java.util.List;
 
 public interface QuotaTariffDao extends GenericDao<QuotaTariffVO, Long> {
 
-    QuotaTariffVO findTariffPlanByUsageType(int quotaType, Date onOrBefore);
+    Pair<List<QuotaTariffVO>, Integer> listQuotaTariffs(Date startDate, Date endDate, Integer usageType, String name, String uuid, boolean listAll, Long startIndex, Long pageSize);
 
-    Pair<List<QuotaTariffVO>, Integer> listAllTariffPlans();
+    Pair<List<QuotaTariffVO>, Integer> listQuotaTariffs(Date startDate, Date endDate, Integer usageType, String name, String uuid, boolean listAll, boolean listOnlyRemoved, Long startIndex, Long pageSize, String keyword);
 
-    Pair<List<QuotaTariffVO>, Integer> listAllTariffPlans(final Long startIndex, final Long pageSize);
-
-    Pair<List<QuotaTariffVO>, Integer> listAllTariffPlans(Date onOrBefore);
-
-    Pair<List<QuotaTariffVO>, Integer> listAllTariffPlans(Date onOrBefore, Long startIndex, Long pageSize);
+    QuotaTariffVO findByName(String name);
 
     Boolean updateQuotaTariff(QuotaTariffVO plan);
 

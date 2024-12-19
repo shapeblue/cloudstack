@@ -19,9 +19,10 @@ package com.cloud.agent;
 import com.cloud.agent.Agent.ExitStatus;
 import com.cloud.agent.dao.StorageComponent;
 import com.cloud.agent.dao.impl.PropertiesStorage;
+import com.cloud.agent.properties.AgentProperties;
+import com.cloud.agent.properties.AgentPropertiesFileHandler;
 import com.cloud.resource.ServerResource;
 import com.cloud.utils.LogUtils;
-import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.ProcessUtil;
 import com.cloud.utils.PropertiesUtil;
 import com.cloud.utils.backoff.BackoffAlgorithm;
@@ -31,9 +32,11 @@ import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonInitException;
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
-import org.apache.log4j.xml.DOMConfigurator;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 
 import javax.naming.ConfigurationException;
 import java.io.File;
@@ -51,7 +54,7 @@ import java.util.Properties;
 import java.util.UUID;
 
 public class AgentShell implements IAgentShell, Daemon {
-    private static final Logger s_logger = Logger.getLogger(AgentShell.class.getName());
+    protected static Logger LOGGER = LogManager.getLogger(AgentShell.class);
 
     private final Properties _properties = new Properties();
     private final Map<String, Object> _cmdLineProperties = new HashMap<String, Object>();
@@ -74,6 +77,7 @@ public class AgentShell implements IAgentShell, Daemon {
     private String hostToConnect;
     private String connectedHost;
     private Long preferredHostCheckInterval;
+    protected AgentProperties agentProperties = new AgentProperties();
 
     public AgentShell() {
     }
@@ -218,7 +222,7 @@ public class AgentShell implements IAgentShell, Daemon {
             throw new ConfigurationException("Unable to find agent.properties.");
         }
 
-        s_logger.info("agent.properties found at " + file.getAbsolutePath());
+        LOGGER.info("agent.properties found at {}", file.getAbsolutePath());
 
         try {
             PropertiesUtil.loadFromFile(_properties, file);
@@ -265,80 +269,88 @@ public class AgentShell implements IAgentShell, Daemon {
             }
         }
 
-        if (port == null) {
-            port = getProperty(null, "port");
-        }
+        setHost(host);
 
-        _port = NumberUtils.toInt(port, 8250);
+        _guid = getGuid(guid);
+        _properties.setProperty(AgentProperties.GUID.getName(), _guid);
 
-        _proxyPort = NumberUtils.toInt(getProperty(null, "consoleproxy.httpListenPort"), 443);
+        _port = getPortOrWorkers(port, AgentProperties.PORT);
+        _workers = getWorkers(workers);
+        _zone = getZoneOrPod(zone, AgentProperties.ZONE);
+        _pod = getZoneOrPod(pod, AgentProperties.POD);
 
-        if (workers == null) {
-            workers = getProperty(null, "workers");
-        }
-
-        _workers = NumberUtils.toInt(workers, 5);
-        if (_workers <= 0) {
-            _workers = 5;
-        }
-
-        if (host == null) {
-            host = getProperty(null, "host");
-        }
-
-        if (host == null) {
-            host = "localhost";
-        }
-
-        setHosts(host);
-
-        if (zone != null)
-            _zone = zone;
-        else
-            _zone = getProperty(null, "zone");
-        if (_zone == null || (_zone.startsWith("@") && _zone.endsWith("@"))) {
-            _zone = "default";
-        }
-
-        if (pod != null)
-            _pod = pod;
-        else
-            _pod = getProperty(null, "pod");
-        if (_pod == null || (_pod.startsWith("@") && _pod.endsWith("@"))) {
-            _pod = "default";
-        }
-
-        if (_host == null || (_host.startsWith("@") && _host.endsWith("@"))) {
-            throw new ConfigurationException("Host is not configured correctly: " + _host);
-        }
-
-        final String retries = getProperty(null, "ping.retries");
-        _pingRetries = NumbersUtil.parseInt(retries, 5);
-
-        String value = getProperty(null, "developer");
-        boolean developer = Boolean.parseBoolean(value);
-
-        if (guid != null)
-            _guid = guid;
-        else
-            _guid = getProperty(null, "guid");
-        if (_guid == null) {
-            if (!developer) {
-                throw new ConfigurationException("Unable to find the guid");
-            }
-            _guid = UUID.randomUUID().toString();
-            _properties.setProperty("guid", _guid);
-        }
-
-        String val = getProperty(null, preferredHostIntervalKey);
-        preferredHostCheckInterval = StringUtils.isEmpty(val) ? null : Long.valueOf(val);
+        _proxyPort = AgentPropertiesFileHandler.getPropertyValue(AgentProperties.CONSOLEPROXY_HTTPLISTENPORT);
+        _pingRetries = AgentPropertiesFileHandler.getPropertyValue(AgentProperties.PING_RETRIES);
+        preferredHostCheckInterval = AgentPropertiesFileHandler.getPropertyValue(AgentProperties.HOST_LB_CHECK_INTERVAL);
 
         return true;
     }
 
+    protected void setHost(String host) throws ConfigurationException {
+        if (host == null) {
+            host = AgentPropertiesFileHandler.getPropertyValue(AgentProperties.HOST);
+        }
+
+        if (isValueStartingAndEndingWithAtSign(host)) {
+            throw new ConfigurationException(String.format("Host [%s] is not configured correctly.", host));
+        }
+
+        setHosts(host);
+    }
+
+    protected boolean isValueStartingAndEndingWithAtSign(String value) {
+        return value.startsWith("@") && value.endsWith("@");
+    }
+
+    protected String getGuid(String guid) throws ConfigurationException {
+        guid = StringUtils.defaultString(guid, AgentPropertiesFileHandler.getPropertyValue(AgentProperties.GUID));
+        if (guid != null) {
+            return guid;
+        }
+
+        if (BooleanUtils.isFalse(AgentPropertiesFileHandler.getPropertyValue(AgentProperties.DEVELOPER))) {
+            throw new ConfigurationException("Unable to find the guid");
+        }
+
+        return UUID.randomUUID().toString();
+    }
+
+    protected String getZoneOrPod(String zoneOrPod, AgentProperties.Property<String> property) {
+        String value = zoneOrPod;
+
+        if (value == null) {
+            value = AgentPropertiesFileHandler.getPropertyValue(property);
+        }
+
+        if (isValueStartingAndEndingWithAtSign(value)) {
+            value = property.getDefaultValue();
+        }
+
+        return value;
+    }
+
+    protected int getWorkers(String workersString) {
+        AgentProperties.Property<Integer> propertyWorkers = agentProperties.getWorkers();
+        int workers = getPortOrWorkers(workersString, propertyWorkers);
+
+        if (workers <= 0) {
+            workers = propertyWorkers.getDefaultValue();
+        }
+
+        return workers;
+    }
+
+    protected int getPortOrWorkers(String portOrWorkers, AgentProperties.Property<Integer> property) {
+        if (portOrWorkers == null) {
+            return AgentPropertiesFileHandler.getPropertyValue(property);
+        }
+
+        return NumberUtils.toInt(portOrWorkers, property.getDefaultValue());
+    }
+
     @Override
     public void init(DaemonContext dc) throws DaemonInitException {
-        s_logger.debug("Initializing AgentShell from JSVC");
+        LOGGER.debug("Initializing AgentShell from JSVC");
         try {
             init(dc.getArguments());
         } catch (ConfigurationException ex) {
@@ -358,11 +370,11 @@ public class AgentShell implements IAgentShell, Daemon {
         }
 
         if (null != file) {
-            DOMConfigurator.configureAndWatch(file.getAbsolutePath());
+            Configurator.initialize(null, file.getAbsolutePath());
 
-            s_logger.info("Agent started");
+            LOGGER.info("Agent started");
         } else {
-            s_logger.error("Could not start the Agent because the absolut path of the \"log4j-cloud.xml\" file cannot be determined.");
+            LOGGER.error("Could not start the Agent because the absolute path of the \"log4j-cloud.xml\" file cannot be determined.");
         }
 
         final Class<?> c = this.getClass();
@@ -370,19 +382,19 @@ public class AgentShell implements IAgentShell, Daemon {
         if (_version == null) {
             throw new CloudRuntimeException("Unable to find the implementation version of this agent");
         }
-        s_logger.info("Implementation Version is " + _version);
+        LOGGER.info("Implementation Version is {}", _version);
 
         loadProperties();
         parseCommand(args);
 
-        if (s_logger.isDebugEnabled()) {
+        if (LOGGER.isDebugEnabled()) {
             List<String> properties = Collections.list((Enumeration<String>)_properties.propertyNames());
             for (String property : properties) {
-                s_logger.debug("Found property: " + property);
+                LOGGER.debug("Found property: {}", property);
             }
         }
 
-        s_logger.info("Defaulting to using properties file for storage");
+        LOGGER.info("Defaulting to using properties file for storage");
         _storage = new PropertiesStorage();
         _storage.configure("Storage", new HashMap<String, Object>());
 
@@ -392,14 +404,14 @@ public class AgentShell implements IAgentShell, Daemon {
             _properties.put(cmdLineProp.getKey(), cmdLineProp.getValue());
         }
 
-        s_logger.info("Defaulting to the constant time backoff algorithm");
+        LOGGER.info("Defaulting to the constant time backoff algorithm");
         _backoff = new ConstantTimeBackoff();
         _backoff.configure("ConstantTimeBackoff", new HashMap<String, Object>());
     }
 
     private void launchAgent() throws ConfigurationException {
-        String resourceClassNames = getProperty(null, "resource");
-        s_logger.trace("resource=" + resourceClassNames);
+        String resourceClassNames = AgentPropertiesFileHandler.getPropertyValue(AgentProperties.RESOURCE);
+        LOGGER.trace("resource={}", resourceClassNames);
         if (resourceClassNames != null) {
             launchAgentFromClassInfo(resourceClassNames);
             return;
@@ -414,35 +426,25 @@ public class AgentShell implements IAgentShell, Daemon {
             Class<?> impl;
             try {
                 impl = Class.forName(name);
-                final Constructor<?> constructor = impl.getDeclaredConstructor();
+                Constructor<?> constructor = impl.getDeclaredConstructor();
                 constructor.setAccessible(true);
                 ServerResource resource = (ServerResource)constructor.newInstance();
                 launchNewAgent(resource);
-            } catch (final ClassNotFoundException e) {
-                throw new ConfigurationException("Resource class not found: " + name + " due to: " + e.toString());
-            } catch (final SecurityException e) {
-                throw new ConfigurationException("Security exception when loading resource: " + name + " due to: " + e.toString());
-            } catch (final NoSuchMethodException e) {
-                throw new ConfigurationException("Method not found exception when loading resource: " + name + " due to: " + e.toString());
-            } catch (final IllegalArgumentException e) {
-                throw new ConfigurationException("Illegal argument exception when loading resource: " + name + " due to: " + e.toString());
-            } catch (final InstantiationException e) {
-                throw new ConfigurationException("Instantiation exception when loading resource: " + name + " due to: " + e.toString());
-            } catch (final IllegalAccessException e) {
-                throw new ConfigurationException("Illegal access exception when loading resource: " + name + " due to: " + e.toString());
-            } catch (final InvocationTargetException e) {
-                throw new ConfigurationException("Invocation target exception when loading resource: " + name + " due to: " + e.toString());
-            }
+            } catch (final ClassNotFoundException | SecurityException | NoSuchMethodException | IllegalArgumentException | InstantiationException |
+                    IllegalAccessException | InvocationTargetException e) {
+                ConfigurationException configurationException = new ConfigurationException(String.format("Error while creating Agent with class [%s].", name));
+                configurationException.setRootCause(e);
+                throw configurationException;            }
         }
     }
 
     private void launchAgentFromTypeInfo() throws ConfigurationException {
         String typeInfo = getProperty(null, "type");
         if (typeInfo == null) {
-            s_logger.error("Unable to retrieve the type");
+            LOGGER.error("Unable to retrieve the type");
             throw new ConfigurationException("Unable to retrieve the type of this agent.");
         }
-        s_logger.trace("Launching agent based on type=" + typeInfo);
+        LOGGER.trace("Launching agent based on type={}", typeInfo);
     }
 
     public void launchNewAgent(ServerResource resource) throws ConfigurationException {
@@ -476,23 +478,23 @@ public class AgentShell implements IAgentShell, Daemon {
             }
 
             if (ipv6disabled) {
-                s_logger.info("Preferring IPv4 address family for agent connection");
+                LOGGER.info("Preferring IPv4 address family for agent connection");
                 System.setProperty("java.net.preferIPv4Stack", "true");
                 if (ipv6prefer) {
-                    s_logger.info("ipv6prefer is set to true, but ipv6disabled is false. Not preferring IPv6 for agent connection");
+                    LOGGER.info("ipv6prefer is set to true, but ipv6disabled is false. Not preferring IPv6 for agent connection");
                 }
             } else {
                 if (ipv6prefer) {
-                    s_logger.info("Preferring IPv6 address family for agent connection");
+                    LOGGER.info("Preferring IPv6 address family for agent connection");
                     System.setProperty("java.net.preferIPv6Addresses", "true");
                 } else {
-                    s_logger.info("Using default Java settings for IPv6 preference for agent connection");
+                    LOGGER.info("Using default Java settings for IPv6 preference for agent connection");
                 }
             }
 
             String instance = getProperty(null, "instance");
             if (instance == null) {
-                if (Boolean.parseBoolean(getProperty(null, "developer"))) {
+                if (BooleanUtils.isTrue(AgentPropertiesFileHandler.getPropertyValue(AgentProperties.DEVELOPER))) {
                     instance = UUID.randomUUID().toString();
                 } else {
                     instance = "";
@@ -504,7 +506,7 @@ public class AgentShell implements IAgentShell, Daemon {
             String pidDir = getProperty(null, "piddir");
 
             final String run = "agent." + instance + "pid";
-            s_logger.debug("Checking to see if " + run + " exists.");
+            LOGGER.debug("Checking to see if {} exists.", run);
             ProcessUtil.pidCheck(pidDir, run);
 
             launchAgent();
@@ -513,16 +515,11 @@ public class AgentShell implements IAgentShell, Daemon {
                 while (!_exit)
                     Thread.sleep(1000);
             } catch (InterruptedException e) {
-                s_logger.debug("[ignored] AgentShell was interrupted.");
+                LOGGER.debug("[ignored] AgentShell was interrupted.");
             }
 
-        } catch (final ConfigurationException e) {
-            s_logger.error("Unable to start agent: " + e.getMessage());
-            System.out.println("Unable to start agent: " + e.getMessage());
-            System.exit(ExitStatus.Configuration.value());
         } catch (final Exception e) {
-            s_logger.error("Unable to start agent: ", e);
-            System.out.println("Unable to start agent: " + e.getMessage());
+            LOGGER.error("Unable to start agent: ", e);
             System.exit(ExitStatus.Error.value());
         }
     }
@@ -539,7 +536,7 @@ public class AgentShell implements IAgentShell, Daemon {
 
     public static void main(String[] args) {
         try {
-            s_logger.debug("Initializing AgentShell from main");
+            LOGGER.debug("Initializing AgentShell from main");
             AgentShell shell = new AgentShell();
             shell.init(args);
             shell.start();

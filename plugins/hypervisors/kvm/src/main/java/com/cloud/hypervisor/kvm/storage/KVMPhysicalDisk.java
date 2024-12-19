@@ -17,20 +17,26 @@
 package com.cloud.hypervisor.kvm.storage;
 
 import org.apache.cloudstack.utils.qemu.QemuImg.PhysicalDiskFormat;
+import org.apache.cloudstack.utils.qemu.QemuObject;
+import org.apache.cloudstack.utils.reflectiontostringbuilderutils.ReflectionToStringBuilderUtils;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class KVMPhysicalDisk {
     private String path;
-    private String name;
-    private KVMStoragePool pool;
+    private final String name;
+    private final KVMStoragePool pool;
+    private String dispName;
+    private String vmName;
+    private boolean useAsTemplate;
 
     public static String RBDStringBuilder(String monHost, int monPort, String authUserName, String authSecret, String image) {
         String rbdOpts;
 
         rbdOpts = "rbd:" + image;
-        rbdOpts += ":mon_host=" + monHost;
-        if (monPort > 0) {
-            rbdOpts += "\\:" + monPort;
-        }
+        rbdOpts += ":mon_host=" + composeOptionForMonHosts(monHost, monPort);
 
         if (authUserName == null) {
             rbdOpts += ":auth_supported=none";
@@ -46,9 +52,29 @@ public class KVMPhysicalDisk {
         return rbdOpts;
     }
 
+    private static String composeOptionForMonHosts(String monHost, int monPort) {
+        List<String> hosts = new ArrayList<>();
+        for (String host : monHost.split(",")) {
+            if (monPort > 0) {
+                hosts.add(replaceHostAddress(host) + "\\:" + monPort);
+            } else {
+                hosts.add(replaceHostAddress(host));
+            }
+        }
+        return StringUtils.join(hosts, "\\;");
+    }
+
+    private static String replaceHostAddress(String hostIp) {
+        if (hostIp != null && hostIp.startsWith("[") && hostIp.endsWith("]")) {
+            return hostIp.replaceAll("\\:", "\\\\:");
+        }
+        return hostIp;
+    }
+
     private PhysicalDiskFormat format;
     private long size;
     private long virtualSize;
+    private QemuObject.EncryptFormat qemuEncryptFormat;
 
     public KVMPhysicalDisk(String path, String name, KVMStoragePool pool) {
         this.path = path;
@@ -58,7 +84,9 @@ public class KVMPhysicalDisk {
 
     @Override
     public String toString() {
-        return "KVMPhysicalDisk [path=" + path + ", name=" + name + ", pool=" + pool + ", format=" + format + ", size=" + size + ", virtualSize=" + virtualSize + "]";
+        return String.format("KVMPhysicalDisk %s",
+                ReflectionToStringBuilderUtils.reflectOnlySelectedFields(
+                        this, "path", "name", "pool", "format", "size", "virtualSize", "dispName", "vmName"));
     }
 
     public void setFormat(PhysicalDiskFormat format) {
@@ -101,4 +129,31 @@ public class KVMPhysicalDisk {
         this.path = path;
     }
 
+    public QemuObject.EncryptFormat getQemuEncryptFormat() {
+        return this.qemuEncryptFormat;
+    }
+
+    public void setQemuEncryptFormat(QemuObject.EncryptFormat format) {
+        this.qemuEncryptFormat = format;
+    }
+
+    public void setUseAsTemplate() { this.useAsTemplate = true; }
+
+    public boolean useAsTemplate() { return this.useAsTemplate; }
+
+    public String getDispName() {
+        return dispName;
+    }
+
+    public void setDispName(String dispName) {
+        this.dispName = dispName;
+    }
+
+    public String getVmName() {
+        return vmName;
+    }
+
+    public void setVmName(String vmName) {
+        this.vmName = vmName;
+    }
 }

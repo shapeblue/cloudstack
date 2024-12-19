@@ -17,26 +17,34 @@
 package com.cloud.api.query.dao;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import com.cloud.resource.icon.ResourceIconVO;
-import org.apache.cloudstack.api.response.ResourceIconResponse;
+import com.cloud.cpu.CPU;
+import com.cloud.dc.ASNumberRangeVO;
+import com.cloud.dc.dao.ASNumberRangeDao;
+import com.cloud.network.dao.NsxProviderDao;
+import com.cloud.network.element.NsxProviderVO;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
-import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
-import org.springframework.stereotype.Component;
-
 import org.apache.cloudstack.api.ResponseObject.ResponseView;
+import org.apache.cloudstack.api.response.ResourceIconResponse;
 import org.apache.cloudstack.api.response.ResourceTagResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
+import org.apache.cloudstack.context.CallContext;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.stereotype.Component;
 
 import com.cloud.api.ApiDBUtils;
 import com.cloud.api.ApiResponseHelper;
 import com.cloud.api.query.vo.DataCenterJoinVO;
 import com.cloud.api.query.vo.ResourceTagJoinVO;
 import com.cloud.dc.DataCenter;
+import com.cloud.network.NetworkService;
+import com.cloud.resource.icon.ResourceIconVO;
 import com.cloud.server.ResourceTag.ResourceObjectType;
 import com.cloud.user.AccountManager;
 import com.cloud.utils.db.GenericDaoBase;
@@ -45,13 +53,16 @@ import com.cloud.utils.db.SearchCriteria;
 
 @Component
 public class DataCenterJoinDaoImpl extends GenericDaoBase<DataCenterJoinVO, Long> implements DataCenterJoinDao {
-    public static final Logger s_logger = Logger.getLogger(DataCenterJoinDaoImpl.class);
 
     private SearchBuilder<DataCenterJoinVO> dofIdSearch;
     @Inject
     public AccountManager _accountMgr;
     @Inject
     private AnnotationDao annotationDao;
+    @Inject
+    private NsxProviderDao nsxProviderDao;
+    @Inject
+    private ASNumberRangeDao asNumberRangeDao;
 
     protected DataCenterJoinDaoImpl() {
 
@@ -69,6 +80,7 @@ public class DataCenterJoinDaoImpl extends GenericDaoBase<DataCenterJoinVO, Long
         zoneResponse.setName(dataCenter.getName());
         zoneResponse.setSecurityGroupsEnabled(ApiDBUtils.isSecurityGroupEnabledInZone(dataCenter.getId()));
         zoneResponse.setLocalStorageEnabled(dataCenter.isLocalStorageEnabled());
+        zoneResponse.setType(ObjectUtils.defaultIfNull(dataCenter.getType(), DataCenter.Type.Core).toString());
 
         if ((dataCenter.getDescription() != null) && !dataCenter.getDescription().equalsIgnoreCase("null")) {
             zoneResponse.setDescription(dataCenter.getDescription());
@@ -85,7 +97,7 @@ public class DataCenterJoinDaoImpl extends GenericDaoBase<DataCenterJoinVO, Long
             zoneResponse.setGuestCidrAddress(dataCenter.getGuestNetworkCidr());
 
             if (showCapacities != null && showCapacities) {
-                zoneResponse.setCapacitites(ApiResponseHelper.getDataCenterCapacityResponse(dataCenter.getId()));
+                zoneResponse.setCapacities(ApiResponseHelper.getDataCenterCapacityResponse(dataCenter.getId()));
             }
         }
 
@@ -117,9 +129,24 @@ public class DataCenterJoinDaoImpl extends GenericDaoBase<DataCenterJoinVO, Long
             }
         }
 
+        NsxProviderVO nsxProviderVO = nsxProviderDao.findByZoneId(dataCenter.getId());
+        if (Objects.nonNull(nsxProviderVO)) {
+            zoneResponse.setNsxEnabled(true);
+        }
+
+        List<CPU.CPUArch> clusterArchs = ApiDBUtils.listZoneClustersArchs(dataCenter.getId());
+        zoneResponse.setMultiArch(CollectionUtils.isNotEmpty(clusterArchs) && clusterArchs.size() > 1);
+
+        List<ASNumberRangeVO> asNumberRange = asNumberRangeDao.listByZoneId(dataCenter.getId());
+        String asRange = asNumberRange.stream().map(range -> range.getStartASNumber() + "-" + range.getEndASNumber()).collect(Collectors.joining(", "));
+        zoneResponse.setAsnRange(asRange);
+
         zoneResponse.setResourceDetails(ApiDBUtils.getResourceDetails(dataCenter.getId(), ResourceObjectType.Zone));
         zoneResponse.setHasAnnotation(annotationDao.hasAnnotations(dataCenter.getUuid(), AnnotationService.EntityType.ZONE.name(),
                 _accountMgr.isRootAdmin(CallContext.current().getCallingAccount().getId())));
+        zoneResponse.setAllowUserSpecifyVRMtu(NetworkService.AllowUsersToSpecifyVRMtu.valueIn(dataCenter.getId()));
+        zoneResponse.setRouterPrivateInterfaceMaxMtu(NetworkService.VRPrivateInterfaceMtu.valueIn(dataCenter.getId()));
+        zoneResponse.setRouterPublicInterfaceMaxMtu(NetworkService.VRPublicInterfaceMtu.valueIn(dataCenter.getId()));
 
         zoneResponse.setObjectName("zone");
         return zoneResponse;

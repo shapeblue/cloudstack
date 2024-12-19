@@ -15,7 +15,7 @@ was tested against a CentOS 7 x86_64 setup.
 
 Install tools and dependencies used for development:
 
-    # yum -y install git java-11-openjdk java-11-openjdk-devel \
+    # yum -y install git java-17-openjdk java-17-openjdk-devel \
       mysql mysql-server mkisofs git gcc python MySQL-python openssh-clients wget
 
 Set up Maven (3.6.0):
@@ -59,7 +59,7 @@ You may get the source code from the repository hosted on Apache:
 
     $ git clone https://gitbox.apache.org/repos/asf/cloudstack.git
 
-Or, you may fork the repository from the official Apache CloudStack mirror on [Github](https://github.com/apache/cloudstack)
+Or, you may fork the repository from the official Apache CloudStack mirror on [GitHub](https://github.com/apache/cloudstack)
 
 To checkout a specific branch, for example 4.11, do:
 
@@ -78,7 +78,7 @@ Clear old database (if any) and deploy the database schema:
 
 Export the following variable if you need to run and debug the management server:
 
-    $ export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=500m -Xdebug -Xrunjdwp:transport=dt_socket,address=8787,server=y,suspend=n"
+    $ export MAVEN_OPTS="-Xmx1024m -XX:MaxMetaspaceSize=500m -Xdebug -Xrunjdwp:transport=dt_socket,address=8787,server=y,suspend=n"
 
 Start the management server:
 

@@ -21,7 +21,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -47,8 +46,6 @@ import com.cloud.utils.exception.CloudRuntimeException;
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListPaloAltoFirewallNetworksCmd extends BaseListCmd {
 
-    public static final Logger s_logger = Logger.getLogger(ListPaloAltoFirewallNetworksCmd.class.getName());
-    private static final String s_name = "listpaloaltofirewallnetworksresponse";
     @Inject
     PaloAltoFirewallElementService _paFwService;
 
@@ -100,8 +97,4 @@ public class ListPaloAltoFirewallNetworksCmd extends BaseListCmd {
         }
     }
 
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
-}

@@ -37,6 +37,9 @@ if [ $# -gt 3 ]; then
 fi
 
 export PATH=$PATH:/opt/bin
+if [[ "$PATH" != *:/usr/sbin && "$PATH" != *:/usr/sbin:* ]]; then
+  export PATH=$PATH:/usr/sbin
+fi
 
 ISO_MOUNT_DIR=/mnt/k8sdisk
 BINARIES_DIR=${ISO_MOUNT_DIR}/
@@ -51,7 +54,7 @@ while true; do
     break
   fi
   set +e
-  output=`blkid -o device -t TYPE=iso9660`
+  output=`blkid -o device -t LABEL=CDROM`
   set -e
   if [ "$output" != "" ]; then
     while read -r line; do
@@ -134,7 +137,7 @@ if [ -d "$BINARIES_DIR" ]; then
 
   systemctl stop kubelet
   cp -a ${BINARIES_DIR}/k8s/{kubelet,kubectl} /opt/bin
-  chmod +x {kubelet,kubectl}
+  chmod +x /opt/bin/{kubelet,kubectl}
 
   systemctl daemon-reload
   systemctl restart containerd
@@ -149,4 +152,7 @@ if [ -d "$BINARIES_DIR" ]; then
   if [ "$EJECT_ISO_FROM_OS" = true ] && [ "$iso_drive_path" != "" ]; then
     eject "${iso_drive_path}"
   fi
+else
+  echo "ERROR: Unable to access Binaries directory for upgrade version ${UPGRADE_VERSION}"
+  exit 1
 fi

@@ -18,6 +18,7 @@
 package org.apache.cloudstack.acl;
 
 import com.cloud.utils.db.GenericDao;
+import org.apache.cloudstack.utils.reflectiontostringbuilderutils.ReflectionToStringBuilderUtils;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -54,11 +55,19 @@ public class RoleVO implements Role {
     @Column(name = "is_default")
     private boolean isDefault = false;
 
+    @Column(name = "public_role")
+    private boolean publicRole = true;
+
+    @Column(name = "state")
+    @Enumerated(value = EnumType.STRING)
+    private State state;
+
     @Column(name = GenericDao.REMOVED_COLUMN)
     private Date removed;
 
     public RoleVO() {
         this.uuid = UUID.randomUUID().toString();
+        this.state = State.ENABLED;
     }
 
     public RoleVO(final String name, final RoleType roleType, final String description) {
@@ -113,5 +122,26 @@ public class RoleVO implements Role {
 
     public boolean isDefault() {
         return isDefault;
+    }
+
+    @Override
+    public String toString() {
+        return ReflectionToStringBuilderUtils.reflectOnlySelectedFields(this, "name", "uuid", "roleType");
+    }
+
+    public boolean isPublicRole() {
+        return publicRole;
+    }
+
+    public void setPublicRole(boolean publicRole) {
+        this.publicRole = publicRole;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void setState(State state) {
+        this.state = state;
     }
 }

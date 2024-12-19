@@ -22,6 +22,7 @@ import com.cloud.user.AccountService;
 import com.cloud.user.User;
 import com.cloud.user.UserAccountVO;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.response.LinkAccountToLdapResponse;
 import org.apache.cloudstack.ldap.LdapManager;
 import org.apache.cloudstack.ldap.LdapUser;
@@ -29,13 +30,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isNull;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class LinkAccountToLdapCmdTest implements LdapConfigurationChanger {
@@ -56,7 +57,7 @@ public class LinkAccountToLdapCmdTest implements LdapConfigurationChanger {
 
     @Test
     public void execute() throws Exception {
-        //      test with valid params and with admin who doesnt exist in cloudstack
+        //      test with valid params and with admin who doesn't exist in cloudstack
         long domainId = 1;
         String type = "GROUP";
         String ldapDomain = "CN=test,DC=ccp,DC=Citrix,DC=com";
@@ -87,7 +88,7 @@ public class LinkAccountToLdapCmdTest implements LdapConfigurationChanger {
 
         linkAccountToLdapCmd.execute();
         LinkAccountToLdapResponse result = (LinkAccountToLdapResponse)linkAccountToLdapCmd.getResponseObject();
-        assertEquals("objectName", linkAccountToLdapCmd.APINAME, result.getObjectName());
+        assertEquals("objectName", BaseCmd.getCommandNameByClass(LinkAccountToLdapCmd.class), result.getObjectName());
         assertEquals("commandName", linkAccountToLdapCmd.getCommandName(), result.getResponseName());
         assertEquals("domainId", String.valueOf(domainId), result.getDomainId());
         assertEquals("type", type, result.getType());

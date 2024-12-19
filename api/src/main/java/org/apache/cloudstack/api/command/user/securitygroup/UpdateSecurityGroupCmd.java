@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.securitygroup;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
@@ -32,14 +31,11 @@ import org.apache.cloudstack.api.response.SecurityGroupResponse;
 import com.cloud.network.security.SecurityGroup;
 import com.cloud.user.Account;
 
-@APICommand(name = UpdateSecurityGroupCmd.APINAME, description = "Updates a security group", responseObject = SecurityGroupResponse.class, entityType = {SecurityGroup.class},
+@APICommand(name = "updateSecurityGroup", description = "Updates a security group", responseObject = SecurityGroupResponse.class, entityType = {SecurityGroup.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         since = "4.14.0.0",
         authorized = {RoleType.Admin})
 public class UpdateSecurityGroupCmd extends BaseCustomIdCmd {
-    public static final String APINAME = "updateSecurityGroup";
-    public static final Logger s_logger = Logger.getLogger(UpdateSecurityGroupCmd.class.getName());
-    private static final String s_name = "updatesecuritygroupresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -67,11 +63,6 @@ public class UpdateSecurityGroupCmd extends BaseCustomIdCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

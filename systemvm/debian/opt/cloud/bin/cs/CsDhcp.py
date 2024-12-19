@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import CsHelper
+from . import CsHelper
 import logging
 import os
 from netaddr import *
 from random import randint
-from CsGuestNetwork import CsGuestNetwork
+import json
+from .CsGuestNetwork import CsGuestNetwork
 from cs.CsDatabag import CsDataBag
 from cs.CsFile import CsFile
+from cs.CsAddress import CsIP
 
 LEASES = "/var/lib/misc/dnsmasq.leases"
 DHCP_HOSTS = "/etc/dhcphosts.txt"
@@ -120,6 +122,11 @@ class CsDhcp(CsDataBag):
                 sline = "dhcp-option=tag:interface-%s-%s,3," % (device, idx)
                 line = "dhcp-option=tag:interface-%s-%s,3,%s" % (device, idx, gateway)
                 self.conf.search(sline, line)
+
+            sline = "dhcp-option=%s,26" % device
+            line = "dhcp-option=%s,26,%s" % (device, i['mtu'])
+            self.conf.search(sline, line)
+
             # Netmask
             netmask = ''
             if self.config.is_vpc():

@@ -34,6 +34,10 @@ public class AutoScalePolicyResponse extends BaseResponse implements ControlledE
     @Param(description = "the autoscale policy ID")
     private String id;
 
+    @SerializedName(ApiConstants.NAME)
+    @Param(description = "name of the autoscale policy")
+    private String name;
+
     @SerializedName(ApiConstants.ACTION)
     @Param(description = "the action to be executed if all the conditions evaluate to true for the specified duration.")
     private String action;
@@ -70,6 +74,10 @@ public class AutoScalePolicyResponse extends BaseResponse implements ControlledE
     @Param(description = "the domain name of the autoscale policy")
     private String domainName;
 
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the domain to which the autoscale policy belongs", since = "4.19.2.0")
+    private String domainPath;
+
     @Override
     public String getObjectId() {
         return this.id;
@@ -77,6 +85,10 @@ public class AutoScalePolicyResponse extends BaseResponse implements ControlledE
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public void setDuration(Integer duration) {
@@ -108,6 +120,11 @@ public class AutoScalePolicyResponse extends BaseResponse implements ControlledE
     @Override
     public void setDomainName(String domainName) {
         this.domainName = domainName;
+    }
+
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
     }
 
     @Override

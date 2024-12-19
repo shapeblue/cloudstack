@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.loadbalancer;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -40,9 +39,7 @@ import com.cloud.user.Account;
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class RemoveCertFromLoadBalancerCmd extends BaseAsyncCmd {
 
-    public static final Logger s_logger = Logger.getLogger(RemoveCertFromLoadBalancerCmd.class.getName());
 
-    private static final String s_name = "removecertfromloadbalancerresponse";
 
     @Parameter(name = ApiConstants.LBID,
                type = CommandType.UUID,
@@ -66,11 +63,6 @@ public class RemoveCertFromLoadBalancerCmd extends BaseAsyncCmd {
     @Override
     public String getEventType() {
         return EventTypes.EVENT_LB_CERT_REMOVE;
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

@@ -25,7 +25,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.doReturn;
@@ -61,15 +61,15 @@ public class SAML2AuthManagerImplTest {
     public void testStart() {
         when(saml2AuthManager.getSAMLIdentityProviderMetadataURL()).thenReturn("file://does/not/exist");
         boolean started = saml2AuthManager.start();
-        assertFalse("saml2authmanager should not start as the file doesnt exist", started);
+        assertFalse("saml2authmanager should not start as the file doesn't exist", started);
 
         when(saml2AuthManager.getSAMLIdentityProviderMetadataURL()).thenReturn(" ");
         started = saml2AuthManager.start();
-        assertFalse("saml2authmanager should not start as the file doesnt exist", started);
+        assertFalse("saml2authmanager should not start as the file doesn't exist", started);
 
         when(saml2AuthManager.getSAMLIdentityProviderMetadataURL()).thenReturn("");
         started = saml2AuthManager.start();
-        assertFalse("saml2authmanager should not start as the file doesnt exist", started);
+        assertFalse("saml2authmanager should not start as the file doesn't exist", started);
 
     }
 }

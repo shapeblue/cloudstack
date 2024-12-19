@@ -36,21 +36,18 @@ import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.api.response.VsphereStoragePoliciesResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-@APICommand(name = ListVsphereStoragePoliciesCmd.APINAME, description = "List vSphere storage policies",
+@APICommand(name = "listVsphereStoragePolicies", description = "List vSphere storage policies",
         responseObject = VsphereStoragePoliciesResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin})
 public class ListVsphereStoragePoliciesCmd extends BaseCmd {
 
-    public static final Logger LOGGER = Logger.getLogger(ListVsphereStoragePoliciesCmd.class.getName());
 
-    public static final String APINAME = "listVsphereStoragePolicies";
 
     @Inject
     public VmwareDatacenterService _vmwareDatacenterService;
@@ -91,11 +88,6 @@ public class ListVsphereStoragePoliciesCmd extends BaseCmd {
         responseList.setResponses(storagePoliciesResponseList);
         responseList.setResponseName(getCommandName());
         setResponseObject(responseList);
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     @Override

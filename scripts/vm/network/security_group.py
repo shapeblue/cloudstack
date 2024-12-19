@@ -911,7 +911,7 @@ def cleanup_bridge(bridge):
         try:
             execute("iptables -F " + chain)
         except: pass
-    # Remove brige chains
+    # Remove bridge chains
     for chain in chains:
         try:
             execute("iptables -X " + chain)
@@ -938,7 +938,7 @@ def cleanup_rules():
                 vmpresent = False
 
                 for vm in vmsInHost:
-                    if vm_name  in vm:
+                    if vm_name in vm:
                         vmpresent = True
                         break
 
@@ -958,7 +958,7 @@ def cleanup_rules():
                 vm_name = chain
                 vmpresent = False
                 for vm in vmsInHost:
-                    if vm_name  in vm:
+                    if vm_name in vm:
                         vmpresent = True
                         break
 
@@ -1102,7 +1102,7 @@ def add_network_rules(vm_name, vm_id, vm_ip, vm_ip6, signature, seqno, vmMac, ru
 
         changes = check_rule_log_for_vm(vmName, vm_id, vm_ip, domId, signature, seqno)
 
-        if not 1 in changes:
+        if 1 not in changes:
             logging.debug("Rules already programmed for vm " + vm_name)
             return True
 
@@ -1389,7 +1389,7 @@ def verify_network_rules(vm_name, vm_id, vm_ip, vm_ip6, vm_mac, vif, brname, sec
     #vm_mac = "1e:00:b4:00:00:05"
     #vif = "vnet11"
     #brname = "cloudbr0"
-    #sec_ips = "10.11.118.133;10.11.118.135;10.11.118.138;" # end with ";" and seperated by ";"
+    #sec_ips = "10.11.118.133;10.11.118.135;10.11.118.138;" # end with ";" and separated by ";"
 
     vm_ips = []
     if sec_ips is not None:

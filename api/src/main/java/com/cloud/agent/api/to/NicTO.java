@@ -31,6 +31,10 @@ public class NicTO extends NetworkTO {
     List<String> nicSecIps;
     Map<NetworkOffering.Detail, String> details;
     boolean dpdkEnabled;
+    Integer mtu;
+    Long networkId;
+
+    String networkSegmentName;
 
     public NicTO() {
         super();
@@ -117,5 +121,29 @@ public class NicTO extends NetworkTO {
 
     public void setDpdkEnabled(boolean dpdkEnabled) {
         this.dpdkEnabled = dpdkEnabled;
+    }
+
+    public Integer getMtu() {
+        return mtu;
+    }
+
+    public void setMtu(Integer mtu) {
+        this.mtu = mtu;
+    }
+
+    public Long getNetworkId() {
+        return networkId;
+    }
+
+    public void setNetworkId(Long networkId) {
+        this.networkId = networkId;
+    }
+
+    public String getNetworkSegmentName() {
+        return networkSegmentName;
+    }
+
+    public void setNetworkSegmentName(String networkSegmentName) {
+        this.networkSegmentName = networkSegmentName;
     }
 }

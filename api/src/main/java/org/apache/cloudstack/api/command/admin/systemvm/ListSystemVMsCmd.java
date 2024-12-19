@@ -19,7 +19,6 @@ package org.apache.cloudstack.api.command.admin.systemvm;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -39,9 +38,7 @@ import com.cloud.vm.VirtualMachine;
 @APICommand(name = "listSystemVms", description = "List system virtual machines.", responseObject = SystemVmResponse.class, entityType = {VirtualMachine.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListSystemVMsCmd extends BaseListCmd {
-    public static final Logger s_logger = Logger.getLogger(ListSystemVMsCmd.class.getName());
 
-    private static final String s_name = "listsystemvmsresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -116,11 +113,6 @@ public class ListSystemVMsCmd extends BaseListCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public ApiCommandResourceType getApiResourceType() {

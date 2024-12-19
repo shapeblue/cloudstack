@@ -26,7 +26,6 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
 import com.cloud.exception.UnavailableCommandException;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 
@@ -43,7 +42,6 @@ import com.cloud.utils.component.PluggableService;
 @Deprecated
 public class StaticRoleBasedAPIAccessChecker extends AdapterBase implements APIAclChecker {
 
-    protected static final Logger LOGGER = Logger.getLogger(StaticRoleBasedAPIAccessChecker.class);
 
     private Set<String> commandPropertyFiles = new HashSet<String>();
     private Set<String> commandNames = new HashSet<String>();
@@ -65,43 +63,76 @@ public class StaticRoleBasedAPIAccessChecker extends AdapterBase implements APIA
         }
     }
 
+    /**
+     * Only one strategy should be used between StaticRoleBasedAPIAccessChecker and DynamicRoleBasedAPIAccessChecker
+     * Default behavior is to use the Dynamic version. The StaticRoleBasedAPIAccessChecker is the legacy version.
+     * If roleService is enabled, then it uses the DynamicRoleBasedAPIAccessChecker, otherwise, it will use the
+     * StaticRoleBasedAPIAccessChecker.
+     */
     @Override
     public boolean isEnabled() {
-        return !isDisabled();
+        if (roleService.isEnabled()) {
+            logger.debug("RoleService is enabled. We will use it instead of StaticRoleBasedAPIAccessChecker.");
+        }
+        return !roleService.isEnabled();
     }
-    public boolean isDisabled() {
-        return roleService.isEnabled();
+
+    @Override
+    public List<String> getApisAllowedToUser(Role role, User user, List<String> apiNames) throws PermissionDeniedException {
+        if (!isEnabled()) {
+            return apiNames;
+        }
+
+        RoleType roleType = role.getRoleType();
+        apiNames.removeIf(apiName -> !isApiAllowed(apiName, roleType));
+
+        return apiNames;
     }
 
     @Override
     public boolean checkAccess(User user, String commandName) throws PermissionDeniedException {
-        if (isDisabled()) {
+        if (!isEnabled()) {
             return true;
         }
 
         Account account = accountService.getAccount(user.getAccountId());
         if (account == null) {
-            throw new PermissionDeniedException("The account id=" + user.getAccountId() + "for user id=" + user.getId() + "is null");
+            throw new PermissionDeniedException(String.format("The account with id [%s] for user with uuid [%s] is null.", user.getAccountId(), user.getUuid()));
         }
 
         return checkAccess(account, commandName);
     }
 
+    @Override
     public boolean checkAccess(Account account, String commandName) {
-        RoleType roleType = accountService.getRoleType(account);
-        boolean isAllowed =
-            commandsPropertiesOverrides.contains(commandName) ? commandsPropertiesRoleBasedApisMap.get(roleType).contains(commandName) : annotationRoleBasedApisMap.get(
-                roleType).contains(commandName);
+        if (!isEnabled()) {
+            return true;
+        }
 
-        if (isAllowed) {
+        RoleType roleType = accountService.getRoleType(account);
+        if (isApiAllowed(commandName, roleType)) {
             return true;
         }
 
         if (commandNames.contains(commandName)) {
-            throw new PermissionDeniedException("The API is denied. Role type=" + roleType.toString() + " is not allowed to request the api: " + commandName);
+            throw new PermissionDeniedException(String.format("Request to API [%s] was denied. The role type [%s] is not allowed to request it.", commandName, roleType.toString()));
         } else {
-            throw new UnavailableCommandException("The API " + commandName + " does not exist or is not available for this account.");
+            throw new UnavailableCommandException(String.format("The API [%s] does not exist or is not available for this account.", commandName));
         }
+    }
+
+    /**
+     * Verifies if the API is allowed for the given RoleType.
+     *
+     * @param apiName API command to be verified
+     * @param roleType to be verified
+     * @return 'true' if the API is allowed for the given RoleType, otherwise, 'false'.
+     */
+    public boolean isApiAllowed(String apiName, RoleType roleType) {
+        if (commandsPropertiesOverrides.contains(apiName)) {
+            return commandsPropertiesRoleBasedApisMap.get(roleType).contains(apiName);
+        }
+        return annotationRoleBasedApisMap.get(roleType).contains(apiName);
     }
 
     @Override
@@ -147,7 +178,7 @@ public class StaticRoleBasedAPIAccessChecker extends AdapterBase implements APIA
                         commandsPropertiesRoleBasedApisMap.get(roleType).add(apiName);
                 }
             } catch (NumberFormatException nfe) {
-                LOGGER.info("Malformed key=value pair for entry: " + entry.toString());
+                logger.error(String.format("Malformed key=value pair for entry: [%s].", entry));
             }
         }
     }

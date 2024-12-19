@@ -41,7 +41,7 @@ cat $cfg | while read line; do
     elif [ "$line" == "<version>" ]; then
         read line
         version=$line
-        log_it "VR config: configuation format version $version"
+        log_it "VR config: configuration format version $version"
         #skip </version>
         read line
 
@@ -74,7 +74,7 @@ cat $cfg | while read line; do
 
     fi
 
-done 
+done
 
 # archive the configuration file
 mv $cfg /var/cache/cloud/processed/

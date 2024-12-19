@@ -25,12 +25,11 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.NetworkResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.network.Network;
 import com.cloud.user.Account;
 
-@APICommand(name = ResetNetworkPermissionsCmd.APINAME, description = "Resets network permissions.",
+@APICommand(name = "resetNetworkPermissions", description = "Resets network permissions.",
         responseObject = SuccessResponse.class,
         entityType = {Network.class},
         requestHasSensitiveInfo = false,
@@ -38,9 +37,7 @@ import com.cloud.user.Account;
         since = "4.17.0",
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class ResetNetworkPermissionsCmd extends BaseCmd {
-    public static final Logger LOGGER = Logger.getLogger(ResetNetworkPermissionsCmd.class.getName());
 
-    public static final String APINAME = "resetNetworkPermissions";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -60,11 +57,6 @@ public class ResetNetworkPermissionsCmd extends BaseCmd {
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
 
     @Override
     public void execute() {

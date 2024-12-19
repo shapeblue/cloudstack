@@ -25,7 +25,6 @@ import org.apache.cloudstack.api.BaseListCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.AlertResponse;
 import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.alert.Alert;
 import com.cloud.utils.Pair;
@@ -34,9 +33,7 @@ import com.cloud.utils.Pair;
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListAlertsCmd extends BaseListCmd {
 
-    public static final Logger s_logger = Logger.getLogger(ListAlertsCmd.class.getName());
 
-    private static final String s_name = "listalertsresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -70,11 +67,6 @@ public class ListAlertsCmd extends BaseListCmd {
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public void execute() {

@@ -17,6 +17,9 @@
 
 <template>
   <a-spin :spinning="loading">
+    <div v-if="!isNormalUserOrProject">
+      <ownership-selection @fetch-owner="fetchOwnerOptions" />
+    </div>
     <a-form
       class="form"
       layout="vertical"
@@ -35,7 +38,7 @@
           v-model:value="form.name"
           :placeholder="apiParams.name.description" />
       </a-form-item>
-      <a-form-item ref="zoneid" name="zoneid">
+      <a-form-item ref="zoneid" name="zoneid" v-if="!createVolumeFromVM">
         <template #label>
           <tooltip-label :title="$t('label.zoneid')" :tooltip="apiParams.zoneid.description"/>
         </template>
@@ -62,7 +65,7 @@
           </a-select-option>
         </a-select>
       </a-form-item>
-      <a-form-item ref="diskofferingid" name="diskofferingid">
+      <a-form-item ref="diskofferingid" name="diskofferingid" v-if="!createVolumeFromSnapshot || (createVolumeFromSnapshot && resource.volumetype === 'ROOT')">
         <template #label>
           <tooltip-label :title="$t('label.diskofferingid')" :tooltip="apiParams.diskofferingid.description || 'Disk Offering'"/>
         </template>
@@ -74,12 +77,13 @@
           showSearch
           optionFilterProp="label"
           :filterOption="(input, option) => {
-            return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
           }" >
           <a-select-option
             v-for="(offering, index) in offerings"
             :value="offering.id"
-            :key="index">
+            :key="index"
+            :label="offering.displaytext || offering.name">
             {{ offering.displaytext || offering.name }}
           </a-select-option>
         </a-select>
@@ -126,21 +130,47 @@ import { api } from '@/api'
 import { mixinForm } from '@/utils/mixin'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import TooltipLabel from '@/components/widgets/TooltipLabel'
+import OwnershipSelection from '@/views/compute/wizard/OwnershipSelection.vue'
+import store from '@/store'
 
 export default {
   name: 'CreateVolume',
   mixins: [mixinForm],
   components: {
+    OwnershipSelection,
     ResourceIcon,
     TooltipLabel
   },
+  props: {
+    resource: {
+      type: Object,
+      default: () => {}
+    }
+  },
   data () {
     return {
+      owner: {
+        projectid: store.getters.project?.id,
+        domainid: store.getters.project?.id ? null : store.getters.userInfo.domainid,
+        account: store.getters.project?.id ? null : store.getters.userInfo.account
+      },
+      snapshotZoneIds: [],
       zones: [],
       offerings: [],
       customDiskOffering: false,
       loading: false,
       isCustomizedDiskIOps: false
+    }
+  },
+  computed: {
+    createVolumeFromVM () {
+      return this.$route.path.startsWith('/vm/')
+    },
+    isNormalUserOrProject () {
+      return ['User'].includes(this.$store.getters.userInfo.roletype) || store.getters.project?.id
+    },
+    createVolumeFromSnapshot () {
+      return this.$route.path.startsWith('/snapshot')
     }
   },
   beforeCreate () {
@@ -155,9 +185,7 @@ export default {
       this.formRef = ref()
       this.form = reactive({})
       this.rules = reactive({
-        name: [{ required: true, message: this.$t('message.error.volume.name') }],
         zoneid: [{ required: true, message: this.$t('message.error.zone') }],
-        diskofferingid: [{ required: true, message: this.$t('message.error.select') }],
         size: [{ required: true, message: this.$t('message.error.custom.disk.size') }],
         miniops: [{
           validator: async (rule, value) => {
@@ -176,10 +204,47 @@ export default {
           }
         }]
       })
+      if (!this.createVolumeFromSnapshot) {
+        this.rules.name = [{ required: true, message: this.$t('message.error.volume.name') }]
+        this.rules.diskofferingid = [{ required: true, message: this.$t('message.error.select') }]
+      }
+    },
+    fetchOwnerOptions (OwnerOptions) {
+      this.owner = {}
+      if (OwnerOptions.selectedAccountType === this.$t('label.account')) {
+        if (!OwnerOptions.selectedAccount) {
+          return
+        }
+        this.owner.account = OwnerOptions.selectedAccount
+        this.owner.domainid = OwnerOptions.selectedDomain
+      } else if (OwnerOptions.selectedAccountType === this.$t('label.project')) {
+        if (!OwnerOptions.selectedProject) {
+          return
+        }
+        this.owner.projectid = OwnerOptions.selectedProject
+      }
+      this.fetchData()
     },
     fetchData () {
+      if (this.createVolumeFromSnapshot) {
+        this.fetchSnapshotZones()
+        return
+      }
+      let zoneId = null
+      if (this.createVolumeFromVM) {
+        zoneId = this.resource.zoneid
+      }
+      this.fetchZones(zoneId)
+    },
+    fetchZones (id) {
       this.loading = true
-      api('listZones', { showicon: true }).then(json => {
+      const params = { showicon: true }
+      if (Array.isArray(id)) {
+        params.ids = id.join()
+      } else if (id !== null) {
+        params.id = id
+      }
+      api('listZones', params).then(json => {
         this.zones = json.listzonesresponse.zone || []
         this.form.zoneid = this.zones[0].id || ''
         this.fetchDiskOfferings(this.form.zoneid)
@@ -187,14 +252,49 @@ export default {
         this.loading = false
       })
     },
+    fetchSnapshotZones () {
+      this.loading = true
+      this.snapshotZoneIds = []
+      const params = {
+        showunique: false,
+        id: this.resource.id
+      }
+      api('listSnapshots', params).then(json => {
+        const snapshots = json.listsnapshotsresponse.snapshot || []
+        for (const snapshot of snapshots) {
+          if (!this.snapshotZoneIds.includes(snapshot.zoneid)) {
+            this.snapshotZoneIds.push(snapshot.zoneid)
+          }
+        }
+      }).finally(() => {
+        if (this.snapshotZoneIds && this.snapshotZoneIds.length > 0) {
+          this.fetchZones(this.snapshotZoneIds)
+        }
+      })
+    },
     fetchDiskOfferings (zoneId) {
       this.loading = true
-      api('listDiskOfferings', {
+      var params = {
         zoneid: zoneId,
-        listall: true
-      }).then(json => {
+        listall: true,
+        domainid: this.owner.domainid
+      }
+      if (this.createVolumeFromVM) {
+        params.virtualmachineid = this.resource.id
+      }
+      if (this.owner.projectid) {
+        params.projectid = this.owner.projectid
+      } else {
+        params.account = this.owner.account
+      }
+      api('listDiskOfferings', params).then(json => {
         this.offerings = json.listdiskofferingsresponse.diskoffering || []
-        this.form.diskofferingid = this.offerings[0].id || ''
+        if (this.createVolumeFromVM) {
+          this.offerings = this.offerings.filter(x => x.suitableforvirtualmachine)
+        }
+        if (!this.createVolumeFromSnapshot) {
+          this.form.diskofferingid = this.offerings[0].id || ''
+        }
         this.customDiskOffering = this.offerings[0].iscustomized || false
         this.isCustomizedDiskIOps = this.offerings[0]?.iscustomizediops || false
       }).finally(() => {
@@ -206,6 +306,21 @@ export default {
       this.formRef.value.validate().then(() => {
         const formRaw = toRaw(this.form)
         const values = this.handleRemoveFields(formRaw)
+        if (this.createVolumeFromVM) {
+          values.account = this.resource.account
+          values.domainid = this.resource.domainid
+          values.virtualmachineid = this.resource.id
+          values.zoneid = this.resource.zoneid
+        }
+        if (this.createVolumeFromSnapshot) {
+          values.snapshotid = this.resource.id
+        }
+        values.domainid = this.owner.domainid
+        if (this.owner.projectid) {
+          values.projectid = this.owner.projectid
+        } else {
+          values.account = this.owner.account
+        }
         this.loading = true
         api('createVolume', values).then(response => {
           this.$pollJob({
@@ -213,6 +328,25 @@ export default {
             title: this.$t('message.success.create.volume'),
             description: values.name,
             successMessage: this.$t('message.success.create.volume'),
+            successMethod: (result) => {
+              this.closeModal()
+              if (this.createVolumeFromVM) {
+                const params = {}
+                params.id = result.jobresult.volume.id
+                params.virtualmachineid = this.resource.id
+                api('attachVolume', params).then(response => {
+                  this.$pollJob({
+                    jobId: response.attachvolumeresponse.jobid,
+                    title: this.$t('message.success.attach.volume'),
+                    description: values.name,
+                    successMessage: this.$t('message.attach.volume.success'),
+                    errorMessage: this.$t('message.attach.volume.failed'),
+                    loadingMessage: this.$t('message.attach.volume.progress'),
+                    catchMessage: this.$t('error.fetching.async.job.result')
+                  })
+                })
+              }
+            },
             errorMessage: this.$t('message.create.volume.failed'),
             loadingMessage: this.$t('message.create.volume.processing'),
             catchMessage: this.$t('error.fetching.async.job.result')
@@ -244,7 +378,8 @@ export default {
   width: 80vw;
 
   @media (min-width: 500px) {
-    width: 400px;
+    min-width: 400px;
+    width: 100%;
   }
 }
 </style>

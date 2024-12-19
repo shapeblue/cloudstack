@@ -43,11 +43,11 @@ from marvin.codes import (
                           FAILED)
 
 def _configure_ssh_credentials(hypervisor):
-    ssh_command = "ssh -i ~/.ssh/id_rsa.cloud -ostricthostkeychecking=no "
+    ssh_command = "ssh -q -i ~/.ssh/id_rsa.cloud -ostricthostkeychecking=no "
 
     if (str(hypervisor).lower() == 'vmware'
         or str(hypervisor).lower() == 'hyperv'):
-        ssh_command = "ssh -i /var/cloudstack/management/.ssh/id_rsa -ostricthostkeychecking=no "
+        ssh_command = "ssh -q -i ~cloud/.ssh/id_rsa -ostricthostkeychecking=no "
 
     return ssh_command
 
@@ -288,6 +288,18 @@ def get_hypervisor_type(apiclient):
     assert hosts_list_validation_result[0] == PASS, "host list validation failed"
     return hosts_list_validation_result[1].hypervisor
 
+def get_hypervisor_version(apiclient):
+
+    """Return the hypervisor type of the hosts in setup"""
+
+    cmd = listHosts.listHostsCmd()
+    cmd.type = 'Routing'
+    cmd.listall = True
+    hosts = apiclient.listHosts(cmd)
+    hosts_list_validation_result = validateList(hosts)
+    assert hosts_list_validation_result[0] == PASS, "host list validation failed"
+    return hosts_list_validation_result[1].hypervisorversion
+
 def is_snapshot_on_nfs(apiclient, dbconn, config, zoneid, snapshotid):
     """
     Checks whether a snapshot with id (not UUID) `snapshotid` is present on the nfs storage
@@ -480,7 +492,7 @@ def checkVolumeSize(ssh_handle=None,
     @Desc : provides facility to verify the volume size against the size to verify
     @Input: 1. ssh_handle : machine against which to execute the disk size cmd
             2. volume_name : The name of the volume against which to verify the size
-            3. cmd_inp : Input command used to veify the size
+            3. cmd_inp : Input command used to verify the size
             4. size_to_verify: size against which to compare.
     @Output: Returns FAILED in case of an issue, else SUCCESS
     '''
@@ -551,4 +563,3 @@ def wait_until(retry_interval=2, no_of_times=2, callback=None, *callback_args):
             break
 
     return wait_result, return_val
-

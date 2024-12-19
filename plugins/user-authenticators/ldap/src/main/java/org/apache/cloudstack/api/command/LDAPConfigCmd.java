@@ -22,7 +22,6 @@ import java.util.List;
 import javax.inject.Inject;
 
 import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -53,9 +52,7 @@ import com.cloud.utils.Pair;
         requestHasSensitiveInfo = true, responseHasSensitiveInfo = false)
 
 public class LDAPConfigCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(LDAPConfigCmd.class.getName());
 
-    private static final String s_name = "ldapconfigresponse";
 
     @Inject
     private ConfigurationDao _configDao;
@@ -263,11 +260,6 @@ public class LDAPConfigCmd extends BaseCmd {
         LdapListConfigurationCmd listConfigurationCmd = new LdapListConfigurationCmd(_ldapManager);
         Pair<List<? extends LdapConfigurationVO>, Integer> result = _ldapManager.listConfigurations(listConfigurationCmd);
         return result.first();
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

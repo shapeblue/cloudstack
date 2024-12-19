@@ -26,14 +26,13 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.PodResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.Account;
 
-@APICommand(name = UpdatePodManagementNetworkIpRangeCmd.APINAME,
+@APICommand(name = "updatePodManagementNetworkIpRange",
         description = "Updates a management network IP range. Only allowed when no IPs are allocated.",
         responseObject = SuccessResponse.class,
         since = "4.16.0.0",
@@ -42,9 +41,7 @@ import com.cloud.user.Account;
         authorized = {RoleType.Admin})
 public class UpdatePodManagementNetworkIpRangeCmd extends BaseAsyncCmd {
 
-    public static final Logger s_logger = Logger.getLogger(UpdatePodManagementNetworkIpRangeCmd.class);
 
-    public static final String APINAME = "updatePodManagementNetworkIpRange";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -120,11 +117,6 @@ public class UpdatePodManagementNetworkIpRangeCmd extends BaseAsyncCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseAsyncCmd.RESPONSE_SUFFIX;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
     }
@@ -144,10 +136,10 @@ public class UpdatePodManagementNetworkIpRangeCmd extends BaseAsyncCmd {
             SuccessResponse response = new SuccessResponse(getCommandName());
             this.setResponseObject(response);
         } catch (ConcurrentOperationException ex) {
-            s_logger.warn("Exception: ", ex);
+            logger.warn("Exception: ", ex);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, ex.getMessage());
         } catch (Exception e) {
-            s_logger.warn("Failed to update pod management IP range " + getNewStartIP() + "-" + getNewEndIP() + " of Pod: " + getPodId(), e);
+            logger.warn("Failed to update pod management IP range " + getNewStartIP() + "-" + getNewEndIP() + " of Pod: " + getPodId(), e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
         }
     }

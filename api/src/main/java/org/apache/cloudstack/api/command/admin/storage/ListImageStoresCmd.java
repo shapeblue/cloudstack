@@ -23,14 +23,11 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.ImageStoreResponse;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
-import org.apache.log4j.Logger;
 
 @APICommand(name = "listImageStores", description = "Lists image stores.", responseObject = ImageStoreResponse.class, since = "4.2.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListImageStoresCmd extends BaseListCmd {
-    public static final Logger s_logger = Logger.getLogger(ListImageStoresCmd.class.getName());
 
-    private static final String s_name = "listimagestoresresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -89,11 +86,6 @@ public class ListImageStoresCmd extends BaseListCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public void execute() {

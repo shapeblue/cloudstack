@@ -26,7 +26,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.reflections.ReflectionUtils;
 
 /**
@@ -37,7 +38,7 @@ import org.reflections.ReflectionUtils;
  * - Reflect only selected fields (ReflectionToStringBuilder just has methods to exclude fields).
  */
 public class ReflectionToStringBuilderUtils {
-    protected static final Logger LOGGER = Logger.getLogger(ReflectionToStringBuilderUtils.class);
+    protected static Logger LOGGER = LogManager.getLogger(ReflectionToStringBuilderUtils.class);
     private static final ToStringStyle DEFAULT_STYLE = ToStringStyle.JSON_STYLE;
 
     /**
@@ -127,6 +128,20 @@ public class ReflectionToStringBuilderUtils {
           .filter(obj -> obj != null)
           .map(obj -> getReflectedObject(obj, style, fieldsToExclude))
           .collect(Collectors.joining(multipleValuesSeparator == null ? DEFAULT_MULTIPLE_VALUES_SEPARATOR : multipleValuesSeparator)));
+    }
+
+
+    /**
+     * Similar to {@link ReflectionToStringBuilderUtils#reflectOnlySelectedFields(Object, ToStringStyle, String, String...)}, but reflecting the whole collection.<br><br>
+     * This method must be called only to {@link Collection}, as it will reflect the objects contained in it.<br>
+     * To reflect the Collection itself or other objects, see {@link ReflectionToStringBuilder}.
+     * @param object Collection to be reflected.
+     * @return If <b>object</b> is null or is not a Collection, returns null.<br>
+     * If <b>object</b> is a Collection, returns a <b>style</b> formatted string containing the not null elements, else, returns the object as the <b>style</b> parameter.<br>
+     */
+    public static String reflectCollection(Object object){
+        String[] excludeFields = null;
+        return reflectCollection(object, DEFAULT_STYLE, DEFAULT_MULTIPLE_VALUES_SEPARATOR, excludeFields);
     }
 
     /**

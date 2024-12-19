@@ -52,7 +52,7 @@ public interface AlertService {
         public static final AlertType ALERT_TYPE_ROUTING = new AlertType((short)11, "ALERT.NETWORK.ROUTING", true);
         public static final AlertType ALERT_TYPE_STORAGE_MISC = new AlertType((short)12, "ALERT.STORAGE.MISC", true);
         public static final AlertType ALERT_TYPE_USAGE_SERVER = new AlertType((short)13, "ALERT.USAGE", true);
-        public static final AlertType ALERT_TYPE_MANAGMENT_NODE = new AlertType((short)14, "ALERT.MANAGEMENT", true);
+        public static final AlertType ALERT_TYPE_MANAGEMENT_NODE = new AlertType((short)14, "ALERT.MANAGEMENT", true);
         public static final AlertType ALERT_TYPE_DOMAIN_ROUTER_MIGRATE = new AlertType((short)15, "ALERT.NETWORK.DOMAINROUTERMIGRATE", true);
         public static final AlertType ALERT_TYPE_CONSOLE_PROXY_MIGRATE = new AlertType((short)16, "ALERT.SERVICE.CONSOLEPROXYMIGRATE", true);
         public static final AlertType ALERT_TYPE_USERVM_MIGRATE = new AlertType((short)17, "ALERT.USERVM.MIGRATE", true);
@@ -71,6 +71,8 @@ public interface AlertService {
         public static final AlertType ALERT_TYPE_HA_ACTION = new AlertType((short)30, "ALERT.HA.ACTION", true);
         public static final AlertType ALERT_TYPE_CA_CERT = new AlertType((short)31, "ALERT.CA.CERT", true);
         public static final AlertType ALERT_TYPE_VM_SNAPSHOT = new AlertType((short)32, "ALERT.VM.SNAPSHOT", true);
+        public static final AlertType ALERT_TYPE_VR_PUBLIC_IFACE_MTU = new AlertType((short)32, "ALERT.VR.PUBLIC.IFACE.MTU", true);
+        public static final AlertType ALERT_TYPE_VR_PRIVATE_IFACE_MTU = new AlertType((short)32, "ALERT.VR.PRIVATE.IFACE.MTU", true);
 
         public short getType() {
             return type;
@@ -87,6 +89,10 @@ public interface AlertService {
                 }
             }
             return null;
+        }
+
+        public static Set<AlertType> getAlertTypes() {
+            return defaultAlertTypes;
         }
 
         @Override

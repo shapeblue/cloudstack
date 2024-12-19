@@ -17,6 +17,7 @@
 package org.apache.cloudstack.api.response;
 
 import java.util.Date;
+import java.util.Map;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponseWithAnnotations;
@@ -51,6 +52,10 @@ public class DiskOfferingResponse extends BaseResponseWithAnnotations {
     @SerializedName(ApiConstants.NAME)
     @Param(description = "the name of the disk offering")
     private String name;
+
+    @SerializedName(ApiConstants.STATE)
+    @Param(description = "state of the disk offering")
+    private String state;
 
     @SerializedName(ApiConstants.DISPLAY_TEXT)
     @Param(description = "an alternate display text of the disk offering.")
@@ -155,9 +160,22 @@ public class DiskOfferingResponse extends BaseResponseWithAnnotations {
     @Param(description = "the vsphere storage policy tagged to the disk offering in case of VMware", since = "4.15")
     private String vsphereStoragePolicy;
 
+
     @SerializedName(ApiConstants.DISK_SIZE_STRICTNESS)
     @Param(description = "To allow or disallow the resize operation on the disks created from this disk offering, if the flag is true then resize is not allowed", since = "4.17")
     private Boolean diskSizeStrictness;
+
+    @SerializedName(ApiConstants.ENCRYPT)
+    @Param(description = "Whether disks using this offering will be encrypted on primary storage", since = "4.18")
+    private Boolean encrypt;
+
+    @SerializedName(ApiConstants.DETAILS)
+    @Param(description = "additional key/value details tied with this disk offering", since = "4.17")
+    private Map<String, String> details;
+
+    @SerializedName(ApiConstants.SUITABLE_FOR_VM)
+    @Param(description = "Returns true if the disk offering is suitable for the given virtual machine for disk creation otherwise false", since = "4.20.0")
+    private Boolean suitableForVm;
 
     public Boolean getDisplayOffering() {
         return displayOffering;
@@ -214,6 +232,14 @@ public class DiskOfferingResponse extends BaseResponseWithAnnotations {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
     }
 
     public String getDisplayText() {
@@ -374,5 +400,15 @@ public class DiskOfferingResponse extends BaseResponseWithAnnotations {
 
     public void setDiskSizeStrictness(Boolean diskSizeStrictness) {
         this.diskSizeStrictness = diskSizeStrictness;
+    }
+
+    public void setEncrypt(Boolean encrypt) { this.encrypt = encrypt; }
+
+    public void setDetails(Map<String, String> details) {
+        this.details = details;
+    }
+
+    public void setSuitableForVm(Boolean suitableForVm) {
+        this.suitableForVm = suitableForVm;
     }
 }

@@ -103,9 +103,17 @@ public interface VolumeDao extends GenericDao<VolumeVO, Long>, StateDao<Volume.S
     List<VolumeVO> findIncludingRemovedByZone(long zoneId);
 
     /**
+     * Lists all volumes using a given passphrase ID
+     * @param passphraseId
+     * @return list of volumes
+     */
+    List<VolumeVO> listVolumesByPassphraseId(long passphraseId);
+
+    /**
      * Gets the Total Primary Storage space allocated for an account
      *
-     * @param list of ids of virtual router VMs under this account
+     * @param accountId
+     * @param virtualRouters list of ids of virtual router VMs under this account
      * @return total Primary Storage space (in bytes) used
      */
     long primaryStorageUsedForAccount(long accountId, List<Long> virtualRouters);
@@ -131,4 +139,27 @@ public interface VolumeDao extends GenericDao<VolumeVO, Long>, StateDao<Volume.S
      *  Updates the disk offering for the given volume.
      */
     void updateDiskOffering(long volumeId, long diskOfferingId);
+
+    /**
+     *  Retrieves volumes that use the disk offering passed as parameter.
+     *
+     * @param diskOfferingId the disk offering ID.
+     * @return the list of volumes that uses that disk offering.
+     */
+    List<VolumeVO> findByDiskOfferingId(long diskOfferingId);
+    VolumeVO getInstanceRootVolume(long instanceId);
+
+    void updateAndRemoveVolume(VolumeVO volume);
+
+    List<VolumeVO> listByPoolIdAndPaths(long id, List<String> pathList);
+
+    VolumeVO findByPoolIdAndPath(long id, String path);
+
+    List<VolumeVO> listByIds(List<Long> ids);
+
+    List<VolumeVO> listAllocatedVolumesForAccountDiskOfferingIdsAndNotForVms(long accountId, List<Long> diskOfferingIds, List<Long> vmIds);
+
+    List<VolumeVO> searchRemovedByVms(List<Long> vmIds, Long batchSize);
+
+    VolumeVO findOneByIScsiName(String iScsiName);
 }

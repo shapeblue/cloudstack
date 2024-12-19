@@ -31,18 +31,20 @@ import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.hypervisor.HypervisorGuruManager;
-import com.cloud.storage.Storage;
-import com.cloud.storage.TemplateProfile;
 import com.cloud.projects.ProjectManager;
+import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.GuestOSVO;
 import com.cloud.storage.Snapshot;
 import com.cloud.storage.SnapshotVO;
+import com.cloud.storage.Storage;
 import com.cloud.storage.StorageManager;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.StoragePoolStatus;
+import com.cloud.storage.TemplateProfile;
 import com.cloud.storage.VMTemplateStoragePoolVO;
 import com.cloud.storage.VMTemplateStorageResourceAssoc;
 import com.cloud.storage.VMTemplateVO;
+import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.GuestOSDao;
 import com.cloud.storage.dao.LaunchPermissionDao;
 import com.cloud.storage.dao.SnapshotDao;
@@ -57,6 +59,7 @@ import com.cloud.user.AccountManager;
 import com.cloud.user.AccountVO;
 import com.cloud.user.ResourceLimitService;
 import com.cloud.user.User;
+import com.cloud.user.UserData;
 import com.cloud.user.UserVO;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.component.ComponentContext;
@@ -67,12 +70,19 @@ import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.command.user.template.CreateTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.DeleteTemplateCmd;
+import org.apache.cloudstack.api.command.user.template.RegisterTemplateCmd;
+import org.apache.cloudstack.api.command.user.template.RegisterVnfTemplateCmd;
+import org.apache.cloudstack.api.command.user.template.UpdateTemplateCmd;
+import org.apache.cloudstack.api.command.user.template.UpdateVnfTemplateCmd;
+import org.apache.cloudstack.api.command.user.userdata.LinkUserDataToTemplateCmd;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.engine.subsystem.api.storage.EndPointSelector;
 import org.apache.cloudstack.engine.subsystem.api.storage.PrimaryDataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotDataFactory;
+import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotService;
 import org.apache.cloudstack.engine.subsystem.api.storage.StorageCacheManager;
 import org.apache.cloudstack.engine.subsystem.api.storage.StorageStrategyFactory;
 import org.apache.cloudstack.engine.subsystem.api.storage.TemplateDataFactory;
@@ -80,6 +90,9 @@ import org.apache.cloudstack.engine.subsystem.api.storage.TemplateService;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.messagebus.MessageBus;
+import org.apache.cloudstack.secstorage.dao.SecondaryStorageHeuristicDao;
+import org.apache.cloudstack.secstorage.heuristics.HeuristicType;
+import org.apache.cloudstack.snapshot.SnapshotHelper;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreDao;
 import org.apache.cloudstack.storage.datastore.db.ImageStoreVO;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
@@ -87,8 +100,11 @@ import org.apache.cloudstack.storage.datastore.db.SnapshotDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreVO;
+import org.apache.cloudstack.storage.heuristics.HeuristicRuleHelper;
+import org.apache.cloudstack.storage.template.VnfTemplateManager;
 import org.apache.cloudstack.test.utils.SpringUtils;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -118,18 +134,16 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.cloudstack.engine.subsystem.api.storage.SnapshotService;
-import org.apache.cloudstack.snapshot.SnapshotHelper;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.eq;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(loader = AnnotationConfigContextLoader.class)
@@ -185,6 +199,14 @@ public class TemplateManagerImplTest {
 
     @Inject
     HypervisorGuruManager _hvGuruMgr;
+
+    @Inject
+    AccountManager _accountMgr;
+    @Inject
+    VnfTemplateManager vnfTemplateManager;
+
+    @Inject
+    HeuristicRuleHelper heuristicRuleHelperMock;
 
     public class CustomThreadPoolExecutor extends ThreadPoolExecutor {
         AtomicInteger ai = new AtomicInteger(0);
@@ -471,6 +493,7 @@ public class TemplateManagerImplTest {
         when(mockCreateCmd.getOsTypeId()).thenReturn(1L);
         when(mockCreateCmd.getEventDescription()).thenReturn("test");
         when(mockCreateCmd.getDetails()).thenReturn(null);
+        when(mockCreateCmd.getZoneId()).thenReturn(null);
 
         Account mockTemplateOwner = mock(Account.class);
 
@@ -504,6 +527,227 @@ public class TemplateManagerImplTest {
 
         VMTemplateVO template = templateManager.createPrivateTemplateRecord(mockCreateCmd, mockTemplateOwner);
         assertTrue("Template in a region store should have cross zones set", template.isCrossZones());
+    }
+
+    @Test
+    public void testLinkUserDataToTemplate() {
+        LinkUserDataToTemplateCmd cmd = Mockito.mock(LinkUserDataToTemplateCmd.class);
+        when(cmd.getTemplateId()).thenReturn(1L);
+        when(cmd.getIsoId()).thenReturn(null);
+        when(cmd.getUserdataId()).thenReturn(2L);
+        when(cmd.getUserdataPolicy()).thenReturn(UserData.UserDataOverridePolicy.ALLOWOVERRIDE);
+
+        VMTemplateVO template = Mockito.mock(VMTemplateVO.class);
+        when(_tmpltDao.findById(anyLong())).thenReturn(template);
+
+        VirtualMachineTemplate resultTemplate = templateManager.linkUserDataToTemplate(cmd);
+
+        Assert.assertEquals(template, resultTemplate);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testLinkUserDataToTemplateByProvidingBothISOAndTemplateId() {
+        LinkUserDataToTemplateCmd cmd = Mockito.mock(LinkUserDataToTemplateCmd.class);
+        when(cmd.getTemplateId()).thenReturn(1L);
+        when(cmd.getIsoId()).thenReturn(1L);
+        when(cmd.getUserdataId()).thenReturn(2L);
+        when(cmd.getUserdataPolicy()).thenReturn(UserData.UserDataOverridePolicy.ALLOWOVERRIDE);
+
+        VMTemplateVO template = Mockito.mock(VMTemplateVO.class);
+        when(_tmpltDao.findById(1L)).thenReturn(template);
+
+        templateManager.linkUserDataToTemplate(cmd);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testLinkUserDataToTemplateByNotProvidingBothISOAndTemplateId() {
+        LinkUserDataToTemplateCmd cmd = Mockito.mock(LinkUserDataToTemplateCmd.class);
+        when(cmd.getTemplateId()).thenReturn(null);
+        when(cmd.getIsoId()).thenReturn(null);
+        when(cmd.getUserdataId()).thenReturn(2L);
+        when(cmd.getUserdataPolicy()).thenReturn(UserData.UserDataOverridePolicy.ALLOWOVERRIDE);
+
+        VMTemplateVO template = Mockito.mock(VMTemplateVO.class);
+        when(_tmpltDao.findById(1L)).thenReturn(template);
+
+        templateManager.linkUserDataToTemplate(cmd);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testLinkUserDataToTemplateWhenNoTemplate() {
+        LinkUserDataToTemplateCmd cmd = Mockito.mock(LinkUserDataToTemplateCmd.class);
+        when(cmd.getTemplateId()).thenReturn(1L);
+        when(cmd.getIsoId()).thenReturn(null);
+        when(cmd.getUserdataId()).thenReturn(2L);
+        when(cmd.getUserdataPolicy()).thenReturn(UserData.UserDataOverridePolicy.ALLOWOVERRIDE);
+
+        when(_tmpltDao.findById(anyLong())).thenReturn(null);
+
+        templateManager.linkUserDataToTemplate(cmd);
+    }
+
+    @Test
+    public void testUnLinkUserDataToTemplate() {
+        LinkUserDataToTemplateCmd cmd = Mockito.mock(LinkUserDataToTemplateCmd.class);
+        when(cmd.getTemplateId()).thenReturn(1L);
+        when(cmd.getIsoId()).thenReturn(null);
+        when(cmd.getUserdataId()).thenReturn(null);
+        when(cmd.getUserdataPolicy()).thenReturn(UserData.UserDataOverridePolicy.ALLOWOVERRIDE);
+
+        VMTemplateVO template = Mockito.mock(VMTemplateVO.class);
+        when(template.getId()).thenReturn(1L);
+        when(_tmpltDao.findById(1L)).thenReturn(template);
+
+        VirtualMachineTemplate resultTemplate = templateManager.linkUserDataToTemplate(cmd);
+
+        Assert.assertEquals(template, resultTemplate);
+    }
+
+    @Test
+    public void getImageStoreTestStoreUuidIsNotNullShouldReturnAValidImageStoreIfValidUuid() {
+        DataStore dataStore = Mockito.mock(DataStore.class);
+        VolumeVO volumeVO = Mockito.mock(VolumeVO.class);
+
+        Mockito.when(dataStoreManager.getDataStore(Mockito.anyString(), Mockito.any(DataStoreRole.class))).thenReturn(dataStore);
+
+        templateManager.getImageStore("UUID", 1L, volumeVO);
+    }
+
+    @Test(expected = CloudRuntimeException.class)
+    public void getImageStoreTestStoreUuidIsNotNullShouldThrowCloudRuntimeExceptionIfInvalidUuid() {
+        VolumeVO volumeVO = Mockito.mock(VolumeVO.class);
+
+        Mockito.when(dataStoreManager.getDataStore(Mockito.anyString(), Mockito.any(DataStoreRole.class))).thenReturn(null);
+
+        templateManager.getImageStore("UUID", 1L, volumeVO);
+    }
+
+    @Test
+    public void getImageStoreTestStoreUuidIsNullAndThereIsNoActiveHeuristicRulesShouldCallGetImageStoreWithFreeCapacity() {
+        DataStore dataStore = Mockito.mock(DataStore.class);
+        VolumeVO volumeVO = Mockito.mock(VolumeVO.class);
+
+        Mockito.when(dataStoreManager.getDataStore(Mockito.anyString(), Mockito.any(DataStoreRole.class))).thenReturn(null);
+        Mockito.when(heuristicRuleHelperMock.getImageStoreIfThereIsHeuristicRule(Mockito.anyLong(), Mockito.any(HeuristicType.class), Mockito.any(VolumeVO.class))).thenReturn(null);
+        Mockito.when(dataStoreManager.getImageStoreWithFreeCapacity(Mockito.anyLong())).thenReturn(dataStore);
+
+        templateManager.getImageStore(null, 1L, volumeVO);
+        Mockito.verify(dataStoreManager, Mockito.times(1)).getImageStoreWithFreeCapacity(Mockito.anyLong());
+    }
+
+    @Test
+    public void getImageStoreTestStoreUuidIsNullAndThereIsActiveHeuristicRulesShouldNotCallGetImageStoreWithFreeCapacity() {
+        DataStore dataStore = Mockito.mock(DataStore.class);
+        VolumeVO volumeVO = Mockito.mock(VolumeVO.class);
+
+        Mockito.when(dataStoreManager.getDataStore(Mockito.anyString(), Mockito.any(DataStoreRole.class))).thenReturn(null);
+        Mockito.when(heuristicRuleHelperMock.getImageStoreIfThereIsHeuristicRule(Mockito.anyLong(), Mockito.any(HeuristicType.class), Mockito.any(VolumeVO.class))).thenReturn(dataStore);
+
+        templateManager.getImageStore(null, 1L, volumeVO);
+        Mockito.verify(dataStoreManager, Mockito.times(0)).getImageStoreWithFreeCapacity(Mockito.anyLong());
+    }
+
+    @Test
+    public void testRegisterTemplateWithTemplateType() {
+        RegisterTemplateCmd cmd = Mockito.mock(RegisterTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+        Assert.assertEquals(Storage.TemplateType.SYSTEM, type);
+    }
+
+    @Test
+    public void testRegisterTemplateWithoutTemplateType() {
+        RegisterTemplateCmd cmd = Mockito.mock(RegisterTemplateCmd.class);
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+        Assert.assertEquals(Storage.TemplateType.USER, type);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testRegisterTemplateWithSystemTemplateTypeByUser() {
+        RegisterVnfTemplateCmd cmd = Mockito.mock(RegisterVnfTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, false, true);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testRegisterVnfTemplateWithTemplateType() {
+        RegisterVnfTemplateCmd cmd = Mockito.mock(RegisterVnfTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, false, true);
+        Assert.assertEquals(Storage.TemplateType.VNF, type);
+    }
+
+    @Test
+    public void testRegisterVnfTemplateWithoutTemplateType() {
+        RegisterVnfTemplateCmd cmd = Mockito.mock(RegisterVnfTemplateCmd.class);
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, false, true);
+        Assert.assertEquals(Storage.TemplateType.VNF, type);
+    }
+
+    @Test
+    public void testUpdateTemplateWithTemplateType() {
+        UpdateTemplateCmd cmd = Mockito.mock(UpdateTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+        Assert.assertEquals(Storage.TemplateType.SYSTEM, type);
+    }
+
+    @Test
+    public void testUpdateTemplateWithoutTemplateType() {
+        UpdateTemplateCmd cmd = Mockito.mock(UpdateTemplateCmd.class);
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+        Assert.assertNull(type);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testUpdateTemplateWithInvalidTemplateType() {
+        UpdateTemplateCmd cmd = Mockito.mock(UpdateTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn("invalidtype");
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testUpdateTemplateWithInvalidTemplateTypeForRouting() {
+        UpdateTemplateCmd cmd = Mockito.mock(UpdateTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.USER.toString());
+        when(cmd.isRoutingType()).thenReturn(true);
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testUpdateTemplateWithInvalidCrossZonesForSystem() {
+        UpdateTemplateCmd cmd = Mockito.mock(UpdateTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, false);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testUpdateTemplateWithSystemTemplateTypeByUser() {
+        UpdateVnfTemplateCmd cmd = Mockito.mock(UpdateVnfTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, false, true);
+    }
+
+    @Test(expected = InvalidParameterValueException.class)
+    public void testUpdateVnfTemplateWithTemplateType() {
+        UpdateVnfTemplateCmd cmd = Mockito.mock(UpdateVnfTemplateCmd.class);
+        when(cmd.getTemplateType()).thenReturn(Storage.TemplateType.SYSTEM.toString());
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, false, true);
+        Assert.assertEquals(Storage.TemplateType.VNF, type);
+    }
+
+    @Test
+    public void testUpdateVnfTemplateWithoutTemplateType() {
+        UpdateVnfTemplateCmd cmd = Mockito.mock(UpdateVnfTemplateCmd.class);
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, false, true);
+        Assert.assertNull(type);
+    }
+
+    @Test
+    public void testDeleteTemplateWithTemplateType() {
+        DeleteTemplateCmd cmd = new DeleteTemplateCmd();
+        Storage.TemplateType type = templateManager.validateTemplateType(cmd, true, true);
+        Assert.assertNull(type);
     }
 
     @Configuration
@@ -708,6 +952,11 @@ public class TemplateManagerImplTest {
         }
 
         @Bean
+        public VnfTemplateManager vnfTemplateManager() {
+            return Mockito.mock(VnfTemplateManager.class);
+        }
+
+        @Bean
         public SnapshotHelper snapshotHelper() {
             return Mockito.mock(SnapshotHelper.class);
         }
@@ -715,6 +964,16 @@ public class TemplateManagerImplTest {
         @Bean
         public SnapshotService snapshotService() {
             return Mockito.mock(SnapshotService.class);
+        }
+
+        @Bean
+        public SecondaryStorageHeuristicDao secondaryStorageHeuristicDao() {
+            return Mockito.mock(SecondaryStorageHeuristicDao.class);
+        }
+
+        @Bean
+        public HeuristicRuleHelper heuristicRuleHelper() {
+            return Mockito.mock(HeuristicRuleHelper.class);
         }
 
         public static class Library implements TypeFilter {

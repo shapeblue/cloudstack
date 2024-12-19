@@ -30,7 +30,8 @@ import javax.naming.ConfigurationException;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
@@ -115,6 +116,10 @@ import com.cloud.agent.api.to.LoadBalancerTO.StickinessPolicyTO;
 import com.cloud.agent.api.to.StaticNatRuleTO;
 import com.cloud.host.Host;
 import com.cloud.host.Host.Type;
+import com.cloud.network.as.AutoScalePolicy;
+import com.cloud.network.as.AutoScaleVmGroup;
+import com.cloud.network.as.Condition;
+import com.cloud.network.as.Counter;
 import com.cloud.network.lb.LoadBalancingRule.LbSslCert;
 import com.cloud.network.rules.LbStickinessMethod.StickinessMethodType;
 import com.cloud.resource.ServerResource;
@@ -158,7 +163,7 @@ public class NetscalerResource implements ServerResource {
     private String _publicIPNetmask;
     private String _publicIPVlan;
 
-    private static final Logger s_logger = Logger.getLogger(NetscalerResource.class);
+    protected static Logger LOGGER = LogManager.getLogger(NetscalerResource.class);
     protected Gson _gson;
     private final String _objectNamePathSep = "-";
 
@@ -244,7 +249,7 @@ public class NetscalerResource implements ServerResource {
             enableLoadBalancingFeature();
             SSL.enableSslFeature(_netscalerService, _isSdx);
 
-            //if the the device is cloud stack provisioned then make it part of the public network
+            //if the device is cloud stack provisioned then make it part of the public network
             if (_cloudManaged) {
                 _publicIP = (String)params.get("publicip");
                 _publicIPNetmask = (String)params.get("publicipnetmask");
@@ -467,12 +472,12 @@ public class NetscalerResource implements ServerResource {
                 saveConfiguration();
                 results[i++] = ip.getPublicIp() + " - success";
                 final String action = ip.isAdd() ? "associate" : "remove";
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Netscaler load balancer " + _ip + " successfully executed IPAssocCommand to " + action + " IP " + ip);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Netscaler load balancer " + _ip + " successfully executed IPAssocCommand to " + action + " IP " + ip);
                 }
             }
         } catch (final ExecutionException e) {
-            s_logger.error("Netscaler loadbalancer " + _ip + " failed to execute IPAssocCommand due to " + e.getMessage());
+            LOGGER.error("Netscaler loadbalancer " + _ip + " failed to execute IPAssocCommand due to " + e.getMessage());
             if (shouldRetry(numRetries)) {
                 return retry(cmd, numRetries);
             } else {
@@ -522,14 +527,14 @@ public class NetscalerResource implements ServerResource {
             }
 
         } catch (final ExecutionException e) {
-            s_logger.error("Failed to execute HealthCheckLBConfigCommand due to ", e);
+            LOGGER.error("Failed to execute HealthCheckLBConfigCommand due to ", e);
             if (shouldRetry(numRetries)) {
                 return retry(cmd, numRetries);
             } else {
                 return new HealthCheckLBConfigAnswer(hcLB);
             }
         } catch (final Exception e) {
-            s_logger.error("Failed to execute HealthCheckLBConfigCommand due to ", e);
+            LOGGER.error("Failed to execute HealthCheckLBConfigCommand due to ", e);
             if (shouldRetry(numRetries)) {
                 return retry(cmd, numRetries);
             } else {
@@ -579,8 +584,8 @@ public class NetscalerResource implements ServerResource {
 
                     // create a load balancing virtual server
                     addLBVirtualServer(nsVirtualServerName, srcIp, srcPort, lbAlgorithm, lbProtocol, loadBalancer.getStickinessPolicies(), null);
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.debug("Created load balancing virtual server " + nsVirtualServerName + " on the Netscaler device");
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Created load balancing virtual server " + nsVirtualServerName + " on the Netscaler device");
                     }
 
                     // create a new monitor
@@ -696,9 +701,9 @@ public class NetscalerResource implements ServerResource {
                                                     pemWriter.writeObject(pemObject);
                                                     pemWriter.flush();
                                                 } catch (final IOException e) {
-                                                    if (s_logger.isDebugEnabled())
+                                                    if (LOGGER.isDebugEnabled())
                                                     {
-                                                        s_logger.debug("couldn't write PEM to a string", e);
+                                                        LOGGER.debug("couldn't write PEM to a string", e);
                                                     } // else just close the certDataStream
                                                 }
 
@@ -728,9 +733,9 @@ public class NetscalerResource implements ServerResource {
                                             SSL.createSslCertKey(_netscalerService, certFilename, keyFilename, certKeyName, sslCert.getPassword());
                                         }
                                     } catch (final IOException e) {
-                                        if (s_logger.isDebugEnabled())
+                                        if (LOGGER.isDebugEnabled())
                                         {
-                                            s_logger.debug("couldn't open buffer for certificate", e);
+                                            LOGGER.debug("couldn't open buffer for certificate", e);
                                         } // else just close the certDataStream
                                     }
 
@@ -743,8 +748,8 @@ public class NetscalerResource implements ServerResource {
 
                             }
 
-                            if (s_logger.isDebugEnabled()) {
-                                s_logger.debug("Successfully added LB destination: " + destination.getDestIp() + ":" + destination.getDestPort() + " to load balancer " +
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("Successfully added LB destination: " + destination.getDestIp() + ":" + destination.getDestPort() + " to load balancer " +
                                         srcIp + ":" + srcPort);
                             }
 
@@ -881,21 +886,21 @@ public class NetscalerResource implements ServerResource {
 
             }
 
-            if (s_logger.isInfoEnabled()) {
-                s_logger.info("Successfully executed resource LoadBalancerConfigCommand: " + _gson.toJson(cmd));
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Successfully executed resource LoadBalancerConfigCommand: " + _gson.toJson(cmd));
             }
 
             saveConfiguration();
             return new Answer(cmd);
         } catch (final ExecutionException e) {
-            s_logger.error("Failed to execute LoadBalancerConfigCommand due to ", e);
+            LOGGER.error("Failed to execute LoadBalancerConfigCommand due to ", e);
             if (shouldRetry(numRetries)) {
                 return retry(cmd, numRetries);
             } else {
                 return new Answer(cmd, e);
             }
         } catch (final Exception e) {
-            s_logger.error("Failed to execute LoadBalancerConfigCommand due to ", e);
+            LOGGER.error("Failed to execute LoadBalancerConfigCommand due to ", e);
             if (shouldRetry(numRetries)) {
                 return retry(cmd, numRetries);
             } else {
@@ -961,7 +966,7 @@ public class NetscalerResource implements ServerResource {
                 try {
                     Thread.sleep(10000);
                 } catch (final InterruptedException e) {
-                    s_logger.debug("[ignored] interrupted while waiting for netscaler to be 'up'.");
+                    LOGGER.debug("[ignored] interrupted while waiting for netscaler to be 'up'.");
                 }
                 final ns refreshNsObj = new ns();
                 refreshNsObj.set_id(newVpx.get_id());
@@ -998,8 +1003,8 @@ public class NetscalerResource implements ServerResource {
                 return new Answer(cmd, new ExecutionException("Failed to create VPX instance " + vpxName + " on the netscaler SDX device " + _ip));
             }
 
-            if (s_logger.isInfoEnabled()) {
-                s_logger.info("Successfully provisioned VPX instance " + vpxName + " on the Netscaler SDX device " + _ip);
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Successfully provisioned VPX instance " + vpxName + " on the Netscaler SDX device " + _ip);
             }
 
             // physical interfaces on the SDX range from 10/1 to 10/8 & 1/1 to 1/8 of which two different port or same port can be used for public and private interfaces
@@ -1214,13 +1219,13 @@ public class NetscalerResource implements ServerResource {
                 } else {
                     gslbsite.add(client, site);
                 }
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Successfully created GSLB site: " + siteName);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Successfully created GSLB site: " + siteName);
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to create GSLB site: " + siteName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1233,23 +1238,23 @@ public class NetscalerResource implements ServerResource {
                 if (site != null) {
                     final gslbsite_gslbservice_binding[] serviceBindings = gslbsite_gslbservice_binding.get(client, siteName);
                     if (serviceBindings != null && serviceBindings.length > 0) {
-                        if (s_logger.isDebugEnabled()) {
-                            s_logger.debug("There are services associated with GSLB site: " + siteName + " so ignoring site deletion");
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("There are services associated with GSLB site: " + siteName + " so ignoring site deletion");
                         }
                     }
                     gslbsite.delete(client, siteName);
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.debug("Successfully deleted GSLB site: " + siteName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Successfully deleted GSLB site: " + siteName);
                     }
                 } else {
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.warn("Ignoring delete request for non existing  GSLB site: " + siteName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.warn("Ignoring delete request for non existing  GSLB site: " + siteName);
                     }
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to delete GSLB site: " + siteName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1261,8 +1266,8 @@ public class NetscalerResource implements ServerResource {
                 gslbsite site;
                 site = getSiteObject(client, siteName);
                 if (site == null) {
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.warn("Ignoring update request for non existing  GSLB site: " + siteName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.warn("Ignoring update request for non existing  GSLB site: " + siteName);
                     }
                     return;
                 }
@@ -1276,14 +1281,14 @@ public class NetscalerResource implements ServerResource {
                 site.set_sessionexchange("ENABLED");
                 gslbsite.update(client, site);
 
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Successfully updated GSLB site: " + siteName);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Successfully updated GSLB site: " + siteName);
                 }
 
             } catch (final Exception e) {
                 final String errMsg = "Failed to update GSLB site: " + siteName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1331,14 +1336,14 @@ public class NetscalerResource implements ServerResource {
                     gslbvserver.add(client, vserver);
                 }
 
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Successfully added GSLB virtual server: " + vserverName);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Successfully added GSLB virtual server: " + vserverName);
                 }
 
             } catch (final Exception e) {
                 final String errMsg = "Failed to add GSLB virtual server: " + vserverName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1350,18 +1355,18 @@ public class NetscalerResource implements ServerResource {
                 final gslbvserver vserver = getVserverObject(client, vserverName);
                 if (vserver != null) {
                     gslbvserver.delete(client, vserver);
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.debug("Successfully deleted GSLB virtual server: " + vserverName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Successfully deleted GSLB virtual server: " + vserverName);
                     }
                 } else {
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.warn("Ignoring delete request for non existing  GSLB virtual server: " + vserverName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.warn("Ignoring delete request for non existing  GSLB virtual server: " + vserverName);
                     }
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to delete GSLB virtual server: " + vserverName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1406,13 +1411,13 @@ public class NetscalerResource implements ServerResource {
                 } else {
                     gslbservice.add(client, service);
                 }
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Successfully created service: " + serviceName + " at site: " + siteName);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Successfully created service: " + serviceName + " at site: " + siteName);
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to created service: " + serviceName + " at site: " + siteName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1423,18 +1428,18 @@ public class NetscalerResource implements ServerResource {
                 final gslbservice service = getServiceObject(client, serviceName);
                 if (service != null) {
                     gslbservice.delete(client, serviceName);
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.debug("Successfully deleted service: " + serviceName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Successfully deleted service: " + serviceName);
                     }
                 } else {
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.warn("Ignoring delete request for non existing  service: " + serviceName);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.warn("Ignoring delete request for non existing  service: " + serviceName);
                     }
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to delete service: " + serviceName + " due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1449,22 +1454,22 @@ public class NetscalerResource implements ServerResource {
                 binding.set_servicename(serviceName);
                 binding.set_weight(weight);
                 gslbvserver_gslbservice_binding.add(client, binding);
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Successfully created service: " + serviceName + " and virtual server: " + vserverName + " binding");
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Successfully created service: " + serviceName + " and virtual server: " + vserverName + " binding");
                 }
             } catch (final nitro_exception ne) {
                 if (ne.getErrorCode() == 273) {
                     return;
                 }
                 errMsg = "Failed to create service: " + serviceName + " and virtual server: " + vserverName + " binding due to " + ne.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             } catch (final Exception e) {
                 errMsg = "Failed to create service: " + serviceName + " and virtual server: " + vserverName + " binding due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1477,8 +1482,8 @@ public class NetscalerResource implements ServerResource {
                     for (final gslbvserver_gslbservice_binding binding : bindings) {
                         if (binding.get_servicename().equalsIgnoreCase(serviceName) && binding.get_name().equals(vserverName)) {
                             gslbvserver_gslbservice_binding.delete(client, binding);
-                            if (s_logger.isDebugEnabled()) {
-                                s_logger.debug("Successfully deleted service: " + serviceName + " and virtual server: " + vserverName + " binding");
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("Successfully deleted service: " + serviceName + " and virtual server: " + vserverName + " binding");
                             }
                             break;
                         }
@@ -1486,8 +1491,8 @@ public class NetscalerResource implements ServerResource {
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to create service: " + serviceName + " and virtual server: " + vserverName + " binding due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1501,8 +1506,8 @@ public class NetscalerResource implements ServerResource {
                 binding.set_domainname(domainName);
                 binding.set_name(vserverName);
                 gslbvserver_domain_binding.add(client, binding);
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("Successfully added virtual server: " + vserverName + " domain name: " + domainName + " binding");
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Successfully added virtual server: " + vserverName + " domain name: " + domainName + " binding");
                 }
                 return;
             } catch (final nitro_exception e) {
@@ -1514,8 +1519,8 @@ public class NetscalerResource implements ServerResource {
                 errMsg = e.getMessage();
             }
             errMsg = "Failed to create virtual server: " + vserverName + " domain name: " + domainName + " binding" + errMsg;
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug(errMsg);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(errMsg);
             }
             throw new ExecutionException(errMsg);
         }
@@ -1527,8 +1532,8 @@ public class NetscalerResource implements ServerResource {
                     for (final gslbvserver_domain_binding binding : bindings) {
                         if (binding.get_domainname().equalsIgnoreCase(domainName)) {
                             gslbvserver_domain_binding.delete(client, binding);
-                            if (s_logger.isDebugEnabled()) {
-                                s_logger.debug("Successfully deleted virtual server: " + vserverName + " and " + " domain: " + domainName + " binding");
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("Successfully deleted virtual server: " + vserverName + " and " + " domain: " + domainName + " binding");
                             }
                             break;
                         }
@@ -1536,8 +1541,8 @@ public class NetscalerResource implements ServerResource {
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to delete virtual server: " + vserverName + " and domain " + domainName + " binding due to " + e.getMessage();
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1558,8 +1563,8 @@ public class NetscalerResource implements ServerResource {
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to create GSLB monitor for service public ip" + servicePublicIp;
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug(errMsg);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(errMsg);
                 }
                 throw new ExecutionException(errMsg);
             }
@@ -1574,12 +1579,12 @@ public class NetscalerResource implements ServerResource {
             } catch (final nitro_exception ne) {
                 if (ne.getErrorCode() != NitroError.NS_RESOURCE_NOT_EXISTS) {
                     final String errMsg = "Failed to delete monitor " + monitorName + " for GSLB service due to " + ne.getMessage();
-                    s_logger.debug(errMsg);
+                    LOGGER.debug(errMsg);
                     throw new com.cloud.utils.exception.ExecutionException(errMsg);
                 }
             } catch (final Exception e) {
                 final String errMsg = "Failed to delete monitor " + monitorName + " for GSLB service due to " + e.getMessage();
-                s_logger.debug(errMsg);
+                LOGGER.debug(errMsg);
                 throw new com.cloud.utils.exception.ExecutionException(errMsg);
             }
         }
@@ -1593,7 +1598,7 @@ public class NetscalerResource implements ServerResource {
             } catch (final Exception e) {
                 // TODO: Nitro API version 10.* is not compatible for NetScalers 9.*, so may fail
                 // against NetScaler version lesser than 10 hence ignore the exception
-                s_logger.warn("Failed to bind monitor to GSLB service due to " + e.getMessage());
+                LOGGER.warn("Failed to bind monitor to GSLB service due to " + e.getMessage());
             }
         }
 
@@ -1603,13 +1608,13 @@ public class NetscalerResource implements ServerResource {
                 if (monitorBindings != null && monitorBindings.length > 0) {
                     for (final gslbservice_lbmonitor_binding binding : monitorBindings) {
                         if (binding.get_monitor_name().equalsIgnoreCase(monitorName)) {
-                            s_logger.info("Found a binding between monitor " + binding.get_monitor_name() + " and " + binding.get_servicename());
+                            LOGGER.info("Found a binding between monitor " + binding.get_monitor_name() + " and " + binding.get_servicename());
                             gslbservice_lbmonitor_binding.delete(nsService, binding);
                         }
                     }
                 }
             } catch (final Exception e) {
-                s_logger.debug("Failed to delete GSLB monitor " + monitorName + " and GSLB service " + serviceName + " binding due to " + e.getMessage() +
+                LOGGER.debug("Failed to delete GSLB monitor " + monitorName + " and GSLB service " + serviceName + " binding due to " + e.getMessage() +
                         " but moving on ..., will be cleaned up as part of GSLB " + " service delete any way..");
             }
         }
@@ -1622,7 +1627,7 @@ public class NetscalerResource implements ServerResource {
                     return site;
                 }
             } catch (final Exception e) {
-                s_logger.info("[ignored]"
+                LOGGER.info("[ignored]"
                         + "error getting site: " + e.getLocalizedMessage());
             }
             return null;
@@ -1743,7 +1748,7 @@ public class NetscalerResource implements ServerResource {
         }
 
         private static void createSslCertKey(final nitro_service ns, final String certFilename, final String keyFilename, final String certKeyName, final String password) throws ExecutionException {
-            s_logger.debug("Adding cert to netscaler");
+            LOGGER.debug("Adding cert to netscaler");
             try {
                 final sslcertkey certkey = new sslcertkey();
                 certkey.set_certkey(certKeyName);
@@ -1768,7 +1773,7 @@ public class NetscalerResource implements ServerResource {
         }
 
         private static void bindCertKeyToVserver(final nitro_service ns, final String certKeyName, final String vserver) throws ExecutionException {
-            s_logger.debug("Adding cert to netscaler");
+            LOGGER.debug("Adding cert to netscaler");
 
             try {
                 final sslvserver_sslcertkey_binding cert_binding = new sslvserver_sslcertkey_binding();
@@ -1852,7 +1857,7 @@ public class NetscalerResource implements ServerResource {
         public static void linkCerts(final nitro_service ns, final String userCertName, final String caCertName) throws ExecutionException {
             try {
 
-                // the assumption is that that both userCertName and caCertName are present on NS
+                // the assumption is that both userCertName and caCertName are present on NS
 
                 final sslcertkey caCert = sslcertkey.get(ns, caCertName);
                 final sslcertkey userCert = sslcertkey.get(ns, userCertName);
@@ -1995,7 +2000,7 @@ public class NetscalerResource implements ServerResource {
 
             if (vpxToDelete == null) {
                 final String msg = "There is no VPX instance " + vpxName + " on the Netscaler SDX device " + _ip + " to delete";
-                s_logger.warn(msg);
+                LOGGER.warn(msg);
                 return new DestroyLoadBalancerApplianceAnswer(cmd, true, msg);
             }
 
@@ -2004,7 +2009,7 @@ public class NetscalerResource implements ServerResource {
             nsDelObj.set_id(vpxToDelete.get_id());
             vpxToDelete = ns.delete(_netscalerSdxService, nsDelObj);
             final String msg = "Deleted VPX instance " + vpxName + " on Netscaler SDX " + _ip + " successfully.";
-            s_logger.info(msg);
+            LOGGER.info(msg);
             return new DestroyLoadBalancerApplianceAnswer(cmd, true, msg);
         } catch (final Exception e) {
             if (shouldRetry(numRetries)) {
@@ -2056,7 +2061,7 @@ public class NetscalerResource implements ServerResource {
                                 throw e;
                             }
                         }
-                        s_logger.debug("Created Inat rule on the Netscaler device " + _ip + " to enable static NAT from " + srcIp + " to " + dstIP);
+                        LOGGER.debug("Created Inat rule on the Netscaler device " + _ip + " to enable static NAT from " + srcIp + " to " + dstIP);
                     }
                     try {
                         final rnat[] rnatRules = rnat.get(_netscalerService);
@@ -2084,7 +2089,7 @@ public class NetscalerResource implements ServerResource {
                                 throw e;
                             }
                         }
-                        s_logger.debug("Created Rnat rule on the Netscaler device " + _ip + " to enable revese static NAT from " + dstIP + " to " + srcIp);
+                        LOGGER.debug("Created Rnat rule on the Netscaler device " + _ip + " to enable revese static NAT from " + dstIP + " to " + srcIp);
                     }
                 } else {
                     try {
@@ -2104,7 +2109,7 @@ public class NetscalerResource implements ServerResource {
                             throw e;
                         }
                     }
-                    s_logger.debug("Deleted Inat rule on the Netscaler device " + _ip + " to remove static NAT from " + srcIp + " to " + dstIP);
+                    LOGGER.debug("Deleted Inat rule on the Netscaler device " + _ip + " to remove static NAT from " + srcIp + " to " + dstIP);
                 }
 
                 saveConfiguration();
@@ -2688,8 +2693,8 @@ public class NetscalerResource implements ServerResource {
                 throw new ExecutionException("Failed to create new load balancing virtual server:" + virtualServerName + " due to " + apiCallResult.message);
             }
 
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("Created load balancing virtual server " + virtualServerName + " on the Netscaler device");
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Created load balancing virtual server " + virtualServerName + " on the Netscaler device");
             }
         } catch (final nitro_exception e) {
             throw new ExecutionException("Failed to create new virtual server:" + virtualServerName + " due to " + e.getMessage());
@@ -2738,9 +2743,9 @@ public class NetscalerResource implements ServerResource {
                 csMon.set_type(lbProtocol);
                 if (lbProtocol.equalsIgnoreCase("HTTP")) {
                     csMon.set_httprequest(hcp.getpingPath());
-                    s_logger.trace("LB Protocol is HTTP,  Applying  ping path on HealthCheck Policy");
+                    LOGGER.trace("LB Protocol is HTTP,  Applying  ping path on HealthCheck Policy");
                 } else {
-                    s_logger.debug("LB Protocol is not HTTP, Skipping to apply  ping path on HealthCheck Policy");
+                    LOGGER.debug("LB Protocol is not HTTP, Skipping to apply  ping path on HealthCheck Policy");
                 }
 
                 csMon.set_interval(hcp.getHealthcheckInterval());
@@ -2748,11 +2753,11 @@ public class NetscalerResource implements ServerResource {
                 csMon.set_resptimeout(hcp.getResponseTime());
                 csMon.set_failureretries(hcp.getUnhealthThresshold());
                 csMon.set_successretries(hcp.getHealthcheckThresshold());
-                s_logger.debug("Monitor properites going to get created :interval :: " + csMon.get_interval() + "respTimeOUt:: " + csMon.get_resptimeout() +
+                LOGGER.debug("Monitor properites going to get created :interval :: " + csMon.get_interval() + "respTimeOUt:: " + csMon.get_resptimeout() +
                         "failure retires(unhealththresshold) :: " + csMon.get_failureretries() + "successtries(healththresshold) ::" + csMon.get_successretries());
                 lbmonitor.add(_netscalerService, csMon);
             } else {
-                s_logger.debug("Monitor :" + nsMonitorName + " is already existing. Skipping to delete and create it");
+                LOGGER.debug("Monitor :" + nsMonitorName + " is already existing. Skipping to delete and create it");
             }
         } catch (final nitro_exception e) {
             throw new ExecutionException("Failed to create new monitor :" + nsMonitorName + " due to " + e.getMessage());
@@ -2772,9 +2777,9 @@ public class NetscalerResource implements ServerResource {
                 serviceMonitor.set_monitor_name(nsMonitorName);
                 serviceMonitor.set_name(nsServiceName);
                 serviceMonitor.set_monstate("ENABLED");
-                s_logger.debug("Trying to bind  the monitor :" + nsMonitorName + " to the service :" + nsServiceName);
+                LOGGER.debug("Trying to bind  the monitor :" + nsMonitorName + " to the service :" + nsServiceName);
                 com.citrix.netscaler.nitro.resource.config.basic.service_lbmonitor_binding.add(_netscalerService, serviceMonitor);
-                s_logger.debug("Successfully binded the monitor :" + nsMonitorName + " to the service :" + nsServiceName);
+                LOGGER.debug("Successfully binded the monitor :" + nsMonitorName + " to the service :" + nsServiceName);
             }
         } catch (final nitro_exception e) {
             throw new ExecutionException("Failed to create new monitor :" + nsMonitorName + " due to " + e.getMessage());
@@ -2794,9 +2799,9 @@ public class NetscalerResource implements ServerResource {
                         new com.citrix.netscaler.nitro.resource.config.basic.service_lbmonitor_binding();
                 serviceMonitor.set_monitor_name(nsMonitorName);
                 serviceMonitor.set_name(nsServiceName);
-                s_logger.debug("Trying to unbind  the monitor :" + nsMonitorName + " from the service :" + nsServiceName);
+                LOGGER.debug("Trying to unbind  the monitor :" + nsMonitorName + " from the service :" + nsServiceName);
                 service_lbmonitor_binding.delete(_netscalerService, serviceMonitor);
-                s_logger.debug("Successfully unbinded the monitor :" + nsMonitorName + " from the service :" + nsServiceName);
+                LOGGER.debug("Successfully unbinded the monitor :" + nsMonitorName + " from the service :" + nsServiceName);
             }
 
         } catch (final nitro_exception e) {
@@ -2818,7 +2823,7 @@ public class NetscalerResource implements ServerResource {
                 final lbmonitor monitorObj = lbmonitor.get(_netscalerService, nsMonitorName);
                 monitorObj.set_respcode(null);
                 lbmonitor.delete(_netscalerService, monitorObj);
-                s_logger.info("Successfully deleted monitor : " + nsMonitorName);
+                LOGGER.info("Successfully deleted monitor : " + nsMonitorName);
             }
         } catch (final nitro_exception e) {
             if (e.getErrorCode() == NitroError.NS_RESOURCE_NOT_EXISTS) {
@@ -2838,15 +2843,15 @@ public class NetscalerResource implements ServerResource {
         if (!isAutoScaleSupportedInNetScaler()) {
             throw new ExecutionException("AutoScale not supported in this version of NetScaler");
         }
-        if (loadBalancer.isRevoked() || vmGroupTO.getState().equals("revoke")) {
+        if (loadBalancer.isRevoked() || vmGroupTO.getState().equals(AutoScaleVmGroup.State.REVOKE)) {
             removeAutoScaleConfig(loadBalancer);
         } else {
             createAutoScaleConfig(loadBalancer);
         }
         // AutoScale APIs are successful executed, now save the configuration.
         saveConfiguration();
-        if (s_logger.isInfoEnabled()) {
-            s_logger.info("Successfully executed resource AutoScaleConfig");
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Successfully executed resource AutoScaleConfig");
         }
     }
 
@@ -2859,8 +2864,8 @@ public class NetscalerResource implements ServerResource {
         generateAutoScaleVmGroupIdentifier(loadBalancerTO);
         final String nsVirtualServerName = generateNSVirtualServerName(srcIp, srcPort);
         final AutoScaleVmGroupTO vmGroupTO = loadBalancerTO.getAutoScaleVmGroupTO();
-        if (s_logger.isDebugEnabled()) {
-            s_logger.debug("Created load balancing virtual server " + nsVirtualServerName + " on the Netscaler device");
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Created load balancing virtual server " + nsVirtualServerName + " on the Netscaler device");
         }
         addLBVirtualServer(nsVirtualServerName, srcIp, srcPort, lbAlgorithm, lbProtocol, loadBalancerTO.getStickinessPolicies(), vmGroupTO);
 
@@ -2895,10 +2900,10 @@ public class NetscalerResource implements ServerResource {
         }
 
         // Create the autoscale config
-        if (!loadBalancerTO.getAutoScaleVmGroupTO().getState().equals("disabled")) {
+        if (!loadBalancerTO.getAutoScaleVmGroupTO().getState().equals(AutoScaleVmGroup.State.DISABLED)) {
             // on restart of network, there might be vmgrps in disabled state, no need to create autoscale config for them
             enableAutoScaleConfig(loadBalancerTO, false);
-        } else if (loadBalancerTO.getAutoScaleVmGroupTO().getState().equals("disabled")) {
+        } else if (loadBalancerTO.getAutoScaleVmGroupTO().getState().equals(AutoScaleVmGroup.State.DISABLED)) {
             disableAutoScaleConfig(loadBalancerTO, false);
         }
 
@@ -2913,7 +2918,7 @@ public class NetscalerResource implements ServerResource {
         final String nsVirtualServerName = generateNSVirtualServerName(srcIp, srcPort);
         final String serviceGroupName = generateAutoScaleServiceGroupName(loadBalancerTO);
 
-        if (loadBalancerTO.getAutoScaleVmGroupTO().getCurrentState().equals("enabled")) {
+        if (loadBalancerTO.getAutoScaleVmGroupTO().getCurrentState().equals(AutoScaleVmGroup.State.ENABLED)) {
             disableAutoScaleConfig(loadBalancerTO, false);
         }
 
@@ -2963,7 +2968,6 @@ public class NetscalerResource implements ServerResource {
         final AutoScaleVmProfileTO profileTO = vmGroupTO.getProfile();
         final List<AutoScalePolicyTO> policies = vmGroupTO.getPolicies();
         final int interval = vmGroupTO.getInterval();
-        profileTO.getCounterParamList();
         String snmpCommunity = null;
         int snmpPort = DEFAULT_SNMP_PORT;
         long cur_prirotiy = 1;
@@ -3084,7 +3088,7 @@ public class NetscalerResource implements ServerResource {
 
             final com.citrix.netscaler.nitro.resource.config.autoscale.autoscaleaction scaleDownAction =
                     new com.citrix.netscaler.nitro.resource.config.autoscale.autoscaleaction();
-            final Integer destroyVmGracePeriod = profileTO.getDestroyVmGraceperiod();
+            final Integer expungeVmGracePeriod = profileTO.getExpungeVmGracePeriod();
             try {
                 scaleDownAction.set_name(scaleDownActionName);
                 scaleDownAction.set_type("SCALE_DOWN"); // TODO: will this be called de-provision?
@@ -3094,7 +3098,7 @@ public class NetscalerResource implements ServerResource {
                 scaleDownAction.set_quiettime(scaleDownQuietTime);
                 final String scaleDownParameters = "command=destroyVirtualMachine" + "&" + "lbruleid=" + loadBalancerTO.getUuid();
                 scaleDownAction.set_parameters(scaleDownParameters);
-                scaleDownAction.set_vmdestroygraceperiod(destroyVmGracePeriod);
+                scaleDownAction.set_vmdestroygraceperiod(expungeVmGracePeriod);
                 autoscaleaction.add(_netscalerService, scaleDownAction);
             } catch (final Exception e) {
                 // Ignore Exception on cleanup
@@ -3124,13 +3128,13 @@ public class NetscalerResource implements ServerResource {
                 for (final ConditionTO conditionTO : conditions) {
                     final CounterTO counterTO = conditionTO.getCounter();
                     String counterName = counterTO.getName();
-                    final String operator = conditionTO.getRelationalOperator();
+                    final Condition.Operator operator = conditionTO.getRelationalOperator();
                     final long threshold = conditionTO.getThreshold();
 
                     final StringBuilder conditionExpression = new StringBuilder();
                     try(Formatter formatter = new Formatter(conditionExpression, Locale.US);) {
 
-                        if (counterTO.getSource().equals("snmp")) {
+                        if (counterTO.getSource().equals(Counter.Source.SNMP)) {
                             counterName = generateSnmpMetricName(counterName);
                             if (snmpMetrics.size() == 0) {
                                 // Create Metric Table
@@ -3230,7 +3234,7 @@ public class NetscalerResource implements ServerResource {
                             final int counterIndex = snmpMetrics.get(counterName); // TODO: temporary fix. later on counter name
                             // will be added as a param to SNMP_TABLE.
                             formatter.format("SYS.VSERVER(\"%s\").SNMP_TABLE(%d).AVERAGE_VALUE.%s(%d)", nsVirtualServerName, counterIndex, operator, threshold);
-                        } else if (counterTO.getSource().equals("netscaler")) {
+                        } else if (counterTO.getSource().equals(Counter.Source.NETSCALER)) {
                             //SYS.VSERVER("abcd").RESPTIME.GT(10)
                             formatter.format("SYS.VSERVER(\"%s\").%s.%s(%d)", nsVirtualServerName, counterTO.getValue(), operator, threshold);
                         }
@@ -3307,7 +3311,7 @@ public class NetscalerResource implements ServerResource {
                 final List<ConditionTO> conditions = autoScalePolicyTO.getConditions();
                 for (final ConditionTO conditionTO : conditions) {
                     final CounterTO counterTO = conditionTO.getCounter();
-                    if (counterTO.getSource().equals("snmp")) {
+                    if (counterTO.getSource().equals(Counter.Source.SNMP)) {
                         isSnmp = true;
                         break;
                     }
@@ -3504,18 +3508,18 @@ public class NetscalerResource implements ServerResource {
             // TODO: Config team has introduce a new command to check
             // the list of entities supported in a NetScaler. Can use that
             // once it is present in AutoScale branch.
-            s_logger.warn("AutoScale is not supported in NetScaler");
+            LOGGER.warn("AutoScale is not supported in NetScaler");
             return false;
         }
         return true;
     }
 
     private boolean isScaleUpPolicy(final AutoScalePolicyTO autoScalePolicyTO) {
-        return autoScalePolicyTO.getAction().equals("scaleup");
+        return autoScalePolicyTO.getAction().equals(AutoScalePolicy.Action.SCALEUP);
     }
 
     private boolean isScaleDownPolicy(final AutoScalePolicyTO autoScalePolicyTO) {
-        return autoScalePolicyTO.getAction().equals("scaledown");
+        return autoScalePolicyTO.getAction().equals(AutoScalePolicy.Action.SCALEDOWN);
     }
 
     private void saveConfiguration() throws ExecutionException {
@@ -3560,7 +3564,7 @@ public class NetscalerResource implements ServerResource {
                 }
             }
         } catch (final Exception e) {
-            s_logger.error("Failed to get bytes sent and received statistics due to " + e);
+            LOGGER.error("Failed to get bytes sent and received statistics due to " + e);
             throw new ExecutionException(e.getMessage());
         }
 
@@ -3569,7 +3573,7 @@ public class NetscalerResource implements ServerResource {
 
     private Answer retry(final Command cmd, final int numRetries) {
         final int numRetriesRemaining = numRetries - 1;
-        s_logger.warn("Retrying " + cmd.getClass().getSimpleName() + ". Number of retries remaining: " + numRetriesRemaining);
+        LOGGER.warn("Retrying " + cmd.getClass().getSimpleName() + ". Number of retries remaining: " + numRetriesRemaining);
         return executeRequest(cmd, numRetriesRemaining);
     }
 
@@ -3580,7 +3584,7 @@ public class NetscalerResource implements ServerResource {
                 return true;
             }
         } catch (final Exception e) {
-            s_logger.error("Failed to log in to Netscaler device at " + _ip + " due to " + e.getMessage());
+            LOGGER.error("Failed to log in to Netscaler device at " + _ip + " due to " + e.getMessage());
         }
         return false;
     }
@@ -3616,7 +3620,7 @@ public class NetscalerResource implements ServerResource {
 
     private String generateAutoScaleServiceGroupName(final LoadBalancerTO lbTO) {
         /*
-         *  ServiceGroup name in NetScaler wont support long names. Providing special name.
+         *  ServiceGroup name in NetScaler won't support long names. Providing special name.
          *  Need for introducing uuid because every vmgroup creation should be distinguished.
          *  Ex. (1) create a vm group, delete a vmgroup, create a vmgroup on same lb ip and port
          *  This will reuse all vms from the original vm group in step (1)

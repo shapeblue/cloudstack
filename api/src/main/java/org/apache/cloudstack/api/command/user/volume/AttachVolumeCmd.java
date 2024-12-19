@@ -17,7 +17,6 @@
 package org.apache.cloudstack.api.command.user.volume;
 
 import org.apache.cloudstack.api.BaseAsyncCmd;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
@@ -41,7 +40,6 @@ import com.cloud.vm.VirtualMachine;
 @APICommand(name = "attachVolume", description = "Attaches a disk volume to a virtual machine.", responseObject = VolumeResponse.class, responseView = ResponseView.Restricted, entityType = {VirtualMachine.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class AttachVolumeCmd extends BaseAsyncCmd implements UserCmd {
-    public static final Logger s_logger = Logger.getLogger(AttachVolumeCmd.class.getName());
     private static final String s_name = "attachvolumeresponse";
 
     /////////////////////////////////////////////////////
@@ -49,7 +47,7 @@ public class AttachVolumeCmd extends BaseAsyncCmd implements UserCmd {
     /////////////////////////////////////////////////////
 
     @Parameter(name = ApiConstants.DEVICE_ID, type = CommandType.LONG, description = "The ID of the device to map the volume to the guest OS. "
-        + "If no deviceID is informed, the next available deviceID will be chosen. When using a linux operating system and the hypervisor XenServer, the devices IDs will be mapped as follows:"
+        + "If no deviceID is informed, the next available deviceID will be chosen. Use 0 when volume needs to be attached as ROOT.<br>When using a linux operating system and the hypervisor XenServer, the devices IDs will be mapped as follows:"
         + "<ul><li>0 maps to /dev/xvda;</li><li>1 maps to /dev/xvdb;</li><li>2 maps /dev/xvdc and so on.</li></ul>"
         + "Please refer to the docs of your hypervisor for the correct mapping of the deviceID and the actual logical disk structure.")
     private Long deviceId;

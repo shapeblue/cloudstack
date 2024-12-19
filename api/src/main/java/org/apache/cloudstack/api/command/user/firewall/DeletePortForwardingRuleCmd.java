@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.firewall;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
@@ -39,8 +38,6 @@ import com.cloud.network.rules.PortForwardingRule;
 @APICommand(name = "deletePortForwardingRule", description = "Deletes a port forwarding rule", responseObject = SuccessResponse.class, entityType = {PortForwardingRule.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeletePortForwardingRuleCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(DeletePortForwardingRuleCmd.class.getName());
-    private static final String s_name = "deleteportforwardingruleresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -69,11 +66,6 @@ public class DeletePortForwardingRuleCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
     @Override
     public String getEventType() {
         return EventTypes.EVENT_NET_RULE_DELETE;

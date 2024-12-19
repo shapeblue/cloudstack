@@ -19,7 +19,6 @@
 
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
-import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.storage.CreateAnswer;
@@ -39,7 +38,6 @@ import com.cloud.vm.DiskProfile;
 @ResourceWrapper(handles =  CreateCommand.class)
 public final class LibvirtCreateCommandWrapper extends CommandWrapper<CreateCommand, Answer, LibvirtComputingResource> {
 
-    private static final Logger s_logger = Logger.getLogger(LibvirtCreateCommandWrapper.class);
 
     @Override
     public Answer execute(final CreateCommand command, final LibvirtComputingResource libvirtComputingResource) {
@@ -59,13 +57,13 @@ public final class LibvirtCreateCommandWrapper extends CommandWrapper<CreateComm
                     vol = libvirtComputingResource.templateToPrimaryDownload(command.getTemplateUrl(), primaryPool, dskch.getPath());
                 } else {
                     baseVol = primaryPool.getPhysicalDisk(command.getTemplateUrl());
-                    vol = storagePoolMgr.createDiskFromTemplate(baseVol, dskch.getPath(), dskch.getProvisioningType(), primaryPool, baseVol.getSize(), 0);
+                    vol = storagePoolMgr.createDiskFromTemplate(baseVol, dskch.getPath(), dskch.getProvisioningType(), primaryPool, baseVol.getSize(), 0, null);
                 }
                 if (vol == null) {
                     return new Answer(command, false, " Can't create storage volume on storage pool");
                 }
             } else {
-                vol = primaryPool.createPhysicalDisk(dskch.getPath(), dskch.getProvisioningType(), dskch.getSize());
+                vol = primaryPool.createPhysicalDisk(dskch.getPath(), dskch.getProvisioningType(), dskch.getSize(), null);
                 if (vol == null) {
                     return new Answer(command, false, " Can't create Physical Disk");
                 }
@@ -80,7 +78,7 @@ public final class LibvirtCreateCommandWrapper extends CommandWrapper<CreateComm
             volume.setCacheMode(dskch.getCacheMode());
             return new CreateAnswer(command, volume);
         } catch (final CloudRuntimeException e) {
-            s_logger.debug("Failed to create volume: " + e.toString());
+            logger.debug("Failed to create volume: " + e.toString());
             return new CreateAnswer(command, e);
         }
     }

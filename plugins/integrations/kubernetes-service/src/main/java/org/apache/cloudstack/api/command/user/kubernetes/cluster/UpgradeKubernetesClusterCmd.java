@@ -21,6 +21,7 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
@@ -30,7 +31,6 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.KubernetesClusterResponse;
 import org.apache.cloudstack.api.response.KubernetesSupportedVersionResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.kubernetes.cluster.KubernetesCluster;
@@ -38,7 +38,7 @@ import com.cloud.kubernetes.cluster.KubernetesClusterEventTypes;
 import com.cloud.kubernetes.cluster.KubernetesClusterService;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-@APICommand(name = UpgradeKubernetesClusterCmd.APINAME, description = "Upgrades a running Kubernetes cluster",
+@APICommand(name = "upgradeKubernetesCluster", description = "Upgrades a running CloudManaged Kubernetes cluster",
         responseObject = KubernetesClusterResponse.class,
         responseView = ResponseObject.ResponseView.Restricted,
         entityType = {KubernetesCluster.class},
@@ -46,8 +46,6 @@ import com.cloud.utils.exception.CloudRuntimeException;
         responseHasSensitiveInfo = true,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class UpgradeKubernetesClusterCmd extends BaseAsyncCmd {
-    public static final Logger LOGGER = Logger.getLogger(UpgradeKubernetesClusterCmd.class.getName());
-    public static final String APINAME = "upgradeKubernetesCluster";
 
     @Inject
     public KubernetesClusterService kubernetesClusterService;
@@ -95,13 +93,13 @@ public class UpgradeKubernetesClusterCmd extends BaseAsyncCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + "response";
+    public long getEntityOwnerId() {
+        return CallContext.current().getCallingAccount().getId();
     }
 
     @Override
-    public long getEntityOwnerId() {
-        return CallContext.current().getCallingAccount().getId();
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.KubernetesCluster;
     }
 
     /////////////////////////////////////////////////////

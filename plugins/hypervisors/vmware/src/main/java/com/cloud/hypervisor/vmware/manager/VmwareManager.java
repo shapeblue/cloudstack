@@ -41,7 +41,7 @@ public interface VmwareManager {
             "If a worker vm is older then twice the 'job.expire.minutes' + 'job.cancel.threshold.minutes' , remove it.", true, ConfigKey.Scope.Global);
 
     static final ConfigKey<String> s_vmwareSearchExcludeFolder = new ConfigKey<String>("Advanced", String.class, "vmware.search.exclude.folders", null,
-            "Comma seperated list of Datastore Folders to exclude from VMWare search", true, ConfigKey.Scope.Global);
+            "Comma separated list of Datastore Folders to exclude from VMWare search", true, ConfigKey.Scope.Global);
 
     static final ConfigKey<Integer> s_vmwareOVAPackageTimeout = new ConfigKey<Integer>(Integer.class, "vmware.package.ova.timeout", "Advanced", "3600",
             "Vmware script timeout for ova packaging process", true, ConfigKey.Scope.Global, 1000);
@@ -52,6 +52,14 @@ public interface VmwareManager {
     public static final ConfigKey<Integer> VMWARE_STATS_TIME_WINDOW = new ConfigKey<Integer>("Advanced", Integer.class, "vmware.stats.time.window", "300",
             "VMware interval window (in seconds) to collect metrics. If this is set to less than 20, then default (300 seconds) will be used. The interval used must be enabled in vCenter for this change to work, "
             + "otherwise the collection of metrics will result in an error. Check VMWare docs to know how to enable metrics interval.", true);
+
+    static final ConfigKey<String> VmwareUserVmNicDeviceType = new ConfigKey<String>(
+            String.class,
+            "vmware.uservm.nic.device.type",
+            "Advanced",
+            "E1000",
+            "Specify the default network device type for user VMs, valid values are E1000, PCNet32, Vmxnet2, Vmxnet3",
+            true, ConfigKey.Scope.Global, null, null, null, null, null, ConfigKey.Kind.Select, "E1000,PCNet32,Vmxnet2,Vmxnet3");
 
     String composeWorkerName();
 

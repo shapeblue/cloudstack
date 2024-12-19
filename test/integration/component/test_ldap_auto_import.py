@@ -379,7 +379,7 @@ class TestLdap(cloudstackTestCase):
             self.apiClient.deleteAccount(deleteAcct2)
 
             self.debug(
-                "Deleted the the following account name %s:" %
+                "Deleted the following account name %s:" %
                 acct_name)
 
         except Exception as e:
@@ -594,5 +594,3 @@ class TestLdap(cloudstackTestCase):
             "", "", self.parent_domain.name, method="POST")
         self.debug(loginRes)
         self.assertEqual(loginRes, None, self.reason)
-
-

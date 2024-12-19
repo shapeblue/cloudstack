@@ -17,7 +17,6 @@
 package org.apache.cloudstack.api.command.admin.router;
 
 import java.util.List;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -43,8 +42,6 @@ import com.cloud.user.Account;
 @APICommand(name = "upgradeRouterTemplate", description = "Upgrades router to use newer template", responseObject = BaseResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpgradeRouterTemplateCmd extends org.apache.cloudstack.api.BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(UpgradeRouterTemplateCmd.class.getName());
-    private static final String s_name = "upgraderoutertemplateresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -106,11 +103,6 @@ public class UpgradeRouterTemplateCmd extends org.apache.cloudstack.api.BaseCmd 
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

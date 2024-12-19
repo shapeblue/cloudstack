@@ -366,7 +366,7 @@ class ConfigDriveUtils:
             return None
 
     def _get_config_drive_data(self, ssh, file, name, fail_on_missing=True):
-        """Fetches the content of a file file on the config drive
+        """Fetches the content of a file on the config drive
 
         :param ssh: SSH connection to the VM
         :param file: path to the file to fetch
@@ -552,6 +552,18 @@ class ConfigDriveUtils:
         if exposeHypevisorHostnameGS == 'true' and exposeHypevisorHostnameAcc == 'true':
             vm_files.append("hypervisor-host-name.txt")
 
+        configs = Configurations.list(
+            self.api_client,
+            name="metadata.allow.expose.domain",
+            listall=True
+        )
+
+        exposeDomain = configs[0].value
+
+        if exposeDomain == 'true':
+            vm_files.append("cloud-domain.txt")
+            vm_files.append("cloud-domain-id.txt")
+
         def get_name(vm_file):
             return "{} metadata".format(
                 vm_file.split('.'[-1].replace('-', ' '))
@@ -602,6 +614,18 @@ class ConfigDriveUtils:
                 hostname,
                 "Hostname in the metadata file does not match the host "
                 "on which the VM is spawned"
+            )
+
+        if exposeDomain == 'true':
+            self.assertEqual(
+                str(metadata["cloud-domain-id.txt"]),
+                self.domain.id,
+                "Domain name in the metadata file does not match expected"
+            )
+            self.assertEqual(
+                str(metadata["cloud-domain.txt"]),
+                self.domain.name,
+                "Domain name in the metadata file does not match expected"
             )
 
         return
@@ -1001,7 +1025,7 @@ class ConfigDriveUtils:
         :rtype: str
         """
         self.debug("Updating userdata for VM - %s" % vm.name)
-        updated_user_data = base64.encodestring(new_user_data.encode()).decode()
+        updated_user_data = base64.encodebytes(new_user_data.encode()).decode()
         with self.stopped_vm(vm):
             vm.update(self.api_client, userdata=updated_user_data)
 
@@ -1589,7 +1613,7 @@ class TestConfigDrive(cloudstackTestCase, ConfigDriveUtils):
                          "List network should return a valid list"
                          )
         self.assertEqual(network.name, networks[0].name,
-                         "Name of the network should match with with the "
+                         "Name of the network should match with the "
                          "returned list data"
                          )
         if state:
@@ -1753,11 +1777,11 @@ class TestConfigDrive(cloudstackTestCase, ConfigDriveUtils):
         #    And the VM is successfully deployed and is in the "Running" state
         #    And there is no VR is deployed.
         # 4. And the user data in the ConfigDrive device is as expected
-        # 5. And the the vm password in the ConfigDrive device is as expected
+        # 5. And the vm password in the ConfigDrive device is as expected
 
         # 6. When I stop, reset the password, and start the VM
         # 7. Then I can login into the VM using the new password.
-        # 8. And the the vm password in the ConfigDrive device is the new one
+        # 8. And the vm password in the ConfigDrive device is the new one
 
         # 9. Verify various scenarios and check the data in configdriveIso
         # 10. Delete all the created objects (cleanup).
@@ -1976,11 +2000,11 @@ class TestConfigDrive(cloudstackTestCase, ConfigDriveUtils):
         #    And the VM is successfully deployed and is in the "Running" state
 
         # 4. And the user data in the ConfigDrive device is as expected
-        # 5. And the the vm password in the ConfigDrive device is as expected
+        # 5. And the vm password in the ConfigDrive device is as expected
 
         # 6. When I stop, reset the password, and start the VM
         # 7. Then I can login into the VM using the new password.
-        # 8. And the the vm password in the ConfigDrive device is the new one
+        # 8. And the vm password in the ConfigDrive device is the new one
 
         # 9. Verify various scenarios and check the data in configdriveIso
         # 10. Delete all the created objects (cleanup).
@@ -2441,6 +2465,12 @@ class TestConfigDrive(cloudstackTestCase, ConfigDriveUtils):
                               value="true"
                               )
 
+        # Enable domain in metadata
+        Configurations.update(self.api_client,
+                              name="metadata.allow.expose.domain",
+                              value="true"
+                              )
+
         # Verify that the above mentioned settings are set to true before proceeding
         if not is_config_suitable(
                 apiclient=self.api_client,
@@ -2453,6 +2483,12 @@ class TestConfigDrive(cloudstackTestCase, ConfigDriveUtils):
                 name='account.allow.expose.host.hostname',
                 value='true'):
             self.skipTest('Account level setting account.allow.expose.host.hostname should be true. skipping')
+
+        if not is_config_suitable(
+                apiclient=self.api_client,
+                name='metadata.allow.expose.domain',
+                value='true'):
+            self.skipTest('metadata.allow.expose.domain should be true. skipping')
 
         # =====================================================================
         self.debug("+++ Scenario: "
@@ -2510,6 +2546,12 @@ class TestConfigDrive(cloudstackTestCase, ConfigDriveUtils):
         # Update Account level setting
         Configurations.update(self.api_client,
                               name="account.allow.expose.host.hostname",
+                              value="false"
+                              )
+
+        # Disable domain in metadata
+        Configurations.update(self.api_client,
+                              name="metadata.allow.expose.domain",
                               value="false"
                               )
 

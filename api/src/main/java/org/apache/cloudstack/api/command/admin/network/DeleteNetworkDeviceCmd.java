@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.admin.network;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -40,8 +39,6 @@ import com.cloud.utils.exception.CloudRuntimeException;
 @APICommand(name = "deleteNetworkDevice", description = "Deletes network device.", responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteNetworkDeviceCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteNetworkDeviceCmd.class);
-    private static final String s_name = "deletenetworkdeviceresponse";
 
     @Inject
     ExternalNetworkDeviceManager nwDeviceMgr;
@@ -75,11 +72,6 @@ public class DeleteNetworkDeviceCmd extends BaseCmd {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, cre.getMessage());
         }
 
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

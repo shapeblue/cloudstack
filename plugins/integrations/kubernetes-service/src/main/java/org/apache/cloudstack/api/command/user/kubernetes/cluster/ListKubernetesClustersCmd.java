@@ -28,12 +28,11 @@ import org.apache.cloudstack.api.ResponseObject.ResponseView;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.KubernetesClusterResponse;
 import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.kubernetes.cluster.KubernetesClusterService;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-@APICommand(name = ListKubernetesClustersCmd.APINAME,
+@APICommand(name = "listKubernetesClusters",
         description = "Lists Kubernetes clusters",
         responseObject = KubernetesClusterResponse.class,
         responseView = ResponseView.Restricted,
@@ -41,8 +40,6 @@ import com.cloud.utils.exception.CloudRuntimeException;
         responseHasSensitiveInfo = true,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class ListKubernetesClustersCmd extends BaseListProjectAndAccountResourcesCmd {
-    public static final Logger LOGGER = Logger.getLogger(ListKubernetesClustersCmd.class.getName());
-    public static final String APINAME = "listKubernetesClusters";
 
     @Inject
     public KubernetesClusterService kubernetesClusterService;
@@ -62,6 +59,10 @@ public class ListKubernetesClustersCmd extends BaseListProjectAndAccountResource
             " (a substring match is made against the parameter value, data for all matching Kubernetes clusters will be returned)")
     private String name;
 
+    @Parameter(name = ApiConstants.CLUSTER_TYPE, type = CommandType.STRING, since = "4.19.0",
+            description = "type of the cluster: CloudManaged, ExternalManaged")
+    private String clusterType;
+
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
@@ -78,14 +79,13 @@ public class ListKubernetesClustersCmd extends BaseListProjectAndAccountResource
         return name;
     }
 
+    public String getClusterType() {
+        return clusterType;
+    }
+
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + "response";
-    }
 
     @Override
     public void execute() throws ServerApiException {

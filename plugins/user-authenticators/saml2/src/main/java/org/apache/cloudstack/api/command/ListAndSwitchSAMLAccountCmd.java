@@ -46,8 +46,8 @@ import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.api.response.UserResponse;
 import org.apache.cloudstack.saml.SAML2AuthManager;
 import org.apache.cloudstack.saml.SAMLUtils;
-import org.apache.log4j.Logger;
 
+import com.cloud.api.ApiServer;
 import com.cloud.api.response.ApiResponseSerializer;
 import com.cloud.domain.Domain;
 import com.cloud.domain.dao.DomainDao;
@@ -60,10 +60,10 @@ import com.cloud.user.dao.UserAccountDao;
 import com.cloud.user.dao.UserDao;
 import com.cloud.utils.HttpUtils;
 
+import org.apache.commons.lang3.EnumUtils;
+
 @APICommand(name = "listAndSwitchSamlAccount", description = "Lists and switches to other SAML accounts owned by the SAML user", responseObject = SuccessResponse.class, requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListAndSwitchSAMLAccountCmd extends BaseCmd implements APIAuthenticator {
-    public static final Logger s_logger = Logger.getLogger(ListAndSwitchSAMLAccountCmd.class.getName());
-    private static final String s_name = "listandswitchsamlaccountresponse";
 
     @Inject
     ApiServerService _apiServer;
@@ -88,11 +88,6 @@ public class ListAndSwitchSAMLAccountCmd extends BaseCmd implements APIAuthentic
     private Long domainId;
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
     }
@@ -110,7 +105,9 @@ public class ListAndSwitchSAMLAccountCmd extends BaseCmd implements APIAuthentic
                     params, responseType));
         }
 
-        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY)) {
+        HttpUtils.ApiSessionKeyCheckOption sessionKeyCheckOption = EnumUtils.getEnumIgnoreCase(HttpUtils.ApiSessionKeyCheckOption.class,
+                ApiServer.ApiSessionKeyCheckLocations.value(), HttpUtils.ApiSessionKeyCheckOption.CookieAndParameter);
+        if (!HttpUtils.validateSessionKey(session, params, req.getCookies(), ApiConstants.SESSIONKEY, sessionKeyCheckOption)) {
             throw new ServerApiException(ApiErrorCode.UNAUTHORIZED, _apiServer.getSerializedApiError(ApiErrorCode.UNAUTHORIZED.getHttpCode(),
                     "Unauthorized session, please re-login",
                     params, responseType));
@@ -161,7 +158,7 @@ public class ListAndSwitchSAMLAccountCmd extends BaseCmd implements APIAuthentic
                     return ApiResponseSerializer.toSerializedString(loginResponse, responseType);
                 }
             } catch (CloudAuthenticationException | IOException exception) {
-                s_logger.debug("Failed to switch to request SAML user account due to: " + exception.getMessage());
+                logger.debug("Failed to switch to request SAML user account due to: " + exception.getMessage());
             }
         } else {
             List<UserAccountVO> switchableAccounts = _userAccountDao.getAllUsersByNameAndEntity(currentUserAccount.getUsername(), currentUserAccount.getExternalEntity());
@@ -204,7 +201,7 @@ public class ListAndSwitchSAMLAccountCmd extends BaseCmd implements APIAuthentic
             }
         }
         if (_samlAuthManager == null) {
-            s_logger.error("No suitable Pluggable Authentication Manager found for SAML2 listAndSwitchSamlAccount Cmd");
+            logger.error("No suitable Pluggable Authentication Manager found for SAML2 listAndSwitchSamlAccount Cmd");
         }
     }
 

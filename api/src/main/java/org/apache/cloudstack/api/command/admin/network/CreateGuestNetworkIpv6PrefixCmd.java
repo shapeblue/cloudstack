@@ -27,7 +27,6 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.DataCenterGuestIpv6PrefixResponse;
 import org.apache.cloudstack.api.response.ZoneResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.dc.DataCenterGuestIpv6Prefix;
 import com.cloud.event.EventTypes;
@@ -37,7 +36,7 @@ import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.user.Account;
 
-@APICommand(name = CreateGuestNetworkIpv6PrefixCmd.APINAME,
+@APICommand(name = "createGuestNetworkIpv6Prefix",
         description = "Creates a guest network IPv6 prefix.",
         responseObject = DataCenterGuestIpv6PrefixResponse.class,
         since = "4.17.0.0",
@@ -45,9 +44,7 @@ import com.cloud.user.Account;
         responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin})
 public class CreateGuestNetworkIpv6PrefixCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(CreateGuestNetworkIpv6PrefixCmd.class);
 
-    public static final String APINAME = "createGuestNetworkIpv6Prefix";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -100,11 +97,6 @@ public class CreateGuestNetworkIpv6PrefixCmd extends BaseAsyncCmd {
         } else {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create zone guest IPv6 prefix.");
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseAsyncCmd.RESPONSE_SUFFIX;
     }
 
     @Override

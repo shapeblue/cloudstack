@@ -17,7 +17,6 @@
 package org.apache.cloudstack.api.command.user.address;
 
 import org.apache.cloudstack.api.ApiCommandResourceType;
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
@@ -42,8 +41,6 @@ import com.cloud.user.Account;
 @APICommand(name = "updateIpAddress", description = "Updates an IP address", responseObject = IPAddressResponse.class,
  requestHasSensitiveInfo = false, responseHasSensitiveInfo = false, entityType = { IpAddress.class })
 public class UpdateIPAddrCmd extends BaseAsyncCustomIdCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateIPAddrCmd.class.getName());
-    private static final String s_name = "updateipaddressresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -62,11 +59,6 @@ public class UpdateIPAddrCmd extends BaseAsyncCustomIdCmd {
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
     public Long getId() {
         return id;
     }

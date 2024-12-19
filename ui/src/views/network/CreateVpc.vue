@@ -62,13 +62,24 @@
             </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item name="cidr" ref="cidr">
+        <a-form-item name="cidr" ref="cidr" v-if="selectedVpcOffering && (selectedVpcOffering.networkmode !== 'ROUTED' || isAdmin())">
           <template #label>
             <tooltip-label :title="$t('label.cidr')" :tooltip="apiParams.cidr.description"/>
           </template>
           <a-input
             v-model:value="form.cidr"
             :placeholder="apiParams.cidr.description"/>
+        </a-form-item>
+        <a-form-item
+          v-if="selectedVpcOffering && selectedVpcOffering.networkmode === 'ROUTED'"
+          ref="cidrsize"
+          name="cidrsize">
+          <template #label>
+            <tooltip-label :title="$t('label.cidrsize')" :tooltip="apiParams.cidrsize.description"/>
+          </template>
+          <a-input
+            v-model:value="form.cidrsize"
+            :placeholder="apiParams.cidrsize.description"/>
         </a-form-item>
         <a-form-item name="networkdomain" ref="networkdomain">
           <template #label>
@@ -88,12 +99,99 @@
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-            }" >
-            <a-select-option :value="offering.id" v-for="offering in vpcOfferings" :key="offering.id">
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }"
+            @change="handleVpcOfferingChange" >
+            <a-select-option :value="offering.id" v-for="offering in vpcOfferings" :key="offering.id" :label="offering.name">
               {{ offering.name }}
             </a-select-option>
           </a-select>
+        </a-form-item>
+        <a-form-item ref="asnumber" name="asnumber" v-if="isASNumberRequired()">
+          <template #label>
+            <tooltip-label :title="$t('label.asnumber')" :tooltip="apiParams.asnumber.description"/>
+          </template>
+          <a-select
+            v-model:value="form.asnumber"
+            showSearch
+            optionFilterProp="label"
+            :filterOption="(input, option) => {
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }"
+            :loading="asNumberLoading"
+            :placeholder="apiParams.asnumber.description"
+            @change="val => { handleASNumberChange(val) }">
+            <a-select-option v-for="(opt, optIndex) in asNumbersZone" :key="optIndex" :label="opt.asnumber">
+              {{ opt.asnumber }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <div v-if="setMTU">
+          <a-form-item
+            ref="publicmtu"
+            name="publicmtu">
+            <template #label>
+              <tooltip-label :title="$t('label.publicmtu')" :tooltip="apiParams.publicmtu.description"/>
+            </template>
+            <a-input-number
+              style="width: 100%;"
+              v-model:value="form.publicmtu"
+              :placeholder="apiParams.publicmtu.description"
+              @change="updateMtu()"/>
+              <div style="color: red" v-if="errorPublicMtu" v-html="errorPublicMtu"></div>
+          </a-form-item>
+        </div>
+        <a-row :gutter="12" v-if="selectedVpcOfferingSupportsDns">
+          <a-col :md="12" :lg="12">
+            <a-form-item v-if="'dns1' in apiParams" name="dns1" ref="dns1">
+              <template #label>
+                <tooltip-label :title="$t('label.dns1')" :tooltip="apiParams.dns1.description"/>
+              </template>
+              <a-input
+                v-model:value="form.dns1"
+                :placeholder="apiParams.dns1.description"/>
+            </a-form-item>
+          </a-col>
+          <a-col :md="12" :lg="12">
+            <a-form-item v-if="'dns2' in apiParams" name="dns2" ref="dns2">
+              <template #label>
+                <tooltip-label :title="$t('label.dns2')" :tooltip="apiParams.dns2.description"/>
+              </template>
+              <a-input
+                v-model:value="form.dns2"
+                :placeholder="apiParams.dns2.description"/>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="12" v-if="selectedVpcOfferingSupportsDns">
+          <a-col :md="12" :lg="12">
+            <a-form-item v-if="selectedVpcOffering && selectedVpcOffering.internetprotocol === 'DualStack' && 'ip6dns1' in apiParams" name="ip6dns1" ref="ip6dns1">
+              <template #label>
+                <tooltip-label :title="$t('label.ip6dns1')" :tooltip="apiParams.ip6dns1.description"/>
+              </template>
+              <a-input
+                v-model:value="form.ip6dns1"
+                :placeholder="apiParams.ip6dns1.description"/>
+            </a-form-item>
+          </a-col>
+          <a-col :md="12" :lg="12">
+            <a-form-item v-if="selectedVpcOffering && selectedVpcOffering.internetprotocol === 'DualStack' && 'ip6dns2' in apiParams" name="ip6dns2" ref="ip6dns2">
+              <template #label>
+                <tooltip-label :title="$t('label.ip6dns2')" :tooltip="apiParams.ip6dns2.description"/>
+              </template>
+              <a-input
+                v-model:value="form.ip6dns2"
+                :placeholder="apiParams.ip6dns2.description"/>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item v-if="selectedNetworkOfferingSupportsSourceNat && !isNsxNetwork" name="sourcenatipaddress" ref="sourcenatipaddress">
+          <template #label>
+            <tooltip-label :title="$t('label.routerip')" :tooltip="apiParams.sourcenatipaddress?.description"/>
+          </template>
+          <a-input
+            v-model:value="form.sourcenatipaddress"
+            :placeholder="apiParams.sourcenatipaddress?.description"/>
         </a-form-item>
         <a-form-item name="start" ref="start">
           <template #label>
@@ -112,6 +210,7 @@
 <script>
 import { ref, reactive, toRaw } from 'vue'
 import { api } from '@/api'
+import { isAdmin } from '@/role'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import TooltipLabel from '@/components/widgets/TooltipLabel'
 
@@ -125,9 +224,20 @@ export default {
     return {
       loading: false,
       loadingZone: false,
+      selectedZone: {},
       loadingOffering: false,
+      setMTU: false,
+      zoneid: '',
       zones: [],
-      vpcOfferings: []
+      vpcOfferings: [],
+      publicMtuMax: 1500,
+      minMTU: 68,
+      errorPublicMtu: '',
+      selectedVpcOffering: {},
+      isNsxNetwork: false,
+      asNumberLoading: false,
+      asNumbersZone: [],
+      selectedAsNumber: 0
     }
   },
   beforeCreate () {
@@ -136,6 +246,25 @@ export default {
   created () {
     this.initForm()
     this.fetchData()
+    console.log(this.setMTU)
+  },
+  computed: {
+    selectedVpcOfferingSupportsDns () {
+      if (this.selectedVpcOffering) {
+        const services = this.selectedVpcOffering?.service || []
+        const dnsServices = services.filter(service => service.name === 'Dns')
+        return dnsServices && dnsServices.length === 1
+      }
+      return false
+    },
+    selectedNetworkOfferingSupportsSourceNat () {
+      if (this.selectedVpcOffering) {
+        const services = this.selectedVpcOffering?.service || []
+        const sourcenatService = services.filter(service => service.name === 'SourceNat')
+        return sourcenatService && sourcenatService.length === 1
+      }
+      return false
+    }
   },
   methods: {
     initForm () {
@@ -145,18 +274,33 @@ export default {
       })
       this.rules = reactive({
         name: [{ required: true, message: this.$t('message.error.required.input') }],
-        displaytext: [{ required: true, message: this.$t('message.error.required.input') }],
         zoneid: [{ required: true, message: this.$t('label.required') }],
-        cidr: [{ required: true, message: this.$t('message.error.required.input') }],
         vpcofferingid: [{ required: true, message: this.$t('label.required') }]
       })
     },
-    fetchData () {
+    isASNumberRequired () {
+      return !this.isObjectEmpty(this.selectedVpcOffering) && this.selectedVpcOffering.specifyasnumber && this.selectedVpcOffering?.routingmode.toLowerCase() === 'dynamic'
+    },
+    isObjectEmpty (obj) {
+      return !(obj !== null && obj !== undefined && Object.keys(obj).length > 0 && obj.constructor === Object)
+    },
+    async fetchData () {
       this.fetchZones()
+    },
+    isAdmin () {
+      return isAdmin()
+    },
+    fetchPublicMtuForZone () {
+      api('listConfigurations', {
+        name: 'vr.public.interface.mtu',
+        zoneid: this.form.zoneid
+      }).then(json => {
+        this.publicMtuMax = json?.listconfigurationsresponse?.configuration[0]?.value || 1500
+      })
     },
     fetchZones () {
       this.loadingZone = true
-      api('listZones', { listAll: true, showicon: true }).then((response) => {
+      api('listZones', { showicon: true }).then((response) => {
         const listZones = response.listzonesresponse.zone || []
         this.zones = listZones.filter(zone => !zone.securitygroupsenabled)
         this.form.zoneid = ''
@@ -174,19 +318,76 @@ export default {
         this.form.vpcofferingid = ''
         return
       }
+      for (var zone of this.zones) {
+        if (zone.id === value) {
+          this.setMTU = zone?.allowuserspecifyvrmtu || false
+          this.publicMtuMax = zone?.routerpublicinterfacemaxmtu || 1500
+          this.isNsxNetwork = zone?.isnsxenabled || false
+          this.selectedZone = zone
+        }
+      }
       this.fetchOfferings()
+      if (this.isASNumberRequired()) {
+        this.fetchZoneASNumbers()
+      }
+    },
+    fetchZoneASNumbers () {
+      const params = {}
+      this.asNumberLoading = true
+      params.zoneid = this.selectedZone.id
+      params.isallocated = false
+      api('listASNumbers', params).then(json => {
+        this.asNumbersZone = json.listasnumbersresponse.asnumber
+        this.asNumberLoading = false
+      })
     },
     fetchOfferings () {
       this.loadingOffering = true
-      api('listVPCOfferings', { zoneid: this.form.zoneid, state: 'Enabled' }).then((reponse) => {
-        this.vpcOfferings = reponse.listvpcofferingsresponse.vpcoffering
+      api('listVPCOfferings', { zoneid: this.form.zoneid, state: 'Enabled' }).then((response) => {
+        this.vpcOfferings = response.listvpcofferingsresponse.vpcoffering
         this.form.vpcofferingid = this.vpcOfferings[0].id || ''
+        this.selectedVpcOffering = this.vpcOfferings[0] || {}
       }).finally(() => {
         this.loadingOffering = false
+        if (this.vpcOfferings.length > 0) {
+          this.form.vpcofferingid = 0
+          this.handleVpcOfferingChange(this.vpcOfferings[0].id)
+        }
       })
+    },
+    handleVpcOfferingChange (value) {
+      this.selectedVpcOffering = {}
+      if (!value) {
+        return
+      }
+      for (var offering of this.vpcOfferings) {
+        if (offering.id === value) {
+          this.selectedVpcOffering = offering
+          this.form.vpcofferingid = offering.id
+          if (this.isASNumberRequired()) {
+            this.fetchZoneASNumbers()
+          }
+          return
+        }
+      }
+    },
+    handleASNumberChange (selectedIndex) {
+      this.selectedAsNumber = this.asNumbersZone[selectedIndex].asnumber
+      this.form.asnumber = this.selectedAsNumber
     },
     closeAction () {
       this.$emit('close-action')
+    },
+    updateMtu () {
+      if (this.form.publicmtu > this.publicMtuMax) {
+        this.errorPublicMtu = `${this.$t('message.error.mtu.public.max.exceed').replace('%x', this.publicMtuMax)}`
+        this.form.publicmtu = this.publicMtuMax
+      } else if (this.form.publicmtu < this.minMTU) {
+        this.errorPublicMtu = `${this.$t('message.error.mtu.below.min').replace('%x', this.minMTU)}`
+        this.form.publicmtu = this.minMTU
+      } else {
+        this.errorPublicMtu = ''
+      }
     },
     handleSubmit (e) {
       e.preventDefault()
@@ -201,9 +402,29 @@ export default {
           }
           params[key] = input
         }
+        if (this.selectedVpcOffering.networkmode === 'ROUTED') {
+          if ((values.cidr === undefined || values.cidr === '') && (values.cidrsize === undefined || values.cidrsize === '')) {
+            this.$notification.error({
+              message: this.$t('message.request.failed'),
+              description: this.$t('message.error.cidr.or.cidrsize')
+            })
+            return
+          }
+        } else {
+          if (values.cidr === undefined || values.cidr === '') {
+            this.$notification.error({
+              message: this.$t('message.request.failed'),
+              description: this.$t('message.error.cidr')
+            })
+            return
+          }
+        }
+        if ('asnumber' in values && this.isASNumberRequired()) {
+          params.asnumber = values.asnumber
+        }
         this.loading = true
         const title = this.$t('label.add.vpc')
-        const description = this.$t('message.success.add.vpc.network')
+        const description = this.$t('message.success.add.vpc')
         api('createVPC', params).then(json => {
           const jobId = json.createvpcresponse.jobid
           if (jobId) {

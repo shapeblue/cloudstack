@@ -19,7 +19,7 @@
 set -e
 set -x
 
-CLOUDSTACK_RELEASE=4.17.0
+CLOUDSTACK_RELEASE=4.20.0
 
 function configure_apache2() {
    # Enable ssl, rewrite and auth
@@ -41,7 +41,7 @@ function configure_issue() {
 
    __?.o/  Apache CloudStack SystemVM $CLOUDSTACK_RELEASE
   (  )#    https://cloudstack.apache.org
- (___(_)   Debian GNU/Linux 11 \n \l
+ (___(_)   Debian GNU/Linux 12 \n \l
 
 EOF
 }
@@ -50,10 +50,10 @@ function configure_cacerts() {
   CDIR=$(pwd)
   cd /tmp
   # Add LetsEncrypt ca-cert
-  wget https://letsencrypt.org/certs/lets-encrypt-r3.der
   wget https://letsencrypt.org/certs/isrgrootx1.der
-  keytool -trustcacerts -keystore /etc/ssl/certs/java/cacerts -storepass changeit -noprompt -importcert -alias letsencryptauthorityr3 -file lets-encrypt-r3.der
+  wget https://letsencrypt.org/certs/lets-encrypt-r3.der
   keytool -trustcacerts -keystore /etc/ssl/certs/java/cacerts -storepass changeit -noprompt -importcert -alias letsencryptauthorityx1 -file isrgrootx1.der
+  keytool -trustcacerts -keystore /etc/ssl/certs/java/cacerts -storepass changeit -noprompt -importcert -alias letsencryptauthorityr3 -file lets-encrypt-r3.der
   rm -f lets-encrypt-r3.der isrgrootx1.der
   cd $CDIR
 }
@@ -111,12 +111,14 @@ function configure_services() {
   systemctl disable haproxy
   systemctl disable keepalived
   systemctl disable radvd
+  systemctl disable frr
   systemctl disable strongswan-starter
   systemctl disable x11-common
   systemctl disable xl2tpd
   systemctl disable vgauth
   systemctl disable sshd
   systemctl disable nfs-common
+  systemctl disable nfs-server
   systemctl disable portmap
 
   # Disable guest services which will selectively be started based on hypervisor

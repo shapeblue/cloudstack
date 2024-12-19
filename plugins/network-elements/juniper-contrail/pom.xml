@@ -24,15 +24,9 @@
     <parent>
         <groupId>org.apache.cloudstack</groupId>
         <artifactId>cloudstack-plugins</artifactId>
-        <version>4.17.0.1</version>
+        <version>4.20.0.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-    <repositories>
-        <repository>
-            <id>juniper-contrail</id>
-            <url>https://juniper.github.io/contrail-maven/snapshots</url>
-        </repository>
-    </repositories>
     <dependencies>
         <dependency>
             <groupId>org.apache.cloudstack</groupId>
@@ -120,8 +114,12 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
+            <groupId>ch.qos.reload4j</groupId>
+            <artifactId>reload4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -136,7 +134,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <forkMode>always</forkMode>
-                    <argLine>-Xmx1024m</argLine>
+                    <argLine>@{argLine} -Xmx1024m</argLine>
                     <excludes>
                         <exclude>**/NetworkProviderTest.java</exclude>
                         <exclude>**/PublicNetworkTest.java</exclude>

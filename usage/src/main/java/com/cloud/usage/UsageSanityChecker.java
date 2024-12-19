@@ -29,7 +29,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.cloud.utils.exception.CloudRuntimeException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import com.cloud.utils.db.TransactionLegacy;
 
@@ -39,7 +40,7 @@ import com.cloud.utils.db.TransactionLegacy;
  */
 public class UsageSanityChecker {
 
-    protected static final Logger s_logger = Logger.getLogger(UsageSanityChecker.class);
+    protected static Logger LOGGER = LogManager.getLogger(UsageSanityChecker.class);
     protected static final int DEFAULT_AGGREGATION_RANGE = 1440;
     protected StringBuilder errors;
     protected List<CheckCase> checkCases;
@@ -51,7 +52,7 @@ public class UsageSanityChecker {
 
     protected void reset() {
         errors = new StringBuilder();
-        checkCases = new ArrayList<CheckCase>();
+        checkCases = new ArrayList<>();
     }
 
     protected boolean checkItemCountByPstmt() throws SQLException {
@@ -69,55 +70,82 @@ public class UsageSanityChecker {
         /*
          * Check for item usage records which are created after it is removed
          */
-        try (PreparedStatement pstmt = conn.prepareStatement(checkCase.sqlTemplate)) {
-            if(checkCase.checkId) {
-                pstmt.setInt(1, lastId);
-                pstmt.setInt(2, maxId);
-            }
-            try(ResultSet rs = pstmt.executeQuery();) {
-                if (rs.next() && (rs.getInt(1) > 0)) {
-                    errors.append(String.format("Error: Found %s %s\n", rs.getInt(1), checkCase.itemName));
-                    checkOk = false;
+        try (PreparedStatement pstmt = conn.prepareStatement(checkCase.getSqlTemplate())) {
+            if (checkCase.isCheckId()) {
+                if (lastId > 0) {
+                    pstmt.setInt(1, lastId);
                 }
-            }catch (Exception e)
-            {
-                s_logger.error("checkItemCountByPstmt:Exception:"+e.getMessage());
-                throw new CloudRuntimeException("checkItemCountByPstmt:Exception:"+e.getMessage(),e);
+                if (maxId > lastId) {
+                    pstmt.setInt(2, maxId);
+                }
             }
+            checkOk = isCheckOkForPstmt(checkCase, checkOk, pstmt);
         }
         catch (Exception e)
         {
-            s_logger.error("checkItemCountByPstmt:Exception:"+e.getMessage());
-            throw new CloudRuntimeException("checkItemCountByPstmt:Exception:"+e.getMessage(),e);
+            throwPreparedStatementExcecutionException("preparing statement", checkCase.getSqlTemplate(), e);
         }
         return checkOk;
     }
 
+    private boolean isCheckOkForPstmt(CheckCase checkCase, boolean checkOk, PreparedStatement pstmt) {
+        try (ResultSet rs = pstmt.executeQuery();) {
+            if (rs.next() && (rs.getInt(1) > 0)) {
+                errors.append(String.format("Error: Found %s %s%n", rs.getInt(1), checkCase.getItemName()));
+                checkOk = false;
+            }
+        } catch (Exception e)
+        {
+            throwPreparedStatementExcecutionException("check is failing", pstmt.toString(), e);
+        }
+        return checkOk;
+    }
+
+    private static void throwPreparedStatementExcecutionException(String msgPrefix, String stmt, Exception e) {
+        String msg = String.format("%s for prepared statement \"%s\" reason: %s", msgPrefix, stmt, e.getMessage());
+        LOGGER.error(msg);
+        throw new CloudRuntimeException(msg, e);
+    }
+
     protected void checkMaxUsage() throws SQLException {
         int aggregationRange = DEFAULT_AGGREGATION_RANGE;
-        try (PreparedStatement pstmt = conn.prepareStatement(
-                "SELECT value FROM `cloud`.`configuration` where name = 'usage.stats.job.aggregation.range'");)
+        String sql = "SELECT value FROM `cloud`.`configuration` WHERE name = 'usage.stats.job.aggregation.range'";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql);)
         {
-            try(ResultSet rs = pstmt.executeQuery();) {
-               if (rs.next()) {
-                    aggregationRange = rs.getInt(1);
-                } else {
-                    s_logger.debug("Failed to retrieve aggregation range. Using default : " + aggregationRange);
-                }
-            }catch (SQLException e) {
-                s_logger.error("checkMaxUsage:Exception:"+e.getMessage());
-                throw new CloudRuntimeException("checkMaxUsage:Exception:"+e.getMessage());
-            }
+            aggregationRange = getAggregationRange(aggregationRange, pstmt);
         } catch (SQLException e) {
-            s_logger.error("checkMaxUsage:Exception:"+e.getMessage());
-            throw new CloudRuntimeException("checkMaxUsage:Exception:"+e.getMessage());
+            throwPreparedStatementExcecutionException("preparing atatement", sql, e);
         }
         int aggregationHours = aggregationRange / 60;
 
-        addCheckCase("SELECT count(*) FROM `cloud_usage`.`cloud_usage` cu where usage_type not in (4,5) and raw_usage > "
-                + aggregationHours,
+        addCheckCase("SELECT count(*) FROM `cloud_usage`.`cloud_usage` cu where usage_type not in (4,5,13) and raw_usage > " + aggregationHours,
                 "usage records with raw_usage > " + aggregationHours,
                 lastCheckId);
+
+        addCheckCase("SELECT count(*) " +
+                        " FROM ( SELECT  cu.id, max(cu.raw_usage)/count(n.id) as avg_usage  " +
+                        "        FROM `cloud_usage`.`cloud_usage` AS cu " +
+                        "        INNER JOIN cloud.nics AS n ON (n.instance_id = cu.vm_instance_id) " +
+                        "        WHERE cu.usage_type = 13 AND ((n.created <= cu.end_date) AND (n.removed is null OR n.removed > cu.start_date)) " +
+                        "        GROUP BY cu.id) as cu " +
+                        " WHERE cu.avg_usage > " + aggregationHours,
+                "network offering usage records with raw_usage > " + aggregationHours,
+                lastCheckId);
+    }
+
+    private static int getAggregationRange(int aggregationRange, PreparedStatement pstmt) {
+        try (ResultSet rs = pstmt.executeQuery();) {
+           if (rs.next()) {
+                aggregationRange = rs.getInt(1);
+            } else {
+               if (LOGGER.isDebugEnabled()) {
+                   LOGGER.debug("Failed to retrieve aggregation range. Using default : " + aggregationRange);
+               }
+            }
+        } catch (SQLException e) {
+            throwPreparedStatementExcecutionException("retrieval aggregate value is failing", pstmt.toString(), e);
+        }
+        return aggregationRange;
     }
 
     protected void checkVmUsage() {
@@ -156,8 +184,17 @@ public class UsageSanityChecker {
     }
 
     protected void checkTemplateISOUsage() {
-        addCheckCase("select count(*) from cloud_usage.cloud_usage cu inner join cloud.template_zone_ref tzr where "
-                + "cu.usage_id = tzr.template_id and cu.zone_id = tzr.zone_id and cu.usage_type in (7,8) and cu.start_date > tzr.removed ",
+        addCheckCase("SELECT  count(*) " +
+                        " FROM    cloud_usage.cloud_usage AS cu " +
+                        " INNER   JOIN cloud.template_zone_ref AS c_tzr ON  ( c_tzr.template_id = cu.usage_id " +
+                        "                                              AND   c_tzr.zone_id = cu.zone_id) " +
+                        " WHERE   cu.usage_type in (7,8) " +
+                        " AND     cu.start_date > c_tzr.removed " +
+                        " AND     NOT EXISTS  ( SELECT  1 " +
+                        "                       FROM    cloud.template_zone_ref c_tzr_internal " +
+                        "                       WHERE   c_tzr_internal.template_id = c_tzr.template_id " +
+                        "                       AND     c_tzr_internal.zone_id = c_tzr.zone_id " +
+                        "                       AND     c_tzr_internal.removed IS NULL) ",
                 "template/ISO usage records which are created after it is removed",
                 lastCheckId);
     }
@@ -170,14 +207,22 @@ public class UsageSanityChecker {
     }
 
     protected void readLastCheckId(){
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("reading last checked id for sanity check");
+        }
         try(BufferedReader reader = new BufferedReader(new FileReader(lastCheckFile));) {
             String lastIdText = null;
             lastId = -1;
-            if ((reader != null) && (lastIdText = reader.readLine()) != null) {
+            if ((lastIdText = reader.readLine()) != null) {
+                LOGGER.info("Read {} as lastId for Usage sanity checking.", lastIdText);
                 lastId = Integer.parseInt(lastIdText);
             }
         } catch (Exception e) {
-            s_logger.error("readLastCheckId:Exception:"+e.getMessage(),e);
+            String msg = String.format("error reading the LastCheckId reason: %s", e.getMessage());
+            LOGGER.error(msg);
+            LOGGER.debug(msg, e);
+        } finally {
+            LOGGER.info(String.format("using %d as last checked id to start from in sanity check", lastId));
         }
     }
 
@@ -188,20 +233,25 @@ public class UsageSanityChecker {
             maxId = -1;
             if (rs.next() && (rs.getInt(1) > 0)) {
                 maxId = rs.getInt(1);
-                lastCheckId += " and cu.id <= ?";
+                LOGGER.info("Read {} as maxId for Usage sanity checking.", maxId);
+                if (maxId > lastId) {
+                    LOGGER.info("The max id {} is greater than the last id {}; adding id check to the query.", maxId, lastId);
+                    lastCheckId += " and cu.id <= ?";
+                }
             }
         }catch (Exception e) {
-            s_logger.error("readMaxId:"+e.getMessage(),e);
+            LOGGER.error("readMaxId:"+e.getMessage(),e);
         }
     }
 
     protected void updateNewMaxId() {
+        LOGGER.info(String.format("writing %d as the new last id checked", maxId));
         try (FileWriter fstream = new FileWriter(lastCheckFile);
-        BufferedWriter out = new BufferedWriter(fstream);
+             BufferedWriter out = new BufferedWriter(fstream);
         ){
             out.write("" + maxId);
         } catch (IOException e) {
-            s_logger.error("updateNewMaxId:Exception:"+e.getMessage());
+            LOGGER.error(String.format("Exception writing the last checked id: %d reason: %s", maxId, e.getMessage()));
             // Error while writing last check id
         }
     }
@@ -238,13 +288,17 @@ public class UsageSanityChecker {
         return TransactionLegacy.getStandaloneConnection();
     }
 
-    public static void main(String args[]) {
+    /**
+     * usage something like: /usr/bin/java -Xmx2G -cp /usr/share/cloudstack-usage/*:/usr/share/cloudstack-usage/lib/*:/usr/share/cloudstack-mysql-ha/lib/*:/etc/cloudstack/usage:/usr/share/java/mysql-connector-java.jar:/usr/share/cloudstack-common com.cloud.usage.UsageSanityChecker
+     * @param args none
+     */
+    public static void main(String[] args) {
         UsageSanityChecker usc = new UsageSanityChecker();
         String sanityErrors;
         try {
             sanityErrors = usc.runSanityCheck();
             if (sanityErrors.length() > 0) {
-                s_logger.error(sanityErrors.toString());
+                LOGGER.error(sanityErrors);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -266,19 +320,43 @@ public class UsageSanityChecker {
  * encapsulating what change for each specific case
  */
 class CheckCase {
-    public String sqlTemplate;
-    public String itemName;
-    public boolean checkId = false;
+    public String getSqlTemplate() {
+        return this.sqlTemplate;
+    }
+
+    public void setSqlTemplate(final String sqlTemplate) {
+        this.sqlTemplate = sqlTemplate;
+    }
+
+    public String getItemName() {
+        return this.itemName;
+    }
+
+    public void setItemName(final String itemName) {
+        this.itemName = itemName;
+    }
+
+    public boolean isCheckId() {
+        return this.checkId;
+    }
+
+    public void setCheckId(final boolean checkId) {
+        this.checkId = checkId;
+    }
+
+    private String sqlTemplate;
+    private String itemName;
+    private boolean checkId = false;
 
     public CheckCase(String sqlTemplate, String itemName, String lastCheckId) {
-        checkId = true;
-        this.sqlTemplate = sqlTemplate + lastCheckId;
-        this.itemName = itemName;
+        setCheckId(true);
+        setSqlTemplate(sqlTemplate + lastCheckId);
+        setItemName(itemName);
     }
 
     public CheckCase(String sqlTemplate, String itemName) {
         checkId = false;
-        this.sqlTemplate = sqlTemplate;
-        this.itemName = itemName;
+        setSqlTemplate(sqlTemplate);
+        setItemName(itemName);
     }
 }

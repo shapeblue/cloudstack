@@ -19,7 +19,6 @@ package com.cloud.api.commands;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -42,8 +41,6 @@ import com.cloud.user.Account;
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteCiscoNexusVSMCmd extends BaseAsyncCmd {
 
-    public static final Logger s_logger = Logger.getLogger(DeleteCiscoNexusVSMCmd.class.getName());
-    private static final String s_name = "deletecisconexusvsmresponse";
     @Inject
     CiscoNexusVSMElementService _ciscoNexusVSMService;
 
@@ -81,11 +78,6 @@ public class DeleteCiscoNexusVSMCmd extends BaseAsyncCmd {
         } else {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete Cisco Nexus VSM device");
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

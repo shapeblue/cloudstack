@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.admin.solidfire;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.BaseCmd;
@@ -29,8 +28,6 @@ import org.apache.cloudstack.util.solidfire.SolidFireIntegrationTestUtil;
 @APICommand(name = "getPathForVolume", responseObject = ApiPathForVolumeResponse.class, description = "Get the path associated with the provided volume UUID",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class GetPathForVolumeCmd extends BaseCmd {
-    private static final Logger LOGGER = Logger.getLogger(GetPathForVolumeCmd.class.getName());
-    private static final String NAME = "getpathforvolumeresponse";
 
     @Parameter(name = ApiConstants.VOLUME_ID, type = CommandType.STRING, description = "CloudStack Volume UUID", required = true)
     private String _volumeUuid;
@@ -42,18 +39,13 @@ public class GetPathForVolumeCmd extends BaseCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return NAME;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return _util.getAccountIdForVolumeUuid(_volumeUuid);
     }
 
     @Override
     public void execute() {
-        LOGGER.info("'GetPathForVolumeIdCmd.execute' method invoked");
+        logger.info("'GetPathForVolumeIdCmd.execute' method invoked");
 
         String pathForVolume = _util.getPathForVolumeUuid(_volumeUuid);
 

@@ -33,14 +33,11 @@ import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.SnapshotPolicyResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
 
 @APICommand(name = "updateSnapshotPolicy", description = "Updates the snapshot policy.", responseObject = SnapshotPolicyResponse.class, responseView = ResponseObject.ResponseView.Restricted, entityType = {Volume.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateSnapshotPolicyCmd extends BaseAsyncCustomIdCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateSnapshotPolicyCmd.class.getName());
-    private static final String s_name = "updatesnapshotpolicyresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -74,11 +71,6 @@ public class UpdateSnapshotPolicyCmd extends BaseAsyncCustomIdCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public Long getApiResourceId() {
         return getId();
     }
@@ -92,7 +84,7 @@ public class UpdateSnapshotPolicyCmd extends BaseAsyncCustomIdCmd {
         }
         Volume volume = _responseGenerator.findVolumeById(policy.getVolumeId());
         if (volume == null) {
-            throw new InvalidParameterValueException("Snapshot policy's volume id doesnt exist");
+            throw new InvalidParameterValueException("Snapshot policy's volume id doesn't exist");
         }else{
             return volume.getAccountId();
         }

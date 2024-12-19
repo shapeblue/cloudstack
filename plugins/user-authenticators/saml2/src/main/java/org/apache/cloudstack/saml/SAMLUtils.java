@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
@@ -60,7 +62,9 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.response.LoginCmdResponse;
 import org.apache.cloudstack.utils.security.CertUtils;
 import org.apache.cloudstack.utils.security.ParserUtils;
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.joda.time.DateTime;
 import org.opensaml.Configuration;
@@ -100,10 +104,12 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
+import com.cloud.api.ApiServlet;
 import com.cloud.utils.HttpUtils;
+import com.cloud.utils.exception.CloudRuntimeException;
 
 public class SAMLUtils {
-    public static final Logger s_logger = Logger.getLogger(SAMLUtils.class);
+    protected static Logger LOGGER = LogManager.getLogger(SAMLUtils.class);
 
     static final String charset = "abcdefghijklmnopqrstuvwxyz";
 
@@ -123,7 +129,7 @@ public class SAMLUtils {
             for (Attribute attribute : attributeStatement.getAttributes()) {
                 if (attribute.getAttributeValues() != null && attribute.getAttributeValues().size() > 0) {
                     String value = attribute.getAttributeValues().get(0).getDOM().getTextContent();
-                    s_logger.debug("SAML attribute name: " + attribute.getName() + " friendly-name:" + attribute.getFriendlyName() + " value:" + value);
+                    LOGGER.debug("SAML attribute name: " + attribute.getName() + " friendly-name:" + attribute.getFriendlyName() + " value:" + value);
                     if (attributeKey.equals(attribute.getName()) || attributeKey.equals(attribute.getFriendlyName())) {
                         return value;
                     }
@@ -155,9 +161,10 @@ public class SAMLUtils {
             if (spMetadata.getKeyPair() != null) {
                 privateKey = spMetadata.getKeyPair().getPrivate();
             }
-            redirectUrl = idpMetadata.getSsoUrl() + "?" + SAMLUtils.generateSAMLRequestSignature("SAMLRequest=" + SAMLUtils.encodeSAMLRequest(authnRequest), privateKey, signatureAlgorithm);
+            String appendOperator = idpMetadata.getSsoUrl().contains("?") ? "&" : "?";
+            redirectUrl = idpMetadata.getSsoUrl() + appendOperator + SAMLUtils.generateSAMLRequestSignature("SAMLRequest=" + SAMLUtils.encodeSAMLRequest(authnRequest), privateKey, signatureAlgorithm);
         } catch (ConfigurationException | FactoryConfigurationError | MarshallingException | IOException | NoSuchAlgorithmException | InvalidKeyException | java.security.SignatureException e) {
-            s_logger.error("SAML AuthnRequest message building error: " + e.getMessage());
+            LOGGER.error("SAML AuthnRequest message building error: " + e.getMessage());
         }
         return redirectUrl;
     }
@@ -187,7 +194,7 @@ public class SAMLUtils {
         authnRequest.setID(authnId);
         authnRequest.setDestination(idpUrl);
         authnRequest.setVersion(SAMLVersion.VERSION_20);
-        authnRequest.setForceAuthn(false);
+        authnRequest.setForceAuthn(SAML2AuthManager.SAMLForceAuthn.value());
         authnRequest.setIsPassive(false);
         authnRequest.setIssueInstant(new DateTime());
         authnRequest.setProtocolBinding(SAMLConstants.SAML2_POST_BINDING_URI);
@@ -283,12 +290,37 @@ public class SAMLUtils {
         resp.addCookie(new Cookie("role", URLEncoder.encode(loginResponse.getType(), HttpUtils.UTF_8)));
         resp.addCookie(new Cookie("username", URLEncoder.encode(loginResponse.getUsername(), HttpUtils.UTF_8)));
         resp.addCookie(new Cookie("account", URLEncoder.encode(loginResponse.getAccount(), HttpUtils.UTF_8)));
+        resp.addCookie(new Cookie("isSAML", URLEncoder.encode("true", HttpUtils.UTF_8)));
+        resp.addCookie(new Cookie("twoFaEnabled", URLEncoder.encode(loginResponse.is2FAenabled(), HttpUtils.UTF_8)));
+        String providerFor2FA = loginResponse.getProviderFor2FA();
+        if (StringUtils.isNotEmpty(providerFor2FA)) {
+            resp.addCookie(new Cookie("twoFaProvider", URLEncoder.encode(loginResponse.getProviderFor2FA(), HttpUtils.UTF_8)));
+        }
         String timezone = loginResponse.getTimeZone();
         if (timezone != null) {
             resp.addCookie(new Cookie("timezone", URLEncoder.encode(timezone, HttpUtils.UTF_8)));
         }
         resp.addCookie(new Cookie("userfullname", URLEncoder.encode(loginResponse.getFirstName() + " " + loginResponse.getLastName(), HttpUtils.UTF_8).replace("+", "%20")));
-        resp.addHeader("SET-COOKIE", String.format("%s=%s;HttpOnly;Path=/client/api", ApiConstants.SESSIONKEY, loginResponse.getSessionKey()));
+
+        String redirectUrl = SAML2AuthManager.SAMLCloudStackRedirectionUrl.value();
+        String path = SAML2AuthManager.SAMLUserSessionKeyPathAttribute.value();
+        String domain = null;
+        try {
+            URI redirectUri = new URI(redirectUrl);
+            domain = redirectUri.getHost();
+            if (StringUtils.isBlank(path)) {
+                path = redirectUri.getPath();
+            }
+            if (StringUtils.isBlank(path)) {
+                path = "/";
+            }
+        } catch (URISyntaxException ex) {
+            throw new CloudRuntimeException("Invalid URI: " + redirectUrl);
+        }
+        String sameSite = ApiServlet.getApiSessionKeySameSite();
+        String sessionKeyCookie = String.format("%s=%s;Domain=%s;Path=%s;%s", ApiConstants.SESSIONKEY, loginResponse.getSessionKey(), domain, path, sameSite);
+        LOGGER.debug("Adding sessionkey cookie to response: " + sessionKeyCookie);
+        resp.addHeader("SET-COOKIE", sessionKeyCookie);
     }
 
     /**
@@ -303,7 +335,7 @@ public class SAMLUtils {
             X509EncodedKeySpec spec = keyFactory.getKeySpec(key, X509EncodedKeySpec.class);
             return new String(org.bouncycastle.util.encoders.Base64.encode(spec.getEncoded()), Charset.forName("UTF-8"));
         } catch (InvalidKeySpecException e) {
-            s_logger.error("Unable to get KeyFactory:" + e.getMessage());
+            LOGGER.error("Unable to get KeyFactory:" + e.getMessage());
         }
         return null;
     }
@@ -321,7 +353,7 @@ public class SAMLUtils {
                     PKCS8EncodedKeySpec.class);
             return new String(org.bouncycastle.util.encoders.Base64.encode(spec.getEncoded()), Charset.forName("UTF-8"));
         } catch (InvalidKeySpecException e) {
-            s_logger.error("Unable to get KeyFactory:" + e.getMessage());
+            LOGGER.error("Unable to get KeyFactory:" + e.getMessage());
         }
         return null;
     }
@@ -340,7 +372,7 @@ public class SAMLUtils {
         try {
             return keyFactory.generatePublic(x509KeySpec);
         } catch (InvalidKeySpecException e) {
-            s_logger.error("Unable to create PublicKey from PublicKey string:" + e.getMessage());
+            LOGGER.error("Unable to create PublicKey from PublicKey string:" + e.getMessage());
         }
         return null;
     }
@@ -359,7 +391,7 @@ public class SAMLUtils {
         try {
             return keyFactory.generatePrivate(pkscs8KeySpec);
         } catch (InvalidKeySpecException e) {
-            s_logger.error("Unable to create PrivateKey from privateKey string:" + e.getMessage());
+            LOGGER.error("Unable to create PrivateKey from privateKey string:" + e.getMessage());
         }
         return null;
     }

@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.zone;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -35,9 +34,7 @@ import com.cloud.user.Account;
 @APICommand(name = "createZone", description = "Creates a Zone.", responseObject = ZoneResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class CreateZoneCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(CreateZoneCmd.class.getName());
 
-    private static final String s_name = "createzoneresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -87,6 +84,10 @@ public class CreateZoneCmd extends BaseCmd {
 
     @Parameter(name = ApiConstants.LOCAL_STORAGE_ENABLED, type = CommandType.BOOLEAN, description = "true if local storage offering enabled, false otherwise")
     private Boolean localStorageEnabled;
+
+    @Parameter(name = ApiConstants.IS_EDGE, type = CommandType.BOOLEAN, description = "true if the zone is an edge zone, false otherwise", since = "4.18.0")
+    private Boolean isEdge;
+
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -154,13 +155,15 @@ public class CreateZoneCmd extends BaseCmd {
         return localStorageEnabled;
     }
 
-    /////////////////////////////////////////////////////
-    /////////////// API Implementation///////////////////
-    @Override
-    public String getCommandName() {
-        return s_name;
+    public boolean isEdge() {
+        if (isEdge == null) {
+            return false;
+        }
+        return isEdge;
     }
 
+    /////////////////////////////////////////////////////
+    /////////////// API Implementation///////////////////
     @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;

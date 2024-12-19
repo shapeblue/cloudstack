@@ -29,7 +29,6 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.OvsProviderResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 import com.cloud.exception.ConcurrentOperationException;
@@ -42,9 +41,6 @@ import com.cloud.user.Account;
 @APICommand(name = "configureOvsElement", responseObject = OvsProviderResponse.class, description = "Configures an ovs element.",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ConfigureOvsElementCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger
-        .getLogger(ConfigureOvsElementCmd.class.getName());
-    private static final String s_name = "configureovselementresponse";
     @Inject
     private List<VirtualRouterElementService> _service;
 
@@ -80,11 +76,6 @@ public class ConfigureOvsElementCmd extends BaseAsyncCmd {
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     public static String getResultObjectName() {
         return "boolean";

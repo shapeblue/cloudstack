@@ -1,6 +1,6 @@
 # CloudStack UI
 
-A modern role-based progressive CloudStack UI based on VueJS and Ant Design.
+A modern role-based progressive CloudStack UI based on Vue.js and Ant Design.
 
 ![Screenshot](docs/screenshot-dashboard.png)
 
@@ -8,14 +8,18 @@ A modern role-based progressive CloudStack UI based on VueJS and Ant Design.
 
 Install node: (Debian/Ubuntu)
 
-    curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+    curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
     sudo apt-get install -y nodejs
     # Or use distro provided: sudo apt-get install npm nodejs
 
 Install node: (CentOS/Fedora/RHEL)
 
-    curl -sL https://rpm.nodesource.com/setup_12.x | sudo bash -
+    curl -sL https://rpm.nodesource.com/setup_16.x | sudo bash -
     sudo yum install nodejs
+
+Install node: (Mac OS)
+
+    brew install node@16
 
 Optionally, you may also install system-wide dev tools:
 
@@ -36,6 +40,10 @@ Override the default `CS_URL` to a running CloudStack management server:
 
 To configure https, you may use `.env.local.https.example`.
 
+To use the community Simulator QA server you can do this:
+
+    echo "CS_URL=https://qa.cloudstack.cloud" > .env.local
+
 Build and run:
 
     npm run serve
@@ -45,9 +53,8 @@ Upgrade dependencies to the latest versions:
 
     ncu -u
 
-Run Tests:
+Run Lint and Unit Tests:
 
-    npm run test
     npm run lint
     npm run test:unit
 
@@ -125,7 +132,7 @@ The following is tested to work on any Ubuntu 18.04/20.04 base installation or
 docker container:
 
     # Install nodejs (lts)
-    curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+    curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
     sudo apt-get install -y nodejs debhelper rpm
     # Install build tools
     npm install -g @vue/cli webpack eslint
@@ -135,7 +142,7 @@ docker container:
 
 ## Documentation
 
-- VueJS Guide: https://vuejs.org/v2/guide/
+- Vue.js Guide: https://vuejs.org/guide/
 - Vue Ant Design: https://www.antdv.com/docs/vue/introduce/
 - UI Developer [Docs](docs)
 - JavaScript ES6 Reference: https://www.tutorialspoint.com/es6/
@@ -145,7 +152,7 @@ docker container:
 
 The UI uses the following:
 
-- [VueJS](https://vuejs.org/)
+- [Vue.js](https://vuejs.org/)
 - [Ant Design Spec](https://ant.design/docs/spec/introduce)
 - [Ant Design Vue](https://vue.ant.design/)
 - [Ant Design Pro Vue](https://github.com/sendya/ant-design-pro-vue)

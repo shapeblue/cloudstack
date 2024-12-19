@@ -19,6 +19,7 @@ package org.apache.cloudstack.api.response;
 import com.cloud.serializer.Param;
 import com.google.gson.annotations.SerializedName;
 
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 
 import java.math.BigDecimal;
@@ -47,29 +48,49 @@ public class QuotaTariffResponse extends BaseResponse {
     private BigDecimal tariffValue;
 
     @SerializedName("effectiveDate")
-    @Param(description = "the date on/after which this quota value will be effective")
+    @Param(description = "the start date of the quota tariff")
     private Date effectiveOn = null;
 
-    @SerializedName("description")
-    @Param(description = "description")
-    private String description;
+    @SerializedName("usageTypeDescription")
+    @Param(description = "usage type description")
+    private String usageTypeDescription;
 
     @SerializedName("currency")
     @Param(description = "currency")
     private String currency;
 
+    @SerializedName("endDate")
+    @Param(description = "the end date of the quota tariff")
+    private Date endDate;
+
+    @SerializedName("activationRule")
+    @Param(description = "activation rule of the quota tariff")
+    private String activationRule;
+
+    @SerializedName("name")
+    @Param(description = "name")
+    private String name;
+
+    @SerializedName("description")
+    @Param(description = "description")
+    private String description;
+
+    @SerializedName(ApiConstants.ID)
+    @Param(description = "the ID of the tariff")
+    private String id;
+
+    @SerializedName("removed")
+    @Param(description = "when the quota tariff was removed")
+    private Date removed;
+
+    @SerializedName("position")
+    @Param(description = "position in the execution sequence for tariffs of the same type")
+    private Integer position;
+
+
     public QuotaTariffResponse() {
         super();
         this.setObjectName("quotatariff");
-    }
-
-    public QuotaTariffResponse(final int usageType) {
-        super();
-        this.usageType = usageType;
-    }
-
-    public String getUsageName() {
-        return usageName;
     }
 
     public void setUsageName(String usageName) {
@@ -84,16 +105,8 @@ public class QuotaTariffResponse extends BaseResponse {
         this.usageType = usageType;
     }
 
-    public String getUsageUnit() {
-        return usageUnit;
-    }
-
     public void setUsageUnit(String usageUnit) {
         this.usageUnit = usageUnit;
-    }
-
-    public String getUsageDiscriminator() {
-        return usageDiscriminator;
     }
 
     public void setUsageDiscriminator(String usageDiscriminator) {
@@ -108,6 +121,42 @@ public class QuotaTariffResponse extends BaseResponse {
         this.tariffValue = tariffValue;
     }
 
+    public void setUsageTypeDescription(String usageTypeDescription) {
+        this.usageTypeDescription = usageTypeDescription;
+    }
+
+    public void setEffectiveOn(Date effectiveOn) {
+        this.effectiveOn = effectiveOn;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Date endDate) {
+        this.endDate = endDate;
+    }
+
+    public String getActivationRule() {
+        return activationRule;
+    }
+
+    public void setActivationRule(String activationRule) {
+        this.activationRule = activationRule;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -116,19 +165,24 @@ public class QuotaTariffResponse extends BaseResponse {
         this.description = description;
     }
 
-    public Date getEffectiveOn() {
-        return effectiveOn;
+    public String getId() {
+        return id;
     }
 
-    public void setEffectiveOn(Date effectiveOn) {
-        this.effectiveOn = effectiveOn;
+    public void setId(String id) {
+        this.id = id;
     }
 
-    public String getCurrency() {
-        return currency;
+    public void setRemoved(Date removed) {
+        this.removed = removed;
     }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
+    public Integer getPosition() {
+        return position;
     }
+
+    public void setPosition(Integer position) {
+        this.position = position;
+    }
+
 }

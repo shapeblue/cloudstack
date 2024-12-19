@@ -78,7 +78,7 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         if "vmware" in self.hypervisor.lower():
             self.test_template = registerTemplate.registerTemplateCmd()
             self.test_template = registerTemplate.registerTemplateCmd()
-            self.test_template.checksum = "{SHA-1}" + "3c00872599c6e1e46a358aac51080db88266cf5c"
+            self.test_template.checksum = "{SHA-1}" + "8b82224fd3c6429b6914f32d8339e650770c7526"
             self.test_template.hypervisor = self.hypervisor
             self.test_template.zoneid = self.zone.id
             self.test_template.name = 'test sha-2333'
@@ -86,8 +86,8 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
             self.test_template.url = "http://dl.openvm.eu/cloudstack/macchinina/x86_64/macchinina-vmware.ova"
             self.test_template.format = "OVA"
             self.test_template.ostypeid = self.getOsType("Other Linux (64-bit)")
-            self.md5 = "27f3c56a8c7ec7b2f3ff2199f7078006"
-            self.sha256 = "a7b04c1eb507f3f5de844bda352df1ea5e20335b465409493ca6ae07dfd0a158"
+            self.md5 = "b4e8bff3882b23175974e692533b4381"
+            self.sha256 = "e1dffca3c3ab545a753cb42d838a341624cf25841d1bcf3d1e45556c9fce7cf3"
 
         if "xen" in self.hypervisor.lower():
             self.test_template = registerTemplate.registerTemplateCmd()
@@ -115,6 +115,7 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
                 cmd = deleteTemplate.deleteTemplateCmd()
                 cmd.id = temp.id
                 cmd.zoneid = self.zone.id
+                cmd.forced = True
                 self.apiclient.deleteTemplate(cmd)
         except Exception as e:
             raise Exception("Warning: Exception during cleanup : %s" % e)
@@ -988,6 +989,8 @@ class TestTemplates(cloudstackTestCase):
                         )
 
         for template in list_template_response:
+            if template.directdownload == True:
+                continue
             self.assertNotEqual(
                         len(template.downloaddetails),
                         0,
@@ -1021,17 +1024,17 @@ class TestCopyAndDeleteTemplatesAcrossZones(cloudstackTestCase):
                 cls.services["disk_offering"]
             )
             cls._cleanup.append(cls.disk_offering)
-            template = get_template(
+            cls.template = get_template(
                 cls.apiclient,
                 cls.zone.id,
                 cls.services["ostype"]
             )
-            if template == FAILED:
+            if cls.template == FAILED:
                 assert False, "get_template() failed to return template with description %s" % cls.services["ostype"]
 
-            cls.services["template"]["ostypeid"] = template.ostypeid
-            cls.services["template_2"]["ostypeid"] = template.ostypeid
-            cls.services["ostypeid"] = template.ostypeid
+            cls.services["template"]["ostypeid"] = cls.template.ostypeid
+            cls.services["template_2"]["ostypeid"] = cls.template.ostypeid
+            cls.services["ostypeid"] = cls.template.ostypeid
 
             cls.services["virtual_machine"]["zoneid"] = cls.zone.id
             cls.services["volume"]["diskoffering"] = cls.disk_offering.id
@@ -1052,7 +1055,7 @@ class TestCopyAndDeleteTemplatesAcrossZones(cloudstackTestCase):
             cls.virtual_machine = VirtualMachine.create(
                 cls.apiclient,
                 cls.services["virtual_machine"],
-                templateid=template.id,
+                templateid=cls.template.id,
                 accountid=cls.account.name,
                 domainid=cls.account.domainid,
                 serviceofferingid=cls.service_offering.id,
@@ -1101,7 +1104,7 @@ class TestCopyAndDeleteTemplatesAcrossZones(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["advanced", "advancedns"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns"], required_hardware="true")
     def test_09_copy_delete_template(self):
         cmd = listZones.listZonesCmd()
         zones = self.apiclient.listZones(cmd)
@@ -1153,7 +1156,7 @@ class TestCopyAndDeleteTemplatesAcrossZones(cloudstackTestCase):
 
         list_template_response = Template.list(
             self.apiclient,
-            templatefilter=self.services["template"]["templatefilter"],
+            templatefilter=self.services["templatefilter"],
             id=self.template.id,
             zoneid=self.destZone.id
         )
@@ -1247,11 +1250,7 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        try:
-            cleanup_resources(cls.apiclient, cls._cleanup)
-        except Exception as e:
-            raise Exception("Warning: Exception during cleanup : %s" % e)
-        return
+        super(TestCreateTemplateWithDirectDownload, cls).tearDownClass()
 
     def setUp(self):
         self.apiclient = self.testClient.getApiClient()
@@ -1263,13 +1262,7 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
         return
 
     def tearDown(self):
-        try:
-            #Clean up, terminate the created templates
-            cleanup_resources(self.apiclient, self.cleanup)
-
-        except Exception as e:
-            raise Exception("Warning: Exception during cleanup : %s" % e)
-        return
+        super(TestCreateTemplateWithDirectDownload, self).tearDown()
 
     @attr(tags=["advanced", "smoke"], required_hardware="true")
     def test_01_register_template_direct_download_flag(self):
@@ -1322,10 +1315,11 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
         """
         Deploy a VM from a Direct Download registered template with wrong checksum
         """
-        self.template["checksum"]="{MD5}XXXXXXX"
+        self.template["checksum"]="{MD5}" + ("X" * 32)
         tmpl = Template.register(self.apiclient, self.template, zoneid=self.zone.id, hypervisor=self.hypervisor, randomize_name=False)
         self.cleanup.append(tmpl)
 
+        failed = False
         try:
             virtual_machine = VirtualMachine.create(
                 self.apiclient,
@@ -1336,8 +1330,19 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
                 serviceofferingid=self.service_offering.id
             )
             self.cleanup.append(virtual_machine)
-            self.fail("Expected to fail deployment")
+            failed = True
         except Exception as e:
             self.debug("Expected exception")
+            list_virtual_machine_response = VirtualMachine.list(
+                self.apiclient,
+                templateid=tmpl.id,
+                listall=True
+            )
+            if type(list_virtual_machine_response) == list and len(list_virtual_machine_response) > 0:
+                for virtual_machine_response in list_virtual_machine_response:
+                    VirtualMachine.delete(virtual_machine_response, self.apiclient, expunge=True)
+
+        if failed == True:
+            self.fail("Expected to fail VM deployment with wrong checksum template")
 
         return

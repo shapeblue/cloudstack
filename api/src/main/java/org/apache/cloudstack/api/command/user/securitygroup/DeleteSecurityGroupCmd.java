@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.securitygroup;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
 import org.apache.cloudstack.api.ACL;
@@ -39,8 +38,6 @@ import com.cloud.network.security.SecurityGroup;
 @APICommand(name = "deleteSecurityGroup", description = "Deletes security group", responseObject = SuccessResponse.class, entityType = {SecurityGroup.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteSecurityGroupCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteSecurityGroupCmd.class.getName());
-    private static final String s_name = "deletesecuritygroupresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -94,7 +91,7 @@ public class DeleteSecurityGroupCmd extends BaseCmd {
         }
 
         if (id == null) {
-            throw new InvalidParameterValueException("Either id or name parameter is requred by deleteSecurityGroup command");
+            throw new InvalidParameterValueException("Either id or name parameter is required by deleteSecurityGroup command");
         }
 
         return id;
@@ -103,11 +100,6 @@ public class DeleteSecurityGroupCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {
@@ -130,7 +122,7 @@ public class DeleteSecurityGroupCmd extends BaseCmd {
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete security group");
             }
         } catch (ResourceInUseException ex) {
-            s_logger.warn("Exception: ", ex);
+            logger.warn("Exception: ", ex);
             throw new ServerApiException(ApiErrorCode.RESOURCE_IN_USE_ERROR, ex.getMessage());
         }
     }

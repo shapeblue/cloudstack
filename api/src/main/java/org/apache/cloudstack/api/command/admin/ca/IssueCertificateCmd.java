@@ -37,11 +37,10 @@ import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.ca.Certificate;
 import org.apache.cloudstack.utils.security.CertUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 
-@APICommand(name = IssueCertificateCmd.APINAME,
+@APICommand(name = "issueCertificate",
         description = "Issues a client certificate using configured or provided CA plugin",
         responseObject = CertificateResponse.class,
         requestHasSensitiveInfo = true,
@@ -49,9 +48,7 @@ import com.cloud.event.EventTypes;
         since = "4.11.0",
         authorized = {RoleType.Admin})
 public class IssueCertificateCmd extends BaseAsyncCmd {
-    private static final Logger LOG = Logger.getLogger(IssueCertificateCmd.class);
 
-    public static final String APINAME = "issueCertificate";
 
     @Inject
     private CAManager caManager;
@@ -133,16 +130,11 @@ public class IssueCertificateCmd extends BaseAsyncCmd {
                 certificateResponse.setCaCertificate(CertUtils.x509CertificatesToPem(certificate.getCaCertificates()));
             }
         } catch (final IOException e) {
-            LOG.error("Failed to generate and convert client certificate(s) to PEM due to error: ", e);
+            logger.error("Failed to generate and convert client certificate(s) to PEM due to error: ", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to process and return client certificate");
         }
         certificateResponse.setResponseName(getCommandName());
         setResponseObject(certificateResponse);
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     @Override

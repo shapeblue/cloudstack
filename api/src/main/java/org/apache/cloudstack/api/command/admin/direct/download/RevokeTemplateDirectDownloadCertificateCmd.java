@@ -41,13 +41,12 @@ import org.apache.cloudstack.direct.download.DirectDownloadManager;
 import org.apache.cloudstack.direct.download.DirectDownloadManager.HostCertificateStatus;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-@APICommand(name = RevokeTemplateDirectDownloadCertificateCmd.APINAME,
+@APICommand(name = "revokeTemplateDirectDownloadCertificate",
         description = "Revoke a direct download certificate from hosts in a zone",
         responseObject = DirectDownloadCertificateHostStatusResponse.class,
         since = "4.13",
@@ -57,8 +56,6 @@ public class RevokeTemplateDirectDownloadCertificateCmd extends BaseCmd {
     @Inject
     DirectDownloadManager directDownloadManager;
 
-    private static final Logger LOG = Logger.getLogger(RevokeTemplateDirectDownloadCertificateCmd.class);
-    public static final String APINAME = "revokeTemplateDirectDownloadCertificate";
 
     @Parameter(name = ApiConstants.ID, type = CommandType.UUID,
             entityType = DirectDownloadCertificateResponse.class,
@@ -118,11 +115,6 @@ public class RevokeTemplateDirectDownloadCertificateCmd extends BaseCmd {
         } catch (Exception e) {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed revoking certificate: " + e.getMessage());
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     @Override

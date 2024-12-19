@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.admin.solidfire;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.APICommand;
@@ -31,8 +30,6 @@ import org.apache.cloudstack.util.solidfire.SolidFireIntegrationTestUtil;
 @APICommand(name = "getSolidFireAccountId", responseObject = ApiSolidFireAccountIdResponse.class, description = "Get SolidFire Account ID",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class GetSolidFireAccountIdCmd extends BaseCmd {
-    private static final Logger LOGGER = Logger.getLogger(GetSolidFireAccountIdCmd.class.getName());
-    private static final String NAME = "getsolidfireaccountidresponse";
 
     @Parameter(name = ApiConstants.ACCOUNT_ID, type = CommandType.STRING, description = "CloudStack Account UUID", required = true)
     private String csAccountUuid;
@@ -47,18 +44,13 @@ public class GetSolidFireAccountIdCmd extends BaseCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return NAME;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return util.getAccountIdForAccountUuid(csAccountUuid);
     }
 
     @Override
     public void execute() {
-        LOGGER.info("'GetSolidFireAccountIdCmd.execute' method invoked");
+        logger.info("'GetSolidFireAccountIdCmd.execute' method invoked");
 
         long sfAccountId = manager.getSolidFireAccountId(csAccountUuid, storagePoolUuid);
 

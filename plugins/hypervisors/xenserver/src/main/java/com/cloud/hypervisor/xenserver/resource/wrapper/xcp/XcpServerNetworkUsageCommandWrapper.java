@@ -19,7 +19,6 @@
 
 package com.cloud.hypervisor.xenserver.resource.wrapper.xcp;
 
-import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.NetworkUsageAnswer;
@@ -32,7 +31,6 @@ import com.xensource.xenapi.Connection;
 @ResourceWrapper(handles =  NetworkUsageCommand.class)
 public final class XcpServerNetworkUsageCommandWrapper extends CommandWrapper<NetworkUsageCommand, Answer, XcpServerResource> {
 
-    private static final Logger s_logger = Logger.getLogger(XcpServerNetworkUsageCommandWrapper.class);
 
     @Override
     public Answer execute(final NetworkUsageCommand command, final XcpServerResource xcpServerResource) {
@@ -43,11 +41,11 @@ public final class XcpServerNetworkUsageCommandWrapper extends CommandWrapper<Ne
                 final NetworkUsageAnswer answer = new NetworkUsageAnswer(command, result, 0L, 0L);
                 return answer;
             }
-            final long[] stats = xcpServerResource.getNetworkStats(conn, command.getPrivateIP());
+            final long[] stats = xcpServerResource.getNetworkStats(conn, command.getPrivateIP(), null);
             final NetworkUsageAnswer answer = new NetworkUsageAnswer(command, "", stats[0], stats[1]);
             return answer;
         } catch (final Exception ex) {
-            s_logger.warn("Failed to get network usage stats due to ", ex);
+            logger.warn("Failed to get network usage stats due to ", ex);
             return new NetworkUsageAnswer(command, ex);
         }
     }

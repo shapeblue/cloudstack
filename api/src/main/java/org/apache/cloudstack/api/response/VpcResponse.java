@@ -17,6 +17,7 @@
 package org.apache.cloudstack.api.response;
 
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -96,6 +97,10 @@ public class VpcResponse extends BaseResponseWithAnnotations implements Controll
     @Param(description = "the domain name of the owner")
     private String domain;
 
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "the domain path of the owner", since = "4.19.2.0")
+    private String domainPath;
+
     @SerializedName(ApiConstants.NETWORK)
     @Param(description = "the list of networks belongign to the VPC", responseObject = NetworkResponse.class)
     private List<NetworkResponse> networks;
@@ -135,6 +140,46 @@ public class VpcResponse extends BaseResponseWithAnnotations implements Controll
     @SerializedName(ApiConstants.IPV6_ROUTES)
     @Param(description = "The routes for the network to ease adding route in upstream router", since = "4.17.0")
     private Set<Ipv6RouteResponse> ipv6Routes;
+
+    @SerializedName(ApiConstants.PUBLIC_MTU)
+    @Param(description = "MTU configured on the public interfaces of the VPC VR", since = "4.18.0")
+    private Integer publicMtu;
+
+    @SerializedName(ApiConstants.DNS1)
+    @Param(description = "the first IPv4 DNS for the VPC")
+    private String dns1;
+
+    @SerializedName(ApiConstants.DNS2)
+    @Param(description = "the second IPv4 DNS for the VPC")
+    private String dns2;
+
+    @SerializedName(ApiConstants.IP6_DNS1)
+    @Param(description = "the first IPv6 DNS for the VPC", since = "4.18.0")
+    private String ipv6Dns1;
+
+    @SerializedName(ApiConstants.IP6_DNS2)
+    @Param(description = "the second IPv6 DNS for the VPC", since = "4.18.0")
+    private String ipv6Dns2;
+
+    @SerializedName(ApiConstants.IPV4_ROUTING)
+    @Param(description = "The IPv4 routing mode of VPC", since = "4.20.0")
+    private String ipv4Routing;
+
+    @SerializedName(ApiConstants.IPV4_ROUTES)
+    @Param(description = "The routes for the VPC to ease adding route in upstream router", since = "4.20.0")
+    private Set<Ipv4RouteResponse> ipv4Routes;
+
+    @SerializedName(ApiConstants.AS_NUMBER_ID)
+    @Param(description = "UUID of AS NUMBER", since = "4.20.0")
+    private String asNumberId;
+
+    @SerializedName(ApiConstants.AS_NUMBER)
+    @Param(description = "AS NUMBER", since = "4.20.0")
+    private Long asNumber;
+
+    @SerializedName(ApiConstants.BGP_PEERS)
+    @Param(description = "The BGP peers for the VPC", since = "4.20.0")
+    private Set<BgpPeerResponse> bgpPeers;
 
     public void setId(final String id) {
         this.id = id;
@@ -187,6 +232,11 @@ public class VpcResponse extends BaseResponseWithAnnotations implements Controll
     @Override
     public void setDomainName(final String domainName) {
         domain = domainName;
+    }
+
+    @Override
+    public void setDomainPath(String path) {
+        this.domainPath = path;
     }
 
     public void setZoneId(final String zoneId) {
@@ -250,7 +300,62 @@ public class VpcResponse extends BaseResponseWithAnnotations implements Controll
         this.icon = icon;
     }
 
+    public void setIpv4Routing(String ipv4Routing) {
+        this.ipv4Routing = ipv4Routing;
+    }
+
+    public void setIpv4Routes(Set<Ipv4RouteResponse> ipv4Routes) {
+        this.ipv4Routes = ipv4Routes;
+    }
+
+    public void addIpv4Route(Ipv4RouteResponse ipv4Route) {
+        this.ipv4Routes.add(ipv4Route);
+    }
+
     public void setIpv6Routes(Set<Ipv6RouteResponse> ipv6Routes) {
         this.ipv6Routes = ipv6Routes;
+    }
+
+    public Set<Ipv6RouteResponse> getIpv6Routes() {
+        return ipv6Routes;
+    }
+
+    public void setPublicMtu(Integer publicMtu) {
+        this.publicMtu = publicMtu;
+    }
+
+    public void setDns1(String dns1) {
+        this.dns1 = dns1;
+    }
+
+    public void setDns2(String dns2) {
+        this.dns2 = dns2;
+    }
+
+    public void setIpv6Dns1(String ipv6Dns1) {
+        this.ipv6Dns1 = ipv6Dns1;
+    }
+
+    public void setIpv6Dns2(String ipv6Dns2) {
+        this.ipv6Dns2 = ipv6Dns2;
+    }
+
+    public void setAsNumber(long asNumber) {
+        this.asNumber = asNumber;
+    }
+
+    public void setAsNumberId(String asNumberId) {
+        this.asNumberId = asNumberId;
+    }
+
+    public void setBgpPeers(Set<BgpPeerResponse> bgpPeers) {
+        this.bgpPeers = bgpPeers;
+    }
+
+    public void addBgpPeer(BgpPeerResponse bgpPeer) {
+        if (this.bgpPeers == null) {
+            this.setBgpPeers(new LinkedHashSet<>());
+        }
+        this.bgpPeers.add(bgpPeer);
     }
 }

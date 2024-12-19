@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.response;
 
+import java.util.Date;
 import java.util.List;
 
 import org.apache.cloudstack.api.ApiConstants;
@@ -97,6 +98,10 @@ public class KubernetesClusterResponse extends BaseResponseWithAnnotations imple
     @Param(description = "the name of the domain in which the Kubernetes cluster exists")
     private String domainName;
 
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the domain to which the Kubernetes cluster belongs", since = "4.19.2.0")
+    private String domainPath;
+
     @SerializedName(ApiConstants.SSH_KEYPAIR)
     @Param(description = "keypair details")
     private String keypair;
@@ -157,6 +162,14 @@ public class KubernetesClusterResponse extends BaseResponseWithAnnotations imple
     @SerializedName(ApiConstants.MAX_SIZE)
     @Param(description = "Maximum size of the cluster")
     private Long maxSize;
+
+    @SerializedName(ApiConstants.CLUSTER_TYPE)
+    @Param(description = "the type of the cluster")
+    private KubernetesCluster.ClusterType clusterType;
+
+    @SerializedName(ApiConstants.CREATED)
+    @Param(description = "the date when this Kubernetes cluster was created")
+    private Date created;
 
     public KubernetesClusterResponse() {
     }
@@ -270,6 +283,10 @@ public class KubernetesClusterResponse extends BaseResponseWithAnnotations imple
         this.domainName = domainName;
     }
 
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
+    }
     public String getKeypair() {
         return keypair;
     }
@@ -376,5 +393,17 @@ public class KubernetesClusterResponse extends BaseResponseWithAnnotations imple
 
     public void setMaxSize(Long maxSize) {
         this.maxSize = maxSize;
+    }
+
+    public void setCreated(Date created) {
+        this.created = created;
+    }
+
+    public KubernetesCluster.ClusterType getClusterType() {
+        return clusterType;
+    }
+
+    public void setClusterType(KubernetesCluster.ClusterType clusterType) {
+        this.clusterType = clusterType;
     }
 }

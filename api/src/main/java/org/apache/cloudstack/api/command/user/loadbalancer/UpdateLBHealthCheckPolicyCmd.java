@@ -19,7 +19,6 @@ import org.apache.cloudstack.api.BaseAsyncCustomIdCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.LBHealthCheckResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 import com.cloud.network.rules.HealthCheckPolicy;
@@ -30,9 +29,7 @@ import com.cloud.user.Account;
 @APICommand(name = "updateLBHealthCheckPolicy", description = "Updates load balancer health check policy", responseObject = LBHealthCheckResponse.class, since = "4.4",
 requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateLBHealthCheckPolicyCmd extends BaseAsyncCustomIdCmd{
-    public static final Logger s_logger = Logger.getLogger(UpdateLBHealthCheckPolicyCmd.class.getName());
 
-    private static final String s_name = "updatelbhealthcheckpolicyresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -52,11 +49,6 @@ public class UpdateLBHealthCheckPolicyCmd extends BaseAsyncCustomIdCmd{
 
     public Boolean getDisplay() {
         return display;
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

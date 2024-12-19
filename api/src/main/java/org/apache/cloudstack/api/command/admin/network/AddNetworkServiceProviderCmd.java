@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.admin.network;
 
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -43,9 +42,7 @@ import com.cloud.user.Account;
             requestHasSensitiveInfo = false,
             responseHasSensitiveInfo = false)
 public class AddNetworkServiceProviderCmd extends BaseAsyncCreateCmd {
-    public static final Logger s_logger = Logger.getLogger(AddNetworkServiceProviderCmd.class.getName());
 
-    private static final String s_name = "addnetworkserviceproviderresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -96,11 +93,6 @@ public class AddNetworkServiceProviderCmd extends BaseAsyncCreateCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

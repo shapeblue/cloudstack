@@ -19,7 +19,8 @@
 
 package com.cloud.utils;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
@@ -29,13 +30,21 @@ import java.util.Map;
 
 public class HttpUtils {
 
-    public static final Logger s_logger = Logger.getLogger(HttpUtils.class);
+    protected static Logger LOGGER = LogManager.getLogger(HttpUtils.class);
 
     public static final String UTF_8 = "UTF-8";
     public static final String RESPONSE_TYPE_JSON = "json";
     public static final String RESPONSE_TYPE_XML = "xml";
     public static final String JSON_CONTENT_TYPE = "application/json; charset=UTF-8";
     public static final String XML_CONTENT_TYPE = "text/xml; charset=UTF-8";
+
+    public enum ApiSessionKeySameSite {
+        Lax, Strict, NoneAndSecure, Null
+    }
+
+    public enum ApiSessionKeyCheckOption {
+        CookieOrParameter, ParameterOnly, CookieAndParameter
+    }
 
     public static void addSecurityHeaders(final HttpServletResponse resp) {
         if (resp.containsHeader("X-Content-Type-Options")) {
@@ -81,12 +90,12 @@ public class HttpUtils {
             addSecurityHeaders(resp);
             resp.getWriter().print(response);
         } catch (final IOException ioex) {
-            if (s_logger.isTraceEnabled()) {
-                s_logger.trace("Exception writing http response: " + ioex);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Exception writing http response: " + ioex);
             }
         } catch (final Exception ex) {
             if (!(ex instanceof IllegalStateException)) {
-                s_logger.error("Unknown exception writing http response", ex);
+                LOGGER.error("Unknown exception writing http response", ex);
             }
         }
     }
@@ -103,23 +112,43 @@ public class HttpUtils {
         return null;
     }
 
-    public static boolean validateSessionKey(final HttpSession session, final Map<String, Object[]> params, final Cookie[] cookies, final String sessionKeyString) {
+    public static boolean validateSessionKey(final HttpSession session, final Map<String, Object[]> params, final Cookie[] cookies, final String sessionKeyString, final ApiSessionKeyCheckOption apiSessionKeyCheckLocations) {
         if (session == null || sessionKeyString == null) {
             return false;
         }
+        final String jsessionidFromCookie = HttpUtils.findCookie(cookies, "JSESSIONID");
+        if (jsessionidFromCookie != null
+                && !(jsessionidFromCookie.equals(session.getId()) || jsessionidFromCookie.startsWith(session.getId() + '.'))) {
+            LOGGER.error("JSESSIONID from cookie is invalid.");
+            return false;
+        }
         final String sessionKey = (String) session.getAttribute(sessionKeyString);
+        if (sessionKey == null) {
+            LOGGER.error("sessionkey attribute of the session is null.");
+            return false;
+        }
         final String sessionKeyFromCookie = HttpUtils.findCookie(cookies, sessionKeyString);
+        boolean isSessionKeyFromCookieValid = sessionKeyFromCookie != null && sessionKey.equals(sessionKeyFromCookie);
+
         String[] sessionKeyFromParams = null;
         if (params != null) {
             sessionKeyFromParams = (String[]) params.get(sessionKeyString);
         }
-        if ((sessionKey == null)
-                || (sessionKeyFromParams == null && sessionKeyFromCookie == null)
-                || (sessionKeyFromParams != null && !sessionKey.equals(sessionKeyFromParams[0]))
-                || (sessionKeyFromCookie != null && !sessionKey.equals(sessionKeyFromCookie))) {
-            return false;
+        boolean isSessionKeyFromParamsValid = sessionKeyFromParams != null && sessionKey.equals(sessionKeyFromParams[0]);
+
+        switch (apiSessionKeyCheckLocations) {
+            case CookieOrParameter:
+                return (sessionKeyFromCookie != null || sessionKeyFromParams != null)
+                        && (sessionKeyFromCookie == null || isSessionKeyFromCookieValid)
+                        && (sessionKeyFromParams == null || isSessionKeyFromParamsValid);
+            case ParameterOnly:
+                return sessionKeyFromParams != null && isSessionKeyFromParamsValid
+                        && (sessionKeyFromCookie == null || isSessionKeyFromCookieValid);
+            case CookieAndParameter:
+            default:
+                return sessionKeyFromCookie != null && isSessionKeyFromCookieValid
+                        && sessionKeyFromParams != null && isSessionKeyFromParamsValid;
         }
-        return true;
     }
 
 }

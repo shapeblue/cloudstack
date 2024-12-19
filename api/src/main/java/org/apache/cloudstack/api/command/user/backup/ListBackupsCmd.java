@@ -26,7 +26,6 @@ import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
-import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
@@ -45,12 +44,11 @@ import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.utils.Pair;
 
-@APICommand(name = ListBackupsCmd.APINAME,
+@APICommand(name = "listBackups",
         description = "Lists VM backups",
         responseObject = BackupResponse.class, since = "4.14.0",
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class ListBackupsCmd extends BaseListProjectAndAccountResourcesCmd {
-    public static final String APINAME = "listBackups";
 
     @Inject
     private BackupManager backupManager;
@@ -118,13 +116,9 @@ public class ListBackupsCmd extends BaseListProjectAndAccountResourcesCmd {
             Pair<List<Backup>, Integer> result = backupManager.listBackups(this);
             setupResponseBackupList(result.first(), result.second());
         } catch (Exception e) {
+            logger.debug("Exception while listing backups", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, e.getMessage());
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     @Override

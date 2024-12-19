@@ -90,6 +90,10 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
     @Param(description = "the hostname for the system VM")
     private String hostName;
 
+    @SerializedName(ApiConstants.HOST_CONTROL_STATE)
+    @Param(description = "the control state of the host for the system VM")
+    private String hostControlState;
+
     @SerializedName("hypervisor")
     @Param(description = "the hypervisor on which the template runs")
     private String hypervisor;
@@ -173,6 +177,14 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
     @SerializedName(ApiConstants.IS_DYNAMICALLY_SCALABLE)
     @Param(description = "true if vm contains XS/VMWare tools inorder to support dynamic scaling of VM cpu/memory.")
     private Boolean isDynamicallyScalable;
+
+    @SerializedName(ApiConstants.SERVICE_OFFERING_ID)
+    @Param(description = "the ID of the service offering of the system virtual machine.")
+    private String serviceOfferingId;
+
+    @SerializedName("serviceofferingname")
+    @Param(description = "the name of the service offering of the system virtual machine.")
+    private String serviceOfferingName;
 
     @Override
     public String getObjectId() {
@@ -281,6 +293,14 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
 
     public void setHostName(String hostName) {
         this.hostName = hostName;
+    }
+
+    public String getHostControlState() {
+        return hostControlState;
+    }
+
+    public void setHostControlState(String hostControlState) {
+        this.hostControlState = hostControlState;
     }
 
     public String getHypervisor() {
@@ -453,5 +473,21 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
 
     public void setDynamicallyScalable(Boolean dynamicallyScalable) {
         isDynamicallyScalable = dynamicallyScalable;
+    }
+
+    public String getServiceOfferingId() {
+        return serviceOfferingId;
+    }
+
+    public void setServiceOfferingId(String serviceOfferingId) {
+        this.serviceOfferingId = serviceOfferingId;
+    }
+
+    public String getServiceOfferingName() {
+        return serviceOfferingName;
+    }
+
+    public void setServiceOfferingName(String serviceOfferingName) {
+        this.serviceOfferingName = serviceOfferingName;
     }
 }

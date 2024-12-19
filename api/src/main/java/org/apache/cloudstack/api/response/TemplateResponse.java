@@ -123,7 +123,7 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Param(description = "the physical size of the template")
     private Long physicalSize;
 
-    @SerializedName(ApiConstants.TEMPLATETYPE)
+    @SerializedName(ApiConstants.TEMPLATE_TYPE)
     @Param(description = "the type of the template")
     private String templateType;
 
@@ -134,6 +134,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @SerializedName(ApiConstants.DOMAIN)
     @Param(description = "the name of the domain to which the template belongs")
     private String domainName;
+
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the Domain the template belongs to", since = "4.19.2.0")
+    private String domainPath;
 
     @SerializedName(ApiConstants.DOMAIN_ID)
     @Param(description = "the ID of the domain to which the template belongs")
@@ -178,6 +182,10 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @SerializedName(ApiConstants.DOWNLOAD_DETAILS)
     @Param(description = "Lists the download progress of a template across all secondary storages")
     private List<Map<String, String>> downloadDetails;
+
+    @SerializedName(ApiConstants.ARCH)
+    @Param(description = "CPU Arch of the template", since = "4.20")
+    private String arch;
 
     @SerializedName(ApiConstants.BITS)
     @Param(description = "the processor bit size", since = "4.10")
@@ -226,6 +234,18 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @SerializedName(ApiConstants.RESOURCE_ICON)
     @Param(description = "Base64 string representation of the resource icon", since = "4.16.0.0")
     ResourceIconResponse icon;
+
+    @SerializedName(ApiConstants.USER_DATA_ID) @Param(description="the id of userdata linked to this template", since = "4.18.0")
+    private String userDataId;
+
+    @SerializedName(ApiConstants.USER_DATA_NAME) @Param(description="the name of userdata linked to this template", since = "4.18.0")
+    private String userDataName;
+
+    @SerializedName(ApiConstants.USER_DATA_POLICY) @Param(description="the userdata override policy with the userdata provided while deploying VM", since = "4.18.0")
+    private String userDataPolicy;
+
+    @SerializedName(ApiConstants.USER_DATA_PARAMS) @Param(description="list of parameters which contains the list of keys or string parameters that are needed to be passed for any variables declared in userdata", since = "4.18.0")
+    private String userDataParams;
 
     public TemplateResponse() {
         tags = new LinkedHashSet<>();
@@ -340,6 +360,11 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Override
     public void setDomainName(String domainName) {
         this.domainName = domainName;
+    }
+
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
     }
 
     @Override
@@ -466,5 +491,41 @@ public class TemplateResponse extends BaseResponseWithTagInformation implements 
     @Override
     public void setResourceIconResponse(ResourceIconResponse icon) {
         this.icon = icon;
+    }
+
+    public String getUserDataId() {
+        return userDataId;
+    }
+
+    public void setUserDataId(String userDataId) {
+        this.userDataId = userDataId;
+    }
+
+    public String getUserDataName() {
+        return userDataName;
+    }
+
+    public void setUserDataName(String userDataName) {
+        this.userDataName = userDataName;
+    }
+
+    public String getUserDataPolicy() {
+        return userDataPolicy;
+    }
+
+    public void setUserDataPolicy(String userDataPolicy) {
+        this.userDataPolicy = userDataPolicy;
+    }
+
+    public String getUserDataParams() {
+        return userDataParams;
+    }
+
+    public void setUserDataParams(String userDataParams) {
+        this.userDataParams = userDataParams;
+    }
+
+    public void setArch(String arch) {
+        this.arch = arch;
     }
 }

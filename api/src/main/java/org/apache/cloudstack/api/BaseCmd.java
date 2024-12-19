@@ -21,14 +21,17 @@ import java.lang.reflect.Field;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 
+import com.cloud.bgp.BGPService;
 import org.apache.cloudstack.acl.ProjectRoleService;
 import org.apache.cloudstack.acl.RoleService;
 import org.apache.cloudstack.acl.RoleType;
@@ -36,13 +39,17 @@ import org.apache.cloudstack.affinity.AffinityGroupService;
 import org.apache.cloudstack.alert.AlertService;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.network.element.InternalLoadBalancerElementService;
+import org.apache.cloudstack.network.RoutedIpv4Manager;
 import org.apache.cloudstack.network.lb.ApplicationLoadBalancerService;
 import org.apache.cloudstack.network.lb.InternalLoadBalancerVMService;
 import org.apache.cloudstack.query.QueryService;
+import org.apache.cloudstack.storage.object.BucketApiService;
 import org.apache.cloudstack.storage.ImageStoreService;
+import org.apache.cloudstack.storage.template.VnfTemplateManager;
 import org.apache.cloudstack.usage.UsageService;
-import org.apache.log4j.Logger;
+import org.apache.commons.collections.MapUtils;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import com.cloud.configuration.ConfigurationService;
 import com.cloud.exception.ConcurrentOperationException;
@@ -90,7 +97,7 @@ import com.cloud.vm.UserVmService;
 import com.cloud.vm.snapshot.VMSnapshotService;
 
 public abstract class BaseCmd {
-    private static final Logger s_logger = Logger.getLogger(BaseCmd.class.getName());
+    protected transient Logger logger = LogManager.getLogger(getClass());
     public static final String RESPONSE_SUFFIX = "response";
     public static final String RESPONSE_TYPE_XML = HttpUtils.RESPONSE_TYPE_XML;
     public static final String RESPONSE_TYPE_JSON = HttpUtils.RESPONSE_TYPE_JSON;
@@ -103,7 +110,7 @@ public abstract class BaseCmd {
         GET, POST, PUT, DELETE
     }
     public static enum CommandType {
-        BOOLEAN, DATE, FLOAT, DOUBLE, INTEGER, SHORT, LIST, LONG, OBJECT, MAP, STRING, TZDATE, UUID
+        BOOLEAN, DATE, FLOAT, DOUBLE, INTEGER, SHORT, LIST, LONG, OBJECT, MAP, STRING, UUID
     }
 
     private Object _responseObject;
@@ -195,8 +202,6 @@ public abstract class BaseCmd {
     @Inject
     public AffinityGroupService _affinityGroupService;
     @Inject
-    public InternalLoadBalancerElementService _internalLbElementSvc;
-    @Inject
     public InternalLoadBalancerVMService _internalLbSvc;
     @Inject
     public NetworkModel _ntwkModel;
@@ -210,6 +215,15 @@ public abstract class BaseCmd {
     public ResourceIconManager resourceIconManager;
     @Inject
     public Ipv6Service ipv6Service;
+    @Inject
+    public VnfTemplateManager vnfTemplateManager;
+    @Inject
+    public BucketApiService _bucketService;
+    @Inject
+    public BGPService bgpService;
+
+    @Inject
+    public RoutedIpv4Manager routedIpv4Manager;
 
     public abstract void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException,
         ResourceAllocationException, NetworkRuleConflictException;
@@ -248,29 +262,35 @@ public abstract class BaseCmd {
     }
 
     /**
-     * For some reason this method does not return the actual command name, but more a name that
-     * is used to create the response. So you can expect for a XCmd a value like xcmdresponse. Anyways
-     * this methods is used in too many places so for now instead of changing it we just create another
-     * method {@link BaseCmd#getActualCommandName()} that returns the value from {@link APICommand#name()}
-     *
-     * @return
-     */
-    public abstract String getCommandName();
-
-
-    /**
      * Gets the CommandName based on the class annotations: the value from {@link APICommand#name()}
      *
      * @return the value from {@link APICommand#name()}
      */
-    public String getActualCommandName() {
+    public static String getCommandNameByClass(Class<?> clazz) {
         String cmdName = null;
-        if (this.getClass().getAnnotation(APICommand.class) != null) {
-            cmdName = this.getClass().getAnnotation(APICommand.class).name();
+        APICommand apiClassAnnotation = clazz.getAnnotation(APICommand.class);
+
+        if (apiClassAnnotation != null && apiClassAnnotation.name() != null) {
+            cmdName = apiClassAnnotation.name();
         } else {
-            cmdName = this.getClass().getName();
+            cmdName = clazz.getName();
         }
-       return cmdName;
+        return cmdName;
+    }
+
+    public String getActualCommandName() {
+        return getCommandNameByClass(this.getClass());
+    }
+
+    public String getCommandName() {
+        return getResponseNameByClass(this.getClass());
+    }
+
+    /**
+     * Retrieves the name defined in {@link APICommand#name()}, in lower case, with the prefix {@link BaseCmd#RESPONSE_SUFFIX}
+     */
+    public static String getResponseNameByClass(Class<?> clazz) {
+        return getCommandNameByClass(clazz).toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     /**
@@ -358,7 +378,7 @@ public abstract class BaseCmd {
             if (roleIsAllowed) {
                 validFields.add(field);
             } else {
-                s_logger.debug("Ignoring parameter " + parameterAnnotation.name() + " as the caller is not authorized to pass it in");
+                logger.debug("Ignoring parameter " + parameterAnnotation.name() + " as the caller is not authorized to pass it in");
             }
         }
 
@@ -381,7 +401,7 @@ public abstract class BaseCmd {
     }
 
     /**
-     * display flag is used to control the display of the resource only to the end user. It doesnt affect Root Admin.
+     * display flag is used to control the display of the resource only to the end user. It doesn't affect Root Admin.
      * @return display flag
      */
     public boolean isDisplay(){
@@ -403,7 +423,7 @@ public abstract class BaseCmd {
                 if(!isDisplay)
                     break;
             } catch (Exception e){
-                s_logger.trace("Caught exception while checking first class entities for display property, continuing on", e);
+                logger.trace("Caught exception while checking first class entities for display property, continuing on", e);
             }
         }
 
@@ -450,4 +470,18 @@ public abstract class BaseCmd {
         return ApiCommandResourceType.None;
     }
 
+    public Map<String, String> convertDetailsToMap(Map details) {
+        Map<String, String> detailsMap = new HashMap<String, String>();
+        if (MapUtils.isNotEmpty(details)) {
+            Collection parameterCollection = details.values();
+            Iterator iter = parameterCollection.iterator();
+            while (iter.hasNext()) {
+                HashMap<String, String> value = (HashMap<String, String>)iter.next();
+                for (Map.Entry<String,String> entry: value.entrySet()) {
+                    detailsMap.put(entry.getKey(),entry.getValue());
+                }
+            }
+        }
+        return detailsMap;
+    }
 }

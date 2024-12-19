@@ -26,7 +26,9 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.log4j.Logger;
+import org.apache.cloudstack.utils.security.ParserUtils;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -69,7 +71,7 @@ public abstract class VsmResponse {
         error, warning;
     }
 
-    private static final Logger s_logger = Logger.getLogger(VsmResponse.class);
+    protected Logger logger = LogManager.getLogger(getClass());
 
     protected String _xmlResponse;
     protected Document _docResponse;
@@ -93,7 +95,7 @@ public abstract class VsmResponse {
 
     protected void initialize() {
         try {
-            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory docFactory = ParserUtils.getSaferDocumentBuilderFactory();
             docFactory.setNamespaceAware(true);
             DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
             _docResponse = docBuilder.parse(new InputSource(new StringReader(_xmlResponse)));
@@ -101,11 +103,11 @@ public abstract class VsmResponse {
                 parse(_docResponse.getDocumentElement());
             }
         } catch (ParserConfigurationException e) {
-            s_logger.error("Error parsing the response : " + e.toString());
+            logger.error("Error parsing the response : " + e.toString());
         } catch (SAXException e) {
-            s_logger.error("Error parsing the response : " + e.toString());
+            logger.error("Error parsing the response : " + e.toString());
         } catch (IOException e) {
-            s_logger.error("Error parsing the response : " + e.toString());
+            logger.error("Error parsing the response : " + e.toString());
         }
     }
 
@@ -157,7 +159,7 @@ public abstract class VsmResponse {
                 }
             }
         } catch (DOMException e) {
-            s_logger.error("Error parsing the response : " + e.toString());
+            logger.error("Error parsing the response : " + e.toString());
         }
     }
 
@@ -210,13 +212,13 @@ public abstract class VsmResponse {
     // Helper routine to check for the response received.
     protected void printResponse() {
         try {
-            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory docFactory = ParserUtils.getSaferDocumentBuilderFactory();
             DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
             DOMImplementationLS ls = (DOMImplementationLS)docBuilder.getDOMImplementation();
             LSSerializer lss = ls.createLSSerializer();
             System.out.println(lss.writeToString(_docResponse));
         } catch (ParserConfigurationException e) {
-            s_logger.error("Error parsing the repsonse : " + e.toString());
+            logger.error("Error parsing the response : " + e.toString());
         }
     }
 }

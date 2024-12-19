@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.account;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -35,9 +34,7 @@ import com.cloud.utils.exception.CloudRuntimeException;
             requestHasSensitiveInfo = false,
             responseHasSensitiveInfo = true)
 public class LockAccountCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(LockAccountCmd.class.getName());
 
-    private static final String s_name = "lockaccountresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -68,11 +65,6 @@ public class LockAccountCmd extends BaseCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

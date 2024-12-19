@@ -18,7 +18,6 @@ package com.cloud.network.guru;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import com.cloud.configuration.ConfigurationManager;
 import com.cloud.dc.DataCenter;
@@ -44,6 +43,7 @@ import com.cloud.network.vpc.PrivateIpVO;
 import com.cloud.network.vpc.dao.PrivateIpDao;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.user.Account;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.AdapterBase;
 import com.cloud.utils.db.EntityManager;
 import com.cloud.utils.exception.CloudRuntimeException;
@@ -54,13 +54,12 @@ import com.cloud.vm.ReservationContext;
 import com.cloud.vm.VirtualMachineProfile;
 
 public class PrivateNetworkGuru extends AdapterBase implements NetworkGuru {
-    private static final Logger s_logger = Logger.getLogger(PrivateNetworkGuru.class);
     @Inject
     protected ConfigurationManager _configMgr;
     @Inject
     protected PrivateIpDao _privateIpDao;
     @Inject
-    protected NetworkModel _networkMgr;
+    protected NetworkModel networkModel;
     @Inject
     EntityManager _entityMgr;
 
@@ -91,13 +90,13 @@ public class PrivateNetworkGuru extends AdapterBase implements NetworkGuru {
             offering.isSystemOnly()) {
             return true;
         } else {
-            s_logger.trace("We only take care of system Guest networks of type   " + GuestType.Isolated + " in zone of type " + NetworkType.Advanced);
+            logger.trace("We only take care of system Guest networks of type   " + GuestType.Isolated + " in zone of type " + NetworkType.Advanced);
             return false;
         }
     }
 
     @Override
-    public Network design(NetworkOffering offering, DeploymentPlan plan, Network userSpecified, Account owner) {
+    public Network design(NetworkOffering offering, DeploymentPlan plan, Network userSpecified, String name, Long vpcId, Account owner) {
         DataCenter dc = _entityMgr.findById(DataCenter.class, plan.getDataCenterId());
         if (!canHandle(offering, dc)) {
             return null;
@@ -137,9 +136,14 @@ public class PrivateNetworkGuru extends AdapterBase implements NetworkGuru {
     }
 
     @Override
+    public void setup(Network network, long networkId) {
+        // do nothing
+    }
+
+    @Override
     public void deallocate(Network network, NicProfile nic, VirtualMachineProfile vm) {
-        if (s_logger.isDebugEnabled()) {
-            s_logger.debug("Deallocate network: networkId: " + nic.getNetworkId() + ", ip: " + nic.getIPv4Address());
+        if (logger.isDebugEnabled()) {
+            logger.debug("Deallocate network: networkId: " + nic.getNetworkId() + ", ip: " + nic.getIPv4Address());
         }
 
         PrivateIpVO ip = _privateIpDao.findByIpAndSourceNetworkId(nic.getNetworkId(), nic.getIPv4Address());
@@ -199,16 +203,22 @@ public class PrivateNetworkGuru extends AdapterBase implements NetworkGuru {
             nic.setMacAddress(ip.getMacAddress());
         }
 
-        nic.setIPv4Dns1(dc.getDns1());
-        nic.setIPv4Dns2(dc.getDns2());
+
+        Pair<String, String> dns = networkModel.getNetworkIp4Dns(network, dc);
+        nic.setIPv4Dns1(dns.first());
+        nic.setIPv4Dns2(dns.second());
     }
 
     @Override
     public void updateNicProfile(NicProfile profile, Network network) {
         DataCenter dc = _entityMgr.findById(DataCenter.class, network.getDataCenterId());
+        Pair<String, String> dns = networkModel.getNetworkIp4Dns(network, dc);
+        Pair<String, String> ip6Dns = networkModel.getNetworkIp6Dns(network, dc);
         if (profile != null) {
-            profile.setIPv4Dns1(dc.getDns1());
-            profile.setIPv4Dns2(dc.getDns2());
+            profile.setIPv4Dns1(dns.first());
+            profile.setIPv4Dns2(dns.second());
+            profile.setIPv6Dns1(ip6Dns.first());
+            profile.setIPv6Dns2(ip6Dns.second());
         }
     }
 
@@ -239,7 +249,12 @@ public class PrivateNetworkGuru extends AdapterBase implements NetworkGuru {
     @Override
     public void updateNetworkProfile(NetworkProfile networkProfile) {
         DataCenter dc = _entityMgr.findById(DataCenter.class, networkProfile.getDataCenterId());
-        networkProfile.setDns1(dc.getDns1());
-        networkProfile.setDns2(dc.getDns2());
+        Network network = networkModel.getNetwork(networkProfile.getId());
+        Pair<String, String> dns = networkModel.getNetworkIp4Dns(network, dc);
+        networkProfile.setDns1(dns.first());
+        networkProfile.setDns2(dns.second());
+        dns = networkModel.getNetworkIp6Dns(network, dc);
+        networkProfile.setIp6Dns1(dns.first());
+        networkProfile.setIp6Dns2(dns.second());
     }
 }

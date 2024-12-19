@@ -22,6 +22,7 @@ package com.cloud.utils.rest;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -47,7 +48,7 @@ public class HttpUriRequestBuilder {
     private String path;
     private Optional<String> jsonPayload = ABSENT;
     private final Map<String, String> parameters = new HashMap<String, String>();
-    private final Map<String, String> methodParameters = new HashMap<String, String>();
+    private final Map<String, String> methodParameters = new LinkedHashMap<String, String>();
 
     private HttpUriRequestBuilder() {
 
@@ -102,7 +103,7 @@ public class HttpUriRequestBuilder {
     private void validate() {
         Assert.notNull(method, "HTTP Method cannot be null");
         Assert.hasText(path, "target path must be defined");
-        Assert.isTrue(path.startsWith("/"), "targte path must start with a '/' character");
+        Assert.isTrue(path.startsWith("/"), "target path must start with a '/' character");
     }
 
     private URI buildUri() {

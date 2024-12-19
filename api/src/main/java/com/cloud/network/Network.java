@@ -103,7 +103,7 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
         public static final Service Vpn = new Service("Vpn", Capability.SupportedVpnProtocols, Capability.VpnTypes);
         public static final Service Dhcp = new Service("Dhcp", Capability.ExtraDhcpOptions);
         public static final Service Dns = new Service("Dns", Capability.AllowDnsSuffixModification);
-        public static final Service Gateway = new Service("Gateway");
+        public static final Service Gateway = new Service("Gateway", Capability.RedundantRouter);
         public static final Service Firewall = new Service("Firewall", Capability.SupportedProtocols, Capability.MultipleIps, Capability.TrafficStatistics,
                 Capability.SupportedTrafficDirection, Capability.SupportedEgressProtocols);
         public static final Service Lb = new Service("Lb", Capability.SupportedLBAlgorithms, Capability.SupportedLBIsolation, Capability.SupportedProtocols,
@@ -202,6 +202,10 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
         public static final Provider BigSwitchBcf = new Provider("BigSwitchBcf", false);
         //Add ConfigDrive provider
         public static final Provider ConfigDrive = new Provider("ConfigDrive", false);
+        //Add Tungsten Fabric provider
+        public static final Provider Tungsten = new Provider("Tungsten", false);
+
+        public static final Provider Nsx = new Provider("Nsx", false);
 
         private final String name;
         private final boolean isExternal;
@@ -254,7 +258,7 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
 
     public static class Capability {
 
-        private static List<Capability> supportedCapabilities = new ArrayList<Capability>();
+        private static List<Capability> supportedCapabilities = new ArrayList<>();
 
         public static final Capability SupportedProtocols = new Capability("SupportedProtocols");
         public static final Capability SupportedLBAlgorithms = new Capability("SupportedLbAlgorithms");
@@ -285,6 +289,7 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
         public static final Capability NoVlan = new Capability("NoVlan");
         public static final Capability PublicAccess = new Capability("PublicAccess");
         public static final Capability ExtraDhcpOptions = new Capability("ExtraDhcpOptions");
+        public static final Capability VmAutoScaling = new Capability("VmAutoScaling");
 
         private final String name;
 
@@ -407,11 +412,15 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
 
     String getGateway();
 
+    void setGateway(String gateway);
+
     // "cidr" is the Cloudstack managed address space, all CloudStack managed vms get IP address from "cidr",
     // In general "cidr" also serves as the network CIDR
     // But in case IP reservation is configured for a Guest network, "networkcidr" is the Effective network CIDR for that network,
     // "cidr" will still continue to be the effective address space for CloudStack managed vms in that Guest network
     String getCidr();
+
+    void setCidr(String cidr);
 
     // "networkcidr" is the network CIDR of the guest network which uses IP reservation.
     // It is the summation of "cidr" and the reservedIPrange(the address space used for non CloudStack purposes).
@@ -423,6 +432,8 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
     String getIp6Cidr();
 
     long getDataCenterId();
+
+    long getAccountId();
 
     long getNetworkOfferingId();
 
@@ -483,5 +494,19 @@ public interface Network extends ControlledEntity, StateObject<Network.State>, I
 
     String getRouterIpv6();
 
+    String getDns1();
+
+    String getDns2();
+
+    String getIp6Dns1();
+
+    String getIp6Dns2();
+
     Date getCreated();
+
+    Integer getPublicMtu();
+
+    Integer getPrivateMtu();
+
+    Integer getNetworkCidrSize();
 }

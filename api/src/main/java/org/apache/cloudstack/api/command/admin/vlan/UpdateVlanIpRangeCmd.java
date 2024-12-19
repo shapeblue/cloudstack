@@ -24,7 +24,6 @@ import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.VlanIpRangeResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.dc.Vlan;
 import com.cloud.exception.ConcurrentOperationException;
@@ -33,14 +32,12 @@ import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.user.Account;
 import com.cloud.utils.net.NetUtils;
 
-@APICommand(name = UpdateVlanIpRangeCmd.APINAME, description = "Updates a VLAN IP range.", responseObject =
+@APICommand(name = "updateVlanIpRange", description = "Updates a VLAN IP range.", responseObject =
         VlanIpRangeResponse.class, since = "4.16.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin})
 public class UpdateVlanIpRangeCmd extends BaseCmd {
 
-    public static final String APINAME = "updateVlanIpRange";
-    public static final Logger s_logger = Logger.getLogger(UpdateVlanIpRangeCmd.class.getName());
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -150,14 +147,9 @@ public class UpdateVlanIpRangeCmd extends BaseCmd {
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to Update vlan ip range");
             }
         } catch (ConcurrentOperationException ex) {
-            s_logger.warn("Exception: ", ex);
+            logger.warn("Exception: ", ex);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, ex.getMessage());
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
     }
 
     @Override

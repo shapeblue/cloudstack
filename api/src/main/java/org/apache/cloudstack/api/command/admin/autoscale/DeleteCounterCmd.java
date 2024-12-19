@@ -17,7 +17,6 @@
 
 package org.apache.cloudstack.api.command.admin.autoscale;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -33,11 +32,9 @@ import com.cloud.event.EventTypes;
 import com.cloud.exception.ResourceInUseException;
 import com.cloud.user.Account;
 
-@APICommand(name = "deleteCounter", description = "Deletes a counter", responseObject = SuccessResponse.class,
+@APICommand(name = "deleteCounter", description = "Deletes a counter for VM auto scaling", responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class DeleteCounterCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(DeleteCounterCmd.class.getName());
-    private static final String s_name = "deletecounterresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -56,7 +53,7 @@ public class DeleteCounterCmd extends BaseAsyncCmd {
         try {
             result = _autoScaleService.deleteCounter(getId());
         } catch (ResourceInUseException ex) {
-            s_logger.warn("Exception: ", ex);
+            logger.warn("Exception: ", ex);
             throw new ServerApiException(ApiErrorCode.RESOURCE_IN_USE_ERROR, ex.getMessage());
         }
 
@@ -64,7 +61,7 @@ public class DeleteCounterCmd extends BaseAsyncCmd {
             SuccessResponse response = new SuccessResponse(getCommandName());
             this.setResponseObject(response);
         } else {
-            s_logger.warn("Failed to delete counter with Id: " + getId());
+            logger.warn("Failed to delete counter with Id: " + getId());
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete counter.");
         }
     }
@@ -72,11 +69,6 @@ public class DeleteCounterCmd extends BaseAsyncCmd {
     // ///////////////////////////////////////////////////
     // ///////////////// Accessors ///////////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     public Long getId() {
         return id;

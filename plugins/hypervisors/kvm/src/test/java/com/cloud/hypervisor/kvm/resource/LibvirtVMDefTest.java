@@ -22,23 +22,21 @@ package com.cloud.hypervisor.kvm.resource;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Scanner;
+import java.util.UUID;
 
 import junit.framework.TestCase;
 
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.ChannelDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.DiskDef;
+import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.MemBalloonDef;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef.SCSIDef;
-import org.apache.cloudstack.utils.linux.MemStat;
-import org.junit.Before;
+import org.apache.cloudstack.utils.qemu.QemuObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(value = {MemStat.class})
+
+@RunWith(MockitoJUnitRunner.class)
 public class LibvirtVMDefTest extends TestCase {
 
     final String memInfo = "MemTotal:        5830236 kB\n" +
@@ -49,14 +47,35 @@ public class LibvirtVMDefTest extends TestCase {
             "Active:          4260808 kB\n" +
             "Inactive:         949392 kB\n";
 
-    @Before
-    public void setup() throws Exception {
-        Scanner scanner = new Scanner(memInfo);
-        PowerMockito.whenNew(Scanner.class).withAnyArguments().thenReturn(scanner);
+    @Test
+    public void testInterfaceTypeUserWithNetwork() {
+        LibvirtVMDef.InterfaceDef interfaceDef = new LibvirtVMDef.InterfaceDef();
+        interfaceDef.defUserNet(LibvirtVMDef.InterfaceDef.NicModel.VIRTIO, "00:11:22:aa:bb:dd", "192.168.100.0", 24);
+
+        String expected = "<interface type='user'>\n" +
+                "<mac address='00:11:22:aa:bb:dd'/>\n" +
+                "<model type='virtio'/>\n" +
+                "<ip family='ipv4' address='192.168.100.0' prefix='24'/>\n" +
+                "</interface>\n";
+
+        assertEquals(expected, interfaceDef.toString());
     }
 
     @Test
-    public void testInterfaceEtehrnet() {
+    public void testInterfaceTypeUserWithoutNetwork() {
+        LibvirtVMDef.InterfaceDef interfaceDef = new LibvirtVMDef.InterfaceDef();
+        interfaceDef.defUserNet(LibvirtVMDef.InterfaceDef.NicModel.VIRTIO, "00:11:22:aa:bb:dd");
+
+        String expected = "<interface type='user'>\n" +
+                "<mac address='00:11:22:aa:bb:dd'/>\n" +
+                "<model type='virtio'/>\n" +
+                "</interface>\n";
+
+        assertEquals(expected, interfaceDef.toString());
+    }
+
+    @Test
+    public void testInterfaceEthernet() {
         LibvirtVMDef.InterfaceDef ifDef = new LibvirtVMDef.InterfaceDef();
         ifDef.defEthernet("targetDeviceName", "00:11:22:aa:bb:dd", LibvirtVMDef.InterfaceDef.NicModel.VIRTIO);
 
@@ -119,6 +138,58 @@ public class LibvirtVMDefTest extends TestCase {
 
         assertEquals(expected, ifDef.toString());
     }
+
+    @Test
+    public void testInterfaceWithMultiQueueAndPacked() {
+        LibvirtVMDef.InterfaceDef ifDef = new LibvirtVMDef.InterfaceDef();
+        ifDef.defBridgeNet("targetDeviceName", null, "00:11:22:aa:bb:dd", LibvirtVMDef.InterfaceDef.NicModel.VIRTIO);
+        ifDef.setMultiQueueNumber(6);
+
+        LibvirtVMDef.setGlobalQemuVersion(5000000L);
+        LibvirtVMDef.setGlobalLibvirtVersion(6400000L);
+
+        String expected =
+                "<interface type='" + LibvirtVMDef.InterfaceDef.GuestNetType.BRIDGE + "'>\n"
+                        + "<source bridge='targetDeviceName'/>\n"
+                        + "<mac address='00:11:22:aa:bb:dd'/>\n"
+                        + "<model type='virtio'/>\n"
+                        + "<driver queues='6'/>\n"
+                        + "<link state='up'/>\n"
+                        + "</interface>\n";
+        assertEquals(expected, ifDef.toString());
+
+        ifDef.setPackedVirtQueues(true);
+        expected =
+                "<interface type='" + LibvirtVMDef.InterfaceDef.GuestNetType.BRIDGE + "'>\n"
+                        + "<source bridge='targetDeviceName'/>\n"
+                        + "<mac address='00:11:22:aa:bb:dd'/>\n"
+                        + "<model type='virtio'/>\n"
+                        + "<driver queues='6' packed='on'/>\n"
+                        + "<link state='up'/>\n"
+                        + "</interface>\n";
+        assertEquals(expected, ifDef.toString());
+
+        ifDef.setMultiQueueNumber(null);
+        expected =
+                "<interface type='" + LibvirtVMDef.InterfaceDef.GuestNetType.BRIDGE + "'>\n"
+                        + "<source bridge='targetDeviceName'/>\n"
+                        + "<mac address='00:11:22:aa:bb:dd'/>\n"
+                        + "<model type='virtio'/>\n"
+                        + "<driver packed='on'/>\n"
+                        + "<link state='up'/>\n"
+                        + "</interface>\n";
+        assertEquals(expected, ifDef.toString());
+
+        LibvirtVMDef.setGlobalLibvirtVersion(300000L);
+        expected =
+                "<interface type='" + LibvirtVMDef.InterfaceDef.GuestNetType.BRIDGE + "'>\n"
+                        + "<source bridge='targetDeviceName'/>\n"
+                        + "<mac address='00:11:22:aa:bb:dd'/>\n"
+                        + "<model type='virtio'/>\n"
+                        + "<link state='up'/>\n"
+                        + "</interface>\n";
+        assertEquals(expected, ifDef.toString());
+        }
 
     @Test
     public void testCpuModeDef() {
@@ -188,7 +259,142 @@ public class LibvirtVMDefTest extends TestCase {
         String expectedXml = "<disk  device='disk' type='file'>\n<driver name='qemu' type='" + type.toString() + "' cache='" + cacheMode.toString() + "' />\n" +
                              "<source file='" + filePath + "'/>\n<target dev='" + diskLabel + "' bus='" + bus.toString() + "'/>\n</disk>\n";
 
-        assertEquals(xmlDef, expectedXml);
+        assertEquals(expectedXml, xmlDef);
+    }
+
+    @Test
+    public void testDiskDefWithEncryption() {
+        String passphraseUuid = UUID.randomUUID().toString();
+        DiskDef disk = new DiskDef();
+        DiskDef.LibvirtDiskEncryptDetails encryptDetails = new DiskDef.LibvirtDiskEncryptDetails(passphraseUuid, QemuObject.EncryptFormat.LUKS);
+        disk.defBlockBasedDisk("disk1", 1, DiskDef.DiskBus.VIRTIO);
+        disk.setLibvirtDiskEncryptDetails(encryptDetails);
+        String expectedXML = "<disk  device='disk' type='block'>\n" +
+            "<driver name='qemu' type='raw' cache='none' />\n" +
+            "<source dev='disk1'/>\n" +
+            "<target dev='vdb' bus='virtio'/>\n" +
+            "<encryption format='luks'>\n" +
+            "<secret type='passphrase' uuid='" + passphraseUuid + "' />\n" +
+            "</encryption>\n" +
+            "</disk>\n";
+        assertEquals(expectedXML, disk.toString());
+    }
+
+    @Test
+    public void testDiskDefWithBlockIO() {
+        String filePath = "/var/lib/libvirt/images/disk.qcow2";
+        String diskLabel = "vda";
+
+        DiskDef disk = new DiskDef();
+        DiskDef.DiskBus bus = DiskDef.DiskBus.VIRTIO;
+        DiskDef.DiskFmtType type = DiskDef.DiskFmtType.QCOW2;
+        DiskDef.DiskCacheMode cacheMode = DiskDef.DiskCacheMode.WRITEBACK;
+
+        disk.defFileBasedDisk(filePath, diskLabel, bus, type);
+        disk.setCacheMode(cacheMode);
+        disk.setLogicalBlockIOSize(DiskDef.BlockIOSize.SIZE_4K);
+
+        assertEquals(filePath, disk.getDiskPath());
+        assertEquals(diskLabel, disk.getDiskLabel());
+        assertEquals(bus, disk.getBusType());
+        assertEquals(DiskDef.DeviceType.DISK, disk.getDeviceType());
+
+        String expectedXmlLogical = "<disk  device='disk' type='file'>\n<driver name='qemu' type='" + type.toString() + "' cache='" + cacheMode.toString() + "' />\n" +
+                "<source file='" + filePath + "'/>\n<target dev='" + diskLabel + "' bus='" + bus.toString() + "'/>\n<blockio logical_block_size='4096' />\n</disk>\n";
+
+        assertEquals(expectedXmlLogical, disk.toString());
+
+        String expectedXmlPhysical = "<disk  device='disk' type='file'>\n<driver name='qemu' type='" + type.toString() + "' cache='" + cacheMode.toString() + "' />\n" +
+                "<source file='" + filePath + "'/>\n<target dev='" + diskLabel + "' bus='" + bus.toString() + "'/>\n<blockio physical_block_size='4096' />\n</disk>\n";
+
+        disk.setLogicalBlockIOSize(null);
+        disk.setPhysicalBlockIOSize(DiskDef.BlockIOSize.SIZE_4K);
+        assertEquals(expectedXmlPhysical, disk.toString());
+
+        disk.setLogicalBlockIOSize(DiskDef.BlockIOSize.SIZE_512);
+        String expectedXml = "<disk  device='disk' type='file'>\n<driver name='qemu' type='" + type.toString() + "' cache='" + cacheMode.toString() + "' />\n" +
+                "<source file='" + filePath + "'/>\n<target dev='" + diskLabel + "' bus='" + bus.toString() + "'/>\n<blockio logical_block_size='512' physical_block_size='4096' />\n</disk>\n";
+        assertEquals(expectedXml, disk.toString());
+    }
+
+    @Test
+    public void testDiskDefWithGeometry() {
+        DiskDef disk = new DiskDef();
+        disk.defBlockBasedDisk("disk1", 1, DiskDef.DiskBus.VIRTIO);
+        disk.setGeometry(new DiskDef.DiskGeometry(16383, 16, 63));
+        String expectedXML = "<disk  device='disk' type='block'>\n" +
+                "<driver name='qemu' type='raw' cache='none' />\n" +
+                "<source dev='disk1'/>\n" +
+                "<target dev='vdb' bus='virtio'/>\n" +
+                "<geometry cyls='16383' heads='16' secs='63'/>\n" +
+                "</disk>\n";
+        assertEquals(expectedXML, disk.toString());
+    }
+
+    @Test
+    public void testDiskDefWithMultipleHosts() {
+        String path = "/mnt/primary1";
+        String host = "10.11.12.13,10.11.12.14,10.11.12.15";
+        int port = 3300;
+        String authUsername = "admin";
+        String uuid = "40b3f216-36b5-11ed-9357-9b4e21b0ed91";
+        int devId = 2;
+
+        DiskDef diskdef = new DiskDef();
+        diskdef.defNetworkBasedDisk(path, host, port, authUsername,
+                uuid, devId, DiskDef.DiskBus.VIRTIO, DiskDef.DiskProtocol.RBD, DiskDef.DiskFmtType.RAW);
+
+        assertEquals(path, diskdef.getDiskPath());
+        assertEquals(DiskDef.DiskType.NETWORK, diskdef.getDiskType());
+        assertEquals(DiskDef.DiskFmtType.RAW, diskdef.getDiskFormatType());
+
+        String expected = "<disk  device='disk' type='network'>\n" +
+                "<driver name='qemu' type='raw' cache='none' />\n" +
+                "<source  protocol='rbd' name='/mnt/primary1'>\n" +
+                "<host name='10.11.12.13' port='3300'/>\n" +
+                "<host name='10.11.12.14' port='3300'/>\n" +
+                "<host name='10.11.12.15' port='3300'/>\n" +
+                "</source>\n" +
+                "<auth username='admin'>\n" +
+                "<secret type='ceph' uuid='40b3f216-36b5-11ed-9357-9b4e21b0ed91'/>\n" +
+                "</auth>\n" +
+                "<target dev='vdc' bus='virtio'/>\n" +
+                "</disk>\n";
+
+        assertEquals(expected, diskdef.toString());
+    }
+
+    @Test
+    public void testDiskDefWithMultipleHostsIpv6() {
+        String path = "/mnt/primary1";
+        String host = "[fc00:1234::1],[fc00:1234::2],[fc00:1234::3]";
+        int port = 3300;
+        String authUsername = "admin";
+        String uuid = "40b3f216-36b5-11ed-9357-9b4e21b0ed91";
+        int devId = 2;
+
+        DiskDef diskdef = new DiskDef();
+        diskdef.defNetworkBasedDisk(path, host, port, authUsername,
+                uuid, devId, DiskDef.DiskBus.VIRTIO, DiskDef.DiskProtocol.RBD, DiskDef.DiskFmtType.RAW);
+
+        assertEquals(path, diskdef.getDiskPath());
+        assertEquals(DiskDef.DiskType.NETWORK, diskdef.getDiskType());
+        assertEquals(DiskDef.DiskFmtType.RAW, diskdef.getDiskFormatType());
+
+        String expected = "<disk  device='disk' type='network'>\n" +
+                "<driver name='qemu' type='raw' cache='none' />\n" +
+                "<source  protocol='rbd' name='/mnt/primary1'>\n" +
+                "<host name='fc00:1234::1' port='3300'/>\n" +
+                "<host name='fc00:1234::2' port='3300'/>\n" +
+                "<host name='fc00:1234::3' port='3300'/>\n" +
+                "</source>\n" +
+                "<auth username='admin'>\n" +
+                "<secret type='ceph' uuid='40b3f216-36b5-11ed-9357-9b4e21b0ed91'/>\n" +
+                "</auth>\n" +
+                "<target dev='vdc' bus='virtio'/>\n" +
+                "</disk>\n";
+
+        assertEquals(expected, diskdef.toString());
     }
 
     @Test
@@ -242,7 +448,29 @@ public class LibvirtVMDefTest extends TestCase {
                 "<read_bytes_sec_max_length>"+bytesReadRateMaxLength+"</read_bytes_sec_max_length>\n<write_bytes_sec_max_length>"+bytesWriteRateMaxLength+"</write_bytes_sec_max_length>\n" +
                 "<read_iops_sec_max_length>"+iopsReadRateMaxLength+"</read_iops_sec_max_length>\n<write_iops_sec_max_length>"+iopsWriteRateMaxLength+"</write_iops_sec_max_length>\n</iotune>\n</disk>\n";
 
-                assertEquals(xmlDef, expectedXml);
+                assertEquals(expectedXml, xmlDef);
+    }
+
+    @Test
+    public void memBalloonDefTestNone() {
+        String expectedXml = "<memballoon model='none'>\n</memballoon>";
+        MemBalloonDef memBalloonDef = new MemBalloonDef();
+        memBalloonDef.defNoneMemBalloon();
+
+        String xmlDef = memBalloonDef.toString();
+
+        assertEquals(expectedXml, xmlDef);
+    }
+
+    @Test
+    public void memBalloonDefTestVirtio() {
+        String expectedXml = "<memballoon model='virtio'>\n<stats period='60'/>\n</memballoon>";
+        MemBalloonDef memBalloonDef = new MemBalloonDef();
+        memBalloonDef.defVirtioMemBalloon("60");
+
+        String xmlDef = memBalloonDef.toString();
+
+        assertEquals(expectedXml, xmlDef);
     }
 
     @Test
@@ -277,11 +505,11 @@ public class LibvirtVMDefTest extends TestCase {
         int bytes = 2048;
 
         LibvirtVMDef.RngDef def = new LibvirtVMDef.RngDef(path, backendModel, bytes, period);
-        assertEquals(def.getPath(), path);
-        assertEquals(def.getRngBackendModel(), backendModel);
-        assertEquals(def.getRngModel(), LibvirtVMDef.RngDef.RngModel.VIRTIO);
-        assertEquals(def.getRngRateBytes(), bytes);
-        assertEquals(def.getRngRatePeriod(), period);
+        assertEquals(path, def.getPath());
+        assertEquals(backendModel, def.getRngBackendModel());
+        assertEquals(LibvirtVMDef.RngDef.RngModel.VIRTIO, def.getRngModel());
+        assertEquals(bytes, def.getRngRateBytes());
+        assertEquals(period, def.getRngRatePeriod());
     }
 
     @Test
@@ -305,8 +533,8 @@ public class LibvirtVMDefTest extends TestCase {
         LibvirtVMDef.WatchDogDef.WatchDogAction action = LibvirtVMDef.WatchDogDef.WatchDogAction.RESET;
 
         LibvirtVMDef.WatchDogDef def = new LibvirtVMDef.WatchDogDef(action, model);
-        assertEquals(def.getModel(), model);
-        assertEquals(def.getAction(), action);
+        assertEquals(model, def.getModel());
+        assertEquals(action, def.getAction());
     }
 
     @Test
@@ -317,6 +545,19 @@ public class LibvirtVMDefTest extends TestCase {
                 "<address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>\n" +
                 "<driver queues='4'/>\n" +
                 "</controller>\n";
-        assertEquals(str, expected);
+        assertEquals(expected, str);
+    }
+
+    @Test
+    public void testTopology() {
+        LibvirtVMDef.CpuModeDef cpuModeDef = new LibvirtVMDef.CpuModeDef();
+        cpuModeDef.setTopology(2, 1, 4);
+        assertEquals("<cpu><topology sockets='4' cores='2' threads='1' /></cpu>", cpuModeDef.toString());
+    }
+
+    public void testTopologyNoInfo() {
+        LibvirtVMDef.CpuModeDef cpuModeDef = new LibvirtVMDef.CpuModeDef();
+        cpuModeDef.setTopology(-1, -1, 4);
+        assertEquals("<cpu></cpu>", cpuModeDef.toString());
     }
 }

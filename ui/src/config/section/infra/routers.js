@@ -26,16 +26,25 @@ export default {
   permission: ['listRouters'],
   params: { projectid: '-1' },
   columns: () => {
-    var columns = ['name', 'state', 'publicip', 'guestnetworkname', 'vpcname', 'redundantstate', 'softwareversion', 'hostname', 'account', 'zonename', 'requiresupgrade']
+    var columns = ['name', 'state', 'publicip', { field: 'guestnetworkname', customTitle: 'network' }, 'redundantstate', 'softwareversion', 'hostname', 'account', 'zonename', 'requiresupgrade']
     columns.splice(6, 0, { field: 'version', customTitle: 'templateversion' })
     return columns
   },
   searchFilters: ['name', 'zoneid', 'podid', 'clusterid'],
-  details: ['name', 'id', 'version', 'softwareversion', 'requiresupgrade', 'guestnetworkname', 'vpcname', 'publicip', 'guestipaddress', 'linklocalip', 'serviceofferingname', 'networkdomain', 'isredundantrouter', 'redundantstate', 'hostname', 'account', 'zonename', 'created'],
+  details: ['name', 'id', 'version', 'softwareversion', 'requiresupgrade', 'guestnetworkname', 'vpcname', 'publicip', 'guestipaddress', 'linklocalip', 'serviceofferingname', 'networkdomain', 'isredundantrouter', 'redundantstate', 'hostname', 'account', 'zonename', 'created', 'hostcontrolstate'],
   resourceType: 'VirtualRouter',
+  filters: () => {
+    const filters = ['starting', 'running', 'stopping', 'stopped', 'destroyed', 'expunging', 'migrating', 'error', 'unknown', 'shutdown']
+    return filters
+  },
   tabs: [{
     name: 'details',
     component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
+  }, {
+    name: 'metrics',
+    resourceType: 'DomainRouter',
+    component: shallowRef(defineAsyncComponent(() => import('@/components/view/StatsTab.vue'))),
+    show: () => { return store.getters.features.instancesstatsuseronly === false }
   }, {
     name: 'nics',
     component: shallowRef(defineAsyncComponent(() => import('@/views/network/NicsTable.vue')))
@@ -43,6 +52,9 @@ export default {
     name: 'router.health.checks',
     show: (record, route, user) => { return ['Running'].includes(record.state) && ['Admin'].includes(user.roletype) },
     component: shallowRef(defineAsyncComponent(() => import('@views/infra/routers/RouterHealthCheck.vue')))
+  }, {
+    name: 'volume',
+    component: shallowRef(defineAsyncComponent(() => import('@/components/view/VolumesTab.vue')))
   }, {
     name: 'events',
     resourceType: 'DomainRouter',
@@ -174,8 +186,9 @@ export default {
       message: 'message.confirm.upgrade.router.newer.template',
       docHelp: 'adminguide/systemvm.html#upgrading-virtual-routers',
       dataView: true,
-      groupAction: true
-      // show: (record) => { return record.requiresupgrade }
+      groupAction: true,
+      // show: (record) => { return record.requiresupgrade },
+      groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
     },
     {
       api: 'migrateSystemVm',
@@ -184,15 +197,17 @@ export default {
       message: 'message.migrate.router.confirm',
       dataView: true,
       show: (record, store) => { return record.state === 'Running' && ['Admin'].includes(store.userInfo.roletype) },
+      disabled: (record) => { return record.hostcontrolstate === 'Offline' },
       component: shallowRef(defineAsyncComponent(() => import('@/views/compute/MigrateWizard'))),
       popup: true
     },
     {
       api: 'migrateSystemVm',
-      icon: 'drag',
+      icon: 'drag-outlined',
       label: 'label.action.migrate.systemvm.to.ps',
       dataView: true,
-      show: (record, store) => { return ['Stopped'].includes(record.state) && ['VMware'].includes(record.hypervisor) },
+      show: (record, store) => { return ['Stopped'].includes(record.state) && ['VMware', 'KVM'].includes(record.hypervisor) },
+      disabled: (record) => { return record.hostcontrolstate === 'Offline' },
       component: shallowRef(defineAsyncComponent(() => import('@/views/compute/MigrateVMStorage'))),
       popup: true
     },

@@ -21,6 +21,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import com.cloud.hypervisor.Hypervisor;
 import com.cloud.offering.DiskOffering;
 import org.apache.cloudstack.annotation.AnnotationService;
 import org.apache.cloudstack.annotation.dao.AnnotationDao;
@@ -30,7 +31,6 @@ import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import com.cloud.api.ApiDBUtils;
@@ -48,7 +48,6 @@ import com.cloud.utils.db.SearchCriteria;
 
 @Component
 public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJoinVO, VolumeResponse> implements VolumeJoinDao {
-    public static final Logger s_logger = Logger.getLogger(VolumeJoinDaoImpl.class);
 
     @Inject
     private ConfigurationDao  _configDao;
@@ -98,6 +97,10 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
             volResponse.setPodName(volume.getPodName());
         }
 
+        if (volume.getVmType() != null) {
+            volResponse.setVmType(volume.getVmType().toString());
+        }
+
         if (volume.getVolumeType() != null) {
             volResponse.setVolumeType(volume.getVolumeType().toString());
         }
@@ -135,6 +138,12 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
         volResponse.setMinIops(volume.getMinIops());
         volResponse.setMaxIops(volume.getMaxIops());
 
+        if (volume.getDeleteProtection() == null) {
+            volResponse.setDeleteProtection(false);
+        } else {
+            volResponse.setDeleteProtection(volume.getDeleteProtection());
+        }
+
         volResponse.setCreated(volume.getCreated());
         if (volume.getState() != null) {
             volResponse.setState(volume.getState().toString());
@@ -143,8 +152,10 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
             volResponse.setSize(volume.getVolumeStoreSize());
             volResponse.setCreated(volume.getCreatedOnStore());
 
-            if (view == ResponseView.Full)
-                volResponse.setHypervisor(ApiDBUtils.getHypervisorTypeFromFormat(volume.getDataCenterId(), volume.getFormat()).toString());
+            if (view == ResponseView.Full) {
+                Hypervisor.HypervisorType hypervisorTypeFromFormat = ApiDBUtils.getHypervisorTypeFromFormat(volume.getDataCenterId(), volume.getFormat());
+                volResponse.setHypervisor(hypervisorTypeFromFormat.getHypervisorDisplayName());
+            }
             if (volume.getDownloadState() != Status.DOWNLOADED) {
                 String volumeStatus = "Processing";
                 if (volume.getDownloadState() == Status.DOWNLOAD_IN_PROGRESS) {
@@ -173,6 +184,7 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
 
         if (view == ResponseView.Full) {
             volResponse.setPath(volume.getPath());
+            volResponse.setEncryptionFormat(volume.getEncryptionFormat());
         }
 
         // populate owner.
@@ -180,8 +192,8 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
 
         if (volume.getDiskOfferingId() > 0) {
             DiskOffering computeOnlyDiskOffering  = ApiDBUtils.findComputeOnlyDiskOfferingById(volume.getDiskOfferingId());
-            if (computeOnlyDiskOffering != null) {
-                ServiceOffering serviceOffering = ApiDBUtils.findServiceOfferingByComputeOnlyDiskOffering(volume.getDiskOfferingId());
+            ServiceOffering serviceOffering = getServiceOfferingForDiskOffering(volume, computeOnlyDiskOffering);
+            if (serviceOffering != null) {
                 volResponse.setServiceOfferingId(String.valueOf(serviceOffering.getId()));
                 volResponse.setServiceOfferingName(serviceOffering.getName());
                 volResponse.setServiceOfferingDisplayText(serviceOffering.getDisplayText());
@@ -205,9 +217,10 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
         if (view == ResponseView.Full) {
             if (volume.getState() != Volume.State.UploadOp) {
                 if (volume.getHypervisorType() != null) {
-                    volResponse.setHypervisor(volume.getHypervisorType().toString());
+                    volResponse.setHypervisor(volume.getHypervisorType().getHypervisorDisplayName());
                 } else {
-                    volResponse.setHypervisor(ApiDBUtils.getHypervisorTypeFromFormat(volume.getDataCenterId(), volume.getFormat()).toString());
+                    Hypervisor.HypervisorType hypervisorTypeFromFormat = ApiDBUtils.getHypervisorTypeFromFormat(volume.getDataCenterId(), volume.getFormat());
+                    volResponse.setHypervisor(hypervisorTypeFromFormat.getHypervisorDisplayName());
                 }
             }
             Long poolId = volume.getPoolId();
@@ -230,7 +243,7 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
         volResponse.setAttached(volume.getAttached());
         volResponse.setDestroyed(volume.getState() == Volume.State.Destroy);
         boolean isExtractable = true;
-        if (volume.getVolumeType() != Volume.Type.DATADISK) { // Datadisk dont
+        if (volume.getVolumeType() != Volume.Type.DATADISK) { // Datadisk don't
             // have any
             // template
             // dependence.
@@ -270,7 +283,29 @@ public class VolumeJoinDaoImpl extends GenericDaoBaseWithTagInformation<VolumeJo
 
         volResponse.setObjectName("volume");
         volResponse.setExternalUuid(volume.getExternalUuid());
+        volResponse.setEncryptionFormat(volume.getEncryptionFormat());
         return volResponse;
+    }
+
+    /**
+     * gets the {@see ServiceOffering} for the {@see Volume} with {@see DiskOffering}
+     * It will first try existing ones
+     * If not found it will try to get a removed one
+     *
+     * @param volume
+     * @param computeOnlyDiskOffering
+     * @return the resulting offering or null
+     */
+    private static ServiceOffering getServiceOfferingForDiskOffering(VolumeJoinVO volume, DiskOffering computeOnlyDiskOffering) {
+        ServiceOffering serviceOffering = null;
+        if (computeOnlyDiskOffering != null) {
+            serviceOffering = ApiDBUtils.findServiceOfferingByComputeOnlyDiskOffering(volume.getDiskOfferingId(), false);
+            if (serviceOffering == null) {
+                // Check again for removed ones
+                serviceOffering = ApiDBUtils.findServiceOfferingByComputeOnlyDiskOffering(volume.getDiskOfferingId(), true);
+            }
+        }
+        return serviceOffering;
     }
 
     @Override

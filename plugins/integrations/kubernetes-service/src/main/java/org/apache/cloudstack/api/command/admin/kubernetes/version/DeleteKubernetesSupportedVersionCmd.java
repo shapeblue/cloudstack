@@ -21,6 +21,7 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
@@ -30,7 +31,6 @@ import org.apache.cloudstack.api.command.admin.AdminCmd;
 import org.apache.cloudstack.api.response.KubernetesSupportedVersionResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.log4j.Logger;
 
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.kubernetes.version.KubernetesSupportedVersion;
@@ -38,14 +38,12 @@ import com.cloud.kubernetes.version.KubernetesVersionEventTypes;
 import com.cloud.kubernetes.version.KubernetesVersionService;
 import com.cloud.utils.exception.CloudRuntimeException;
 
-@APICommand(name = DeleteKubernetesSupportedVersionCmd.APINAME,
+@APICommand(name = "deleteKubernetesSupportedVersion",
         description = "Deletes a Kubernetes cluster",
         responseObject = SuccessResponse.class,
         entityType = {KubernetesSupportedVersion.class},
         authorized = {RoleType.Admin})
 public class DeleteKubernetesSupportedVersionCmd extends BaseAsyncCmd implements AdminCmd {
-    public static final Logger LOGGER = Logger.getLogger(DeleteKubernetesSupportedVersionCmd.class.getName());
-    public static final String APINAME = "deleteKubernetesSupportedVersion";
 
     @Inject
     private KubernetesVersionService kubernetesVersionService;
@@ -64,11 +62,6 @@ public class DeleteKubernetesSupportedVersionCmd extends BaseAsyncCmd implements
     /////////////////////////////////////////////////////
     public Long getId() {
         return id;
-    }
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + "response";
     }
 
     @Override
@@ -91,6 +84,11 @@ public class DeleteKubernetesSupportedVersionCmd extends BaseAsyncCmd implements
             description += String.format(" ID: %d", getId());
         }
         return description;
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.KubernetesSupportedVersion;
     }
 
     /////////////////////////////////////////////////////

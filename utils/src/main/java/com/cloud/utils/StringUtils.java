@@ -19,6 +19,10 @@
 
 package com.cloud.utils;
 
+import com.cloud.utils.exception.CloudRuntimeException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +31,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class StringUtils {
+public class StringUtils extends org.apache.commons.lang3.StringUtils {
     private static final char[] hexChar = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     private static Charset preferredACSCharset;
@@ -180,10 +184,10 @@ public class StringUtils {
         return cleanResult;
     }
 
-    public static String cleanDetails(final String stringToClean, final String detailsIndexSting) {
+    public static String cleanDetails(final String stringToClean, final String detailsIndexString) {
         String cleanResult = stringToClean;
         for (final String log : stringToClean.split("&|%26")) {
-            if (log.contains(detailsIndexSting)) {
+            if (log.contains(detailsIndexString)) {
                 cleanResult = cleanResult.replace(log, "");
             }
         }
@@ -249,16 +253,16 @@ public class StringUtils {
         final boolean applyPagination = startIndex != null && pageSizeVal != null
                 && startIndex <= Integer.MAX_VALUE && startIndex >= 0 && pageSizeVal <= Integer.MAX_VALUE
                 && pageSizeVal > 0;
-                List<T> listWPagination = null;
-                if (applyPagination) {
-                    listWPagination = new ArrayList<>();
-                    final int index = startIndex.intValue() == 0 ? 0 : startIndex.intValue() / pageSizeVal.intValue();
-                    final List<List<T>> partitions = StringUtils.partitionList(originalList, pageSizeVal.intValue());
-                    if (index < partitions.size()) {
-                        listWPagination = partitions.get(index);
-                    }
-                }
-                return listWPagination;
+        List<T> listWPagination = null;
+        if (applyPagination) {
+            listWPagination = new ArrayList<>();
+            final int index = startIndex.intValue() == 0 ? 0 : startIndex.intValue() / pageSizeVal.intValue();
+            final List<List<T>> partitions = StringUtils.partitionList(originalList, pageSizeVal.intValue());
+            if (index < partitions.size()) {
+                listWPagination = partitions.get(index);
+            }
+        }
+        return listWPagination;
     }
 
     private static <T> List<List<T>> partitionList(final List<T> originalList, final int chunkSize) {
@@ -274,5 +278,30 @@ public class StringUtils {
 
     public static String toCSVList(final List<String> csvList) {
         return org.apache.commons.lang3.StringUtils.defaultString(org.apache.commons.lang3.StringUtils.join(csvList, ","));
+    }
+
+    public static Pair<String, String> getKeyValuePairWithSeparator(String keyValuePair, String separator) {
+        final int index = keyValuePair.indexOf(separator);
+        final String key = keyValuePair.substring(0, index);
+        final String value = keyValuePair.substring(index + 1);
+        return new Pair<>(key.trim(), value.trim());
+    }
+
+    public static Map<String, String> parseJsonToMap(String jsonString) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, String> mapResult = new HashMap<>();
+
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(jsonString)) {
+            try {
+                JsonNode jsonNode = objectMapper.readTree(jsonString);
+                jsonNode.fields().forEachRemaining(entry -> {
+                    mapResult.put(entry.getKey(), entry.getValue().asText());
+                });
+            } catch (Exception e) {
+                throw new CloudRuntimeException("Error while parsing json to convert it to map " + e.getMessage());
+            }
+        }
+
+        return mapResult;
     }
 }

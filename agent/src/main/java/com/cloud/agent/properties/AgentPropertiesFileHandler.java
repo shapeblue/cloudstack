@@ -20,8 +20,10 @@ import java.io.IOException;
 import org.apache.cloudstack.utils.security.KeyStoreUtils;
 import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.beanutils.converters.IntegerConverter;
+import org.apache.commons.beanutils.converters.LongConverter;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 /**
  * This class provides a facility to read the agent's properties file and get
@@ -30,7 +32,7 @@ import org.apache.log4j.Logger;
  */
 public class AgentPropertiesFileHandler {
 
-    private static final Logger logger = Logger.getLogger(AgentPropertiesFileHandler.class);
+    protected static Logger LOGGER = LogManager.getLogger(AgentPropertiesFileHandler.class);
 
     /**
      * This method reads the property in the agent.properties file.
@@ -45,23 +47,32 @@ public class AgentPropertiesFileHandler {
 
         File agentPropertiesFile = PropertiesUtil.findConfigFile(KeyStoreUtils.AGENT_PROPSFILE);
 
-        if (agentPropertiesFile != null) {
-            try {
-                String configValue = PropertiesUtil.loadFromFile(agentPropertiesFile).getProperty(name);
-                if (StringUtils.isNotBlank(configValue)) {
-                    if (defaultValue instanceof Integer) {
-                        ConvertUtils.register(new IntegerConverter(defaultValue), Integer.class);
-                    }
+        if (agentPropertiesFile == null) {
+            LOGGER.debug("File [{}] was not found, we will use default defined values. Property [{}]: [{}].", KeyStoreUtils.AGENT_PROPSFILE, name, defaultValue);
 
-                    return (T)ConvertUtils.convert(configValue, defaultValue.getClass());
-                } else {
-                    logger.debug(String.format("Property [%s] has empty or null value. Using default value [%s].", name, defaultValue));
-                }
-            } catch (IOException ex) {
-                logger.debug(String.format("Failed to get property [%s]. Using default value [%s].", name, defaultValue), ex);
+            return defaultValue;
+        }
+
+        try {
+            String configValue = PropertiesUtil.loadFromFile(agentPropertiesFile).getProperty(name);
+            if (StringUtils.isBlank(configValue)) {
+                LOGGER.debug("Property [{}] has empty or null value. Using default value [{}].", name, defaultValue);
+                return defaultValue;
             }
-        } else {
-            logger.debug(String.format("File [%s] was not found, we will use default defined values. Property [%s]: [%s].", KeyStoreUtils.AGENT_PROPSFILE, name, defaultValue));
+
+            if (defaultValue instanceof Integer) {
+                ConvertUtils.register(new IntegerConverter(defaultValue), Integer.class);
+            }
+
+            if (defaultValue instanceof Long) {
+                ConvertUtils.register(new LongConverter(defaultValue), Long.class);
+            }
+
+            LOGGER.debug("Property [{}] was altered. Now using the value [{}].", name, configValue);
+            return (T)ConvertUtils.convert(configValue, property.getTypeClass());
+
+        } catch (IOException ex) {
+            LOGGER.debug("Failed to get property [{}]. Using default value [{}].", name, defaultValue, ex);
         }
 
         return defaultValue;

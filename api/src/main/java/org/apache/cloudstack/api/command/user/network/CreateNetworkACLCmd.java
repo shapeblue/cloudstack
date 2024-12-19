@@ -32,7 +32,6 @@ import org.apache.cloudstack.api.response.NetworkACLResponse;
 import org.apache.cloudstack.api.response.NetworkResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 import com.cloud.exception.InvalidParameterValueException;
@@ -43,9 +42,7 @@ import com.cloud.utils.net.NetUtils;
 
 @APICommand(name = "createNetworkACL", description = "Creates a ACL rule in the given network (the network has to belong to VPC)", responseObject = NetworkACLItemResponse.class, requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class CreateNetworkACLCmd extends BaseAsyncCreateCmd {
-    public static final Logger s_logger = Logger.getLogger(CreateNetworkACLCmd.class.getName());
 
-    private static final String s_name = "createnetworkaclresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -116,6 +113,10 @@ public class CreateNetworkACLCmd extends BaseAsyncCreateCmd {
         return p;
     }
 
+    public void setProtocol(String protocol) {
+        this.protocol = protocol;
+    }
+
     public List<String> getSourceCidrList() {
         if (cidrlist != null) {
             return cidrlist;
@@ -139,28 +140,34 @@ public class CreateNetworkACLCmd extends BaseAsyncCreateCmd {
         throw new InvalidParameterValueException("Invalid traffic type " + trafficType);
     }
 
+    public void setTrafficType(String trafficType) {
+        this.trafficType = trafficType;
+    }
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
 
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
     public String getAction() {
         return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
     }
 
     public Integer getNumber() {
         return number;
     }
 
-    public Integer getSourcePortStart() {
+    public Integer getPublicStartPort() {
         return publicStartPort;
     }
 
-    public Integer getSourcePortEnd() {
+    public void setPublicStartPort(Integer publicStartPort) {
+        this.publicStartPort = publicStartPort;
+    }
+
+    public Integer getPublicEndPort() {
         if (publicEndPort == null) {
             if (publicStartPort != null) {
                 return publicStartPort;
@@ -172,8 +179,16 @@ public class CreateNetworkACLCmd extends BaseAsyncCreateCmd {
         return null;
     }
 
+    public void setPublicEndPort(Integer publicEndPort) {
+        this.publicEndPort = publicEndPort;
+    }
+
     public Long getNetworkId() {
         return networkId;
+    }
+
+    public void setNetworkId(Long networkId) {
+        this.networkId = networkId;
     }
 
     @Override
@@ -213,6 +228,10 @@ public class CreateNetworkACLCmd extends BaseAsyncCreateCmd {
 
     public Long getACLId() {
         return aclId;
+    }
+
+    public void setAclId(Long aclId) {
+        this.aclId = aclId;
     }
 
     public String getReason() {

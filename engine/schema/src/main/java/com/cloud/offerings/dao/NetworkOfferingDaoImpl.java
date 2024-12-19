@@ -228,7 +228,7 @@ public class NetworkOfferingDaoImpl extends GenericDaoBase<NetworkOfferingVO, Lo
     }
 
     /**
-     * Persist L2 deafult Network offering
+     * Persist L2 default Network offering
      */
     private void persistL2DefaultNetworkOffering(String name, String displayText, boolean specifyVlan, boolean configDriveEnabled) {
         NetworkOfferingVO offering = new NetworkOfferingVO(name, displayText, TrafficType.Guest, false, specifyVlan,
@@ -279,7 +279,7 @@ public class NetworkOfferingDaoImpl extends GenericDaoBase<NetworkOfferingVO, Lo
     }
 
     @Override
-    public NetUtils.InternetProtocol getNetworkOfferingInternetProtocol(long offeringId,NetUtils.InternetProtocol defaultProtocol) {
+    public NetUtils.InternetProtocol getNetworkOfferingInternetProtocol(long offeringId, NetUtils.InternetProtocol defaultProtocol) {
         NetUtils.InternetProtocol protocol = getNetworkOfferingInternetProtocol(offeringId);
         if (protocol == null) {
             return defaultProtocol;
@@ -291,5 +291,10 @@ public class NetworkOfferingDaoImpl extends GenericDaoBase<NetworkOfferingVO, Lo
     public boolean isIpv6Supported(long offeringId) {
         NetUtils.InternetProtocol internetProtocol = getNetworkOfferingInternetProtocol(offeringId);
         return NetUtils.InternetProtocol.isIpv6EnabledProtocol(internetProtocol);
+    }
+
+    @Override
+    public boolean isRoutedNetwork(long offeringId) {
+        return NetworkOffering.NetworkMode.ROUTED.equals(findById(offeringId).getNetworkMode());
     }
 }

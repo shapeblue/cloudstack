@@ -16,16 +16,14 @@
 // under the License.
 package com.cloud.vm.dao;
 
-import javax.inject.Inject;
-
-import junit.framework.TestCase;
-
-import org.apache.commons.lang.RandomStringUtils;
-import org.junit.Test;
-
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.vm.UserVmVO;
 import com.cloud.vm.VirtualMachine;
+import junit.framework.TestCase;
+import org.apache.commons.lang.RandomStringUtils;
+import org.junit.Test;
+
+import javax.inject.Inject;
 
 public class UserVmDaoImplTest extends TestCase {
     @Inject
@@ -48,7 +46,7 @@ public class UserVmDaoImplTest extends TestCase {
         // Persist the data.
         UserVmVO vo =
             new UserVmVO(vmId, instanceName, displayName, templateId, hypervisor, guestOsId, haEnabled, limitCpuUse, domainId, accountId, 1, serviceOfferingId, userdata,
-                name);
+                    null, null, name);
         dao.persist(vo);
 
         vo = dao.findById(vmId);

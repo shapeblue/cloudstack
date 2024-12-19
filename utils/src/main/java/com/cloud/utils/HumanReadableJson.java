@@ -18,20 +18,28 @@
 //
 package com.cloud.utils;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
+import static com.cloud.utils.NumbersUtil.toHumanReadableSize;
+
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-import static com.cloud.utils.NumbersUtil.toHumanReadableSize;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 
 public class HumanReadableJson {
 
+    static final Logger LOGGER = LogManager.getLogger(HumanReadableJson.class);
+
     private boolean changeValue;
     private StringBuilder output = new StringBuilder();
     private boolean firstElement = true;
+
+    private String lastKey;
 
     private final String[] elementsToMatch = {
             "bytesSent","bytesReceived","BytesWrite","BytesRead","bytesReadRate","bytesWriteRate","iopsReadRate",
@@ -64,11 +72,15 @@ public class HumanReadableJson {
             firstElement = false;
         }
         if (jsonElement.isJsonPrimitive()) {
+            String changedValue = jsonElement.getAsString();
             if (changeValue) {
-                output.append("\"" + toHumanReadableSize(jsonElement.getAsLong()) + "\"");
-            } else {
-                output.append("\"" + jsonElement.getAsString() + "\"");
+                try {
+                    changedValue = toHumanReadableSize(jsonElement.getAsLong());
+                } catch (NumberFormatException nfe) {
+                    LOGGER.debug(String.format("Unable to parse '%s' with value: %s to human readable number format. Returning as it is", lastKey, changedValue), nfe);
+                }
             }
+            output.append("\"").append(changedValue).append("\"");
             firstElement = false;
         }
     }
@@ -81,6 +93,7 @@ public class HumanReadableJson {
         while(it.hasNext()) {
             Entry<String, JsonElement> value = it.next();
             String key = value.getKey();
+            lastKey = key;
             if (!firstElement){
                 output.append(",");
             }

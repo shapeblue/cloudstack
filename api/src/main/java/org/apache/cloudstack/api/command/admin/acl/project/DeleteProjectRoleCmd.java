@@ -21,6 +21,7 @@ import org.apache.cloudstack.acl.ProjectRole;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiArgValidator;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
@@ -31,11 +32,10 @@ import org.apache.cloudstack.api.response.ProjectRoleResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
 
-@APICommand(name = DeleteProjectRoleCmd.APINAME, description = "Delete Project roles in CloudStack", responseObject = SuccessResponse.class,
+@APICommand(name = "deleteProjectRole", description = "Delete Project roles in CloudStack", responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false, since = "4.15.0", authorized = {
         RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class DeleteProjectRoleCmd extends BaseCmd {
-    public static final String APINAME = "deleteProjectRole" ;
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -77,12 +77,17 @@ public class DeleteProjectRoleCmd extends BaseCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + RESPONSE_SUFFIX;
+    public long getEntityOwnerId() {
+        return CallContext.current().getCallingAccountId();
     }
 
     @Override
-    public long getEntityOwnerId() {
-        return CallContext.current().getCallingAccountId();
+    public Long getApiResourceId() {
+        return getProjectId();
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.Project;
     }
 }

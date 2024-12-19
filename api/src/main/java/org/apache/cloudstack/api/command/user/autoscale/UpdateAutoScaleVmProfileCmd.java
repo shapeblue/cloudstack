@@ -17,9 +17,9 @@
 
 package org.apache.cloudstack.api.command.user.autoscale;
 
+import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
@@ -32,7 +32,9 @@ import org.apache.cloudstack.api.BaseAsyncCustomIdCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.AutoScaleVmProfileResponse;
+import org.apache.cloudstack.api.response.ServiceOfferingResponse;
 import org.apache.cloudstack.api.response.TemplateResponse;
+import org.apache.cloudstack.api.response.UserDataResponse;
 import org.apache.cloudstack.api.response.UserResponse;
 import org.apache.cloudstack.context.CallContext;
 
@@ -43,9 +45,7 @@ import com.cloud.user.Account;
 @APICommand(name = "updateAutoScaleVmProfile", description = "Updates an existing autoscale vm profile.", responseObject = AutoScaleVmProfileResponse.class, entityType = {AutoScaleVmProfile.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateAutoScaleVmProfileCmd extends BaseAsyncCustomIdCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateAutoScaleVmProfileCmd.class.getName());
 
-    private static final String s_name = "updateautoscalevmprofileresponse";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -59,21 +59,55 @@ public class UpdateAutoScaleVmProfileCmd extends BaseAsyncCustomIdCmd {
                description = "the ID of the autoscale vm profile")
     private Long id;
 
+    @Parameter(name = ApiConstants.SERVICE_OFFERING_ID,
+            type = CommandType.UUID,
+            entityType = ServiceOfferingResponse.class,
+            description = "the service offering of the auto deployed virtual machine",
+            since = "4.18.0")
+    private Long serviceOfferingId;
+
     @Parameter(name = ApiConstants.TEMPLATE_ID,
                type = CommandType.UUID,
                entityType = TemplateResponse.class,
                description = "the template of the auto deployed virtual machine")
     private Long templateId;
 
-    @Parameter(name = ApiConstants.AUTOSCALE_VM_DESTROY_TIME,
+    @Parameter(name = ApiConstants.AUTOSCALE_EXPUNGE_VM_GRACE_PERIOD,
                type = CommandType.INTEGER,
                description = "the time allowed for existing connections to get closed before a vm is destroyed")
-    private Integer destroyVmGraceperiod;
+    private Integer expungeVmGracePeriod;
 
     @Parameter(name = ApiConstants.COUNTERPARAM_LIST,
                type = CommandType.MAP,
                description = "counterparam list. Example: counterparam[0].name=snmpcommunity&counterparam[0].value=public&counterparam[1].name=snmpport&counterparam[1].value=161")
     private Map counterParamList;
+
+    @Parameter(name = ApiConstants.OTHER_DEPLOY_PARAMS,
+            type = CommandType.MAP,
+            description = "parameters other than zoneId/serviceOfferringId/templateId of the auto deployed virtual machine. \n"
+                    + "Example: otherdeployparams[0].name=serviceofferingid&otherdeployparams[0].value=a7fb50f6-01d9-11ed-8bc1-77f8f0228926&otherdeployparams[1].name=rootdisksize&otherdeployparams[1].value=10 .\n"
+                    + "Possible parameters are \"rootdisksize\", \"diskofferingid\",\"size\", \"securitygroupids\", \"overridediskofferingid\", \"keypairs\", \"affinitygroupids'\" and \"networkids\".",
+            since = "4.18.0")
+    private Map<String, HashMap<String, String>> otherDeployParams;
+
+    @Parameter(name = ApiConstants.USER_DATA,
+            type = CommandType.STRING,
+            description = "an optional binary data that can be sent to the virtual machine upon a successful deployment. " +
+                    "This binary data must be base64 encoded before adding it to the request. " +
+                    "Using HTTP GET (via querystring), you can send up to 4KB of data after base64 encoding. " +
+                    "Using HTTP POST (via POST body), you can send up to 1MB of data after base64 encoding. " +
+                    "You also need to change vm.userdata.max.length value",
+            length = 1048576,
+            since = "4.18.0")
+    private String userData;
+
+    @Parameter(name = ApiConstants.USER_DATA_ID, type = CommandType.UUID, entityType = UserDataResponse.class, description = "the ID of the userdata",
+            since = "4.18.1")
+    private Long userDataId;
+
+    @Parameter(name = ApiConstants.USER_DATA_DETAILS, type = CommandType.MAP, description = "used to specify the parameters values for the variables in userdata.",
+            since = "4.18.1")
+    private Map userDataDetails;
 
     @Parameter(name = ApiConstants.AUTOSCALE_USER_ID,
                type = CommandType.UUID,
@@ -109,20 +143,40 @@ public class UpdateAutoScaleVmProfileCmd extends BaseAsyncCustomIdCmd {
         return id;
     }
 
+    public Long getServiceOfferingId() {
+        return serviceOfferingId;
+    }
+
     public Long getTemplateId() {
         return templateId;
+    }
+
+    public Map<String, HashMap<String, String>> getOtherDeployParams() {
+        return otherDeployParams;
     }
 
     public Map getCounterParamList() {
         return counterParamList;
     }
 
+    public String getUserData() {
+        return userData;
+    }
+
+    public Long getUserDataId() {
+        return userDataId;
+    }
+
+    public Map<String, String> getUserDataDetails() {
+        return convertDetailsToMap(userDataDetails);
+    }
+
     public Long getAutoscaleUserId() {
         return autoscaleUserId;
     }
 
-    public Integer getDestroyVmGraceperiod() {
-        return destroyVmGraceperiod;
+    public Integer getExpungeVmGracePeriod() {
+        return expungeVmGracePeriod;
     }
 
     public Boolean getDisplay() {
@@ -137,11 +191,6 @@ public class UpdateAutoScaleVmProfileCmd extends BaseAsyncCustomIdCmd {
     @Override
     public String getEventDescription() {
         return "Updating AutoScale Vm Profile. Vm Profile Id: " + getId();
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

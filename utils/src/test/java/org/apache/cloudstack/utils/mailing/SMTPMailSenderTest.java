@@ -22,6 +22,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -33,15 +34,17 @@ import javax.mail.internet.MimeMessage;
 import junit.framework.TestCase;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.mail.EmailConstants;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class SMTPMailSenderTest extends TestCase {
@@ -62,9 +65,18 @@ public class SMTPMailSenderTest extends TestCase {
     private String namespace = "test";
     private String enabledProtocols = "mail.smtp.ssl.protocols";
 
+    private AutoCloseable closeable;
+
     @Before
     public void before() {
+        closeable = MockitoAnnotations.openMocks(this);
         smtpMailSender = new SMTPMailSender(configsMock, namespace);
+    }
+
+    @Override
+    @After
+    public void tearDown() throws Exception {
+        closeable.close();
     }
 
     private String getConfigName(String config) {
@@ -547,7 +559,7 @@ public class SMTPMailSenderTest extends TestCase {
     public void setMailRecipientsTest() throws UnsupportedEncodingException, MessagingException {
         SMTPMessage messageMock = new SMTPMessage(Mockito.mock(MimeMessage.class));
 
-        Set<MailAddress> recipients = new HashSet<>();
+        Set<MailAddress> recipients = new LinkedHashSet<>();
         recipients.add(new MailAddress(null));
         recipients.add(new MailAddress(""));
         recipients.add(new MailAddress("  "));

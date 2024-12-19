@@ -24,16 +24,13 @@ import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.EventResponse;
 import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.Event;
 
 @APICommand(name = "listEvents", description = "A command to list events.", responseObject = EventResponse.class, entityType = {Event.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListEventsCmd extends BaseListProjectAndAccountResourcesCmd {
-    public static final Logger s_logger = Logger.getLogger(ListEventsCmd.class.getName());
 
-    private static final String s_name = "listeventsresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -72,6 +69,9 @@ public class ListEventsCmd extends BaseListProjectAndAccountResourcesCmd {
 
     @Parameter(name = ApiConstants.RESOURCE_TYPE, type = CommandType.STRING, description = "the type of the resource associated with the event", since="4.17.0")
     private String resourceType;
+
+    @Parameter(name = ApiConstants.ARCHIVED, type = CommandType.BOOLEAN, description = "true to list archived events otherwise false", since="4.19.0")
+    private Boolean archived;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -117,14 +117,13 @@ public class ListEventsCmd extends BaseListProjectAndAccountResourcesCmd {
         return resourceType;
     }
 
+    public boolean getArchived() {
+        return archived != null && archived;
+    }
+
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public void execute() {

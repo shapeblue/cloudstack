@@ -17,15 +17,19 @@
 
 package org.apache.cloudstack.api;
 
+import java.util.EnumSet;
+import java.util.List;
+
+import javax.inject.Inject;
+
+import com.cloud.exception.InvalidParameterValueException;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.api.command.user.UserCmd;
 import org.apache.cloudstack.api.command.user.vm.ListVMsCmd;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.api.response.UserVmResponse;
 import org.apache.cloudstack.metrics.MetricsService;
 import org.apache.cloudstack.response.VmMetricsResponse;
-
-import javax.inject.Inject;
-import java.util.List;
 
 /**
  * API supported for backward compatibility. Use the {@link ListVMsUsageHistoryCmd} API instead. <br>
@@ -40,19 +44,21 @@ import java.util.List;
  *     although most of it is not suitable/useful for the API purpose.</li>
  * </ul>
  */
-@APICommand(name = ListVMsMetricsCmd.APINAME, description = "Lists VM metrics", responseObject = VmMetricsResponse.class,
-        requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,  responseView = ResponseObject.ResponseView.Full,
-        since = "4.9.3", authorized = {RoleType.Admin,  RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
-@Deprecated(since = "4.17.0")
-public class ListVMsMetricsCmd extends ListVMsCmd {
-    public static final String APINAME = "listVirtualMachinesMetrics";
+@APICommand(name = "listVirtualMachinesMetrics", description = "Lists VM metrics", responseObject = VmMetricsResponse.class,
+        requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,  responseView = ResponseObject.ResponseView.Restricted,
+        since = "4.9.3", authorized = {RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
+public class ListVMsMetricsCmd extends ListVMsCmd implements UserCmd {
 
     @Inject
     private MetricsService metricsService;
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
+    public EnumSet<ApiConstants.VMDetails> getDetails() throws InvalidParameterValueException {
+        if (isViewDetailsEmpty()) {
+            return EnumSet.of(ApiConstants.VMDetails.all);
+        }
+
+        return super.getDetails();
     }
 
     @Override

@@ -16,9 +16,26 @@
 // under the License.
 package org.apache.cloudstack.api.command;
 
-import com.cloud.api.response.ApiResponseSerializer;
-import com.cloud.user.Account;
-import com.cloud.utils.HttpUtils;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.net.InetAddress;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.stream.FactoryConfigurationError;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ApiServerService;
@@ -31,7 +48,6 @@ import org.apache.cloudstack.api.response.SAMLMetaDataResponse;
 import org.apache.cloudstack.saml.SAML2AuthManager;
 import org.apache.cloudstack.saml.SAMLProviderMetadata;
 import org.apache.cloudstack.utils.security.ParserUtils;
-import org.apache.log4j.Logger;
 import org.opensaml.Configuration;
 import org.opensaml.DefaultBootstrap;
 import org.opensaml.common.xml.SAMLConstants;
@@ -72,29 +88,12 @@ import org.opensaml.xml.security.x509.BasicX509Credential;
 import org.opensaml.xml.security.x509.X509KeyInfoGeneratorFactory;
 import org.w3c.dom.Document;
 
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.stream.FactoryConfigurationError;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.net.InetAddress;
+import com.cloud.api.response.ApiResponseSerializer;
+import com.cloud.user.Account;
+import com.cloud.utils.HttpUtils;
 
 @APICommand(name = "getSPMetadata", description = "Returns SAML2 CloudStack Service Provider MetaData", responseObject = SAMLMetaDataResponse.class, entityType = {})
 public class GetServiceProviderMetaDataCmd extends BaseCmd implements APIAuthenticator {
-    public static final Logger s_logger = Logger.getLogger(GetServiceProviderMetaDataCmd.class.getName());
     private static final String s_name = "spmetadataresponse";
 
     @Inject
@@ -129,7 +128,7 @@ public class GetServiceProviderMetaDataCmd extends BaseCmd implements APIAuthent
         try {
             DefaultBootstrap.bootstrap();
         } catch (ConfigurationException | FactoryConfigurationError e) {
-            s_logger.error("OpenSAML Bootstrapping error: " + e.getMessage());
+            logger.error("OpenSAML Bootstrapping error: " + e.getMessage());
             throw new ServerApiException(ApiErrorCode.ACCOUNT_ERROR, _apiServer.getSerializedApiError(ApiErrorCode.ACCOUNT_ERROR.getHttpCode(),
                     "OpenSAML Bootstrapping error while creating SP MetaData",
                     params, responseType));
@@ -166,7 +165,7 @@ public class GetServiceProviderMetaDataCmd extends BaseCmd implements APIAuthent
             spSSODescriptor.getKeyDescriptors().add(signKeyDescriptor);
             spSSODescriptor.getKeyDescriptors().add(encKeyDescriptor);
         } catch (SecurityException e) {
-            s_logger.warn("Unable to add SP X509 descriptors:" + e.getMessage());
+            logger.warn("Unable to add SP X509 descriptors:" + e.getMessage());
         }
 
         NameIDFormat nameIDFormat = new NameIDFormatBuilder().buildObject();
@@ -246,7 +245,7 @@ public class GetServiceProviderMetaDataCmd extends BaseCmd implements APIAuthent
             Marshaller out = Configuration.getMarshallerFactory().getMarshaller(spEntityDescriptor);
             out.marshall(spEntityDescriptor, document);
 
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            Transformer transformer = ParserUtils.getSaferTransformerFactory().newTransformer();
             StreamResult streamResult = new StreamResult(stringWriter);
             DOMSource source = new DOMSource(document);
             transformer.transform(source, streamResult);
@@ -280,7 +279,7 @@ public class GetServiceProviderMetaDataCmd extends BaseCmd implements APIAuthent
             }
         }
         if (_samlAuthManager == null) {
-            s_logger.error("No suitable Pluggable Authentication Manager found for SAML2 getSPMetadata Cmd");
+            logger.error("No suitable Pluggable Authentication Manager found for SAML2 getSPMetadata Cmd");
         }
     }
 }

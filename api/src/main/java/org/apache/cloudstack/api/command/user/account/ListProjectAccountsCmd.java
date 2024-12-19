@@ -26,16 +26,13 @@ import org.apache.cloudstack.api.response.ProjectAccountResponse;
 import org.apache.cloudstack.api.response.ProjectResponse;
 import org.apache.cloudstack.api.response.ProjectRoleResponse;
 import org.apache.cloudstack.api.response.UserResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.user.Account;
 
 @APICommand(name = "listProjectAccounts", description = "Lists project's accounts", responseObject = ProjectResponse.class, since = "3.0.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ListProjectAccountsCmd extends BaseListCmd {
-    public static final Logger s_logger = Logger.getLogger(ListProjectAccountsCmd.class.getName());
 
-    private static final String s_name = "listprojectaccountsresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -76,11 +73,6 @@ public class ListProjectAccountsCmd extends BaseListCmd {
 
     public Long getProjectRoleId() {
         return projectRoleId;
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

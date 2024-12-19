@@ -18,13 +18,16 @@ package com.cloud.hypervisor.kvm.resource;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.cloudstack.utils.security.ParserUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -33,12 +36,25 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 public class LibvirtStoragePoolXMLParser {
-    private static final Logger s_logger = Logger.getLogger(LibvirtStoragePoolXMLParser.class);
+    protected Logger logger = LogManager.getLogger(getClass());
+
+    private List<String> getNFSMountOptsFromRootElement(Element rootElement) {
+        List<String> nfsMountOpts = new ArrayList<>();
+        Element mountOpts = (Element) rootElement.getElementsByTagName("fs:mount_opts").item(0);
+        if (mountOpts != null) {
+            NodeList options = mountOpts.getElementsByTagName("fs:option");
+            for (int i = 0; i < options.getLength(); i++) {
+                Element option = (Element) options.item(i);
+                nfsMountOpts.add(option.getAttribute("name"));
+            }
+        }
+        return nfsMountOpts;
+    }
 
     public LibvirtStoragePoolDef parseStoragePoolXML(String poolXML) {
         DocumentBuilder builder;
         try {
-            builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            builder = ParserUtils.getSaferDocumentBuilderFactory().newDocumentBuilder();
 
             InputSource is = new InputSource();
             is.setCharacterStream(new StringReader(poolXML));
@@ -52,7 +68,7 @@ public class LibvirtStoragePoolXMLParser {
             String poolName = getTagValue("name", rootElement);
 
             Element source = (Element)rootElement.getElementsByTagName("source").item(0);
-            String host = getAttrValue("host", "name", source);
+            String host = getStorageHosts(source);
             String format = getAttrValue("format", "type", source);
 
             if (type.equalsIgnoreCase("rbd") || type.equalsIgnoreCase("powerflex")) {
@@ -92,18 +108,22 @@ public class LibvirtStoragePoolXMLParser {
                         poolName, uuid, host, port, path, targetPath);
             } else {
                 String path = getAttrValue("dir", "path", source);
-
                 Element target = (Element)rootElement.getElementsByTagName("target").item(0);
                 String targetPath = getTagValue("path", target);
 
-                return new LibvirtStoragePoolDef(LibvirtStoragePoolDef.PoolType.valueOf(type.toUpperCase()), poolName, uuid, host, path, targetPath);
+                if (type.equalsIgnoreCase("netfs")) {
+                    List<String> nfsMountOpts = getNFSMountOptsFromRootElement(rootElement);
+                    return new LibvirtStoragePoolDef(LibvirtStoragePoolDef.PoolType.valueOf(type.toUpperCase()), poolName, uuid, host, path, targetPath, nfsMountOpts);
+                } else {
+                    return new LibvirtStoragePoolDef(LibvirtStoragePoolDef.PoolType.valueOf(type.toUpperCase()), poolName, uuid, host, path, targetPath);
+                }
             }
         } catch (ParserConfigurationException e) {
-            s_logger.debug(e.toString());
+            logger.debug(e.toString());
         } catch (SAXException e) {
-            s_logger.debug(e.toString());
+            logger.debug(e.toString());
         } catch (IOException e) {
-            s_logger.debug(e.toString());
+            logger.debug(e.toString());
         }
         return null;
     }
@@ -122,5 +142,14 @@ public class LibvirtStoragePoolXMLParser {
         }
         Element node = (Element)tagNode.item(0);
         return node.getAttribute(attr);
+    }
+
+    protected static String getStorageHosts(Element parentElement) {
+        List<String> storageHosts = new ArrayList<>();
+        NodeList hosts = parentElement.getElementsByTagName("host");
+        for (int j = 0; j < hosts.getLength(); j++) {
+            storageHosts.add(((Element) hosts.item(j)).getAttribute("name"));
+        }
+        return StringUtils.join(storageHosts, ",");
     }
 }

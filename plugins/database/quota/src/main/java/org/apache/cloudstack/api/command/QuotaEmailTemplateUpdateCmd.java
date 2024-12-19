@@ -25,15 +25,12 @@ import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.QuotaResponseBuilder;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.quota.constant.QuotaConfig;
-import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.Arrays;
 
 @APICommand(name = "quotaEmailTemplateUpdate", responseObject = SuccessResponse.class, description = "Updates existing email templates for quota alerts", since = "4.7.0", requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class QuotaEmailTemplateUpdateCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(QuotaEmailTemplateUpdateCmd.class);
-    private static final String s_name = "quotaemailtemplateupdateresponse";
 
     @Inject
     QuotaResponseBuilder _quotaResponseBuilder;
@@ -76,11 +73,6 @@ public class QuotaEmailTemplateUpdateCmd extends BaseCmd {
         response.setResponseName(getCommandName());
         response.setSuccess(true);
         setResponseObject(response);
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

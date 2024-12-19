@@ -30,7 +30,8 @@ import org.apache.cloudstack.engine.cloud.entity.api.db.dao.VMReservationDao;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.commons.collections.MapUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.springframework.stereotype.Component;
 
 import com.cloud.dc.DataCenter;
@@ -68,7 +69,7 @@ import com.cloud.vm.dao.VMInstanceDao;
 @Component
 public class VMEntityManagerImpl implements VMEntityManager {
 
-    private static final Logger s_logger = Logger.getLogger(VMEntityManagerImpl.class);
+    protected Logger logger = LogManager.getLogger(getClass());
 
     @Inject
     protected VMInstanceDao _vmDao;
@@ -158,6 +159,9 @@ public class VMEntityManagerImpl implements VMEntityManager {
             vmProfile.getParameters().put(VirtualMachineProfile.Param.BootMode, details.get(VirtualMachineProfile.Param.BootMode.getName()));
             vmProfile.getParameters().put(VirtualMachineProfile.Param.UefiFlag, details.get(VirtualMachineProfile.Param.UefiFlag.getName()));
         }
+        if (MapUtils.isNotEmpty(vmEntityVO.getDetails()) && vmEntityVO.getDetails().containsKey(VirtualMachineProfile.Param.ConsiderLastHost.getName())) {
+            vmProfile.getParameters().put(VirtualMachineProfile.Param.ConsiderLastHost, vmEntityVO.getDetails().get(VirtualMachineProfile.Param.ConsiderLastHost.getName()));
+        }
         DataCenterDeployment plan = new DataCenterDeployment(vm.getDataCenterId(), vm.getPodIdToDeployIn(), null, null, null, null);
         if (planToDeploy != null && planToDeploy.getDataCenterId() != 0) {
             plan =
@@ -210,9 +214,7 @@ public class VMEntityManagerImpl implements VMEntityManager {
                 if (reservationId != null) {
                     return reservationId;
                 } else {
-                    if (s_logger.isDebugEnabled()) {
-                        s_logger.debug("Cannot finalize the VM reservation for this destination found, retrying");
-                    }
+                    logger.debug("Cannot finalize the VM reservation for this destination found, retrying");
                     exclude.addHost(dest.getHost().getId());
                     continue;
                 }
@@ -277,7 +279,7 @@ public class VMEntityManagerImpl implements VMEntityManager {
     }
 
     @Override
-    public boolean destroyVirtualMachine(VMEntityVO vmEntityVO, String caller, boolean expunge) throws AgentUnavailableException, OperationTimedoutException, ConcurrentOperationException {
+    public boolean destroyVirtualMachine(VMEntityVO vmEntityVO, boolean expunge) throws AgentUnavailableException, OperationTimedoutException, ConcurrentOperationException {
 
         VMInstanceVO vm = _vmDao.findByUuid(vmEntityVO.getUuid());
         _itMgr.destroy(vm.getUuid(), expunge);

@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.user.vpc;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -42,8 +41,6 @@ import com.cloud.network.vpc.VpcGateway;
 @APICommand(name = "createStaticRoute", description = "Creates a static route", responseObject = StaticRouteResponse.class, entityType = {StaticRoute.class},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class CreateStaticRouteCmd extends BaseAsyncCreateCmd {
-    private static final String s_name = "createstaticrouteresponse";
-    public static final Logger s_logger = Logger.getLogger(CreateStaticRouteCmd.class.getName());
 
     @Parameter(name = ApiConstants.GATEWAY_ID,
                type = CommandType.UUID,
@@ -76,8 +73,8 @@ public class CreateStaticRouteCmd extends BaseAsyncCreateCmd {
             setEntityId(result.getId());
             setEntityUuid(result.getUuid());
         } catch (NetworkRuleConflictException ex) {
-            s_logger.info("Network rule conflict: " + ex.getMessage());
-            s_logger.trace("Network rule conflict: ", ex);
+            logger.info("Network rule conflict: " + ex.getMessage());
+            logger.trace("Network rule conflict: ", ex);
             throw new ServerApiException(ApiErrorCode.NETWORK_RULE_CONFLICT_ERROR, ex.getMessage());
         }
     }
@@ -113,11 +110,6 @@ public class CreateStaticRouteCmd extends BaseAsyncCreateCmd {
                 throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create static route");
             }
         }
-    }
-
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
 
     @Override

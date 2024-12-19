@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command.admin.usage;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiCommandResourceType;
@@ -37,9 +36,7 @@ import com.cloud.user.Account;
 @APICommand(name = "addTrafficType", description = "Adds traffic type to a physical network", responseObject = TrafficTypeResponse.class, since = "3.0.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class AddTrafficTypeCmd extends BaseAsyncCreateCmd {
-    public static final Logger s_logger = Logger.getLogger(AddTrafficTypeCmd.class.getName());
 
-    private static final String s_name = "addtraffictyperesponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -143,11 +140,6 @@ public class AddTrafficTypeCmd extends BaseAsyncCreateCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

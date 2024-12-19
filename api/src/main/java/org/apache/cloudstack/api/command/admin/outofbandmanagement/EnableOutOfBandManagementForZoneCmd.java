@@ -27,6 +27,7 @@ import com.cloud.exception.ResourceUnavailableException;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiArgValidator;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
@@ -40,11 +41,10 @@ import org.apache.cloudstack.outofbandmanagement.OutOfBandManagementService;
 
 import javax.inject.Inject;
 
-@APICommand(name = EnableOutOfBandManagementForZoneCmd.APINAME, description = "Enables out-of-band management for a zone",
+@APICommand(name = "enableOutOfBandManagementForZone", description = "Enables out-of-band management for a zone",
         responseObject = OutOfBandManagementResponse.class, requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         since = "4.9.0", authorized = {RoleType.Admin})
 public class EnableOutOfBandManagementForZoneCmd extends BaseAsyncCmd {
-    public static final String APINAME = "enableOutOfBandManagementForZone";
 
     @Inject
     private OutOfBandManagementService outOfBandManagementService;
@@ -77,11 +77,6 @@ public class EnableOutOfBandManagementForZoneCmd extends BaseAsyncCmd {
         setResponseObject(response);
     }
 
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
-
     final public Long getZoneId() {
         return zoneId;
     }
@@ -99,5 +94,15 @@ public class EnableOutOfBandManagementForZoneCmd extends BaseAsyncCmd {
     @Override
     public String getEventDescription() {
         return "enable out-of-band management password for zone: " + getZoneId();
+    }
+
+    @Override
+    public Long getApiResourceId() {
+        return getZoneId();
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.Zone;
     }
 }

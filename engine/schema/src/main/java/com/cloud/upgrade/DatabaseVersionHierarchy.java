@@ -88,6 +88,11 @@ public final class DatabaseVersionHierarchy {
             return new DbUpgrade[0];
         }
 
+        // The CloudStack version is latest or higher than latest
+        if (fromVersion.compareTo(getLatestVersion()) >= 0) {
+            return new DbUpgrade[0];
+        }
+
         // we cannot find the version specified, so get the
         // most recent one immediately before this version
         if (!contains(fromVersion)) {
@@ -122,7 +127,7 @@ public final class DatabaseVersionHierarchy {
      *
      * @since 4.8.2.0 (refactored in 4.11.1.0)
      */
-    private CloudStackVersion getRecentVersion(final CloudStackVersion fromVersion) {
+    protected CloudStackVersion getRecentVersion(final CloudStackVersion fromVersion) {
         if (fromVersion == null) {
             return null;
         }
@@ -131,7 +136,7 @@ public final class DatabaseVersionHierarchy {
         return toList()
                  .reverse()
                  .stream()
-                 .filter(version -> fromVersion.compareTo(version) < 0)
+                 .filter(version -> fromVersion.compareTo(version) > 0)
                  .findFirst()
                  .orElse(null);
     }
@@ -158,15 +163,16 @@ public final class DatabaseVersionHierarchy {
         return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
     }
 
-    private static class VersionNode {
+    protected static class VersionNode {
         final CloudStackVersion version;
         final DbUpgrade upgrader;
 
-        private VersionNode(final CloudStackVersion version, final DbUpgrade upgrader) {
+        protected VersionNode(final CloudStackVersion version, final DbUpgrade upgrader) {
             this.version = version;
             this.upgrader = upgrader;
         }
     }
+
 
     public static final class DatabaseVersionHierarchyBuilder {
         private final List<VersionNode> hierarchyBuilder = new LinkedList<>();
@@ -182,5 +188,9 @@ public final class DatabaseVersionHierarchy {
         public DatabaseVersionHierarchy build() {
             return new DatabaseVersionHierarchy(ImmutableList.copyOf(hierarchyBuilder));
         }
+    }
+
+    public CloudStackVersion getLatestVersion() {
+        return CloudStackVersion.parse(hierarchy.get(hierarchy.size() - 1).upgrader.getUpgradedVersion());
     }
 }

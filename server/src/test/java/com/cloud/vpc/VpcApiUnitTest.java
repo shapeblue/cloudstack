@@ -16,17 +16,6 @@
 // under the License.
 package com.cloud.vpc;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.network.Network.Service;
 import com.cloud.network.vpc.Vpc;
@@ -34,15 +23,23 @@ import com.cloud.network.vpc.VpcManagerImpl;
 import com.cloud.network.vpc.VpcVO;
 import com.cloud.user.AccountVO;
 import com.cloud.utils.component.ComponentContext;
-
 import junit.framework.TestCase;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = "classpath:/VpcTestContext.xml")
 public class VpcApiUnitTest extends TestCase {
     @Inject
     VpcManagerImpl _vpcService = null;
-    VpcVO _vo = new VpcVO(1, "new vpc", "new vpc", 1, 1, 1, "0.0.0.0/0", "vpc domain", false, false, false);
+    VpcVO _vo = new VpcVO(1, "new vpc", "new vpc", 1, 1, 1, "0.0.0.0/0", "vpc domain", false, false, false, null, null, null, null);
 
     @Override
     @Before

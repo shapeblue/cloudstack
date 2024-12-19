@@ -20,7 +20,8 @@ import java.awt.Image;
 import java.awt.Rectangle;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import com.cloud.consoleproxy.util.TileInfo;
 import com.cloud.consoleproxy.util.TileTracker;
@@ -34,7 +35,7 @@ import com.cloud.consoleproxy.vnc.FrameBufferCanvas;
  *
  */
 public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, ConsoleProxyClientListener {
-    private static final Logger s_logger = Logger.getLogger(ConsoleProxyClientBase.class);
+    protected  Logger logger = LogManager.getLogger(getClass());
 
     private static int s_nextClientId = 0;
     protected int clientId = getNextClientId();
@@ -55,6 +56,7 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
     protected boolean framebufferResized = false;
     protected int resizedFramebufferWidth;
     protected int resizedFramebufferHeight;
+    protected String sessionUuid;
 
     public ConsoleProxyClientBase() {
         tracker = new TileTracker();
@@ -156,8 +158,8 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
 
     @Override
     public void onFramebufferUpdate(int x, int y, int w, int h) {
-        if (s_logger.isTraceEnabled())
-            s_logger.trace("Frame buffer update {" + x + "," + y + "," + w + "," + h + "}");
+        if (logger.isTraceEnabled())
+            logger.trace("Frame buffer update {" + x + "," + y + "," + w + "," + h + "}");
         tracker.invalidate(new Rectangle(x, y, w, h));
 
         signalTileDirtyEvent();
@@ -189,10 +191,10 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
             imgBits = getTilesMergedJpeg(tiles, tracker.getTileWidth(), tracker.getTileHeight());
 
         if (imgBits == null) {
-            s_logger.warn("Unable to generate jpeg image");
+            logger.warn("Unable to generate jpeg image");
         } else {
-            if (s_logger.isTraceEnabled())
-                s_logger.trace("Generated jpeg image size: " + imgBits.length);
+            if (logger.isTraceEnabled())
+                logger.trace("Generated jpeg image size: " + imgBits.length);
         }
 
         int key = ajaxImageCache.putImage(imgBits);
@@ -230,7 +232,7 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-                s_logger.debug("[ignored] Console proxy was interrupted while waiting for viewer to become ready.");
+                logger.debug("[ignored] Console proxy was interrupted while waiting for viewer to become ready.");
             }
         }
         return false;
@@ -258,8 +260,8 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
         int width = tracker.getTrackWidth();
         int height = tracker.getTrackHeight();
 
-        if (s_logger.isTraceEnabled())
-            s_logger.trace("Ajax client start, frame buffer w: " + width + ", " + height);
+        if (logger.isTraceEnabled())
+            logger.trace("Ajax client start, frame buffer w: " + width + ", " + height);
 
         List<TileInfo> tiles = tracker.scan(true);
         String imgUrl = prepareAjaxImage(tiles, true);
@@ -343,7 +345,7 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
                 try {
                     tileDirtyEvent.wait(3000);
                 } catch (InterruptedException e) {
-                    s_logger.debug("[ignored] Console proxy ajax update was interrupted while waiting for viewer to become ready.");
+                    logger.debug("[ignored] Console proxy ajax update was interrupted while waiting for viewer to become ready.");
                 }
             }
         }
@@ -421,5 +423,10 @@ public abstract class ConsoleProxyClientBase implements ConsoleProxyClient, Cons
         this.clientParam = clientParam;
         ConsoleProxyPasswordBasedEncryptor encryptor = new ConsoleProxyPasswordBasedEncryptor(ConsoleProxy.getEncryptorPassword());
         this.clientToken = encryptor.encryptObject(ConsoleProxyClientParam.class, clientParam);
+    }
+
+    @Override
+    public String getSessionUuid() {
+        return sessionUuid;
     }
 }

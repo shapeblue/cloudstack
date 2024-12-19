@@ -51,12 +51,12 @@
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
             :placeholder="apiParams.systemvmtype.description">
-            <a-select-option key="domainrouter">{{ $t('label.domain.router') }}</a-select-option>
-            <a-select-option key="consoleproxy">{{ $t('label.console.proxy') }}</a-select-option>
-            <a-select-option key="secondarystoragevm">{{ $t('label.secondary.storage.vm') }}</a-select-option>
+            <a-select-option key="domainrouter" :label="$t('label.domain.router')">{{ $t('label.domain.router') }}</a-select-option>
+            <a-select-option key="consoleproxy" :label="$t('label.console.proxy')">{{ $t('label.console.proxy') }}</a-select-option>
+            <a-select-option key="secondarystoragevm" :label="$t('label.secondary.storage.vm')">{{ $t('label.secondary.storage.vm') }}</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item name="offeringtype" ref="offeringtype" :label="$t('label.offeringtype')" v-show="!isSystem">
@@ -153,7 +153,7 @@
         </a-row>
         <a-row :gutter="12">
           <a-col :md="12" :lg="12">
-            <a-form-item v-if="isAdmin()" name="hosttags" ref="hosttags">
+            <a-form-item v-if="isAdmin() || isDomainAdminAllowedToInformTags" name="hosttags" ref="hosttags">
               <template #label>
                 <tooltip-label :title="$t('label.hosttags')" :tooltip="apiParams.hosttags.description"/>
               </template>
@@ -218,12 +218,12 @@
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
             :loading="deploymentPlannerLoading"
             :placeholder="apiParams.deploymentplanner.description"
             @change="val => { handleDeploymentPlannerChange(val) }">
-            <a-select-option v-for="(opt) in deploymentPlanners" :key="opt.name">
+            <a-select-option v-for="(opt) in deploymentPlanners" :key="opt.name" :label="opt.name || opt.description || ''">
               {{ opt.name || opt.description }}
             </a-select-option>
           </a-select>
@@ -244,14 +244,19 @@
           </a-radio-group>
         </a-form-item>
         <a-form-item name="pcidevice" ref="pcidevice" :label="$t('label.gpu')" v-if="!isSystem">
-          <a-radio-group
+          <a-select
             v-model:value="form.pcidevice"
-            buttonStyle="solid"
-            @change="selected => { handleGpuChange(selected.target.value) }">
-            <a-radio-button v-for="(opt, optIndex) in gpuTypes" :key="optIndex" :value="opt.value">
+            showSearch
+            optionFilterProp="label"
+            :filterOption="(input, option) => {
+              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }"
+            :placeholder="$t('label.gpu')"
+            @change="handleGpuChange">
+            <a-select-option v-for="(opt, optIndex) in gpuTypes" :key="optIndex" :value="opt.value">
               {{ opt.title }}
-            </a-radio-button>
-          </a-radio-group>
+            </a-select-option>
+          </a-select>
         </a-form-item>
         <a-form-item name="vgputype" ref="vgputype" :label="$t('label.vgputype')" v-if="vGpuVisible">
           <a-select
@@ -259,10 +264,10 @@
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
             :placeholder="$t('label.vgputype')">
-            <a-select-option v-for="(opt, optIndex) in vGpuTypes" :key="optIndex">
+            <a-select-option v-for="(opt, optIndex) in vGpuTypes" :key="optIndex" :label="opt">
               {{ opt }}
             </a-select-option>
           </a-select>
@@ -331,12 +336,18 @@
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }" >
-            <a-select-option v-for="policy in storagePolicies" :key="policy.id">
+            <a-select-option v-for="policy in storagePolicies" :key="policy.id" :label="policy.name || policy.id || ''">
               {{ policy.name || policy.id }}
             </a-select-option>
           </a-select>
+        </a-form-item>
+        <a-form-item name="purgeresources" ref="purgeresources">
+          <template #label>
+            <tooltip-label :title="$t('label.purgeresources')" :tooltip="apiParams.purgeresources.description"/>
+          </template>
+          <a-switch v-model:checked="form.purgeresources"/>
         </a-form-item>
         <a-form-item name="computeonly" ref="computeonly">
           <template #label>
@@ -508,7 +519,7 @@
                 </a-form-item>
               </a-col>
               <a-col :md="12" :lg="12">
-                <a-form-item v-if="isAdmin()" name="storagetags" ref="storagetags">
+                <a-form-item v-if="isAdmin() || isDomainAdminAllowedToInformTags" name="storagetags" ref="storagetags">
                   <template #label>
                     <tooltip-label :title="$t('label.storagetags')" :tooltip="apiParams.tags.description"/>
                   </template>
@@ -516,13 +527,13 @@
                     mode="tags"
                     v-model:value="form.storagetags"
                     showSearch
-                    optionFilterProp="label"
+                    optionFilterProp="value"
                     :filterOption="(input, option) => {
-                      return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                      return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0
                     }"
                     :loading="storageTagLoading"
                     :placeholder="apiParams.tags.description"
-                    v-if="isAdmin()">
+                    v-if="isAdmin() || isDomainAdminAllowedToInformTags">
                     <a-select-option v-for="opt in storageTags" :key="opt">
                       {{ opt }}
                     </a-select-option>
@@ -530,6 +541,12 @@
                 </a-form-item>
               </a-col>
             </a-row>
+            <a-form-item name="encryptdisk" ref="encryptdisk">
+              <template #label>
+                <tooltip-label :title="$t('label.encrypt')" :tooltip="apiParams.encryptroot.description" />
+              </template>
+              <a-switch v-model:checked="form.encryptdisk" :checked="encryptdisk" @change="val => { encryptdisk = val }" />
+            </a-form-item>
           </span>
           <span v-if="!computeonly">
             <a-form-item>
@@ -560,7 +577,7 @@
               </a-form-item>
             </a-form-item>
           </span>
-          <a-form-item>
+          <a-form-item name="diskofferingstrictness" ref="diskofferingstrictness">
             <template #label>
               <tooltip-label :title="$t('label.diskofferingstrictness')" :tooltip="apiParams.diskofferingstrictness.description"/>
             </template>
@@ -584,6 +601,7 @@ import { isAdmin } from '@/role'
 import { mixinForm } from '@/utils/mixin'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import TooltipLabel from '@/components/widgets/TooltipLabel'
+import store from '@/store'
 
 export default {
   name: 'AddServiceOffering',
@@ -636,14 +654,34 @@ export default {
           vgpu: []
         },
         {
-          value: 'Group of NVIDIA Corporation GK107GL [GRID K1] GPUs',
-          title: 'NVIDIA GRID K1',
-          vgpu: ['', 'passthrough', 'GRID K100', 'GRID K120Q', 'GRID K140Q', 'GRID K160Q', 'GRID K180Q']
+          value: 'Group of NVIDIA Corporation GV100GL [TESLA V100] GPUs',
+          title: 'NVIDIA TESLA V100',
+          vgpu: ['', 'passthrough', 'GRID V100D-1A', 'GRID V100D-1B', 'GRID V100D-1Q', 'GRID V100D-2A', 'GRID V100D-2B', 'GRID V100D-2B4', 'GRID V100D-2Q', 'GRID V100D-4A', 'GRID V100D-4Q', 'GRID V100D-8A', 'GRID V100D-8Q', 'GRID V100D-16A', 'GRID V100D-16Q', 'GRID V100D-32A', 'GRID V100D-32Q']
         },
         {
-          value: 'Group of NVIDIA Corporation GK104GL [GRID K2] GPUs',
-          title: 'NVIDIA GRID K2',
-          vgpu: ['', 'passthrough', 'GRID K200', 'GRID K220Q', 'GRID K240Q', 'GRID K260Q', 'GRID K280Q']
+          value: 'Group of Nvidia Corporation TU104GL [Tesla T4] GPUs',
+          title: 'NVIDIA TESLA T4',
+          vgpu: ['', 'passthrough', 'GRID T4-1A', 'GRID T4-1B', 'GRID T4-1Q', 'GRID T4-2A', 'GRID T4-2B', 'GRID T4-2B4', 'GRID T4-2Q', 'GRID T4-4A', 'GRID T4-4Q', 'GRID T4-8A', 'GRID T4-8Q', 'GRID T4-16A', 'GRID T4-16Q']
+        },
+        {
+          value: 'Group of Nvidia Corporation GA102 [RTX A5500] GPUs',
+          title: 'NVIDIA RTX A5500',
+          vgpu: ['', 'passthrough', 'NVIDIA RTXA5500-1A', 'NVIDIA RTXA5500-1B', 'NVIDIA RTXA5500-1Q', 'NVIDIA RTXA5500-2A', 'NVIDIA RTXA5500-2B', 'NVIDIA RTXA5500-2Q', 'NVIDIA RTXA5500-3A', 'NVIDIA RTXA5500-3Q', 'NVIDIA RTXA5500-4A', 'NVIDIA RTXA5500-4Q', 'NVIDIA RTXA5500-6A', 'NVIDIA RTXA5500-6Q', 'NVIDIA RTXA5500-8A', 'NVIDIA RTXA5500-8Q', 'NVIDIA RTXA5500-12A', 'NVIDIA RTXA5500-12Q', 'NVIDIA RTXA5500-24A', 'NVIDIA RTXA5500-24Q']
+        },
+        {
+          value: 'Group of NVIDIA Corporation GA102GL [A40] GPUs',
+          title: 'NVIDIA RTX A40',
+          vgpu: ['', 'passthrough', 'NVIDIA A40-1A', 'NVIDIA A40-1B', 'NVIDIA A40-1Q', 'NVIDIA A40-2A', 'NVIDIA A40-2B', 'NVIDIA A40-2Q', 'NVIDIA A40-3A', 'NVIDIA A40-3Q', 'NVIDIA A40-4A', 'NVIDIA A40-4Q', 'NVIDIA A40-6A', 'NVIDIA A40-6Q', 'NVIDIA A40-8A', 'NVIDIA A40-8Q', 'NVIDIA A40-12A', 'NVIDIA A40-12Q', 'NVIDIA A40-16A', 'NVIDIA A40-16Q', 'NVIDIA A40-24A', 'NVIDIA A40-24Q', 'NVIDIA A40-48A', 'NVIDIA A40-48Q']
+        },
+        {
+          value: 'Group of NVIDIA Corporation GA107 [NVIDIA A16/NVIDIA A2] GPUs',
+          title: 'NVIDIA RTX A2',
+          vgpu: ['', 'passthrough', 'NVIDIA A2-1A', 'NVIDIA A2-1B', 'NVIDIA A2-1Q', 'NVIDIA A2-2A', 'NVIDIA A2-2B', 'NVIDIA A2-2Q', 'NVIDIA A2-4A', 'NVIDIA A2-4Q', 'NVIDIA A2-8A', 'NVIDIA A2-8Q', 'NVIDIA A2-16A', 'NVIDIA A2-16Q']
+        },
+        {
+          value: 'Group of NVIDIA Corporation GA102GL [A10] GPUs',
+          title: 'NVIDIA RTX A10',
+          vgpu: ['', 'passthrough', 'NVIDIA A10-1A', 'NVIDIA A10-1B', 'NVIDIA A10-1Q', 'NVIDIA A10-2A', 'NVIDIA A10-2B', 'NVIDIA A10-2Q', 'NVIDIA A10-3A', 'NVIDIA A10-3Q', 'NVIDIA A10-4A', 'NVIDIA A10-4Q', 'NVIDIA A10-6A', 'NVIDIA A10-6Q', 'NVIDIA A10-8A', 'NVIDIA A10-8Q', 'NVIDIA A10-12A', 'NVIDIA A10-12Q', 'NVIDIA A10-24A', 'NVIDIA A10-24Q']
         }
       ],
       vGpuVisible: false,
@@ -651,11 +689,13 @@ export default {
       loading: false,
       dynamicscalingenabled: true,
       diskofferingstrictness: false,
+      encryptdisk: false,
       computeonly: true,
       diskOfferingLoading: false,
       diskOfferings: [],
       selectedDiskOfferingId: '',
-      qosType: ''
+      qosType: '',
+      isDomainAdminAllowedToInformTags: false
     }
   },
   beforeCreate () {
@@ -674,6 +714,7 @@ export default {
     this.initForm()
     this.fetchData()
     this.isPublic = isAdmin()
+    this.form.ispublic = this.isPublic
   },
   methods: {
     initForm () {
@@ -692,11 +733,11 @@ export default {
         qostype: this.qosType,
         iscustomizeddiskiops: this.isCustomizedDiskIops,
         diskofferingid: this.selectedDiskOfferingId,
-        diskofferingstrictness: this.diskofferingstrictness
+        diskofferingstrictness: this.diskofferingstrictness,
+        encryptdisk: this.encryptdisk
       })
       this.rules = reactive({
         name: [{ required: true, message: this.$t('message.error.required.input') }],
-        displaytext: [{ required: true, message: this.$t('message.error.required.input') }],
         cpunumber: [
           { required: true, message: this.$t('message.error.required.input') },
           this.naturalNumberRule
@@ -753,6 +794,11 @@ export default {
       if (isAdmin()) {
         this.fetchStorageTagData()
         this.fetchDeploymentPlannerData()
+      } else if (this.isDomainAdmin()) {
+        this.checkIfDomainAdminIsAllowedToInformTag()
+        if (this.isDomainAdminAllowedToInformTags) {
+          this.fetchStorageTagData()
+        }
       }
       this.fetchDiskOfferings()
     },
@@ -784,6 +830,15 @@ export default {
     isAdmin () {
       return isAdmin()
     },
+    isDomainAdmin () {
+      return ['DomainAdmin'].includes(this.$store.getters.userInfo.roletype)
+    },
+    checkIfDomainAdminIsAllowedToInformTag () {
+      const params = { id: store.getters.userInfo.accountid }
+      api('isAccountAllowedToCreateOfferingsWithTags', params).then(json => {
+        this.isDomainAdminAllowedToInformTags = json.isaccountallowedtocreateofferingswithtagsresponse.isallowed.isallowed
+      })
+    },
     arrayHasItems (array) {
       return array !== null && array !== undefined && Array.isArray(array) && array.length > 0
     },
@@ -802,22 +857,21 @@ export default {
     },
     fetchZoneData () {
       const params = {}
-      params.listAll = true
       params.showicon = true
       this.zoneLoading = true
       api('listZones', params).then(json => {
         const listZones = json.listzonesresponse.zone
-        this.zones = this.zones.concat(listZones)
+        if (listZones) {
+          this.zones = this.zones.concat(listZones)
+        }
       }).finally(() => {
         this.zoneLoading = false
       })
     },
     fetchStorageTagData () {
-      const params = {}
-      params.listAll = true
       this.storageTagLoading = true
       this.storageTags = []
-      api('listStorageTags', params).then(json => {
+      api('listStorageTags').then(json => {
         const tags = json.liststoragetagsresponse.storagetag || []
         for (const tag of tags) {
           if (!this.storageTags.includes(tag.name)) {
@@ -829,10 +883,8 @@ export default {
       })
     },
     fetchDeploymentPlannerData () {
-      const params = {}
-      params.listAll = true
       this.deploymentPlannerLoading = true
-      api('listDeploymentPlanners', params).then(json => {
+      api('listDeploymentPlanners').then(json => {
         const planners = json.listdeploymentplannersresponse.deploymentPlanner
         this.deploymentPlanners = this.deploymentPlanners.concat(planners)
         this.deploymentPlanners.unshift({ name: '' })
@@ -883,9 +935,9 @@ export default {
     },
     handleGpuChange (val) {
       this.vGpuTypes = []
-      for (var i in this.gpuTypes) {
-        if (this.gpuTypes[i].value === val) {
-          this.vGpuTypes = this.gpuTypes[i].vgpu
+      for (var gpuType of this.gpuTypes) {
+        if (gpuType.value === val) {
+          this.vGpuTypes = gpuType.vgpu
           break
         }
       }
@@ -911,7 +963,9 @@ export default {
           offerha: values.offerha === true,
           limitcpuuse: values.limitcpuuse === true,
           dynamicscalingenabled: values.dynamicscalingenabled,
-          diskofferingstrictness: values.diskofferingstrictness
+          diskofferingstrictness: values.diskofferingstrictness,
+          encryptroot: values.encryptdisk,
+          purgeresources: values.purgeresources
         }
         if (values.diskofferingid) {
           params.diskofferingid = values.diskofferingid
@@ -997,9 +1051,7 @@ export default {
           params['serviceofferingdetails[1].key'] = 'pciDevice'
           params['serviceofferingdetails[1].value'] = values.pcidevice
         }
-        if ('vgputype' in values &&
-          this.vGpuTypes !== null && this.vGpuTypes !== undefined &&
-          values.vgputype > this.vGpuTypes.length) {
+        if ('vgputype' in values && this.arrayHasItems(this.vGpuTypes)) {
           params['serviceofferingdetails[2].key'] = 'vgpuType'
           params['serviceofferingdetails[2].value'] = this.vGpuTypes[values.vgputype]
         }

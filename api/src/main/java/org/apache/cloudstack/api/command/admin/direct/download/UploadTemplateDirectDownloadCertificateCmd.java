@@ -33,13 +33,12 @@ import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.direct.download.DirectDownloadCertificate;
 import org.apache.cloudstack.direct.download.DirectDownloadManager;
 import org.apache.cloudstack.direct.download.DirectDownloadManager.HostCertificateStatus;
-import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
-@APICommand(name = UploadTemplateDirectDownloadCertificateCmd.APINAME,
+@APICommand(name = "uploadTemplateDirectDownloadCertificate",
         description = "Upload a certificate for HTTPS direct template download on KVM hosts",
         responseObject = DirectDownloadCertificateResponse.class,
         since = "4.11.0",
@@ -49,8 +48,6 @@ public class UploadTemplateDirectDownloadCertificateCmd extends BaseCmd {
     @Inject
     DirectDownloadManager directDownloadManager;
 
-    private static final Logger LOG = Logger.getLogger(UploadTemplateDirectDownloadCertificateCmd.class);
-    public static final String APINAME = "uploadTemplateDirectDownloadCertificate";
 
     @Parameter(name = ApiConstants.CERTIFICATE, type = BaseCmd.CommandType.STRING, required = true, length = 65535,
             description = "SSL certificate")
@@ -98,7 +95,7 @@ public class UploadTemplateDirectDownloadCertificateCmd extends BaseCmd {
         }
 
         try {
-            LOG.debug("Uploading certificate " + name + " to agents for Direct Download");
+            logger.debug("Uploading certificate " + name + " to agents for Direct Download");
             Pair<DirectDownloadCertificate, List<HostCertificateStatus>> uploadStatus =
                     directDownloadManager.uploadCertificateToHosts(certificate, name, hypervisor, zoneId, hostId);
             DirectDownloadCertificate certificate = uploadStatus.first();
@@ -110,14 +107,7 @@ public class UploadTemplateDirectDownloadCertificateCmd extends BaseCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return CallContext.current().getCallingAccount().getId();
     }
 }
-
-

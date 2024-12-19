@@ -22,7 +22,6 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
-import org.apache.log4j.Logger;
 
 import com.cloud.dc.DataCenter;
 import com.cloud.dc.Pod;
@@ -41,6 +40,7 @@ import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.network.IpAddressManager;
 import com.cloud.network.Network;
+import com.cloud.network.NetworkModel;
 import com.cloud.network.Networks.AddressFormat;
 import com.cloud.network.Networks.BroadcastDomainType;
 import com.cloud.network.Networks.IsolationType;
@@ -49,6 +49,7 @@ import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.guru.DirectPodBasedNetworkGuru;
 import com.cloud.offerings.dao.NetworkOfferingDao;
+import com.cloud.utils.Pair;
 import com.cloud.utils.db.Transaction;
 import com.cloud.utils.db.TransactionCallbackNoReturn;
 import com.cloud.utils.db.TransactionStatus;
@@ -57,7 +58,6 @@ import com.cloud.vm.ReservationContext;
 import com.cloud.vm.VirtualMachineProfile;
 
 public class BaremetaNetworkGuru extends DirectPodBasedNetworkGuru {
-    private static final Logger s_logger = Logger.getLogger(BaremetaNetworkGuru.class);
     @Inject
     private HostDao _hostDao;
     @Inject
@@ -74,6 +74,8 @@ public class BaremetaNetworkGuru extends DirectPodBasedNetworkGuru {
     PodVlanMapDao _podVlanDao;
     @Inject
     IpAddressManager _ipAddrMgr;
+    @Inject
+    NetworkModel networkModel;
 
     @Override
     public void reserve(NicProfile nic, Network network, VirtualMachineProfile vm, DeployDestination dest, ReservationContext context)
@@ -125,8 +127,9 @@ public class BaremetaNetworkGuru extends DirectPodBasedNetworkGuru {
         }
 
         DataCenter dc = _dcDao.findById(network.getDataCenterId());
-        nic.setIPv4Dns1(dc.getDns1());
-        nic.setIPv4Dns2(dc.getDns2());
+        Pair<String, String> dns = networkModel.getNetworkIp4Dns(network, dc);
+        nic.setIPv4Dns1(dns.first());
+        nic.setIPv4Dns2(dns.second());
 
         /*
          * Pod pod = dest.getPod(); Pair<String, Long> ip =
@@ -146,14 +149,14 @@ public class BaremetaNetworkGuru extends DirectPodBasedNetworkGuru {
          * nic.setBroadcastUri(null); nic.setIsolationUri(null);
          */
 
-        s_logger.debug("Allocated a nic " + nic + " for " + vm);
+        logger.debug("Allocated a nic " + nic + " for " + vm);
     }
 
     private void getBaremetalIp(NicProfile nic, Pod pod, VirtualMachineProfile vm, Network network, String requiredIp) throws
         InsufficientAddressCapacityException, ConcurrentOperationException {
         DataCenter dc = _dcDao.findById(pod.getDataCenterId());
         if (nic.getIPv4Address() == null) {
-            s_logger.debug(String.format("Requiring ip address: %s", nic.getIPv4Address()));
+            logger.debug(String.format("Requiring ip address: %s", nic.getIPv4Address()));
             PublicIp ip = _ipAddrMgr.assignPublicIpAddress(dc.getId(), pod.getId(), vm.getOwner(), VlanType.DirectAttached, network.getId(), requiredIp, false, false);
             nic.setIPv4Address(ip.getAddress().toString());
             nic.setFormat(AddressFormat.Ip4);
@@ -167,7 +170,8 @@ public class BaremetaNetworkGuru extends DirectPodBasedNetworkGuru {
             nic.setReservationId(String.valueOf(ip.getVlanTag()));
             nic.setMacAddress(ip.getMacAddress());
         }
-        nic.setIPv4Dns1(dc.getDns1());
-        nic.setIPv4Dns2(dc.getDns2());
+        Pair<String, String> dns = networkModel.getNetworkIp4Dns(network, dc);
+        nic.setIPv4Dns1(dns.first());
+        nic.setIPv4Dns2(dns.second());
     }
 }

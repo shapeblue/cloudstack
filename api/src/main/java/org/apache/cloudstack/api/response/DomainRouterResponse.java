@@ -89,6 +89,10 @@ public class DomainRouterResponse extends BaseResponseWithAnnotations implements
     @Param(description = "the hostname for the router")
     private String hostName;
 
+    @SerializedName(ApiConstants.HOST_CONTROL_STATE)
+    @Param(description = "the control state of the host for the router")
+    private String hostControlState;
+
     @SerializedName("hypervisor")
     @Param(description = "the hypervisor on which the template runs")
     private String hypervisor;
@@ -180,6 +184,10 @@ public class DomainRouterResponse extends BaseResponseWithAnnotations implements
     @SerializedName(ApiConstants.DOMAIN)
     @Param(description = "the domain associated with the router")
     private String domainName;
+
+    @SerializedName(ApiConstants.DOMAIN_PATH)
+    @Param(description = "path of the Domain the router belongs to", since = "4.19.2.0")
+    private String domainPath;
 
     @SerializedName(ApiConstants.SERVICE_OFFERING_ID)
     @Param(description = "the ID of the service offering of the virtual machine")
@@ -302,6 +310,10 @@ public class DomainRouterResponse extends BaseResponseWithAnnotations implements
         this.hostName = hostName;
     }
 
+    public void setHostControlState(String hostControlState) {
+        this.hostControlState = hostControlState;
+    }
+
     public String getHypervisor() {
         return hypervisor;
     }
@@ -373,6 +385,10 @@ public class DomainRouterResponse extends BaseResponseWithAnnotations implements
         this.domainName = domainName;
     }
 
+    @Override
+    public void setDomainPath(String domainPath) {
+        this.domainPath = domainPath;
+    }
     public void setPublicNetworkId(String publicNetworkId) {
         this.publicNetworkId = publicNetworkId;
     }

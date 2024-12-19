@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.command.admin.sioc;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -32,14 +31,12 @@ import org.apache.cloudstack.sioc.SiocManager;
 
 import com.cloud.user.Account;
 
-@APICommand(name = UpdateSiocInfoCmd.APINAME, description = "Update SIOC info", responseObject = ApiUpdateSiocInfoResponse.class,
+@APICommand(name = "updateSiocInfo", description = "Update SIOC info", responseObject = ApiUpdateSiocInfoResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         since = "4.11.0",
         authorized = {RoleType.Admin})
 public class UpdateSiocInfoCmd extends BaseCmd {
-    private static final Logger s_logger = Logger.getLogger(UpdateSiocInfoCmd.class.getName());
 
-    public static final String APINAME = "updateSiocInfo";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -67,11 +64,6 @@ public class UpdateSiocInfoCmd extends BaseCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         Account account = CallContext.current().getCallingAccount();
 
@@ -84,7 +76,7 @@ public class UpdateSiocInfoCmd extends BaseCmd {
 
     @Override
     public void execute() {
-        s_logger.info("'UpdateSiocInfoCmd.execute' method invoked");
+        logger.info("'UpdateSiocInfoCmd.execute' method invoked");
 
         String msg = "Success";
 

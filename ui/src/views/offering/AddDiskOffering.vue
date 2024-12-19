@@ -75,12 +75,15 @@
             </a-radio-button>
           </a-radio-group>
         </a-form-item>
+        <a-form-item name="encryptdisk" ref="encryptdisk">
+          <template #label>
+            <tooltip-label :title="$t('label.encrypt')" :tooltip="apiParams.encrypt.description" />
+          </template>
+          <a-switch v-model:checked="form.encryptdisk" :checked="encryptdisk" @change="val => { encryptdisk = val }" />
+        </a-form-item>
         <a-form-item name="disksizestrictness" ref="disksizestrictness">
           <template #label>
-            {{ $t('label.disksizestrictness') }}
-            <a-tooltip :title="apiParams.disksizestrictness.description">
-              <info-circle-outlined />
-            </a-tooltip>
+            <tooltip-label :title="$t('label.disksizestrictness')" :tooltip="apiParams.disksizestrictness.description" />
           </template>
           <a-switch v-model:checked="form.disksizestrictness" :checked="disksizestrictness" @change="val => { disksizestrictness = val }" />
         </a-form-item>
@@ -121,6 +124,14 @@
             v-model:value="form.diskbytesreadrate"
             :placeholder="apiParams.bytesreadrate.description"/>
         </a-form-item>
+        <a-form-item v-if="form.qostype === 'hypervisor'" name="diskbytesreadratemax" ref="diskbytesreadratemax">
+          <template #label>
+            <tooltip-label :title="$t('label.diskbytesreadratemax')" :tooltip="apiParams.bytesreadratemax.description"/>
+          </template>
+          <a-input
+            v-model:value="form.diskbytesreadratemax"
+            :placeholder="apiParams.bytesreadratemax.description"/>
+        </a-form-item>
         <a-form-item v-if="form.qostype === 'hypervisor'" name="diskbyteswriterate" ref="diskbyteswriterate">
           <template #label>
             <tooltip-label :title="$t('label.diskbyteswriterate')" :tooltip="apiParams.byteswriterate.description"/>
@@ -128,6 +139,14 @@
           <a-input
             v-model:value="form.diskbyteswriterate"
             :placeholder="apiParams.byteswriterate.description"/>
+        </a-form-item>
+        <a-form-item v-if="form.qostype === 'hypervisor'" name="diskbyteswriteratemax" ref="diskbyteswriteratemax">
+          <template #label>
+            <tooltip-label :title="$t('label.diskbyteswriteratemax')" :tooltip="apiParams.byteswriteratemax.description"/>
+          </template>
+          <a-input
+            v-model:value="form.diskbyteswriteratemax"
+            :placeholder="apiParams.byteswriteratemax.description"/>
         </a-form-item>
         <a-form-item v-if="form.qostype === 'hypervisor'" name="diskiopsreadrate" ref="diskiopsreadrate">
           <template #label>
@@ -194,7 +213,7 @@
             </a-radio-button>
           </a-radio-group>
         </a-form-item>
-        <a-form-item v-if="isAdmin()" name="tags" ref="tags">
+        <a-form-item v-if="isAdmin() || isDomainAdminAllowedToInformTags" name="tags" ref="tags">
           <template #label>
             <tooltip-label :title="$t('label.storagetags')" :tooltip="apiParams.tags.description"/>
           </template>
@@ -202,13 +221,13 @@
             mode="tags"
             v-model:value="form.tags"
             showSearch
-            optionFilterProp="label"
+            optionFilterProp="value"
             :filterOption="(input, option) => {
-              return option.children?.[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }"
             :loading="storageTagLoading"
             :placeholder="apiParams.tags.description"
-            v-if="isAdmin()">
+            v-if="isAdmin() || isDomainAdminAllowedToInformTags">
             <a-select-option v-for="(opt) in storageTags" :key="opt">
               {{ opt }}
             </a-select-option>
@@ -275,9 +294,9 @@
             showSearch
             optionFilterProp="label"
             :filterOption="(input, option) => {
-              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }" >
-            <a-select-option v-for="policy in storagePolicies" :key="policy.id">
+            <a-select-option v-for="policy in storagePolicies" :key="policy.id" :label="policy.name || policy.id || ''">
               {{ policy.name || policy.id }}
             </a-select-option>
           </a-select>
@@ -298,6 +317,7 @@ import { isAdmin } from '@/role'
 import { mixinForm } from '@/utils/mixin'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import TooltipLabel from '@/components/widgets/TooltipLabel'
+import store from '@/store'
 
 export default {
   name: 'AddDiskOffering',
@@ -313,12 +333,15 @@ export default {
       storagePolicies: null,
       storageTagLoading: false,
       isPublic: true,
+      isEncrypted: false,
       domains: [],
       domainLoading: false,
       zones: [],
       zoneLoading: false,
       loading: false,
-      disksizestrictness: false
+      disksizestrictness: false,
+      encryptdisk: false,
+      isDomainAdminAllowedToInformTags: false
     }
   },
   beforeCreate () {
@@ -345,17 +368,19 @@ export default {
         writecachetype: 'none',
         qostype: '',
         ispublic: this.isPublic,
-        disksizestrictness: this.disksizestrictness
+        disksizestrictness: this.disksizestrictness,
+        encryptdisk: this.encryptdisk
       })
       this.rules = reactive({
         name: [{ required: true, message: this.$t('message.error.required.input') }],
-        displaytext: [{ required: true, message: this.$t('message.error.required.input') }],
         disksize: [
           { required: true, message: this.$t('message.error.required.input') },
           { type: 'number', validator: this.validateNumber }
         ],
         diskbytesreadrate: [{ type: 'number', validator: this.validateNumber }],
+        diskbytesreadratemax: [{ type: 'number', validator: this.validateNumber }],
         diskbyteswriterate: [{ type: 'number', validator: this.validateNumber }],
+        diskbyteswriteratemax: [{ type: 'number', validator: this.validateNumber }],
         diskiopsreadrate: [{ type: 'number', validator: this.validateNumber }],
         diskiopswriterate: [{ type: 'number', validator: this.validateNumber }],
         diskiopsmin: [{ type: 'number', validator: this.validateNumber }],
@@ -382,9 +407,24 @@ export default {
       if (isAdmin()) {
         this.fetchStorageTagData()
       }
+      if (this.isDomainAdmin()) {
+        this.checkIfDomainAdminIsAllowedToInformTag()
+        if (this.isDomainAdminAllowedToInformTags) {
+          this.fetchStorageTagData()
+        }
+      }
+    },
+    isDomainAdmin () {
+      return ['DomainAdmin'].includes(this.$store.getters.userInfo.roletype)
     },
     isAdmin () {
       return isAdmin()
+    },
+    checkIfDomainAdminIsAllowedToInformTag () {
+      const params = { id: store.getters.userInfo.accountid }
+      api('isAccountAllowedToCreateOfferingsWithTags', params).then(json => {
+        this.isDomainAdminAllowedToInformTags = json.isaccountallowedtocreateofferingswithtagsresponse.isallowed.isallowed
+      })
     },
     arrayHasItems (array) {
       return array !== null && array !== undefined && Array.isArray(array) && array.length > 0
@@ -404,19 +444,19 @@ export default {
     },
     fetchZoneData () {
       const params = {}
-      params.listAll = true
       params.showicon = true
       this.zoneLoading = true
       api('listZones', params).then(json => {
         const listZones = json.listzonesresponse.zone
-        this.zones = this.zones.concat(listZones)
+        if (listZones) {
+          this.zones = this.zones.concat(listZones)
+        }
       }).finally(() => {
         this.zoneLoading = false
       })
     },
     fetchStorageTagData () {
       const params = {}
-      params.listAll = true
       this.storageTagLoading = true
       api('listStorageTags', params).then(json => {
         const tags = json.liststoragetagsresponse.storagetag || []
@@ -458,7 +498,8 @@ export default {
           cacheMode: values.writecachetype,
           provisioningType: values.provisioningtype,
           customized: values.customdisksize,
-          disksizestrictness: values.disksizestrictness
+          disksizestrictness: values.disksizestrictness,
+          encrypt: values.encryptdisk
         }
         if (values.customdisksize !== true) {
           params.disksize = values.disksize
@@ -481,8 +522,14 @@ export default {
           if (values.diskbytesreadrate != null && values.diskbytesreadrate.length > 0) {
             params.bytesreadrate = values.diskbytesreadrate
           }
+          if (values.diskbytesreadratemax != null && values.diskbytesreadratemax.length > 0) {
+            params.bytesreadratemax = values.diskbytesreadratemax
+          }
           if (values.diskbyteswriterate != null && values.diskbyteswriterate.length > 0) {
             params.byteswriterate = values.diskbyteswriterate
+          }
+          if (values.diskbyteswriteratemax != null && values.diskbyteswriteratemax.length > 0) {
+            params.byteswriteratemax = values.diskbyteswriteratemax
           }
           if (values.diskiopsreadrate != null && values.diskiopsreadrate.length > 0) {
             params.iopsreadrate = values.diskiopsreadrate

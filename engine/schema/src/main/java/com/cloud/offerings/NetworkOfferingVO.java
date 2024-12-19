@@ -133,6 +133,15 @@ public class NetworkOfferingVO implements NetworkOffering {
     @Column(name = "for_vpc")
     boolean forVpc;
 
+    @Column(name = "for_tungsten")
+    boolean forTungsten = false;
+
+    @Column(name = "for_nsx")
+    boolean forNsx = false;
+
+    @Column(name = "network_mode")
+    NetworkMode networkMode;
+
     @Column(name = "egress_default_policy")
     boolean egressdefaultpolicy;
 
@@ -148,6 +157,9 @@ public class NetworkOfferingVO implements NetworkOffering {
     @Column(name="supports_public_access")
     boolean supportsPublicAccess = false;
 
+    @Column(name = "supports_vm_autoscaling")
+    boolean supportsVmAutoScaling = false;
+
     @Override
     public String getDisplayText() {
         return displayText;
@@ -161,6 +173,13 @@ public class NetworkOfferingVO implements NetworkOffering {
 
     @Column(name="service_package_id")
     String servicePackageUuid = null;
+
+    @Column(name="routing_mode")
+    @Enumerated(value = EnumType.STRING)
+    private RoutingMode routingMode;
+
+    @Column(name = "specify_as_number")
+    private Boolean specifyAsNumber = false;
 
     @Override
     public boolean isKeepAliveEnabled() {
@@ -178,6 +197,33 @@ public class NetworkOfferingVO implements NetworkOffering {
 
     public void setForVpc(boolean isForVpc) {
         this.forVpc = isForVpc;
+    }
+
+    @Override
+    public boolean isForTungsten() {
+        return forTungsten;
+    }
+
+    public void setForTungsten(boolean forTungsten) {
+        this.forTungsten = forTungsten;
+    }
+
+    @Override
+    public boolean isForNsx() {
+        return forNsx;
+    }
+
+    public void setForNsx(boolean forNsx) {
+        this.forNsx = forNsx;
+    }
+
+    @Override
+    public NetworkMode getNetworkMode() {
+        return networkMode;
+    }
+
+    public void setNetworkMode(NetworkMode networkMode) {
+        this.networkMode = networkMode;
     }
 
     @Override
@@ -533,5 +579,31 @@ public class NetworkOfferingVO implements NetworkOffering {
     @Override
     public String getServicePackage() {
         return servicePackageUuid;
+    }
+
+    public void setSupportsVmAutoScaling(boolean supportsVmAutoScaling) {
+        this.supportsVmAutoScaling = supportsVmAutoScaling;
+    }
+
+    @Override
+    public boolean isSupportsVmAutoScaling() {
+        return supportsVmAutoScaling;
+    }
+
+    @Override
+    public RoutingMode getRoutingMode() {
+        return routingMode;
+    }
+
+    public void setRoutingMode(RoutingMode routingMode) {
+        this.routingMode = routingMode;
+    }
+
+    public Boolean isSpecifyAsNumber() {
+        return specifyAsNumber;
+    }
+
+    public void setSpecifyAsNumber(Boolean specifyAsNumber) {
+        this.specifyAsNumber = specifyAsNumber;
     }
 }

@@ -17,7 +17,6 @@
 package com.cloud.hypervisor;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +33,6 @@ import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.to.DataObjectType;
@@ -44,7 +42,6 @@ import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.host.HostVO;
-import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.storage.GuestOSHypervisorVO;
 import com.cloud.storage.GuestOSVO;
@@ -61,14 +58,11 @@ import com.cloud.vm.dao.UserVmDao;
 
 public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru, Configurable {
 
-    private Logger logger = Logger.getLogger(getClass());
 
     @Inject
     private GuestOSDao guestOsDao;
     @Inject
     private GuestOSHypervisorDao guestOsHypervisorDao;
-    @Inject
-    private HostDao hostDao;
     @Inject
     private VolumeDao volumeDao;
     @Inject
@@ -99,14 +93,7 @@ public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru,
         if (userVmVO != null) {
             HostVO host = hostDao.findById(userVmVO.getHostId());
             if (host != null) {
-                List<HostVO> clusterHosts = hostDao.listByClusterAndHypervisorType(host.getClusterId(), host.getHypervisorType());
-                HostVO hostWithMinSocket = clusterHosts.stream().min(Comparator.comparing(HostVO::getCpuSockets)).orElse(null);
-                Integer vCpus = MaxNumberOfVCPUSPerVM.valueIn(host.getClusterId());
-                if (hostWithMinSocket != null && hostWithMinSocket.getCpuSockets() != null &&
-                        hostWithMinSocket.getCpuSockets() < vCpus) {
-                    vCpus = hostWithMinSocket.getCpuSockets();
-                }
-                to.setVcpuMaxLimit(vCpus);
+                to.setVcpuMaxLimit(MaxNumberOfVCPUSPerVM.valueIn(host.getClusterId()));
             }
         }
 
@@ -178,10 +165,6 @@ public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru,
 
     @Override
     public Pair<Boolean, Long> getCommandHostDelegation(long hostId, Command cmd) {
-        if (cmd instanceof StorageSubSystemCommand) {
-            StorageSubSystemCommand c = (StorageSubSystemCommand)cmd;
-            c.setExecuteInSequence(true);
-        }
         boolean isCopyCommand = cmd instanceof CopyCommand;
         Pair<Boolean, Long> defaultHostToExecuteCommands = super.getCommandHostDelegation(hostId, cmd);
         if (!isCopyCommand) {
@@ -196,6 +179,14 @@ public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru,
         if (!isSourceDataHypervisorXenServer) {
             logger.debug("We are returning the default host to execute commands because the target hypervisor of the source data is not XenServer.");
             return defaultHostToExecuteCommands;
+        }
+        // only now can we decide, now we now we're only deciding for ourselves
+        if (cmd instanceof StorageSubSystemCommand) {
+            if (logger.isTraceEnabled()) {
+                logger.trace(String.format("XenServer StrorageSubSystemCommand re always executed in sequence (command of type %s to host %l).", cmd.getClass(), hostId));
+            }
+            StorageSubSystemCommand c = (StorageSubSystemCommand)cmd;
+            c.setExecuteInSequence(true);
         }
         DataStoreTO srcStore = srcData.getDataStore();
         DataStoreTO destStore = destData.getDataStore();

@@ -27,7 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import com.cloud.agent.api.routing.LoadBalancerConfigCommand;
 import com.cloud.agent.api.to.LoadBalancerTO;
@@ -40,13 +42,13 @@ import com.cloud.utils.net.NetUtils;
 
 public class HAProxyConfigurator implements LoadBalancerConfigurator {
 
-    private static final Logger s_logger = Logger.getLogger(HAProxyConfigurator.class);
+    protected Logger logger = LogManager.getLogger(getClass());
     private static final String blankLine = "\t ";
     private static String[] globalSection = {"global", "\tlog 127.0.0.1:3914   local0 warning", "\tmaxconn 4096", "\tmaxpipes 1024", "\tchroot /var/lib/haproxy",
-        "\tuser haproxy", "\tgroup haproxy", "\tdaemon"};
+        "\tuser haproxy", "\tgroup haproxy", "\tstats socket /run/haproxy/admin.sock", "\tdaemon"};
 
     private static String[] defaultsSection = {"defaults", "\tlog     global", "\tmode    tcp", "\toption  dontlognull", "\tretries 3", "\toption redispatch",
-        "\toption forwardfor", "\toption forceclose", "\ttimeout connect    5000", "\ttimeout client     50000", "\ttimeout server     50000"};
+        "\toption forwardfor", "\toption httpclose", "\ttimeout connect    5000", "\ttimeout client     50000", "\ttimeout server     50000"};
 
     private static String[] defaultListen = {"listen  vmops", "\tbind 0.0.0.0:9", "\toption transparent"};
 
@@ -95,7 +97,7 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
         final PortForwardingRuleTO firstRule = fwRules.get(0);
         final String publicIP = firstRule.getSrcIp();
         final int publicPort = firstRule.getSrcPortRange()[0];
-        // FIXEME: String algorithm = firstRule.getAlgorithm();
+        // FIXME: String algorithm = firstRule.getAlgorithm();
 
         final List<String> result = new ArrayList<String>();
         // add line like this: "listen  65_37_141_30-80 65.37.141.30:80"
@@ -457,7 +459,7 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
                  * Not supposed to reach here, validation of methods are
                  * done at the higher layer
                  */
-                s_logger.warn("Haproxy stickiness policy for lb rule: " + lbTO.getSrcIp() + ":" + lbTO.getSrcPort() + ": Not Applied, cause:invalid method ");
+                logger.warn("Haproxy stickiness policy for lb rule: " + lbTO.getSrcIp() + ":" + lbTO.getSrcPort() + ": Not Applied, cause:invalid method ");
                 return null;
             }
         }
@@ -483,7 +485,7 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
         sb.append("\tbind ").append(publicIP).append(":").append(publicPort);
         result.add(sb.toString());
         sb = new StringBuilder();
-        sb.append("\t").append("balance ").append(algorithm);
+        sb.append("\t").append("balance ").append(algorithm.toLowerCase());
         result.add(sb.toString());
 
         int i = 0;
@@ -540,7 +542,7 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
             result.addAll(dstSubRule);
         }
         if (stickinessSubRule != null && !destsAvailable) {
-            s_logger.warn("Haproxy stickiness policy for lb rule: " + lbTO.getSrcIp() + ":" + lbTO.getSrcPort() + ": Not Applied, cause:  backends are unavailable");
+            logger.warn("Haproxy stickiness policy for lb rule: " + lbTO.getSrcIp() + ":" + lbTO.getSrcPort() + ": Not Applied, cause:  backends are unavailable");
         }
         if (publicPort == NetUtils.HTTP_PORT && !keepAliveEnabled || httpbasedStickiness) {
             sb = new StringBuilder();
@@ -551,6 +553,12 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
             result.add(sb.toString());
         }
 
+        String cidrList = lbTO.getCidrList();
+
+        if (StringUtils.isNotBlank(cidrList)) {
+            result.add(String.format("\tacl network_allowed src %s \n\ttcp-request connection reject if !network_allowed", cidrList));
+        }
+
         result.add(blankLine);
         return result;
     }
@@ -559,7 +567,7 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
         final StringBuilder rule = new StringBuilder("\nlisten ").append(ruleName).append("\n\tbind ").append(statsIp).append(":").append(lbCmd.lbStatsPort);
         // TODO DH: write test for this in both cases
         if (!lbCmd.keepAliveEnabled) {
-            s_logger.info("Haproxy mode http enabled");
+            logger.info("Haproxy mode http enabled");
             rule.append("\n\tmode http\n\toption httpclose");
         }
         rule.append("\n\tstats enable\n\tstats uri     ")
@@ -568,8 +576,8 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
         .append(lbCmd.lbStatsAuth);
         rule.append("\n");
         final String result = rule.toString();
-        if (s_logger.isDebugEnabled()) {
-            s_logger.debug("Haproxystats rule: " + result);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Haproxystats rule: " + result);
         }
         return result;
     }
@@ -583,9 +591,9 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
         // TODO DH: write test for this function
         final String pipesLine = "\tmaxpipes " + Long.toString(Long.parseLong(lbCmd.maxconn) / 4);
         gSection.set(3, pipesLine);
-        if (s_logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             for (final String s : gSection) {
-                s_logger.debug("global section: " + s);
+                logger.debug("global section: " + s);
             }
         }
         result.addAll(gSection);
@@ -596,12 +604,12 @@ public class HAProxyConfigurator implements LoadBalancerConfigurator {
         result.add(blankLine);
         final List<String> dSection = Arrays.asList(defaultsSection);
         if (lbCmd.keepAliveEnabled) {
-            dSection.set(7, "\tno option forceclose");
+            dSection.set(7, "\tno option httpclose");
         }
 
-        if (s_logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             for (final String s : dSection) {
-                s_logger.debug("default section: " + s);
+                logger.debug("default section: " + s);
             }
         }
         result.addAll(dSection);

@@ -37,6 +37,10 @@ public class ServiceOfferingResponse extends BaseResponseWithAnnotations {
     @Param(description = "the name of the service offering")
     private String name;
 
+    @SerializedName("state")
+    @Param(description = "state of the service offering")
+    private String state;
+
     @SerializedName("displaytext")
     @Param(description = "an alternate display text of the service offering.")
     private String displayText;
@@ -226,6 +230,14 @@ public class ServiceOfferingResponse extends BaseResponseWithAnnotations {
     @Param(description = "the display text of the disk offering", since = "4.17")
     private String diskOfferingDisplayText;
 
+    @SerializedName(ApiConstants.ENCRYPT_ROOT)
+    @Param(description = "true if virtual machine root disk will be encrypted on storage", since = "4.18")
+    private Boolean encryptRoot;
+
+    @SerializedName(ApiConstants.PURGE_RESOURCES)
+    @Param(description = "Whether to cleanup VM and its associated resource upon expunge", since = "4.20")
+    private Boolean purgeResources;
+
     public ServiceOfferingResponse() {
     }
 
@@ -243,6 +255,14 @@ public class ServiceOfferingResponse extends BaseResponseWithAnnotations {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
     }
 
     public Boolean getIsSystem() {
@@ -505,6 +525,7 @@ public class ServiceOfferingResponse extends BaseResponseWithAnnotations {
         this.dynamicScalingEnabled = dynamicScalingEnabled;
     }
 
+
     public Boolean getDiskOfferingStrictness() {
         return diskOfferingStrictness;
     }
@@ -535,5 +556,11 @@ public class ServiceOfferingResponse extends BaseResponseWithAnnotations {
 
     public String getDiskOfferingDisplayText() {
         return diskOfferingDisplayText;
+    }
+
+    public void setEncryptRoot(Boolean encrypt) { this.encryptRoot = encrypt; }
+
+    public void setPurgeResources(Boolean purgeResources) {
+        this.purgeResources = purgeResources;
     }
 }

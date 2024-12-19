@@ -16,7 +16,7 @@
 // under the License.
 package com.cloud.hypervisor.xenserver.resource;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
 
 import com.cloud.agent.api.StartupCommand;
 import com.cloud.utils.exception.CloudRuntimeException;
@@ -29,7 +29,6 @@ import com.xensource.xenapi.Types.XenAPIException;
 import com.xensource.xenapi.VLAN;
 
 public class XenServer56Resource extends CitrixResourceBase {
-    private final static Logger s_logger = Logger.getLogger(XenServer56Resource.class);
 
     @Override
     protected String getPatchFilePath() {
@@ -66,7 +65,7 @@ public class XenServer56Resource extends CitrixResourceBase {
                             host.forgetDataSourceArchives(conn, "pif_" + device + "." + vlannum + "_tx");
                             host.forgetDataSourceArchives(conn, "pif_" + device + "." + vlannum + "_rx");
                         } catch (final XenAPIException e) {
-                            s_logger.trace("Catch " + e.getClass().getName() + ": failed to destroy VLAN " + device + " on host " + _host.getUuid() + " due to " + e.toString());
+                            logger.trace("Catch " + e.getClass().getName() + ": failed to destroy VLAN " + device + " on host " + _host.getUuid() + " due to " + e.toString());
                         }
                     }
                     return;
@@ -74,18 +73,21 @@ public class XenServer56Resource extends CitrixResourceBase {
             }
         } catch (final XenAPIException e) {
             final String msg = "Unable to disable VLAN network due to " + e.toString();
-            s_logger.warn(msg, e);
+            logger.warn(msg, e);
         } catch (final Exception e) {
             final String msg = "Unable to disable VLAN network due to " + e.getMessage();
-            s_logger.warn(msg, e);
+            logger.warn(msg, e);
         }
     }
 
     @Override
-    public String networkUsage(final Connection conn, final String privateIpAddress, final String option, final String vif) {
+    public String networkUsage(final Connection conn, final String privateIpAddress, final String option, final String vif, final String publicIp) {
         String args = "";
         if (option.equals("get")) {
             args += "-g";
+            if (StringUtils.isNotEmpty(publicIp)) {
+                args += " -l " + publicIp;
+            }
         } else if (option.equals("create")) {
             args += "-c";
         } else if (option.equals("reset")) {
@@ -111,13 +113,13 @@ public class XenServer56Resource extends CitrixResourceBase {
 
             final String shcmd = "/opt/cloud/bin/check_heartbeat.sh " + hostuuid + " " + Integer.toString(_heartbeatInterval * 2);
             if (!SSHCmdHelper.sshExecuteCmd(sshConnection, shcmd)) {
-                s_logger.debug("Heart beat is gone so dead.");
+                logger.debug("Heart beat is gone so dead.");
                 return false;
             }
-            s_logger.debug("Heart beat is still going");
+            logger.debug("Heart beat is still going");
             return true;
         } catch (final Exception e) {
-            s_logger.debug("health check failed due to catch exception " + e.toString());
+            logger.debug("health check failed due to catch exception " + e.toString());
             return null;
         } finally {
             sshConnection.close();

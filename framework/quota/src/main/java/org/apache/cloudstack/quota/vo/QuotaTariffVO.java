@@ -16,8 +16,13 @@
 //under the License.
 package org.apache.cloudstack.quota.vo;
 
-import org.apache.cloudstack.api.InternalIdentity;
+import com.cloud.utils.DateUtil;
+import org.apache.cloudstack.quota.QuotaTariff;
 import org.apache.cloudstack.quota.constant.QuotaTypes;
+import org.apache.cloudstack.utils.reflectiontostringbuilderutils.ReflectionToStringBuilderUtils;
+
+import com.cloud.utils.db.GenericDao;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -30,10 +35,12 @@ import javax.persistence.TemporalType;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.TimeZone;
+import java.util.UUID;
 
 @Entity
 @Table(name = "quota_tariff")
-public class QuotaTariffVO implements InternalIdentity {
+public class QuotaTariffVO implements QuotaTariff {
     private static final long serialVersionUID = -7117933766387653203L;
 
     @Id
@@ -67,6 +74,29 @@ public class QuotaTariffVO implements InternalIdentity {
     @Column(name = "updated_by")
     private Long updatedBy = null;
 
+    @Column(name = "uuid")
+    private String uuid = UUID.randomUUID().toString();
+
+    @Column(name = "name", nullable = false, length = 65535)
+    protected String name = null;
+
+    @Column(name = "description", length = 65535)
+    protected String description;
+
+    @Column(name = "activation_rule", length = 65535)
+    protected String activationRule;
+
+    @Column(name = GenericDao.REMOVED_COLUMN)
+    protected Date removed;
+
+    @Column(name = "end_date")
+    @Temporal(value = TemporalType.TIMESTAMP)
+    private Date endDate;
+
+    @Column(name = "position")
+    protected Integer position;
+
+
     public QuotaTariffVO() {
     }
 
@@ -86,6 +116,16 @@ public class QuotaTariffVO implements InternalIdentity {
         this.updatedBy = updatedBy;
     }
 
+
+    public QuotaTariffVO(QuotaTariffVO that) {
+        this(that.getUsageType(), that.getUsageName(), that.getUsageUnit(), that.getUsageDiscriminator(), that.getCurrencyValue(), that.getEffectiveOn(), that.getUpdatedOn(),
+                that.getUpdatedBy());
+        this.setName(that.getName());
+        this.setDescription(that.getDescription());
+        this.setActivationRule(that.getActivationRule());
+        this.setEndDate(that.getEndDate());
+        this.setPosition(that.getPosition());
+    }
 
     public void setId(Long id) {
         this.id = id;
@@ -155,7 +195,7 @@ public class QuotaTariffVO implements InternalIdentity {
         this.currencyValue = currencyValue;
     }
 
-    public String getDescription() {
+    public String getUsageTypeDescription() {
         return QuotaTypes.getDescription(usageType);
     }
 
@@ -166,5 +206,85 @@ public class QuotaTariffVO implements InternalIdentity {
     @Override
     public long getId() {
         return this.id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getActivationRule() {
+        return activationRule;
+    }
+
+    public void setActivationRule(String activationRule) {
+        this.activationRule = activationRule;
+    }
+
+    public Date getRemoved() {
+        return removed;
+    }
+
+    public void setRemoved(Date removed) {
+        this.removed = removed;
+    }
+
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Date endDate) {
+        this.endDate = endDate;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    @Override
+    public String getUuid() {
+        return uuid;
+    }
+
+    public boolean setUsageTypeData(int usageType) {
+        QuotaTypes quotaType = QuotaTypes.listQuotaTypes().get(usageType);
+
+        if (quotaType == null) {
+            return false;
+        }
+
+        this.setUsageType(usageType);
+        this.setUsageName(quotaType.getQuotaName());
+        this.setUsageUnit(quotaType.getQuotaUnit());
+        this.setUsageDiscriminator(quotaType.getDiscriminator());
+
+        return true;
+    }
+
+    public Integer getPosition() {
+        return position;
+    }
+
+    public void setPosition(Integer position) {
+        this.position = position;
+    }
+
+
+    @Override
+    public String toString() {
+        return ReflectionToStringBuilderUtils.reflectOnlySelectedFields(this, "uuid", "name", "usageName");
+    }
+
+    public String toString(TimeZone timeZone) {
+        String startDateString = DateUtil.displayDateInTimezone(timeZone, getEffectiveOn());
+        String endDateString = DateUtil.displayDateInTimezone(timeZone, getEndDate());
+        return String.format("%s,\"startDate\":\"%s\",\"endDate\":\"%s\"}", StringUtils.chop(this.toString()), startDateString, endDateString);
     }
 }

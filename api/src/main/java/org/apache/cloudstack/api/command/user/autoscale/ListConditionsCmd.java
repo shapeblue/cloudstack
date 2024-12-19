@@ -20,11 +20,10 @@ package org.apache.cloudstack.api.command.user.autoscale;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.api.BaseListAccountResourcesCmd;
+import org.apache.cloudstack.api.BaseListProjectAndAccountResourcesCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.AutoScalePolicyResponse;
 import org.apache.cloudstack.api.response.ConditionResponse;
@@ -33,11 +32,9 @@ import org.apache.cloudstack.api.response.ListResponse;
 
 import com.cloud.network.as.Condition;
 
-@APICommand(name = "listConditions", description = "List Conditions for the specific user", responseObject = ConditionResponse.class,
+@APICommand(name = "listConditions", description = "List Conditions for VM auto scaling", responseObject = ConditionResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
-public class ListConditionsCmd extends BaseListAccountResourcesCmd {
-    public static final Logger s_logger = Logger.getLogger(ListConditionsCmd.class.getName());
-    private static final String s_name = "listconditionsresponse";
+public class ListConditionsCmd extends BaseListProjectAndAccountResourcesCmd {
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -92,9 +89,4 @@ public class ListConditionsCmd extends BaseListAccountResourcesCmd {
         return policyId;
     }
 
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
-
-}

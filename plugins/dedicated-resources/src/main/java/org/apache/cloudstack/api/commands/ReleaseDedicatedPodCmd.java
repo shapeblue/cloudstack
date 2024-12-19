@@ -18,7 +18,6 @@ package org.apache.cloudstack.api.commands;
 
 import javax.inject.Inject;
 
-import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -36,9 +35,7 @@ import com.cloud.user.Account;
 @APICommand(name = "releaseDedicatedPod", description = "Release the dedication for the pod", responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class ReleaseDedicatedPodCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(ReleaseDedicatedPodCmd.class.getName());
 
-    private static final String s_name = "releasededicatedpodresponse";
     @Inject
     DedicatedService dedicatedService;
 
@@ -60,11 +57,6 @@ public class ReleaseDedicatedPodCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
 
     @Override
     public long getEntityOwnerId() {

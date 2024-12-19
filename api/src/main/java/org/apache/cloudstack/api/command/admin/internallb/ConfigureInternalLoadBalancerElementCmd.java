@@ -17,12 +17,6 @@
 
 package org.apache.cloudstack.api.command.admin.internallb;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.log4j.Logger;
-
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
@@ -47,11 +41,6 @@ import com.cloud.user.Account;
             requestHasSensitiveInfo = false,
             responseHasSensitiveInfo = false)
 public class ConfigureInternalLoadBalancerElementCmd extends BaseAsyncCmd {
-    public static final Logger s_logger = Logger.getLogger(ConfigureInternalLoadBalancerElementCmd.class.getName());
-    private static final String s_name = "configureinternalloadbalancerelementresponse";
-
-    @Inject
-    private List<InternalLoadBalancerElementService> _service;
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -84,11 +73,6 @@ public class ConfigureInternalLoadBalancerElementCmd extends BaseAsyncCmd {
     /////////////////////////////////////////////////////
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
     }
@@ -106,7 +90,8 @@ public class ConfigureInternalLoadBalancerElementCmd extends BaseAsyncCmd {
     @Override
     public void execute() throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException {
         CallContext.current().setEventDetails("Internal load balancer element: " + id);
-        VirtualRouterProvider result = _service.get(0).configureInternalLoadBalancerElement(getId(), getEnabled());
+        InternalLoadBalancerElementService service = _networkService.getInternalLoadBalancerElementById(id);
+        VirtualRouterProvider result = service.configureInternalLoadBalancerElement(getId(), getEnabled());
         if (result != null) {
             InternalLoadBalancerElementResponse routerResponse = _responseGenerator.createInternalLbElementResponse(result);
             routerResponse.setResponseName(getCommandName());

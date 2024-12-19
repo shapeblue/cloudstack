@@ -18,7 +18,9 @@ package org.apache.cloudstack.api.command;
 
 import com.cloud.user.Account;
 
+import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
@@ -26,36 +28,50 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.QuotaResponseBuilder;
 import org.apache.cloudstack.api.response.QuotaTariffResponse;
+import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.quota.vo.QuotaTariffVO;
-import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 
 import java.util.Date;
 
-@APICommand(name = "quotaTariffUpdate", responseObject = QuotaTariffResponse.class, description = "Update the tariff plan for a resource", since = "4.7.0", requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
+@APICommand(name = "quotaTariffUpdate", responseObject = QuotaTariffResponse.class, description = "Update the tariff plan for a resource", since = "4.7.0",
+requestHasSensitiveInfo = false, responseHasSensitiveInfo = false, authorized = {RoleType.Admin})
 public class QuotaTariffUpdateCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(QuotaTariffUpdateCmd.class);
-    private static final String s_name = "quotatariffupdateresponse";
 
     @Inject
     QuotaResponseBuilder _responseBuilder;
 
-    @Parameter(name = ApiConstants.USAGE_TYPE, type = CommandType.INTEGER, required = true, description = "Integer value for the usage type of the resource")
+    @Parameter(name = ApiConstants.USAGE_TYPE, type = CommandType.INTEGER, description = "DEPRECATED. Integer value for the usage type of the resource")
     private Integer usageType;
 
-    @Parameter(name = "value", type = CommandType.DOUBLE, required = true,  description = "The quota tariff value of the resource as per the default unit")
+    @Parameter(name = ApiConstants.VALUE, type = CommandType.DOUBLE, description = "The quota tariff value of the resource as per the default unit.")
     private Double value;
 
-    @Parameter(name = ApiConstants.START_DATE, type = CommandType.DATE, required = true, description = "The effective start date on/after which the quota tariff is effective and older tariffs are no longer used for the usage type. Use yyyy-MM-dd as the date format, e.g. startDate=2009-06-03.")
+    @Parameter(name = ApiConstants.START_DATE, type = CommandType.DATE, description = "DEPRECATED. The effective start date on/after which the quota tariff is effective. " +
+            "Use yyyy-MM-dd as the date format, e.g. startDate=2009-06-03.")
     private Date startDate;
 
-    public int getUsageType() {
-        return usageType;
-    }
+    @Parameter(name = ApiConstants.END_DATE, type = CommandType.DATE, description = "The end date of the quota tariff. " +
+            ApiConstants.PARAMETER_DESCRIPTION_END_DATE_POSSIBLE_FORMATS, since = "4.18.0.0")
+    private Date endDate;
 
-    public void setUsageType(int usageType) {
-        this.usageType = usageType;
+    @Parameter(name = ApiConstants.NAME, type = CommandType.STRING, required = true, description = "Quota tariff's name", length = 65535, since = "4.18.0.0")
+    private String name;
+
+    @Parameter(name = ApiConstants.DESCRIPTION, type = CommandType.STRING, description = "Quota tariff's description. Inform empty to remove the description.", length = 65535,
+            since = "4.18.0.0")
+    private String description;
+
+    @Parameter(name = ApiConstants.ACTIVATION_RULE, type = CommandType.STRING, description = ApiConstants.PARAMETER_DESCRIPTION_ACTIVATION_RULE +
+            " Inform empty to remove the activation rule.", length = 65535, since = "4.18.0.0")
+    private String activationRule;
+
+    @Parameter(name = ApiConstants.POSITION, type = CommandType.INTEGER, description = "Position in the execution sequence for tariffs of the same type", since = "4.20.0.0")
+    private Integer position;
+
+    public Integer getUsageType() {
+        return usageType;
     }
 
     public Double getValue() {
@@ -67,11 +83,27 @@ public class QuotaTariffUpdateCmd extends BaseCmd {
     }
 
     public Date getStartDate() {
-        return startDate == null ? null : new Date(startDate.getTime());
+        return startDate;
     }
 
     public void setStartDate(Date startDate) {
-        this.startDate = startDate == null ? null : new Date(startDate.getTime());
+        this.startDate = startDate;
+    }
+
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getActivationRule() {
+        return activationRule;
     }
 
     public QuotaTariffUpdateCmd() {
@@ -79,17 +111,13 @@ public class QuotaTariffUpdateCmd extends BaseCmd {
     }
 
     @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
-    @Override
     public void execute() {
+        CallContext.current().setEventDetails(String.format("Tariff: %s, description: %s, value: %s", getName(), getDescription(), getValue()));
         final QuotaTariffVO result = _responseBuilder.updateQuotaTariffPlan(this);
         if (result == null) {
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to update quota tariff plan");
         }
-        final QuotaTariffResponse response = _responseBuilder.createQuotaTariffResponse(result);
+        final QuotaTariffResponse response = _responseBuilder.createQuotaTariffResponse(result, true);
         response.setResponseName(getCommandName());
         setResponseObject(response);
     }
@@ -97,6 +125,19 @@ public class QuotaTariffUpdateCmd extends BaseCmd {
     @Override
     public long getEntityOwnerId() {
         return Account.ACCOUNT_ID_SYSTEM;
+    }
+
+    @Override
+    public ApiCommandResourceType getApiResourceType() {
+        return ApiCommandResourceType.QuotaTariff;
+    }
+
+    public Integer getPosition() {
+        return position;
+    }
+
+    public void setPosition(Integer position) {
+        this.position = position;
     }
 
 }

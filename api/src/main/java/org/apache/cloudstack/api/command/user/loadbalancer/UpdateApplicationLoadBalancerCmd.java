@@ -25,7 +25,6 @@ import org.apache.cloudstack.api.response.ApplicationLoadBalancerResponse;
 import org.apache.cloudstack.api.response.FirewallRuleResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.network.lb.ApplicationLoadBalancerRule;
-import org.apache.log4j.Logger;
 
 import com.cloud.event.EventTypes;
 import com.cloud.exception.InvalidParameterValueException;
@@ -34,9 +33,7 @@ import com.cloud.network.rules.FirewallRule;
 @APICommand(name = "updateLoadBalancer", description = "Updates an internal load balancer", responseObject = ApplicationLoadBalancerResponse.class, since = "4.4.0",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateApplicationLoadBalancerCmd extends BaseAsyncCustomIdCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateApplicationLoadBalancerCmd.class.getName());
 
-    private static final String s_name = "updateloadbalancerresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -50,11 +47,6 @@ public class UpdateApplicationLoadBalancerCmd extends BaseAsyncCustomIdCmd {
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
-    @Override
-    public String getCommandName() {
-        return s_name;
-    }
-
     public Long getId() {
         return id;
     }

@@ -27,7 +27,6 @@ import org.apache.cloudstack.api.response.AccountResponse;
 import org.apache.cloudstack.api.response.NetworkResponse;
 import org.apache.cloudstack.api.response.ProjectResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.network.Network;
@@ -35,7 +34,7 @@ import com.cloud.user.Account;
 
 import java.util.List;
 
-@APICommand(name = RemoveNetworkPermissionsCmd.APINAME, description = "Removes network permissions.",
+@APICommand(name = "removeNetworkPermissions", description = "Removes network permissions.",
         responseObject = SuccessResponse.class,
         entityType = {Network.class},
         requestHasSensitiveInfo = false,
@@ -43,9 +42,7 @@ import java.util.List;
         since = "4.17.0",
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class RemoveNetworkPermissionsCmd extends BaseCmd {
-    public static final Logger LOGGER = Logger.getLogger(RemoveNetworkPermissionsCmd.class.getName());
 
-    public static final String APINAME = "removeNetworkPermissions";
 
     // ///////////////////////////////////////////////////
     // ////////////// API parameters /////////////////////
@@ -97,11 +94,6 @@ public class RemoveNetworkPermissionsCmd extends BaseCmd {
     // ///////////////////////////////////////////////////
     // ///////////// API Implementation///////////////////
     // ///////////////////////////////////////////////////
-
-    @Override
-    public String getCommandName() {
-        return APINAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
-    }
 
     @Override
     public void execute() {

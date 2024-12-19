@@ -24,7 +24,6 @@ import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.response.UserVmResponse;
 import org.apache.cloudstack.api.response.VMUserDataResponse;
-import org.apache.log4j.Logger;
 
 import com.cloud.user.Account;
 import com.cloud.uservm.UserVm;
@@ -32,8 +31,6 @@ import com.cloud.uservm.UserVm;
 @APICommand(name = "getVirtualMachineUserData", description = "Returns user data associated with the VM", responseObject = VMUserDataResponse.class, since = "4.4",
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class GetVMUserDataCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(GetVMUserDataCmd.class);
-    private static final String s_name = "getvirtualmachineuserdataresponse";
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -75,8 +72,4 @@ public class GetVMUserDataCmd extends BaseCmd {
         return Account.ACCOUNT_ID_SYSTEM; // no account info given, parent this command to SYSTEM so ERROR events are tracked
     }
 
-    @Override
-    public String getCommandName() {
-        return s_name;
     }
-}
