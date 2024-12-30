@@ -30,10 +30,12 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 import javax.inject.Inject;
 
 import com.cloud.utils.FileUtil;
+import com.cloud.utils.db.DbProperties;
 import org.apache.cloudstack.utils.CloudStackVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Logger;
@@ -125,6 +127,8 @@ import com.cloud.utils.db.ScriptRunner;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.google.common.annotations.VisibleForTesting;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
 
 public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
     protected static Logger LOGGER = LogManager.getLogger(DatabaseUpgradeChecker.class);
@@ -335,6 +339,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version = executeUpgrade(upgrade);
+            executeFlywaydbUpgrade(upgrade.getUpgradedVersion());
             executeUpgradeCleanup(upgrade, version);
         }
         return upgrades;
@@ -415,6 +420,61 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         }
     }
 
+    private void executeFlywaydbUpgrade(String upgradedVersion) {
+        executeFlywaydbUpgradeOnCloudDb(upgradedVersion);
+        executeFlywaydbUpgradeOnCloudUsageDb(upgradedVersion);
+    }
+
+    private void executeFlywaydbUpgradeOnCloudDb(String upgradedVersion) {
+        LOGGER.info("Running Flyway migration on cloud database");
+        Properties dbProps = DbProperties.getDbProperties();
+        final String cloudDriver = dbProps.getProperty("db.cloud.driver");
+        final String cloudUsername = dbProps.getProperty("db.cloud.username");
+        final String cloudPassword = dbProps.getProperty("db.cloud.password");
+        final String cloudHost = dbProps.getProperty("db.cloud.host");
+        final int cloudPort = Integer.parseInt(dbProps.getProperty("db.cloud.port"));
+        final String dbUrl = cloudDriver + "://" + cloudHost + ":" + cloudPort + "/cloud";
+
+        try {
+            CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
+            Flyway flyway = Flyway.configure().dataSource(dbUrl, cloudUsername, cloudPassword)
+                    .table("cloud_schema_version")
+                    .baselineOnMigrate(true)
+                    .baselineVersion(version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease())
+                    .validateOnMigrate(true)
+                    .locations("classpath:META-INF/db/cloud")
+                    .load();
+            flyway.migrate();
+        } catch (FlywayException fwe) {
+            LOGGER.error("Failed to run Flyway migration on cloud database due to {}", fwe);
+        }
+    }
+
+    private void executeFlywaydbUpgradeOnCloudUsageDb(String upgradedVersion) {
+        LOGGER.info("Running Flyway migration on cloud_usage database");
+        Properties dbProps = DbProperties.getDbProperties();
+        final String usageDriver = dbProps.getProperty("db.usage.driver");
+        final String usageUsername = dbProps.getProperty("db.usage.username");
+        final String usagePassword = dbProps.getProperty("db.usage.password");
+        final String usageHost = dbProps.getProperty("db.usage.host");
+        final int usagePort = Integer.parseInt(dbProps.getProperty("db.usage.port"));
+        final String usageUrl = usageDriver + "://" + usageHost + ":" + usagePort + "/cloud_usage";
+
+        try {
+            CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
+            Flyway flyway = Flyway.configure().dataSource(usageUrl, usageUsername, usagePassword)
+                    .table("cloud_usage_schema_version")
+                    .baselineOnMigrate(true)
+                    .baselineVersion(version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease())
+                    .validateOnMigrate(true)
+                    .locations("classpath:META-INF/db/cloud_usage")
+                    .load();
+            flyway.migrate();
+        } catch (FlywayException fwe) {
+            LOGGER.error("Failed to run Flyway migration on cloud_usage database due to {}", fwe);
+        }
+    }
+
     protected void executeViewScripts() {
         LOGGER.info(String.format("Executing VIEW scripts that are under resource directory [%s].", VIEWS_DIRECTORY));
         List<String> filesPathUnderViewsDirectory = FileUtil.getFilesPathsUnderResourceDirectory(VIEWS_DIRECTORY);
@@ -470,6 +530,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
                 if (dbVersion.compareTo(currentVersion) == 0) {
                     LOGGER.info("DB version and code version matches so no upgrade needed.");
+                    executeFlywaydbUpgrade(currentVersionValue);    // TODO: remove this after testing
                     return;
                 }
 
