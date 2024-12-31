@@ -437,13 +437,15 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         try {
             CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
+            String versionString = version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease();
             Flyway flyway = Flyway.configure()
                     .dataSource(cloudUriAndDriver.first(), cloudUsername, cloudPassword)
                     .table("cloud_schema_version")
                     .baselineOnMigrate(true)
-                    .baselineVersion(version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease())
+                    .baselineVersion(versionString)
+                    .baselineDescription("Flyway Baseline for Apache CloudStack " + versionString)
                     .validateOnMigrate(true)
-                    .locations("classpath:META-INF/db/cloud")
+                    .locations("classpath:META-INF/db/" + versionString + "/cloud")
                     .load();
             flyway.migrate();
         } catch (FlywayException fwe) {
@@ -463,13 +465,15 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         try {
             CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
+            String versionString = version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease();
             Flyway flyway = Flyway.configure()
                     .dataSource(usageUriAndDriver.first(), usageUsername, usagePassword)
                     .table("cloud_usage_schema_version")
                     .baselineOnMigrate(true)
-                    .baselineVersion(version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease())
+                    .baselineVersion(versionString)
+                    .baselineDescription("Flyway Baseline for Apache CloudStack " + versionString)
                     .validateOnMigrate(true)
-                    .locations("classpath:META-INF/db/cloud_usage")
+                    .locations("classpath:META-INF/db/" + versionString + "/cloud_usage")
                     .load();
             flyway.migrate();
         } catch (FlywayException fwe) {
@@ -532,7 +536,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
                 if (dbVersion.compareTo(currentVersion) == 0) {
                     LOGGER.info("DB version and code version matches so no upgrade needed.");
-                    executeFlywaydbUpgrade(currentVersionValue);    // TODO: remove this after testing
+                    executeFlywaydbUpgrade(currentVersionValue);
                     return;
                 }
 
