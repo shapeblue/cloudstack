@@ -35,6 +35,7 @@ import java.util.Properties;
 import javax.inject.Inject;
 
 import com.cloud.utils.FileUtil;
+import com.cloud.utils.Pair;
 import com.cloud.utils.db.DbProperties;
 import org.apache.cloudstack.utils.CloudStackVersion;
 import org.apache.commons.lang3.StringUtils;
@@ -428,16 +429,16 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
     private void executeFlywaydbUpgradeOnCloudDb(String upgradedVersion) {
         LOGGER.info("Running Flyway migration on cloud database");
         Properties dbProps = DbProperties.getDbProperties();
-        final String cloudDriver = dbProps.getProperty("db.cloud.driver");
+        final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
+        final boolean useSSL = Boolean.parseBoolean(dbProps.getProperty("db.cloud.useSSL"));
+        Pair<String, String> cloudUriAndDriver = TransactionLegacy.getConnectionUriAndDriver(dbProps, loadBalanceStrategy, useSSL, "cloud");
         final String cloudUsername = dbProps.getProperty("db.cloud.username");
         final String cloudPassword = dbProps.getProperty("db.cloud.password");
-        final String cloudHost = dbProps.getProperty("db.cloud.host");
-        final int cloudPort = Integer.parseInt(dbProps.getProperty("db.cloud.port"));
-        final String dbUrl = cloudDriver + "://" + cloudHost + ":" + cloudPort + "/cloud";
 
         try {
             CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
-            Flyway flyway = Flyway.configure().dataSource(dbUrl, cloudUsername, cloudPassword)
+            Flyway flyway = Flyway.configure()
+                    .dataSource(cloudUriAndDriver.first(), cloudUsername, cloudPassword)
                     .table("cloud_schema_version")
                     .baselineOnMigrate(true)
                     .baselineVersion(version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease())
@@ -453,16 +454,17 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
     private void executeFlywaydbUpgradeOnCloudUsageDb(String upgradedVersion) {
         LOGGER.info("Running Flyway migration on cloud_usage database");
         Properties dbProps = DbProperties.getDbProperties();
-        final String usageDriver = dbProps.getProperty("db.usage.driver");
+        final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
+        final boolean useSSL = Boolean.parseBoolean(dbProps.getProperty("db.cloud.useSSL"));
+        Pair<String, String> usageUriAndDriver = TransactionLegacy.getConnectionUriAndDriver(dbProps, loadBalanceStrategy, useSSL, "usage");
         final String usageUsername = dbProps.getProperty("db.usage.username");
         final String usagePassword = dbProps.getProperty("db.usage.password");
-        final String usageHost = dbProps.getProperty("db.usage.host");
-        final int usagePort = Integer.parseInt(dbProps.getProperty("db.usage.port"));
-        final String usageUrl = usageDriver + "://" + usageHost + ":" + usagePort + "/cloud_usage";
+
 
         try {
             CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
-            Flyway flyway = Flyway.configure().dataSource(usageUrl, usageUsername, usagePassword)
+            Flyway flyway = Flyway.configure()
+                    .dataSource(usageUriAndDriver.first(), usageUsername, usagePassword)
                     .table("cloud_usage_schema_version")
                     .baselineOnMigrate(true)
                     .baselineVersion(version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease())

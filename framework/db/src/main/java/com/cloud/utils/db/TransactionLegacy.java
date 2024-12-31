@@ -1172,7 +1172,7 @@ public class TransactionLegacy implements Closeable {
         }
     }
 
-    protected static Pair<String, String> getConnectionUriAndDriver(Properties dbProps, String loadBalanceStrategy, boolean useSSL, String schema) {
+    public static Pair<String, String> getConnectionUriAndDriver(Properties dbProps, String loadBalanceStrategy, boolean useSSL, String schema) {
         String connectionUri;
         String driver;
         String propertyUri = dbProps.getProperty(String.format("db.%s.uri", schema));
