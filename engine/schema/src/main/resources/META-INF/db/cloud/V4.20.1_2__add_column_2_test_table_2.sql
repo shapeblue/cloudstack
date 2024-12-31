@@ -15,5 +15,5 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
-CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.test_table', 'column_2', 'bigint unsigned DEFAULT 2 COMMENT "Column 2"');
+CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.test_table_2', 'column_2', 'bigint unsigned DEFAULT 2 COMMENT "Column 2"');
 

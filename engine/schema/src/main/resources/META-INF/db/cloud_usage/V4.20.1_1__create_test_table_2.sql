@@ -15,4 +15,7 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
-CALL `cloud_usage`.`IDEMPOTENT_ADD_COLUMN`('cloud_usage.test_table', 'column_2', 'bigint unsigned DEFAULT 2 COMMENT "Column 2"');
+CREATE TABLE IF NOT EXISTS `cloud_usage`.`test_table_2` (
+    `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
+    `column_1` bigint unsigned DEFAULT 1 COMMENT 'Column 1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
