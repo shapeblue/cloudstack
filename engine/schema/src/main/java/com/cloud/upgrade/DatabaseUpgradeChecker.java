@@ -427,7 +427,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
     }
 
     private void executeFlywaydbUpgradeOnCloudDb(String upgradedVersion) {
-        LOGGER.info("Running Flyway migration on cloud database");
+        LOGGER.info("Running Flyway migration on cloud database for CloudStack {}", upgradedVersion);
         Properties dbProps = DbProperties.getDbProperties();
         final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
         final boolean useSSL = Boolean.parseBoolean(dbProps.getProperty("db.cloud.useSSL"));
@@ -444,17 +444,19 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                     .baselineOnMigrate(true)
                     .baselineVersion(versionString)
                     .baselineDescription("Flyway Baseline for Apache CloudStack " + versionString)
+                    .outOfOrder(true)
+                    .ignoreMigrationPatterns("*:missing")
                     .validateOnMigrate(true)
                     .locations("classpath:META-INF/db/" + versionString + "/cloud")
                     .load();
             flyway.migrate();
         } catch (FlywayException fwe) {
-            LOGGER.error("Failed to run Flyway migration on cloud database due to {}", fwe);
+            LOGGER.error("Failed to run Flyway migration on cloud database due to {}", fwe.getMessage());
         }
     }
 
     private void executeFlywaydbUpgradeOnCloudUsageDb(String upgradedVersion) {
-        LOGGER.info("Running Flyway migration on cloud_usage database");
+        LOGGER.info("Running Flyway migration on cloud_usage database for CloudStack {}", upgradedVersion);
         Properties dbProps = DbProperties.getDbProperties();
         final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
         final boolean useSSL = Boolean.parseBoolean(dbProps.getProperty("db.cloud.useSSL"));
@@ -472,12 +474,14 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
                     .baselineOnMigrate(true)
                     .baselineVersion(versionString)
                     .baselineDescription("Flyway Baseline for Apache CloudStack " + versionString)
+                    .outOfOrder(true)
+                    .ignoreMigrationPatterns("*:missing")
                     .validateOnMigrate(true)
                     .locations("classpath:META-INF/db/" + versionString + "/cloud_usage")
                     .load();
             flyway.migrate();
         } catch (FlywayException fwe) {
-            LOGGER.error("Failed to run Flyway migration on cloud_usage database due to {}", fwe);
+            LOGGER.error("Failed to run Flyway migration on cloud_usage database due to {}", fwe.getMessage());
         }
     }
 
