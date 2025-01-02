@@ -21,4 +21,9 @@ import org.apache.logging.log4j.LogManager;
 
 public abstract class DbUpgradeAbstractImpl implements DbUpgrade {
     protected Logger logger = LogManager.getLogger(getClass());
+
+    @Override
+    public boolean supportsFlywayMigration() {
+        return false;
+    }
 }

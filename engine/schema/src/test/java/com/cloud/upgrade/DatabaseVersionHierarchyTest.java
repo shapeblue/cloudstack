@@ -55,6 +55,11 @@ public class DatabaseVersionHierarchyTest {
         }
 
         @Override
+        public boolean supportsFlywayMigration() {
+            return false;
+        }
+
+        @Override
         public InputStream[] getPrepareScripts() {
             return new InputStream[0];
         }

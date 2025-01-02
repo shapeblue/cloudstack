@@ -340,7 +340,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version = executeUpgrade(upgrade);
-            executeFlywaydbUpgrade(upgrade.getUpgradedVersion());
+            executeFlywaydbUpgrade(upgrade);
             executeUpgradeCleanup(upgrade, version);
         }
         return upgrades;
@@ -421,9 +421,11 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         }
     }
 
-    private void executeFlywaydbUpgrade(String upgradedVersion) {
-        executeFlywaydbUpgradeOnCloudDb(upgradedVersion);
-        executeFlywaydbUpgradeOnCloudUsageDb(upgradedVersion);
+    private void executeFlywaydbUpgrade(DbUpgrade upgrade) {
+        if (upgrade != null && upgrade.supportsFlywayMigration()) {
+            executeFlywaydbUpgradeOnCloudDb(upgrade.getUpgradedVersion());
+            executeFlywaydbUpgradeOnCloudUsageDb(upgrade.getUpgradedVersion());
+        }
     }
 
     private void executeFlywaydbUpgradeOnCloudDb(String upgradedVersion) {
@@ -437,12 +439,12 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         try {
             CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
-            String versionString = version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease();
+            String versionString = version.toString();
             Flyway flyway = Flyway.configure()
                     .dataSource(cloudUriAndDriver.first(), cloudUsername, cloudPassword)
                     .table("cloud_schema_version")
                     .baselineOnMigrate(true)
-                    .baselineVersion(versionString)
+                    .baselineVersion(version.toString())
                     .baselineDescription("Flyway Baseline for Apache CloudStack " + versionString)
                     .outOfOrder(true)
                     .ignoreMigrationPatterns("*:missing")
@@ -467,7 +469,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         try {
             CloudStackVersion version = CloudStackVersion.parse(upgradedVersion);
-            String versionString = version.getMajorRelease() + "." + version.getMinorRelease() + "." + version.getPatchRelease();
+            String versionString = version.toString();
             Flyway flyway = Flyway.configure()
                     .dataSource(usageUriAndDriver.first(), usageUsername, usagePassword)
                     .table("cloud_usage_schema_version")
@@ -540,7 +542,8 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
                 if (dbVersion.compareTo(currentVersion) == 0) {
                     LOGGER.info("DB version and code version matches so no upgrade needed.");
-                    executeFlywaydbUpgrade(currentVersionValue);
+                    DbUpgrade dbUpgrade = hierarchy.getRecentDbUpgradeByVersion(currentVersionValue);
+                    executeFlywaydbUpgrade(dbUpgrade);
                     return;
                 }
 
@@ -615,6 +618,11 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         @Override
         public boolean supportsRollingUpgrade() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsFlywayMigration() {
             return false;
         }
 

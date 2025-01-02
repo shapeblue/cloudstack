@@ -26,6 +26,8 @@ public interface DbUpgrade {
 
     boolean supportsRollingUpgrade();
 
+    boolean supportsFlywayMigration();
+
     /**
      * @return the script to prepare the database schema for the
      * data migration step.
