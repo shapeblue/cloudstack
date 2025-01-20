@@ -4472,18 +4472,64 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     private void checkIfHostNameUniqueInNtwkDomain(String hostName, List<? extends Network> networkList) {
         // Check that hostName is unique in the network domain
-        Map<String, Set<Long>> ntwkDomains = getNetworkIdPerNetworkDomain(networkList);
-        for (Entry<String, Set<Long>> ntwkDomain : ntwkDomains.entrySet()) {
-            for (Long ntwkId : ntwkDomain.getValue()) {
-                // * get all vms hostNames in the network
-                List<String> hostNames = _vmInstanceDao.listDistinctHostNames(ntwkId);
-                // * verify that there are no duplicates
-                if (hostNames.contains(hostName)) {
-                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the network domain: " + ntwkDomain.getKey() + "; network="
-                            + ((_networkModel.getNetwork(ntwkId) != null) ? _networkModel.getNetwork(ntwkId).getName() : "<unknown>"));
+        Set<Long> domainIdList = new HashSet<>();
+        switch (VmDistinctHostNameScope.value()) {
+            case "global":
+                // Check that hostName is unique in the zone
+                VMInstanceVO vm = _vmInstanceDao.findVMByHostName(hostName);
+                if (vm != null) {
+                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the zone");
                 }
-            }
+            case "domain":
+                // Check that hostName is unique in the domain
+                for (Network network : networkList) {
+                    domainIdList.add(network.getDomainId());
+                }
+                if (_vmInstanceDao.hostNameExistsInDomainIds(hostName, domainIdList)) {
+                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the domain");
+                }
+                break;
+            case "subdomain":
+                for (Network network : networkList) {
+                    domainIdList.add(network.getDomainId());
+                }
+                Set<Long> finalDomainIdList = new HashSet<>();
+                for (Long domainId : domainIdList) {
+                    finalDomainIdList.add(domainId);
+                    DomainVO domain = _domainDao.findById(domainId);
+                    List<Long> childDomainIds = _domainDao.getDomainChildrenIds(domain.getPath());
+                    finalDomainIdList.addAll(childDomainIds);
+                }
+
+                if (_vmInstanceDao.hostNameExistsInDomainIds(hostName, finalDomainIdList)) {
+                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the domain or subdomain");
+                }
+                break;
+            case "account":
+                // Check that hostName is unique in the account
+                Set<Long> accountIdList = new HashSet<>();
+                for (Network network : networkList) {
+                    accountIdList.add(network.getAccountId());
+                }
+                if (_vmInstanceDao.hostNameExistsInDomainIdsAccountIds(hostName, accountIdList)) {
+                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the account");
+                }
+                break;
+            default:
+                Map<String, Set<Long>> ntwkDomains = getNetworkIdPerNetworkDomain(networkList);
+                for (Entry<String, Set<Long>> ntwkDomain : ntwkDomains.entrySet()) {
+                    for (Long ntwkId : ntwkDomain.getValue()) {
+                        // * get all vms hostNames in the network
+                        List<String> hostNames = _vmInstanceDao.listDistinctHostNames(ntwkId);
+                        // * verify that there are no duplicates
+                        if (hostNames.contains(hostName)) {
+                            throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the network domain: " + ntwkDomain.getKey() + "; network="
+                                    + ((_networkModel.getNetwork(ntwkId) != null) ? _networkModel.getNetwork(ntwkId).getName() : "<unknown>"));
+                        }
+                    }
+                }
         }
+
     }
 
     private String generateHostName(String uuidName) {
@@ -8250,7 +8296,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey<?>[] {EnableDynamicallyScaleVm, AllowDiskOfferingChangeDuringScaleVm, AllowUserExpungeRecoverVm, VmIpFetchWaitInterval, VmIpFetchTrialMax,
                 VmIpFetchThreadPoolMax, VmIpFetchTaskWorkers, AllowDeployVmIfGivenHostFails, EnableAdditionalVmConfig, DisplayVMOVFProperties,
-                KvmAdditionalConfigAllowList, XenServerAdditionalConfigAllowList, VmwareAdditionalConfigAllowList, DestroyRootVolumeOnVmDestruction};
+                KvmAdditionalConfigAllowList, XenServerAdditionalConfigAllowList, VmwareAdditionalConfigAllowList, DestroyRootVolumeOnVmDestruction, VmDistinctHostNameScope};
     }
 
     @Override

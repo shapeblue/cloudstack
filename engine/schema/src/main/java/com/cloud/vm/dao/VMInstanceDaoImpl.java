@@ -24,11 +24,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -294,6 +296,8 @@ public class VMInstanceDaoImpl extends GenericDaoBase<VMInstanceVO, Long> implem
         DistinctHostNameSearch.selectFields(DistinctHostNameSearch.entity().getHostName());
 
         DistinctHostNameSearch.and("types", DistinctHostNameSearch.entity().getType(), SearchCriteria.Op.IN);
+        DistinctHostNameSearch.and("accounts", DistinctHostNameSearch.entity().getAccountId(), SearchCriteria.Op.IN);
+        DistinctHostNameSearch.and("domains", DistinctHostNameSearch.entity().getDomainId(), SearchCriteria.Op.IN);
         DistinctHostNameSearch.and("removed", DistinctHostNameSearch.entity().getRemoved(), SearchCriteria.Op.NULL);
         DistinctHostNameSearch.join("nicSearch", nicSearch, DistinctHostNameSearch.entity().getId(), nicSearch.entity().getInstanceId(), JoinBuilder.JoinType.INNER);
         DistinctHostNameSearch.done();
@@ -883,6 +887,20 @@ public class VMInstanceDaoImpl extends GenericDaoBase<VMInstanceVO, Long> implem
         sc.setJoinParameters("nicSearch", "networkId", networkId);
 
         return customSearch(sc, null);
+    }
+
+    public boolean hostNameExistsInDomainIds(String hostName, Set<Long> domainIdList) {
+        SearchCriteria<String> sc = DistinctHostNameSearch.create();
+        sc.setParameters("domains", domainIdList.toArray());
+
+        return CollectionUtils.isNotEmpty(customSearch(sc, null));
+    }
+
+    public boolean hostNameExistsInDomainIdsAccountIds(String hostName, Set<Long> accountIdList) {
+        SearchCriteria<String> sc = DistinctHostNameSearch.create();
+        sc.setParameters("accounts", accountIdList.toArray());
+
+        return CollectionUtils.isNotEmpty(customSearch(sc, null));
     }
 
     @Override

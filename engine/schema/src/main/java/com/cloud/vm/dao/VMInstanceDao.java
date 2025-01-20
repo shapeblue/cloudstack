@@ -20,6 +20,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.utils.Pair;
@@ -143,6 +144,10 @@ public interface VMInstanceDao extends GenericDao<VMInstanceVO, Long>, StateDao<
      * @return
      */
     List<String> listDistinctHostNames(long networkId, VirtualMachine.Type... types);
+
+    boolean hostNameExistsInDomainIds(String hostName, Set<Long> domainIdList);
+
+    boolean hostNameExistsInDomainIdsAccountIds(String hostName, Set<Long> accountIdList);
 
     List<VMInstanceVO> findByHostInStates(Long hostId, State... states);
 
