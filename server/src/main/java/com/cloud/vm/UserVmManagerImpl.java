@@ -52,7 +52,6 @@ import javax.naming.ConfigurationException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.ParserConfigurationException;
 
-import com.cloud.network.vpc.Vpc;
 import org.apache.cloudstack.acl.ControlledEntity;
 import org.apache.cloudstack.acl.ControlledEntity.ACLType;
 import org.apache.cloudstack.acl.SecurityChecker.AccessType;
@@ -4430,14 +4429,59 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
     }
 
-    private Map<String, Set<Long>> getNetworkIdPerNetworkDomain(List<? extends Network> networkList){
-        Map<String, Set<Long>> ntwkDomains = new HashMap<>();
-        Set<Long> vpcIds = new HashSet<>();
+    private List<NetworkVO> getNetworksWithSameNetworkDomainInDomains(List<NetworkVO> networkList, boolean checkSubDomains) {
+        List<String> uniqueNtwkDomains = networkList.stream().map(NetworkVO::getNetworkDomain).collect(Collectors.toList());
+        List<Long> domainIdList = new ArrayList<>();
         for (Network network : networkList) {
-            String ntwkDomain = network.getNetworkDomain();
-            if (network.getVpcId() != null) {
-                vpcIds.add(network.getVpcId());
+            domainIdList.add(network.getDomainId());
+        }
+        Set<Long> finalDomainIdList = new HashSet<>(domainIdList);
+        if (checkSubDomains) {
+            for (Long domainId : domainIdList) {
+                DomainVO domain = _domainDao.findById(domainId);
+                List<Long> childDomainIds = _domainDao.getDomainChildrenIds(domain.getPath());
+                finalDomainIdList.addAll(childDomainIds);
             }
+        }
+        return _networkDao.listByNetworkDomainsAndDomainIds(uniqueNtwkDomains, finalDomainIdList.stream().collect(Collectors.toList()));
+    }
+
+    private List<NetworkVO> getNetworksForCheckUniqueHostName(List<NetworkVO> networkList) {
+        List<NetworkVO> finalNetworkList;
+        List<String> uniqueNtwkDomains;
+        switch (VmDistinctHostNameScope.value()) {
+            case "global":
+                uniqueNtwkDomains = networkList.stream().map(NetworkVO::getNetworkDomain).collect(Collectors.toList());
+                finalNetworkList = _networkDao.listByNetworkDomains(uniqueNtwkDomains);
+                break;
+            case "domain":
+                finalNetworkList = getNetworksWithSameNetworkDomainInDomains(networkList, false);
+                break;
+            case "subdomain":
+                finalNetworkList = getNetworksWithSameNetworkDomainInDomains(networkList, true);
+                break;
+            case "account":
+                uniqueNtwkDomains = networkList.stream().map(NetworkVO::getNetworkDomain).collect(Collectors.toList());
+                List<Long> accountIds = networkList.stream().map(Network::getAccountId).collect(Collectors.toList());
+                finalNetworkList = _networkDao.listByNetworkDomainsAndAccountIds(uniqueNtwkDomains, accountIds);
+                break;
+            default:
+                Set<Long> vpcIds = networkList.stream().map(Network::getVpcId).filter(Objects::nonNull).collect(Collectors.toSet());
+                finalNetworkList = new ArrayList<>(networkList);
+                for (Long vpcId : vpcIds) {
+                    finalNetworkList.addAll(_networkDao.listByVpc(vpcId));
+                }
+                break;
+        }
+        return finalNetworkList;
+    }
+
+    private Map<String, Set<Long>> getNetworkIdPerNetworkDomain(List<NetworkVO> networkList) {
+        Map<String, Set<Long>> ntwkDomains = new HashMap<>();
+
+        List<NetworkVO> updatedNetworkList = getNetworksForCheckUniqueHostName(networkList);
+        for (Network network : updatedNetworkList) {
+            String ntwkDomain = network.getNetworkDomain();
             Set<Long> ntwkIds;
             if (!ntwkDomains.containsKey(ntwkDomain)) {
                 ntwkIds = new HashSet<>();
@@ -4447,89 +4491,23 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             ntwkIds.add(network.getId());
             ntwkDomains.put(ntwkDomain, ntwkIds);
         }
-
-        for (Long vpcId : vpcIds) {
-            Vpc vpc = _vpcMgr.getActiveVpc(vpcId);
-            List<NetworkVO> networks = _networkDao.listByVpc(vpcId);
-            String ntwkDomain = vpc.getNetworkDomain();
-
-            Set<Long> ntwkIds;
-            if (!ntwkDomains.containsKey(ntwkDomain)) {
-                ntwkIds = new HashSet<>();
-                for (NetworkVO network : networks) {
-                    ntwkIds.add(network.getId());
-                }
-            } else {
-                ntwkIds = ntwkDomains.get(ntwkDomain);
-                for (NetworkVO network : networks) {
-                    ntwkIds.add(network.getId());
-                }
-            }
-            ntwkDomains.put(ntwkDomain, ntwkIds);
-        }
         return ntwkDomains;
     }
 
-    private void checkIfHostNameUniqueInNtwkDomain(String hostName, List<? extends Network> networkList) {
-        // Check that hostName is unique in the network domain
-        Set<Long> domainIdList = new HashSet<>();
-        switch (VmDistinctHostNameScope.value()) {
-            case "global":
-                // Check that hostName is unique in the zone
-                VMInstanceVO vm = _vmInstanceDao.findVMByHostName(hostName);
-                if (vm != null) {
-                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the zone");
+    private void checkIfHostNameUniqueInNtwkDomain(String hostName, List<NetworkVO> networkList) {
+        // Check that hostName is unique
+        Map<String, Set<Long>> ntwkDomains = getNetworkIdPerNetworkDomain(networkList);
+        for (Entry<String, Set<Long>> ntwkDomain : ntwkDomains.entrySet()) {
+            for (Long ntwkId : ntwkDomain.getValue()) {
+                // * get all vms hostNames in the network
+                List<String> hostNames = _vmInstanceDao.listDistinctHostNames(ntwkId);
+                // * verify that there are no duplicates
+                if (hostNames.contains(hostName)) {
+                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the network domain: " + ntwkDomain.getKey() + "; network="
+                            + ((_networkModel.getNetwork(ntwkId) != null) ? _networkModel.getNetwork(ntwkId).getName() : "<unknown>"));
                 }
-            case "domain":
-                // Check that hostName is unique in the domain
-                for (Network network : networkList) {
-                    domainIdList.add(network.getDomainId());
-                }
-                if (_vmInstanceDao.hostNameExistsInDomainIds(hostName, domainIdList)) {
-                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the domain");
-                }
-                break;
-            case "subdomain":
-                for (Network network : networkList) {
-                    domainIdList.add(network.getDomainId());
-                }
-                Set<Long> finalDomainIdList = new HashSet<>();
-                for (Long domainId : domainIdList) {
-                    finalDomainIdList.add(domainId);
-                    DomainVO domain = _domainDao.findById(domainId);
-                    List<Long> childDomainIds = _domainDao.getDomainChildrenIds(domain.getPath());
-                    finalDomainIdList.addAll(childDomainIds);
-                }
-
-                if (_vmInstanceDao.hostNameExistsInDomainIds(hostName, finalDomainIdList)) {
-                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the domain or subdomain");
-                }
-                break;
-            case "account":
-                // Check that hostName is unique in the account
-                Set<Long> accountIdList = new HashSet<>();
-                for (Network network : networkList) {
-                    accountIdList.add(network.getAccountId());
-                }
-                if (_vmInstanceDao.hostNameExistsInDomainIdsAccountIds(hostName, accountIdList)) {
-                    throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the account");
-                }
-                break;
-            default:
-                Map<String, Set<Long>> ntwkDomains = getNetworkIdPerNetworkDomain(networkList);
-                for (Entry<String, Set<Long>> ntwkDomain : ntwkDomains.entrySet()) {
-                    for (Long ntwkId : ntwkDomain.getValue()) {
-                        // * get all vms hostNames in the network
-                        List<String> hostNames = _vmInstanceDao.listDistinctHostNames(ntwkId);
-                        // * verify that there are no duplicates
-                        if (hostNames.contains(hostName)) {
-                            throw new InvalidParameterValueException("The vm with hostName " + hostName + " already exists in the network domain: " + ntwkDomain.getKey() + "; network="
-                                    + ((_networkModel.getNetwork(ntwkId) != null) ? _networkModel.getNetwork(ntwkId).getName() : "<unknown>"));
-                        }
-                    }
-                }
+            }
         }
-
     }
 
     private String generateHostName(String uuidName) {
