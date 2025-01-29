@@ -340,8 +340,8 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version = executeUpgrade(upgrade);
-            executeFlywaydbUpgrade(upgrade);
             executeUpgradeCleanup(upgrade, version);
+            executeFlywaydbUpgrade(upgrade);
         }
         return upgrades;
     }

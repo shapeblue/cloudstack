@@ -138,7 +138,7 @@
         <cs.cron-utils.version>9.2.0</cs.cron-utils.version>
         <cs.cxf.version>3.2.14</cs.cxf.version>
         <cs.ehcache.version>2.6.11</cs.ehcache.version>
-        <cs.flywaydb.version>11.1.0</cs.flywaydb.version>
+        <cs.flywaydb.version>9.22.3</cs.flywaydb.version>
         <cs.globodns-client.version>0.0.27</cs.globodns-client.version>
         <cs.gmavenplus.version>3.0.2</cs.gmavenplus.version>
         <cs.google-http-client>1.42.3</cs.google-http-client>
