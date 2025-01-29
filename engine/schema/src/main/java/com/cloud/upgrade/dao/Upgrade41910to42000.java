@@ -45,6 +45,21 @@ public class Upgrade41910to42000 extends DbUpgradeAbstractImpl implements DbUpgr
     }
 
     @Override
+    public boolean supportsLiquibaseDbUpgrade() {
+        return true;
+    }
+
+    @Override
+    public String getLiquibaseDbCloudChangeLogFile() {
+        return "src/main/resources/liquibase/changelog/db.cloud.changelog-4.20.0.sql";
+    }
+
+    @Override
+    public String getLiquibaseDbUsageChangeLogFile() {
+        return "src/main/resources/liquibase/changelog/db.usage.changelog-4.20.0.sql";
+    }
+
+    @Override
     public InputStream[] getPrepareScripts() {
         final String scriptFile = "META-INF/db/schema-41910to42000.sql";
         final InputStream script = Thread.currentThread().getContextClassLoader().getResourceAsStream(scriptFile);

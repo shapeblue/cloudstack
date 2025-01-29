@@ -193,4 +193,14 @@ public final class DatabaseVersionHierarchy {
     public CloudStackVersion getLatestVersion() {
         return CloudStackVersion.parse(hierarchy.get(hierarchy.size() - 1).upgrader.getUpgradedVersion());
     }
+
+    public DbUpgrade getRecentDbUpgradeByVersion(String toVersionString) {
+        CloudStackVersion toVersion = CloudStackVersion.parse(toVersionString);
+        VersionNode versionNode = hierarchy.reverse()
+                .stream()
+                .filter(version -> toVersion.compareTo(version.version) >= 0)
+                .findFirst()
+                .orElse(null);
+        return versionNode == null ? null : versionNode.upgrader;
+    }
 }

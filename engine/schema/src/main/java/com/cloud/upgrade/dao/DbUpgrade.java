@@ -26,6 +26,18 @@ public interface DbUpgrade {
 
     boolean supportsRollingUpgrade();
 
+    default boolean supportsLiquibaseDbUpgrade() {
+        return false;
+    }
+
+    default String getLiquibaseDbCloudChangeLogFile() {
+        return null;
+    }
+
+    default String getLiquibaseDbUsageChangeLogFile() {
+        return null;
+    }
+
     /**
      * @return the script to prepare the database schema for the
      * data migration step.

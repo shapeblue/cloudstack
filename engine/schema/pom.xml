@@ -49,6 +49,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+            <version>${cs.liquibase.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
@@ -162,6 +167,20 @@
                                 <argument>${project.systemvm.template.version}</argument>
                             </arguments>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.liquibase</groupId>
+                <artifactId>liquibase-maven-plugin</artifactId>
+                <version>${cs.liquibase.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>update</goal>
+                            <goal>rollback</goal>
+                            <goal>status</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

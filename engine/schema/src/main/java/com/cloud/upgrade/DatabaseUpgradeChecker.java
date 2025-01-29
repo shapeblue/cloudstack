@@ -19,17 +19,29 @@ package com.cloud.upgrade;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ObjectArrays.concat;
 
+import liquibase.Contexts;
+import liquibase.Liquibase;
+//import liquibase.changelog.DatabaseChangeLog;
+import liquibase.database.Database;
+import liquibase.database.core.MySQLDatabase;
+import liquibase.database.jvm.JdbcConnection;
+import liquibase.exception.LiquibaseException;
+import liquibase.resource.FileSystemResourceAccessor;
+
+//import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 import javax.inject.Inject;
 
@@ -119,8 +131,10 @@ import com.cloud.upgrade.dao.VersionDao;
 import com.cloud.upgrade.dao.VersionDaoImpl;
 import com.cloud.upgrade.dao.VersionVO;
 import com.cloud.upgrade.dao.VersionVO.Step;
+import com.cloud.utils.Pair;
 import com.cloud.utils.component.SystemIntegrityChecker;
 import com.cloud.utils.crypt.DBEncryptionUtil;
+import com.cloud.utils.db.DbProperties;
 import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.db.ScriptRunner;
 import com.cloud.utils.db.TransactionLegacy;
@@ -338,6 +352,7 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         for (DbUpgrade upgrade : upgrades) {
             VersionVO version = executeUpgrade(upgrade);
             executeUpgradeCleanup(upgrade, version);
+            executeLiquibaseDbUpgrade(upgrade);
         }
         return upgrades;
     }
@@ -417,6 +432,82 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         }
     }
 
+    private void executeLiquibaseDbUpgrade(DbUpgrade upgrade) {
+        LOGGER.info("Checking Liquibase upgrade");
+        if (upgrade == null || !upgrade.supportsLiquibaseDbUpgrade()) {
+            return;
+        }
+
+        executeLiquibaseDbUpgradeOnCloudDb(upgrade.getUpgradedVersion(), upgrade.getLiquibaseDbCloudChangeLogFile());
+        executeLiquibaseDbUpgradeOnCloudUsageDb(upgrade.getUpgradedVersion(), upgrade.getLiquibaseDbUsageChangeLogFile());
+    }
+
+    private void executeLiquibaseDbUpgradeOnCloudDb(String upgradedVersion, String cloudChangelogFilePath) {
+        if (StringUtils.isBlank(cloudChangelogFilePath)) {
+            return;
+        }
+//        File changeLogFile = new File(cloudChangelogFilePath);
+//        if (!changeLogFile.exists()) {
+//            return;
+//        }
+        LOGGER.info("Running Liquibase upgrade on cloud database for CloudStack {}", upgradedVersion);
+        Properties dbProps = DbProperties.getDbProperties();
+        final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
+        final boolean useSSL = Boolean.parseBoolean(dbProps.getProperty("db.cloud.useSSL"));
+        final String cloudUsername = dbProps.getProperty("db.cloud.username");
+        final String cloudPassword = dbProps.getProperty("db.cloud.password");
+        Pair<String, String> cloudUriAndDriver = TransactionLegacy.getConnectionUriAndDriver(dbProps, loadBalanceStrategy, useSSL, "cloud");
+//        String cloudChangelogFilePath = "src/main/resources/liquibase/changelog/db.cloud.changelog-master.sql";
+
+        try {
+            Connection connection = DriverManager.getConnection(cloudUriAndDriver.first(), cloudUsername, cloudPassword);
+            JdbcConnection jdbcConnection = new JdbcConnection(connection);
+            Database database = new MySQLDatabase();
+            database.setConnection(jdbcConnection);
+            database.setDatabaseChangeLogTableName("cloud_schema_change_log");
+            database.setDatabaseChangeLogLockTableName("cloud_schema_change_log_lock");
+//            DatabaseChangeLog databaseChangeLog = new DatabaseChangeLog("src/main/resources/liquibase/changelog/db.custom.changelog-master.sql");
+//            Liquibase liquibaseDb = new Liquibase(databaseChangeLog, new FileSystemResourceAccessor(), database);
+            Liquibase liquibaseDb = new Liquibase(cloudChangelogFilePath, new FileSystemResourceAccessor(), database);
+            liquibaseDb.update(new Contexts());
+            jdbcConnection.close();
+        } catch (SQLException | LiquibaseException e) {
+            LOGGER.error("Failed to run Liquibase upgrade on cloud database due to {}", e.getMessage());
+        }
+    }
+
+    private void executeLiquibaseDbUpgradeOnCloudUsageDb(String upgradedVersion, String usageChangelogFilePath) {
+        if (StringUtils.isBlank(usageChangelogFilePath)) {
+            return;
+        }
+//        File changeLogFile = new File(cloudChangelogFilePath);
+//        if (!changeLogFile.exists()) {
+//            return;
+//        }
+        LOGGER.info("Running Liquibase upgrade on cloud_usage database for CloudStack {}", upgradedVersion);
+        Properties dbProps = DbProperties.getDbProperties();
+        final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
+        final boolean useSSL = Boolean.parseBoolean(dbProps.getProperty("db.cloud.useSSL"));
+        final String usageUsername = dbProps.getProperty("db.usage.username");
+        final String usagePassword = dbProps.getProperty("db.usage.password");
+        Pair<String, String> usageUriAndDriver = TransactionLegacy.getConnectionUriAndDriver(dbProps, loadBalanceStrategy, useSSL, "usage");
+//        String usageChangelogFilePath = "src/main/resources/liquibase/changelog/db.usage.changelog-master.sql";
+
+        try {
+            Connection connection = DriverManager.getConnection(usageUriAndDriver.first(), usageUsername, usagePassword);
+            JdbcConnection jdbcConnection = new JdbcConnection(connection);
+            Database database = new MySQLDatabase();
+            database.setConnection(jdbcConnection);
+            database.setDatabaseChangeLogTableName("cloud_usage_schema_change_log");
+            database.setDatabaseChangeLogLockTableName("cloud_usage_schema_change_log_lock");
+            Liquibase liquibaseDb = new Liquibase(usageChangelogFilePath, new FileSystemResourceAccessor(), database);
+            liquibaseDb.update(new Contexts());
+            jdbcConnection.close();
+        } catch (SQLException | LiquibaseException e) {
+            LOGGER.error("Failed to run Liquibase upgrade on cloud_usage database due to {}", e.getMessage());
+        }
+    }
+
     protected void executeViewScripts() {
         LOGGER.info(String.format("Executing VIEW scripts that are under resource directory [%s].", VIEWS_DIRECTORY));
         List<String> filesPathUnderViewsDirectory = FileUtil.getFilesPathsUnderResourceDirectory(VIEWS_DIRECTORY);
@@ -472,6 +563,8 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
 
                 if (dbVersion.compareTo(currentVersion) == 0) {
                     LOGGER.info("DB version and code version matches so no upgrade needed.");
+                    DbUpgrade dbUpgrade = hierarchy.getRecentDbUpgradeByVersion(currentVersionValue);
+                    executeLiquibaseDbUpgrade(dbUpgrade);
                     return;
                 }
 
