@@ -1,4 +1,3 @@
--- ChangeSet 1: Add a column to an existing table
 -- liquibase formatted sql
 -- id: 1
 

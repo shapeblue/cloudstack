@@ -190,7 +190,7 @@
         <org.springframework.version>5.3.26</org.springframework.version>
         <cs.ini.version>0.5.4</cs.ini.version>
         <cs.caffeine.version>3.1.7</cs.caffeine.version>
-        <cs.liquibase.version>4.31.0</cs.liquibase.version>
+        <cs.liquibase.version>4.29.1</cs.liquibase.version>
     </properties>
 
     <distributionManagement>

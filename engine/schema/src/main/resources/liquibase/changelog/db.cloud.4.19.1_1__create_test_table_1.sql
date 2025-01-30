@@ -1,4 +1,3 @@
--- ChangeSet 1: Create a new table
 -- liquibase formatted sql
 -- id: 1
 

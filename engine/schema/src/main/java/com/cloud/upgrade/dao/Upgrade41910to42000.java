@@ -51,12 +51,12 @@ public class Upgrade41910to42000 extends DbUpgradeAbstractImpl implements DbUpgr
 
     @Override
     public String getLiquibaseDbCloudChangeLogFile() {
-        return "src/main/resources/liquibase/changelog/db.cloud.changelog-4.20.0.sql";
+        return "liquibase/changelog/db.cloud.changelog-4.20.0.xml";
     }
 
     @Override
     public String getLiquibaseDbUsageChangeLogFile() {
-        return "src/main/resources/liquibase/changelog/db.usage.changelog-4.20.0.sql";
+        return "liquibase/changelog/db.usage.changelog-4.20.0.xml";
     }
 
     @Override

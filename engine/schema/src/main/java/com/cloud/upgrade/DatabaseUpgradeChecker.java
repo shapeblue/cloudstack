@@ -26,9 +26,9 @@ import liquibase.database.Database;
 import liquibase.database.core.MySQLDatabase;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.LiquibaseException;
-import liquibase.resource.FileSystemResourceAccessor;
+import liquibase.resource.ClassLoaderResourceAccessor;
+//import liquibase.resource.FileSystemResourceAccessor;
 
-//import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -446,10 +446,12 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         if (StringUtils.isBlank(cloudChangelogFilePath)) {
             return;
         }
-//        File changeLogFile = new File(cloudChangelogFilePath);
-//        if (!changeLogFile.exists()) {
-//            return;
-//        }
+        final InputStream cloudChangelog = Thread.currentThread().getContextClassLoader().getResourceAsStream(cloudChangelogFilePath);
+        if (cloudChangelog == null) {
+            LOGGER.error("Unable to find cloud database change log {}", cloudChangelogFilePath);
+            return;
+        }
+
         LOGGER.info("Running Liquibase upgrade on cloud database for CloudStack {}", upgradedVersion);
         Properties dbProps = DbProperties.getDbProperties();
         final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
@@ -468,10 +470,10 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
             database.setDatabaseChangeLogLockTableName("cloud_schema_change_log_lock");
 //            DatabaseChangeLog databaseChangeLog = new DatabaseChangeLog("src/main/resources/liquibase/changelog/db.custom.changelog-master.sql");
 //            Liquibase liquibaseDb = new Liquibase(databaseChangeLog, new FileSystemResourceAccessor(), database);
-            Liquibase liquibaseDb = new Liquibase(cloudChangelogFilePath, new FileSystemResourceAccessor(), database);
+            Liquibase liquibaseDb = new Liquibase(cloudChangelogFilePath, new ClassLoaderResourceAccessor(Thread.currentThread().getContextClassLoader()), database);
             liquibaseDb.update(new Contexts());
             jdbcConnection.close();
-        } catch (SQLException | LiquibaseException e) {
+        } catch (SQLException | LiquibaseException | RuntimeException e) {
             LOGGER.error("Failed to run Liquibase upgrade on cloud database due to {}", e.getMessage());
         }
     }
@@ -480,10 +482,12 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         if (StringUtils.isBlank(usageChangelogFilePath)) {
             return;
         }
-//        File changeLogFile = new File(cloudChangelogFilePath);
-//        if (!changeLogFile.exists()) {
-//            return;
-//        }
+        final InputStream usageChangelog = Thread.currentThread().getContextClassLoader().getResourceAsStream(usageChangelogFilePath);
+        if (usageChangelog == null) {
+            LOGGER.error("Unable to find cloud_usage database change log {}", usageChangelogFilePath);
+            return;
+        }
+
         LOGGER.info("Running Liquibase upgrade on cloud_usage database for CloudStack {}", upgradedVersion);
         Properties dbProps = DbProperties.getDbProperties();
         final String loadBalanceStrategy = dbProps.getProperty("db.ha.loadBalanceStrategy");
@@ -500,10 +504,10 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
             database.setConnection(jdbcConnection);
             database.setDatabaseChangeLogTableName("cloud_usage_schema_change_log");
             database.setDatabaseChangeLogLockTableName("cloud_usage_schema_change_log_lock");
-            Liquibase liquibaseDb = new Liquibase(usageChangelogFilePath, new FileSystemResourceAccessor(), database);
+            Liquibase liquibaseDb = new Liquibase(usageChangelogFilePath, new ClassLoaderResourceAccessor(Thread.currentThread().getContextClassLoader()), database);
             liquibaseDb.update(new Contexts());
             jdbcConnection.close();
-        } catch (SQLException | LiquibaseException e) {
+        } catch (SQLException | LiquibaseException | RuntimeException e) {
             LOGGER.error("Failed to run Liquibase upgrade on cloud_usage database due to {}", e.getMessage());
         }
     }
