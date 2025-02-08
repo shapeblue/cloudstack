@@ -5521,7 +5521,7 @@ public class LibvirtComputingResourceTest {
     @Test
     public void testSetQuotaAndPeriod() {
         double pct = 0.33d;
-        Mockito.when(vmTO.getLimitCpuUse()).thenReturn(true);
+        Mockito.when(vmTO.isLimitCpuUse()).thenReturn(true);
         Mockito.when(vmTO.getCpuQuotaPercentage()).thenReturn(pct);
         CpuTuneDef cpuTuneDef = new CpuTuneDef();
         final LibvirtComputingResource lcr = new LibvirtComputingResource();
@@ -5532,7 +5532,7 @@ public class LibvirtComputingResourceTest {
 
     @Test
     public void testSetQuotaAndPeriodNoCpuLimitUse() {
-        Mockito.when(vmTO.getLimitCpuUse()).thenReturn(false);
+        Mockito.when(vmTO.isLimitCpuUse()).thenReturn(false);
         CpuTuneDef cpuTuneDef = new CpuTuneDef();
         final LibvirtComputingResource lcr = new LibvirtComputingResource();
         lcr.setQuotaAndPeriod(vmTO, cpuTuneDef);
@@ -5543,7 +5543,7 @@ public class LibvirtComputingResourceTest {
     @Test
     public void testSetQuotaAndPeriodMinQuota() {
         double pct = 0.01d;
-        Mockito.when(vmTO.getLimitCpuUse()).thenReturn(true);
+        Mockito.when(vmTO.isLimitCpuUse()).thenReturn(true);
         Mockito.when(vmTO.getCpuQuotaPercentage()).thenReturn(pct);
         CpuTuneDef cpuTuneDef = new CpuTuneDef();
         final LibvirtComputingResource lcr = new LibvirtComputingResource();

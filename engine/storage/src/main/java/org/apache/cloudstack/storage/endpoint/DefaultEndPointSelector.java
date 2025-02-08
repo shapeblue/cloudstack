@@ -449,6 +449,7 @@ public class DefaultEndPointSelector implements EndPointSelector {
         }
     }
 
+    @Override
     public EndPoint getEndPointFromHostId(Long hostId) {
         HostVO host = hostDao.findById(hostId);
         return RemoteHostEndPoint.getHypervisorHostEndPoint(host);

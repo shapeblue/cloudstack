@@ -17,28 +17,29 @@
 // under the License.
 //
 
-package org.apache.cloudstack.api.agent.test;
+package org.apache.cloudstack.command;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import com.cloud.agent.api.Answer;
+import org.apache.cloudstack.api.ApiCommandResourceType;
 
-import com.cloud.agent.api.CheckGuestOsMappingCommand;
-import org.junit.Test;
+public class ReconcileAnswer extends Answer {
 
-public class CheckGuestOsMappingCommandTest {
+    ApiCommandResourceType resourceType;
+    Long resourceId;
 
-    @Test
-    public void testExecuteInSequence() {
-        CheckGuestOsMappingCommand cmd = new CheckGuestOsMappingCommand();
-        boolean b = cmd.executeInSequence();
-        assertFalse(b);
+    public ApiCommandResourceType getResourceType() {
+        return resourceType;
     }
 
-    @Test
-    public void testCommandParams() {
-        CheckGuestOsMappingCommand cmd = new CheckGuestOsMappingCommand("CentOS 7.2", "centos64Guest", "6.0");
-        assertEquals("CentOS 7.2", cmd.getGuestOsName());
-        assertEquals("centos64Guest", cmd.getGuestOsHypervisorMappingName());
-        assertEquals("6.0", cmd.getHypervisorVersion());
+    public void setResourceType(ApiCommandResourceType resourceType) {
+        this.resourceType = resourceType;
+    }
+
+    public Long getResourceId() {
+        return resourceId;
+    }
+
+    public void setResourceId(Long resourceId) {
+        this.resourceId = resourceId;
     }
 }

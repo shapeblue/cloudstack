@@ -21,6 +21,7 @@ package com.cloud.hypervisor.kvm.resource.wrapper;
 import java.util.Hashtable;
 import java.util.Set;
 
+import org.apache.cloudstack.command.ReconcileCommandUtils;
 import org.reflections.Reflections;
 
 import com.cloud.agent.api.Answer;
@@ -75,6 +76,12 @@ public class LibvirtRequestWrapper extends RequestWrapper {
         if (commandWrapper == null) {
             throw new CommandNotSupported("No way to handle " + command.getClass());
         }
-        return commandWrapper.execute(command, serverResource);
+        Answer answer = commandWrapper.execute(command, serverResource);
+
+        if (answer != null && command.isReconcile()) {
+            ReconcileCommandUtils.updateLogFileWithAnswerForCommand(LibvirtComputingResource.COMMANDS_LOG_PATH, command, answer);
+        }
+
+        return answer;
     }
 }

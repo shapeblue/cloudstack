@@ -32,6 +32,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.cloud.agent.api.CleanupPersistentNetworkResourceCommand;
+import com.cloud.utils.Pair;
+import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.agent.lb.SetupMSListCommand;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.utils.reflectiontostringbuilderutils.ReflectionToStringBuilderUtils;
@@ -134,6 +136,8 @@ public abstract class AgentAttache {
         Arrays.sort(s_commandsAllowedInMaintenanceMode);
         Arrays.sort(s_commandsNotAllowedInConnectingMode);
     }
+
+    final int ReconcileInterval = 10;  // Check Answer in database for ReconcileCommand
 
     protected AgentAttache(final AgentManagerImpl agentMgr, final long id, final String uuid, final String name, final boolean maintenance) {
         _id = id;
@@ -406,10 +410,44 @@ public abstract class AgentAttache {
         try {
             for (int i = 0; i < 2; i++) {
                 Answer[] answers = null;
-                try {
-                    answers = sl.waitFor(wait);
-                } catch (final InterruptedException e) {
-                    logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted");
+                Command[] cmds = req.getCommands();
+                if (cmds != null && cmds.length == 1 && (cmds[0] != null) && cmds[0].isReconcile()) {
+                    int waitTimeLeft = wait;
+                    while (waitTimeLeft > 0 && answers == null) {
+                        int waitTime = Math.min(waitTimeLeft, ReconcileInterval);
+                        try {
+                            answers = sl.waitFor(waitTime);
+                        } catch (final InterruptedException e) {
+                            logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted");
+                        }
+                        if (answers == null) {
+                            logger.debug("Getting the answer of reconcile command from cloudstack database");
+                            Pair<Command.State, Answer> commandInfo = _agentMgr.getStateAndAnswerOfReconcileCommand(req.getSequence(), cmds[0]);
+                            if (commandInfo == null) {
+                                continue;
+                            }
+                            Command.State state = commandInfo.first();
+                            if (Command.State.INTERRUPTED.equals(state)) {
+                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent");
+                                throw new CloudRuntimeException("Interrupted by agent");
+                            } else if (Command.State.DANGLED_IN_BACKEND.equals(state)) {
+                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, adding reconcile command to list");
+                                throw new CloudRuntimeException("It is not being processed by agent");
+                            }
+                            Answer answer = commandInfo.second();
+                            logger.debug("Got the answer of reconcile command from cloudstack database: " + answer);
+                            if (answer != null) {
+                                answers = new Answer[] { answer };
+                            }
+                        }
+                        waitTimeLeft -= waitTime;
+                    }
+                } else {
+                    try {
+                        answers = sl.waitFor(wait);
+                    } catch (final InterruptedException e) {
+                        logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted");
+                    }
                 }
                 if (answers != null) {
                     new Response(req, answers).logD("Received: ", false);
@@ -428,11 +466,13 @@ public abstract class AgentAttache {
                 if (current != null && seq != current) {
                     logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Waited too long.");
 
+                    _agentMgr.updateReconcileCommandsIfNeeded(req.getSequence(), req.getCommands(), Command.State.TIMED_OUT);
                     throw new OperationTimedoutException(req.getCommands(), _id, seq, wait, false);
                 }
                 logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Waiting some more time because this is the current command");
             }
 
+            _agentMgr.updateReconcileCommandsIfNeeded(req.getSequence(), req.getCommands(), Command.State.TIMED_OUT);
             throw new OperationTimedoutException(req.getCommands(), _id, seq, wait * 2, true);
         } catch (OperationTimedoutException e) {
             logger.warn(LOG_SEQ_FORMATTED_STRING, seq, "Timed out on " + req.toString());
@@ -449,6 +489,7 @@ public abstract class AgentAttache {
             if (req.executeInSequence() && (current != null && current == seq)) {
                 sendNext(seq);
             }
+            _agentMgr.updateReconcileCommandsIfNeeded(req.getSequence(), req.getCommands(), Command.State.TIMED_OUT);
             throw new OperationTimedoutException(req.getCommands(), _id, seq, wait, false);
         } finally {
             unregisterListener(seq);

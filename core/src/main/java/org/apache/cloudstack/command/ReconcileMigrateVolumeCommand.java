@@ -1,4 +1,3 @@
-//
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -15,30 +14,26 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-//
 
-package org.apache.cloudstack.api.agent.test;
+package org.apache.cloudstack.command;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import com.cloud.agent.api.to.DataTO;
 
-import com.cloud.agent.api.CheckGuestOsMappingCommand;
-import org.junit.Test;
+public class ReconcileMigrateVolumeCommand extends ReconcileCommand {
 
-public class CheckGuestOsMappingCommandTest {
+    DataTO srcData;
+    DataTO destData;
 
-    @Test
-    public void testExecuteInSequence() {
-        CheckGuestOsMappingCommand cmd = new CheckGuestOsMappingCommand();
-        boolean b = cmd.executeInSequence();
-        assertFalse(b);
+    public ReconcileMigrateVolumeCommand(DataTO srcData, DataTO destData) {
+        this.srcData = srcData;
+        this.destData = destData;
     }
 
-    @Test
-    public void testCommandParams() {
-        CheckGuestOsMappingCommand cmd = new CheckGuestOsMappingCommand("CentOS 7.2", "centos64Guest", "6.0");
-        assertEquals("CentOS 7.2", cmd.getGuestOsName());
-        assertEquals("centos64Guest", cmd.getGuestOsHypervisorMappingName());
-        assertEquals("6.0", cmd.getHypervisorVersion());
+    public DataTO getSrcData() {
+        return srcData;
+    }
+
+    public DataTO getDestData() {
+        return destData;
     }
 }

@@ -47,3 +47,24 @@ CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.storage_pool', 'used_iops', 'bigint 
 
 -- Add reason column for op_ha_work
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.op_ha_work', 'reason', 'varchar(32) DEFAULT NULL COMMENT "Reason for the HA work"');
+
+-- Add table for reconcile commands
+CREATE TABLE IF NOT EXISTS `cloud`.`reconcile_commands` (
+    `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
+    `management_server_id` bigint unsigned NOT NULL COMMENT 'node id of the management server',
+    `host_id` bigint unsigned NOT NULL COMMENT 'id of the host',
+    `request_sequence` bigint unsigned NOT NULL COMMENT 'sequence of the request',
+    `state_by_management` varchar(255) COMMENT 'state of the command updated by management server',
+    `state_by_agent` varchar(255) COMMENT 'state of the command updated by cloudstack agent',
+    `command_name` varchar(255) COMMENT 'name of the command',
+    `command_info` MEDIUMTEXT COMMENT 'info of the command',
+    `answer_name` varchar(255) COMMENT 'name of the answer',
+    `answer_info` MEDIUMTEXT COMMENT 'info of the answer',
+    `created` datetime COMMENT 'date the reconcile command was created',
+    `removed` datetime COMMENT 'date the reconcile command was removed',
+    `updated` datetime COMMENT 'date the reconcile command was updated',
+    `retry_count` bigint unsigned DEFAULT 0 COMMENT 'The retry count of reconciliation',
+    PRIMARY KEY(`id`),
+    INDEX `i_reconcile_command__host_id`(`host_id`),
+    CONSTRAINT `fk_reconcile_command__host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

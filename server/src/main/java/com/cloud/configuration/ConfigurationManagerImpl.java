@@ -93,6 +93,7 @@ import org.apache.cloudstack.api.command.admin.zone.DeleteZoneCmd;
 import org.apache.cloudstack.api.command.admin.zone.UpdateZoneCmd;
 import org.apache.cloudstack.api.command.user.network.ListNetworkOfferingsCmd;
 import org.apache.cloudstack.cluster.ClusterDrsService;
+import org.apache.cloudstack.command.ReconcileCommandService;
 import org.apache.cloudstack.config.ApiServiceConfiguration;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.context.CallContext;
@@ -625,6 +626,7 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
                     Map<String, String> params = new HashMap<String, String>();
                     params.put(Config.RouterAggregationCommandEachTimeout.toString(), _configDao.getValue(Config.RouterAggregationCommandEachTimeout.toString()));
                     params.put(Config.MigrateWait.toString(), _configDao.getValue(Config.MigrateWait.toString()));
+                    params.put(ReconcileCommandService.ReconcileCommandsEnabled.key(), String.valueOf(ReconcileCommandService.ReconcileCommandsEnabled.value()));
                     _agentManager.propagateChangeToAgents(params);
                 }
             }

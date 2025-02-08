@@ -335,7 +335,7 @@ public class KVMStorageProcessor implements StorageProcessor {
         }
     }
 
-    private String derivePath(PrimaryDataStoreTO primaryStore, DataTO destData, Map<String, String> details) {
+    public static String derivePath(PrimaryDataStoreTO primaryStore, DataTO destData, Map<String, String> details) {
         String path = null;
         if (primaryStore.getPoolType() == StoragePoolType.FiberChannel) {
             path = destData.getPath();

@@ -42,6 +42,10 @@ import javax.naming.ConfigurationException;
 
 import org.apache.cloudstack.agent.lb.IndirectAgentLB;
 import org.apache.cloudstack.ca.CAManager;
+import org.apache.cloudstack.command.ReconcileCommandService;
+import org.apache.cloudstack.command.ReconcileCommandUtils;
+import org.apache.cloudstack.command.ReconcileCommandVO;
+import org.apache.cloudstack.command.dao.ReconcileCommandDao;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
@@ -169,6 +173,10 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
     protected HighAvailabilityManager _haMgr = null;
     @Inject
     protected AlertManager _alertMgr = null;
+    @Inject
+    protected ReconcileCommandService reconcileCommandService;
+    @Inject
+    ReconcileCommandDao reconcileCommandDao;
 
     @Inject
     protected HypervisorGuruManager _hvGuruMgr;
@@ -560,7 +568,13 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
 
         final Request req = new Request(hostId, agent.getName(), _nodeId, cmds, commands.stopOnError(), true);
         req.setSequence(agent.getNextSequence());
+
+        reconcileCommandService.persistReconcileCommands(hostId, req.getSequence(), cmds);
+
         final Answer[] answers = agent.send(req, wait);
+
+        reconcileCommandService.processAnswers(req.getSequence(), cmds, answers);
+
         notifyAnswersToMonitors(hostId, req.getSequence(), answers);
         commands.setAnswers(answers);
         return answers;
@@ -1535,6 +1549,10 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
                             if (host!= null && host.getStatus() != Status.Up && gatewayAccessible) {
                                 requestStartupCommand = true;
                             }
+
+                            // Add or update reconcile tasks
+                            reconcileCommandService.processCommand(cmd);
+
                             answer = new PingAnswer((PingCommand)cmd, requestStartupCommand);
                         } else if (cmd instanceof ReadyAnswer) {
                             final HostVO host = _hostDao.findById(attache.getId());
@@ -1994,6 +2012,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
                     params.put(Config.RouterAggregationCommandEachTimeout.toString(), _configDao.getValue(Config.RouterAggregationCommandEachTimeout.toString()));
                     params.put(Config.MigrateWait.toString(), _configDao.getValue(Config.MigrateWait.toString()));
                     params.put(NetworkOrchestrationService.TUNGSTEN_ENABLED.key(), String.valueOf(NetworkOrchestrationService.TUNGSTEN_ENABLED.valueIn(host.getDataCenterId())));
+                    params.put(ReconcileCommandService.ReconcileCommandsEnabled.key(), String.valueOf(ReconcileCommandService.ReconcileCommandsEnabled.value()));
 
                     try {
                         SetHostParamsCommand cmds = new SetHostParamsCommand(params);
@@ -2076,5 +2095,29 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
 
     private GlobalLock getHostJoinLock(Long hostId) {
         return GlobalLock.getInternLock(String.format("%s-%s", "Host-Join", hostId));
+    }
+
+    public void updateReconcileCommandsIfNeeded(long requestSeq, Command[] commands, Command.State state) {
+        if (!ReconcileCommandService.ReconcileCommandsEnabled.value()) {
+            return;
+        }
+        for (Command command: commands) {
+            if (command.isReconcile()) {
+                reconcileCommandService.updateReconcileCommand(requestSeq, command, null, state, null);
+            }
+        }
+    }
+
+    public Pair<Command.State, Answer> getStateAndAnswerOfReconcileCommand(long requestSeq, Command command) {
+        ReconcileCommandVO reconcileCommandVO = reconcileCommandDao.findCommand(requestSeq, command.toString());
+        if (reconcileCommandVO == null) {
+            return null;
+        }
+        Command.State state = reconcileCommandVO.getStateByAgent();
+        if (reconcileCommandVO.getAnswerName() == null || reconcileCommandVO.getAnswerInfo() == null) {
+            return new Pair<>(state, null);
+        }
+        Answer answer = ReconcileCommandUtils.parseAnswerFromAnswerInfo(reconcileCommandVO.getAnswerName(), reconcileCommandVO.getAnswerInfo());
+        return new Pair<>(state, answer);
     }
 }
