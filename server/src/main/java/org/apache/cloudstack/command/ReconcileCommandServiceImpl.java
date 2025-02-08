@@ -616,9 +616,6 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         } else if (sourceVolume == null && destVolume != null) {
             // TODO
             // copy from secondary to primary
-        } else if (sourceVolume != null && destVolume == null) {
-            // TODO
-            // copy from primary to secondary
         }
         return false;
     }
