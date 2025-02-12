@@ -21,17 +21,12 @@ package org.apache.cloudstack.command;
 
 import com.cloud.vm.VirtualMachine;
 
-import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
-
 public class ReconcileMigrateAnswer extends ReconcileAnswer {
 
     Long sourceHostId;
     VirtualMachine.State stateOnSourceHost;
     Long destinationHostId;
     VirtualMachine.State stateOnDestinationHost;
-
-    VolumeOnStorageTO volumeOnSource;
-    VolumeOnStorageTO volumeOnDestination;
 
     public ReconcileMigrateAnswer() {
     }
@@ -71,21 +66,5 @@ public class ReconcileMigrateAnswer extends ReconcileAnswer {
 
     public void setStateOnDestinationHost(VirtualMachine.State stateOnDestinationHost) {
         this.stateOnDestinationHost = stateOnDestinationHost;
-    }
-
-    public VolumeOnStorageTO getVolumeOnSource() {
-        return volumeOnSource;
-    }
-
-    public void setVolumeOnSource(VolumeOnStorageTO volumeOnSource) {
-        this.volumeOnSource = volumeOnSource;
-    }
-
-    public VolumeOnStorageTO getVolumeOnDestination() {
-        return volumeOnDestination;
-    }
-
-    public void setVolumeOnDestination(VolumeOnStorageTO volumeOnDestination) {
-        this.volumeOnDestination = volumeOnDestination;
     }
 }

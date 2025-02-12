@@ -397,6 +397,7 @@ public class VolumeDaoImpl extends GenericDaoBase<VolumeVO, Long> implements Vol
         AllFieldsSearch.and("name", AllFieldsSearch.entity().getName(), Op.EQ);
         AllFieldsSearch.and("passphraseId", AllFieldsSearch.entity().getPassphraseId(), Op.EQ);
         AllFieldsSearch.and("iScsiName", AllFieldsSearch.entity().get_iScsiName(), Op.EQ);
+        AllFieldsSearch.and("path", AllFieldsSearch.entity().getPath(), Op.EQ);
         AllFieldsSearch.done();
 
         RootDiskStateSearch = createSearchBuilder();
@@ -904,9 +905,26 @@ public class VolumeDaoImpl extends GenericDaoBase<VolumeVO, Long> implements Vol
         return searchIncludingRemoved(sc, filter, null, false);
     }
 
+    @Override
     public VolumeVO findOneByIScsiName(String iScsiName) {
         SearchCriteria<VolumeVO> sc = AllFieldsSearch.create();
         sc.setParameters("iScsiName", iScsiName);
         return findOneIncludingRemovedBy(sc);
+    }
+
+    @Override
+    public VolumeVO findOneByPathAndState(String path, State state) {
+        SearchCriteria<VolumeVO> sc = AllFieldsSearch.create();
+        sc.setParameters("path", path);
+        sc.setParameters("state", state);
+        return findOneBy(sc);
+    }
+
+    @Override
+    public List<VolumeVO> listByInstanceIdAndState(long instanceId, State state) {
+        SearchCriteria<VolumeVO> sc = AllFieldsSearch.create();
+        sc.setParameters("instanceId", instanceId);
+        sc.setParameters("state", state);
+        return listBy(sc);
     }
 }

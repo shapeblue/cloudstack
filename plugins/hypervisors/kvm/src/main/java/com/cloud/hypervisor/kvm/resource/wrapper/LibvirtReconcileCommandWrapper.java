@@ -27,7 +27,6 @@ import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
-import com.cloud.hypervisor.kvm.resource.LibvirtVMDef;
 import com.cloud.hypervisor.kvm.storage.KVMPhysicalDisk;
 import com.cloud.hypervisor.kvm.storage.KVMStoragePoolManager;
 import com.cloud.resource.CommandWrapper;
@@ -52,7 +51,6 @@ import org.libvirt.DomainInfo.DomainState;
 import org.libvirt.LibvirtException;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 @ResourceWrapper(handles =  ReconcileCommand.class)
@@ -84,17 +82,6 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
             logger.debug(String.format("Found VM %s with domain state %s", vmName, domainState));
             VirtualMachine.State state = getState(domainState, isSourceHost);
             answer = new ReconcileMigrateAnswer(isSourceHost ? state : null, isSourceHost ? null : state);
-            List<LibvirtVMDef.DiskDef> disks = libvirtComputingResource.getDisks(conn, vmName);
-            for (LibvirtVMDef.DiskDef diskDef : disks) {
-                // TODO: get volumes state in case of volume migration with storage
-            }
-            if (isSourceHost) {
-                VolumeOnStorageTO volumeOnSource = new VolumeOnStorageTO();
-                answer.setVolumeOnSource(volumeOnSource);
-            } else {
-                VolumeOnStorageTO volumeOnDestination = new VolumeOnStorageTO();
-                answer.setVolumeOnDestination(volumeOnDestination);
-            }
         } catch (LibvirtException e) {
             logger.debug(String.format("Failed to get state of VM %s, assume it is Stopped", vmName));
             VirtualMachine.State state = VirtualMachine.State.Stopped;
@@ -204,9 +191,6 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
             volumeOnSource = getVolumeOnStorage(srcPrimaryStore, srcVolumePath, storagePoolManager);
             if (destPrimaryStore.isManaged() || destVolumePath != null) {
                 volumeOnDestination = getVolumeOnStorage(destPrimaryStore, destVolumePath, storagePoolManager);
-            } else if (destPrimaryStore.getId() != srcPrimaryStore.getId() && volumeOnSource.getPath() != null) {
-                // Assume the new volume path is same as source volume, otherwise no way to get the new volume path
-                volumeOnDestination = getVolumeOnStorage(destPrimaryStore, volumeOnSource.getPath(), storagePoolManager);
             }
             return new ReconcileCopyAnswer(volumeOnSource, volumeOnDestination);
         } catch (final CloudRuntimeException e) {

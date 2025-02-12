@@ -20,6 +20,7 @@
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
 import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.Command;
 import com.cloud.agent.api.storage.MigrateVolumeAnswer;
 import com.cloud.agent.api.storage.MigrateVolumeCommand;
 import com.cloud.agent.api.to.DiskTO;
@@ -299,6 +300,11 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
         String destPath = destDetails != null && destDetails.get(DiskTO.IQN) != null ? destDetails.get(DiskTO.IQN) :
                 (destVolumeObjectTO.getPath() != null ? destVolumeObjectTO.getPath() : UUID.randomUUID().toString());
 
+        // Update path in the command for reconciliation
+        if (destVolumeObjectTO.getPath() == null) {
+            destVolumeObjectTO.setPath(destPath);
+        }
+
         try {
             KVMStoragePool sourceStoragePool = storagePoolManager.getStoragePool(srcPrimaryDataStore.getPoolType(), srcPrimaryDataStore.getUuid());
 
@@ -317,12 +323,16 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
                 return new MigrateVolumeAnswer(command, false, "Unable to connect destination volume on hypervisor", srcPath);
             }
 
+            libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.PROCESSING_IN_BACKEND);
             KVMPhysicalDisk newDiskCopy = storagePoolManager.copyPhysicalDisk(srcPhysicalDisk, destPath, destPrimaryStorage, command.getWaitInMillSeconds());
             if (newDiskCopy == null) {
+                libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.FAILED);
                 return new MigrateVolumeAnswer(command, false, "Copy command failed to return handle to copied physical disk", destPath);
             }
+            libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.COMPLETED);
         }
         catch (Exception ex) {
+            libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.FAILED);
             return new MigrateVolumeAnswer(command, false, ex.getMessage(), null);
         }
         finally {
