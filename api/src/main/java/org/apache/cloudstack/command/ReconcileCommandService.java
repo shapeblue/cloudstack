@@ -40,9 +40,13 @@ public interface ReconcileCommandService {
 
     void persistReconcileCommands(Long hostId, Long requestSequence, Command[] cmd);
 
-    void updateReconcileCommand(long requestSeq, Command command, Answer answer, Command.State newStateByManagement, Command.State newStateByAgent);
+    boolean updateReconcileCommand(long requestSeq, Command command, Answer answer, Command.State newStateByManagement, Command.State newStateByAgent);
 
-    void processCommand(Command command);
+    void processCommand(Command pingCommand, Answer pingAnswer);
 
     void processAnswers(long requestSeq, Command[] commands, Answer[] answers);
+
+    void updateReconcileCommandToInterruptedByManagementServerId(long managementServerId);
+
+    void updateReconcileCommandToInterruptedByHostId(long hostId);
 }

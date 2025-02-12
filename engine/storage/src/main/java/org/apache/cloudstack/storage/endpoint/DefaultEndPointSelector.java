@@ -321,7 +321,7 @@ public class DefaultEndPointSelector implements EndPointSelector {
         return select(srcData, destData, encryptionRequired);
     }
 
-    protected EndPoint findEndpointForPrimaryStorage(DataStore store) {
+    public EndPoint findEndpointForPrimaryStorage(DataStore store) {
         return findEndPointInScope(store.getScope(), findOneHostOnPrimaryStorage, store.getId());
     }
 

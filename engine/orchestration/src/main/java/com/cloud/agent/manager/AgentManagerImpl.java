@@ -1048,6 +1048,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         host = _hostDao.findById(hostId); // Maybe the host magically reappeared?
         if (host != null && host.getStatus() == Status.Down) {
             _haMgr.scheduleRestartForVmsOnHost(host, true, HighAvailabilityManager.ReasonType.HostDown);
+            reconcileCommandService.updateReconcileCommandToInterruptedByHostId(hostId);
         }
         return true;
     }
@@ -1550,10 +1551,11 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
                                 requestStartupCommand = true;
                             }
 
-                            // Add or update reconcile tasks
-                            reconcileCommandService.processCommand(cmd);
-
                             answer = new PingAnswer((PingCommand)cmd, requestStartupCommand);
+
+                            // Add or update reconcile tasks
+                            reconcileCommandService.processCommand(cmd, answer);
+
                         } else if (cmd instanceof ReadyAnswer) {
                             final HostVO host = _hostDao.findById(attache.getId());
                             if (host == null) {

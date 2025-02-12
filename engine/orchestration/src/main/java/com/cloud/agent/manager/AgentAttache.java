@@ -428,10 +428,10 @@ public abstract class AgentAttache {
                             }
                             Command.State state = commandInfo.first();
                             if (Command.State.INTERRUPTED.equals(state)) {
-                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent");
+                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent, will reconcile it");
                                 throw new CloudRuntimeException("Interrupted by agent");
                             } else if (Command.State.DANGLED_IN_BACKEND.equals(state)) {
-                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, adding reconcile command to list");
+                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, will reconcile it");
                                 throw new CloudRuntimeException("It is not being processed by agent");
                             }
                             Answer answer = commandInfo.second();

@@ -1355,6 +1355,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         if (!commandsLogPath.exists()) {
             commandsLogPath.mkdirs();
         }
+        // Update state of reconcile commands
         getCommandInfosFromLogFiles(true);
 
         return true;
@@ -2009,13 +2010,20 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     @Override
     public void processPingAnswer(PingAnswer answer) {
         PingCommand pingCommand = answer.getCommand();
+        List<String> reconcileCommands = answer.getReconcileCommands();
         CommandInfo[] commandInfos = pingCommand.getCommandInfos();
         for (CommandInfo commandInfo : commandInfos) {
-            if (Arrays.asList(Command.State.COMPLETED, Command.State.FAILED, Command.State.INTERRUPTED, Command.State.TIMED_OUT).contains(commandInfo.getState())) {
+            String commandKey = getCommandKey(commandInfo.getRequestSeq(), commandInfo.getCommandName());
+            if (Arrays.asList(Command.State.COMPLETED, Command.State.FAILED, Command.State.INTERRUPTED, Command.State.TIMED_OUT).contains(commandInfo.getState())
+                    || !reconcileCommands.contains(commandKey)) {
                 String fileName = String.format("%s/%s-%s.json", COMMANDS_LOG_PATH, commandInfo.getRequestSeq(), commandInfo.getCommandName());
                 ReconcileCommandUtils.deleteLogFile(fileName);
             }
         }
+    }
+
+    private String getCommandKey(long requestSeq, String commandName) {
+        return requestSeq + "-" + commandName;
     }
 
     public synchronized boolean destroyTunnelNetwork(final String bridge) {

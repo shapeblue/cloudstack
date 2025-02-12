@@ -36,5 +36,7 @@ public interface ReconcileCommandDao extends GenericDao<ReconcileCommandVO, Long
 
     ReconcileCommandVO findCommand(long reqSequence, String commandName);
 
-    void updateCommandsToInterrupted(long managementServerId);
+    void updateCommandsToInterruptedByManagementServerId(long managementServerId);
+
+    void updateCommandsToInterruptedByHostId(long hostId);
 }

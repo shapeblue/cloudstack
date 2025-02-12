@@ -41,6 +41,7 @@ import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.Command.State;
 import com.cloud.agent.api.MigrateCommand;
+import com.cloud.agent.api.PingAnswer;
 import com.cloud.agent.api.PingCommand;
 import com.cloud.agent.api.storage.MigrateVolumeCommand;
 import com.cloud.agent.api.to.DataObjectType;
@@ -65,6 +66,10 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.command.dao.ReconcileCommandDao;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
+import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
+import org.apache.cloudstack.engine.subsystem.api.storage.EndPoint;
+import org.apache.cloudstack.engine.subsystem.api.storage.EndPointSelector;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
@@ -100,6 +105,10 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
     VMInstanceDao vmInstanceDao;
     @Inject
     VolumeDao volumeDao;
+    @Inject
+    EndPointSelector endPointSelector;
+    @Inject
+    DataStoreManager dataStoreManager;
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
@@ -127,7 +136,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             reconcileCommandTaskExecutor.shutdownNow();
         }
         if (ReconcileCommandsEnabled.value()) {
-            reconcileCommandDao.updateCommandsToInterrupted(ManagementServerId);
+            reconcileCommandDao.updateCommandsToInterruptedByManagementServerId(ManagementServerId);
         }
 
         return true;
@@ -173,12 +182,12 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
     }
 
     @Override
-    public void updateReconcileCommand(long requestSeq, Command command, Answer answer, Command.State newStateByManagement, Command.State newStateByAgent) {
+    public boolean updateReconcileCommand(long requestSeq, Command command, Answer answer, State newStateByManagement, State newStateByAgent) {
         String commandKey = getCommandKey(requestSeq, command);
         logger.debug(String.format("Updating reconcile command %s with answer %s and new states %s-%s", commandKey, answer, newStateByManagement, newStateByAgent));
         ReconcileCommandVO reconcileCommandVO = reconcileCommandDao.findCommand(requestSeq, command.toString());
         if (reconcileCommandVO == null) {
-            return;
+            return false;
         }
         boolean updated = false;
         if (newStateByManagement != null) {
@@ -210,6 +219,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             reconcileCommandVO.setUpdated(new Date());
             reconcileCommandDao.update(reconcileCommandVO.getId(), reconcileCommandVO);
         }
+        return true;
     }
 
     private String getCommandKey(long requestSeq, Command command) {
@@ -446,6 +456,20 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, reconcileMigrateAnswer, isReconciled);
     }
 
+    private EndPoint getEndpoint(DataTO srcData, DataTO destData) {
+        EndPoint endPoint = null;
+        if (srcData.getDataStore() instanceof PrimaryDataStoreTO) {
+            PrimaryDataStoreTO srcDataStore = (PrimaryDataStoreTO) srcData.getDataStore();
+            DataStore store = dataStoreManager.getPrimaryDataStore(srcDataStore.getId());
+            endPoint = endPointSelector.select(store);
+        } else if (destData.getDataStore() instanceof PrimaryDataStoreTO) {
+            PrimaryDataStoreTO destDataStore = (PrimaryDataStoreTO) destData.getDataStore();
+            DataStore store = dataStoreManager.getPrimaryDataStore(destDataStore.getId());
+            endPoint = endPointSelector.select(store);
+        }
+        return endPoint;
+    }
+
     private ReconcileCommandResult reconcile(ReconcileCommandVO reconcileCommandVO, CopyCommand command) {
         DataTO srcData = command.getSrcTO();
         DataTO destData = command.getDestTO();
@@ -454,15 +478,19 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
         }
         Long hostId = reconcileCommandVO.getHostId();
-        HostVO sourceHost = hostDao.findById(hostId);
-        if (sourceHost == null || !Status.Up.equals(sourceHost.getStatus())) {
-            return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
+        HostVO host = hostDao.findById(hostId);
+        if (host == null || !Status.Up.equals(host.getStatus())) {
+            EndPoint endPoint = getEndpoint(srcData, destData);
+            if (endPoint == null) {
+                return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
+            }
+            host = hostDao.findById(endPoint.getId());
         }
 
         // Send reconcileCommand to the host
-        logger.info(String.format("Reconciling command %s via host %s", command, sourceHost.getName()));
+        logger.info(String.format("Reconciling command %s via host %s", command, host.getName()));
         ReconcileCopyCommand reconcileCommand = new ReconcileCopyCommand(srcData, destData, command.getOptions(), command.getOptions2());
-        Answer reconcileAnswer = agentManager.easySend(sourceHost.getId(), reconcileCommand);
+        Answer reconcileAnswer = agentManager.easySend(host.getId(), reconcileCommand);
         if (!(reconcileAnswer instanceof ReconcileAnswer)) {
             return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, true);
         }
@@ -477,15 +505,19 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
         }
         Long hostId = reconcileCommandVO.getHostId();
-        HostVO sourceHost = hostDao.findById(hostId);
-        if (sourceHost == null || !Status.Up.equals(sourceHost.getStatus())) {
-            return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
+        HostVO host = hostDao.findById(hostId);
+        if (host == null || !Status.Up.equals(host.getStatus())) {
+            EndPoint endPoint = getEndpoint(srcData, destData);
+            if (endPoint == null) {
+                return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
+            }
+            host = hostDao.findById(endPoint.getId());
         }
 
         // Send reconcileCommand to the host
-        logger.info(String.format("Reconciling command %s via host %s", command, sourceHost.getName()));
+        logger.info(String.format("Reconciling command %s via host %s", command, host.getName()));
         ReconcileMigrateVolumeCommand reconcileCommand = new ReconcileMigrateVolumeCommand(srcData, destData);
-        Answer reconcileAnswer = agentManager.easySend(sourceHost.getId(), reconcileCommand);
+        Answer reconcileAnswer = agentManager.easySend(host.getId(), reconcileCommand);
         if (!(reconcileAnswer instanceof ReconcileAnswer)) {
             return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, true);
         }
@@ -493,20 +525,22 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
     }
 
     @Override
-    public void processCommand(Command command) {
-        if (command instanceof PingCommand) {
-            CommandInfo[] commandInfos = ((PingCommand) command).getCommandInfos();
+    public void processCommand(Command pingCommand, Answer pingAnswer) {
+        if (pingCommand instanceof PingCommand && pingAnswer instanceof PingAnswer) {
+            CommandInfo[] commandInfos = ((PingCommand) pingCommand).getCommandInfos();
             for (CommandInfo commandInfo : commandInfos) {
-                processCommandInfo(commandInfo);
+                processCommandInfo(commandInfo, (PingAnswer) pingAnswer);
             }
         }
     }
 
-    private void processCommandInfo(CommandInfo commandInfo) {
+    private void processCommandInfo(CommandInfo commandInfo, PingAnswer pingAnswer) {
         Command parsedCommand = ReconcileCommandUtils.parseCommandInfo(commandInfo);
         Answer parsedAnswer = ReconcileCommandUtils.parseAnswerFromCommandInfo(commandInfo);
         if (parsedCommand != null && parsedCommand.isReconcile()) {
-            updateReconcileCommand(commandInfo.getRequestSeq(), parsedCommand, parsedAnswer, null, commandInfo.getState());
+            if (updateReconcileCommand(commandInfo.getRequestSeq(), parsedCommand, parsedAnswer, null, commandInfo.getState())) {
+                pingAnswer.addReconcileCommand(getCommandKey(commandInfo.getRequestSeq(), parsedCommand));
+            }
         }
     }
 
@@ -522,6 +556,18 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                 reconcileCommandDao.removeCommand(requestSeq, command.toString(), State.COMPLETED);
             }
         }
+    }
+
+    @Override
+    public void updateReconcileCommandToInterruptedByManagementServerId(long managementServerId) {
+        logger.debug("Updating reconcile command to interrupted by management server id " + managementServerId);
+        reconcileCommandDao.updateCommandsToInterruptedByManagementServerId(managementServerId);
+    }
+
+    @Override
+    public void updateReconcileCommandToInterruptedByHostId(long hostId) {
+        logger.debug("Updating reconcile command to interrupted by host id " + hostId);
+        reconcileCommandDao.updateCommandsToInterruptedByHostId(hostId);
     }
 
     private boolean processReconcileAnswer(long requestSequence, Command cmd, ReconcileAnswer reconcileAnswer) {

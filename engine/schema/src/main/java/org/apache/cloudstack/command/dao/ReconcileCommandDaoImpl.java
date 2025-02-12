@@ -41,6 +41,8 @@ public class ReconcileCommandDaoImpl extends GenericDaoBase<ReconcileCommandVO, 
         updateCommandSearch = createSearchBuilder();
         updateCommandSearch.and("managementServerId", updateCommandSearch.entity().getManagementServerId(), SearchCriteria.Op.EQ);
         updateCommandSearch.and("stateByManagement", updateCommandSearch.entity().getStateByManagement(), SearchCriteria.Op.IN);
+        updateCommandSearch.and("hostId", updateCommandSearch.entity().getHostId(), SearchCriteria.Op.EQ);
+        updateCommandSearch.and("stateByAgent", updateCommandSearch.entity().getStateByAgent(), SearchCriteria.Op.IN);
         updateCommandSearch.and("reqSequence", updateCommandSearch.entity().getRequestSequence(), SearchCriteria.Op.EQ);
         updateCommandSearch.and("commandName", updateCommandSearch.entity().getCommandName(), SearchCriteria.Op.EQ);
         updateCommandSearch.done();
@@ -90,13 +92,25 @@ public class ReconcileCommandDaoImpl extends GenericDaoBase<ReconcileCommandVO, 
     }
 
     @Override
-    public void updateCommandsToInterrupted(long managementServerId) {
+    public void updateCommandsToInterruptedByManagementServerId(long managementServerId) {
         SearchCriteria<ReconcileCommandVO> sc = updateCommandSearch.create();
         sc.setParameters("managementServerId", managementServerId);
         sc.setParameters("stateByManagement", Command.State.CREATED, Command.State.RECONCILING);
 
         ReconcileCommandVO vo = createForUpdate();
         vo.setStateByManagement(Command.State.INTERRUPTED);
+
+        update(vo, sc);
+    }
+
+    @Override
+    public void updateCommandsToInterruptedByHostId(long hostId) {
+        SearchCriteria<ReconcileCommandVO> sc = updateCommandSearch.create();
+        sc.setParameters("hostId", hostId);
+        sc.setParameters("stateByAgent", Command.State.STARTED, Command.State.PROCESSING, Command.State.PROCESSING_IN_BACKEND);
+
+        ReconcileCommandVO vo = createForUpdate();
+        vo.setStateByAgent(Command.State.INTERRUPTED);
 
         update(vo, sc);
     }
