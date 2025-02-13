@@ -23,6 +23,8 @@ import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 
 public class ReconcileVolumeAnswer extends ReconcileAnswer {
 
+    // (1) null object: volume is not available. For example the source is secondary storage
+    // (2) otherwise, if volumeOnSource.getPath() is null, the volume cannot be found on primary storage pool
     VolumeOnStorageTO volumeOnSource;
     VolumeOnStorageTO volumeOnDestination;
 

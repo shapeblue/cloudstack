@@ -131,8 +131,8 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
                     logger.debug("Reconciling: copy volume from primary to primary");
                     return reconcileCopyVolumeFromPrimaryToPrimary(srcData, destData, libvirtComputingResource.getStoragePoolMgr());
                 } else {
-                    String reason = "copy volume from primary to secondary";
-                    return new ReconcileCopyAnswer(true, reason);
+                    logger.debug("Reconciling: copy volume from primary to secondary");
+                    return reconcileCopyVolumeFromPrimaryToSecondary(srcData, destData, reconcileCommand.getOption(), libvirtComputingResource.getStoragePoolMgr());
                 }
             } else if (destData.getObjectType() == DataObjectType.TEMPLATE) {
                 String reason = "create volume from template";
@@ -197,6 +197,19 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
             logger.debug("Failed to reconcile CopyVolumeFromPrimaryToPrimary: ", e);
             return new ReconcileCopyAnswer(false, false, e.toString());
         }
+    }
+
+    private ReconcileCopyAnswer reconcileCopyVolumeFromPrimaryToSecondary(DataTO srcData, DataTO destData, Map<String, String> details, KVMStoragePoolManager storagePoolManager) {
+        // consistent with KVMStorageProcessor.copyVolumeFromPrimaryToSecondary
+        final String srcVolumePath = srcData.getPath();
+        final DataStoreTO srcStore = srcData.getDataStore();
+        final DataStoreTO destStore = destData.getDataStore();
+        final PrimaryDataStoreTO primaryStore = (PrimaryDataStoreTO)srcStore;
+        if (!(destStore instanceof NfsTO)) {
+            return new ReconcileCopyAnswer(true, "can only handle nfs storage as destination");
+        }
+        VolumeOnStorageTO volumeOnSource = getVolumeOnStorage(primaryStore, srcVolumePath, storagePoolManager);
+        return new ReconcileCopyAnswer(volumeOnSource, null);
     }
 
     private VolumeOnStorageTO getVolumeOnStorage(PrimaryDataStoreTO primaryStore, String volumePath, KVMStoragePoolManager storagePoolManager) {
