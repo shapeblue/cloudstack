@@ -21,19 +21,19 @@ package org.apache.cloudstack.command;
 
 import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 
-public class ReconcileCopyAnswer extends ReconcileAnswer {
+public class ReconcileCopyAnswer extends ReconcileVolumeAnswer {
 
     boolean isSkipped = false;
     String reason;
-    VolumeOnStorageTO volumeOnSource;
-    VolumeOnStorageTO volumeOnDestination;
 
     public ReconcileCopyAnswer(boolean isSkipped, String reason) {
+        super();
         this.isSkipped = isSkipped;
         this.reason = reason;
     }
 
     public ReconcileCopyAnswer(boolean isSkipped, boolean result, String reason) {
+        super();
         this.isSkipped = isSkipped;
         this.result = result;
         this.reason = reason;
@@ -52,13 +52,5 @@ public class ReconcileCopyAnswer extends ReconcileAnswer {
 
     public String getReason() {
         return reason;
-    }
-
-    public VolumeOnStorageTO getVolumeOnSource() {
-        return volumeOnSource;
-    }
-
-    public VolumeOnStorageTO getVolumeOnDestination() {
-        return volumeOnDestination;
     }
 }

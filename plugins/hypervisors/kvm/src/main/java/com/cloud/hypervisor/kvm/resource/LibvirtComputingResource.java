@@ -2014,8 +2014,12 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         CommandInfo[] commandInfos = pingCommand.getCommandInfos();
         for (CommandInfo commandInfo : commandInfos) {
             String commandKey = getCommandKey(commandInfo.getRequestSeq(), commandInfo.getCommandName());
-            if (Arrays.asList(Command.State.COMPLETED, Command.State.FAILED, Command.State.INTERRUPTED, Command.State.TIMED_OUT).contains(commandInfo.getState())
-                    || !reconcileCommands.contains(commandKey)) {
+            if (Arrays.asList(Command.State.COMPLETED, Command.State.FAILED, Command.State.INTERRUPTED, Command.State.TIMED_OUT).contains(commandInfo.getState())) {
+                logger.debug(String.format("Removing command %s in %s state as it has been received by the management server", commandKey, commandInfo.getState()));
+                String fileName = String.format("%s/%s-%s.json", COMMANDS_LOG_PATH, commandInfo.getRequestSeq(), commandInfo.getCommandName());
+                ReconcileCommandUtils.deleteLogFile(fileName);
+            } else if (!reconcileCommands.contains(commandKey)) {
+                logger.debug(String.format("Removing command %s in %s state as it cannot be found by the management server", commandKey, commandInfo.getState()));
                 String fileName = String.format("%s/%s-%s.json", COMMANDS_LOG_PATH, commandInfo.getRequestSeq(), commandInfo.getCommandName());
                 ReconcileCommandUtils.deleteLogFile(fileName);
             }

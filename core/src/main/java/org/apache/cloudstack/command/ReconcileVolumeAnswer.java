@@ -21,9 +21,24 @@ package org.apache.cloudstack.command;
 
 import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 
-public class ReconcileMigrateVolumeAnswer extends ReconcileVolumeAnswer {
+public class ReconcileVolumeAnswer extends ReconcileAnswer {
 
-    public ReconcileMigrateVolumeAnswer(VolumeOnStorageTO volumeOnSource, VolumeOnStorageTO volumeOnDestination) {
-        super(volumeOnSource, volumeOnDestination);
+    VolumeOnStorageTO volumeOnSource;
+    VolumeOnStorageTO volumeOnDestination;
+
+    public ReconcileVolumeAnswer() {
+    }
+
+    public ReconcileVolumeAnswer(VolumeOnStorageTO volumeOnSource, VolumeOnStorageTO volumeOnDestination) {
+        this.volumeOnSource = volumeOnSource;
+        this.volumeOnDestination = volumeOnDestination;
+    }
+
+    public VolumeOnStorageTO getVolumeOnSource() {
+        return volumeOnSource;
+    }
+
+    public VolumeOnStorageTO getVolumeOnDestination() {
+        return volumeOnDestination;
     }
 }
