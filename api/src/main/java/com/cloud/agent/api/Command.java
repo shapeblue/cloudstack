@@ -45,6 +45,7 @@ public abstract class Command {
         RECONCILE_READY,        // Ready for reconciliation
         RECONCILING,    // Being reconciled by management server
         RECONCILED,     // Reconciled by management server
+        RECONCILE_SKIPPED,  // Skip the reconciliation as the resource state is inconsistent with the command
         RECONCILE_FAILED,       // Fail to reconcile by management server
         TIMED_OUT,      // Timed out on management server or agent
         INTERRUPTED,    // Interrupted by management server or agent (for example agent is restarted),

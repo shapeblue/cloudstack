@@ -163,7 +163,7 @@ public interface VolumeDao extends GenericDao<VolumeVO, Long>, StateDao<Volume.S
 
     VolumeVO findOneByIScsiName(String iScsiName);
 
-    VolumeVO findOneByPathAndState(String path, Volume.State state);
+    VolumeVO findByInstanceIdAndPath(Long instanceId, String path);
 
-    List<VolumeVO> listByInstanceIdAndState(long instanceId, Volume.State state);
+    VolumeVO findByLastIdAndState(long lastVolumeId, Volume.State state);
 }
