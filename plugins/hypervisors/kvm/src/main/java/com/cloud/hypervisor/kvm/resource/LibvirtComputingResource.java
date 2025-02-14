@@ -328,7 +328,7 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     public static final String UBUNTU_WINDOWS_GUEST_CONVERSION_SUPPORTED_CHECK_CMD = "dpkg -l virtio-win";
     public static final String UBUNTU_NBDKIT_PKG_CHECK_CMD = "dpkg -l nbdkit";
 
-    public static String COMMANDS_LOG_PATH = "/usr/share/cloudstack-agent/tmp/commands";
+    public static final String COMMANDS_LOG_PATH = "/usr/share/cloudstack-agent/tmp/commands";
 
 
     private String modifyVlanPath;
@@ -1967,11 +1967,9 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     public Answer executeRequest(final Command cmd) {
         ReconcileCommandUtils.updateLogFileForCommand(COMMANDS_LOG_PATH, cmd, Command.State.STARTED);
 
-        Answer answer = null;
         final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
         try {
-            answer = wrapper.execute(cmd, this);
-            return answer;
+            return wrapper.execute(cmd, this);
         } catch (final RequestWrapper.CommandNotSupported cmde) {
             return Answer.createUnsupportedCommandAnswer(cmd);
         }

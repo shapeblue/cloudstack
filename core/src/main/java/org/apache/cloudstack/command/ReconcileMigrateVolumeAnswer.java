@@ -21,9 +21,21 @@ package org.apache.cloudstack.command;
 
 import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 
+import java.util.List;
+
 public class ReconcileMigrateVolumeAnswer extends ReconcileVolumeAnswer {
+
+    List<String> vmDiskPaths;
 
     public ReconcileMigrateVolumeAnswer(VolumeOnStorageTO volumeOnSource, VolumeOnStorageTO volumeOnDestination) {
         super(volumeOnSource, volumeOnDestination);
+    }
+
+    public List<String> getVmDiskPaths() {
+        return vmDiskPaths;
+    }
+
+    public void setVmDiskPaths(List<String> vmDiskPaths) {
+        this.vmDiskPaths = vmDiskPaths;
     }
 }

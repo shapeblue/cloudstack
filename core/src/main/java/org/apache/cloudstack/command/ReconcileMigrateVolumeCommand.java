@@ -23,6 +23,7 @@ public class ReconcileMigrateVolumeCommand extends ReconcileCommand {
 
     DataTO srcData;
     DataTO destData;
+    String vmName;
 
     public ReconcileMigrateVolumeCommand(DataTO srcData, DataTO destData) {
         this.srcData = srcData;
@@ -35,5 +36,13 @@ public class ReconcileMigrateVolumeCommand extends ReconcileCommand {
 
     public DataTO getDestData() {
         return destData;
+    }
+
+    public String getVmName() {
+        return vmName;
+    }
+
+    public void setVmName(String vmName) {
+        this.vmName = vmName;
     }
 }

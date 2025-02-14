@@ -27,6 +27,7 @@ import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
+import com.cloud.hypervisor.kvm.resource.LibvirtVMDef;
 import com.cloud.hypervisor.kvm.storage.KVMPhysicalDisk;
 import com.cloud.hypervisor.kvm.storage.KVMStoragePoolManager;
 import com.cloud.resource.CommandWrapper;
@@ -50,7 +51,9 @@ import org.libvirt.Domain;
 import org.libvirt.DomainInfo.DomainState;
 import org.libvirt.LibvirtException;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 @ResourceWrapper(handles =  ReconcileCommand.class)
@@ -81,7 +84,17 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
             DomainState domainState = vm.getInfo().state;
             logger.debug(String.format("Found VM %s with domain state %s", vmName, domainState));
             VirtualMachine.State state = getState(domainState, isSourceHost);
-            answer = new ReconcileMigrateAnswer(isSourceHost ? state : null, isSourceHost ? null : state);
+            List<String> disks = null;
+            if (VirtualMachine.State.Running.equals(state)) {
+                disks = getVmDiskPaths(libvirtComputingResource.getDisks(conn, vmName));
+            }
+            if (isSourceHost) {
+                answer = new ReconcileMigrateAnswer(state, null);
+                answer.setDisksOnSourceHost(disks);
+            } else {
+                answer = new ReconcileMigrateAnswer(null, state);
+                answer.setDisksOnDestinationHost(disks);
+            }
         } catch (LibvirtException e) {
             logger.debug(String.format("Failed to get state of VM %s, assume it is Stopped", vmName));
             VirtualMachine.State state = VirtualMachine.State.Stopped;
@@ -102,6 +115,16 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
             state = VirtualMachine.State.Unknown;
         }
         return state;
+    }
+
+    private List<String> getVmDiskPaths(List<LibvirtVMDef.DiskDef> diskDefs) {
+        List<String> diskPaths = new ArrayList<String>();
+        for (LibvirtVMDef.DiskDef diskDef : diskDefs) {
+            if (diskDef.getDiskPath() != null) {
+                diskPaths.add(diskDef.getDiskPath());
+            }
+        }
+        return diskPaths;
     }
 
     private ReconcileAnswer handle(final ReconcileCopyCommand reconcileCommand, final LibvirtComputingResource libvirtComputingResource) {
@@ -161,12 +184,15 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         }
         final DataStoreTO destStore = destData.getDataStore();
         final PrimaryDataStoreTO primaryStore = (PrimaryDataStoreTO)destStore;
-        String path = details != null ? details.get(DiskTO.PATH) : null;
+        String path = destData.getPath();
+        if (path == null) {
+            path = details != null ? details.get(DiskTO.PATH) : null;
+        }
         if (path == null) {
             path = details != null ? details.get(DiskTO.IQN) : null;
-            if (path == null) {
-                return new ReconcileCopyAnswer(true, "path and iqn on destination storage are null");
-            }
+        }
+        if (path == null) {
+            return new ReconcileCopyAnswer(true, "path and iqn on destination storage are null");
         }
         try {
             VolumeOnStorageTO volumeOnDestination = getVolumeOnStorage(primaryStore, path, storagePoolManager);
@@ -246,6 +272,19 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         VolumeOnStorageTO volumeOnSource = getVolumeOnStorage(srcDataStore, srcData.getPath(), libvirtComputingResource.getStoragePoolMgr());
         VolumeOnStorageTO volumeOnDestination = getVolumeOnStorage(destDataStore, destData.getPath(), libvirtComputingResource.getStoragePoolMgr());
 
-        return new ReconcileMigrateVolumeAnswer(volumeOnSource, volumeOnDestination);
+        ReconcileMigrateVolumeAnswer answer = new ReconcileMigrateVolumeAnswer(volumeOnSource, volumeOnDestination);
+        String vmName = reconcileCommand.getVmName();
+        if (vmName != null) {
+            try {
+                LibvirtUtilitiesHelper libvirtUtilitiesHelper = libvirtComputingResource.getLibvirtUtilitiesHelper();
+                Connect conn = libvirtUtilitiesHelper.getConnectionByVmName(vmName);
+                List<String> disks = getVmDiskPaths(libvirtComputingResource.getDisks(conn, vmName));
+                answer.setVmDiskPaths(disks);
+            } catch (LibvirtException e) {
+                logger.error(String.format("Unable to get disks for %s due to %s", vmName, e.getMessage()));
+            }
+        }
+
+        return answer;
     }
 }

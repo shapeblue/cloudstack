@@ -21,12 +21,16 @@ package org.apache.cloudstack.command;
 
 import com.cloud.vm.VirtualMachine;
 
+import java.util.List;
+
 public class ReconcileMigrateAnswer extends ReconcileAnswer {
 
     Long sourceHostId;
     VirtualMachine.State stateOnSourceHost;
+    List<String> disksOnSourceHost;
     Long destinationHostId;
     VirtualMachine.State stateOnDestinationHost;
+    List<String> disksOnDestinationHost;
 
     public ReconcileMigrateAnswer() {
     }
@@ -66,5 +70,21 @@ public class ReconcileMigrateAnswer extends ReconcileAnswer {
 
     public void setStateOnDestinationHost(VirtualMachine.State stateOnDestinationHost) {
         this.stateOnDestinationHost = stateOnDestinationHost;
+    }
+
+    public List<String> getDisksOnSourceHost() {
+        return disksOnSourceHost;
+    }
+
+    public void setDisksOnSourceHost(List<String> disksOnSourceHost) {
+        this.disksOnSourceHost = disksOnSourceHost;
+    }
+
+    public List<String> getDisksOnDestinationHost() {
+        return disksOnDestinationHost;
+    }
+
+    public void setDisksOnDestinationHost(List<String> disksOnDestinationHost) {
+        this.disksOnDestinationHost = disksOnDestinationHost;
     }
 }
