@@ -25,4 +25,9 @@ public class ReconcileCommand extends Command {
     public boolean executeInSequence() {
         return false;
     }
+
+    @Override
+    public int getWait() {
+        return 30;  // timeout is 30 seconds
+    }
 }

@@ -42,7 +42,7 @@ public abstract class Command {
         PROCESSING_IN_BACKEND,  // Processing in backend by agent
         COMPLETED,      // Operation succeeds by agent or management server
         FAILED,         // Operation fails by agent
-        RECONCILE_READY,        // Ready for reconciliation
+        RECONCILE_RETRY,        // Ready for retry of reconciliation
         RECONCILING,    // Being reconciled by management server
         RECONCILED,     // Reconciled by management server
         RECONCILE_SKIPPED,  // Skip the reconciliation as the resource state is inconsistent with the command
