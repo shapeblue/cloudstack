@@ -1760,6 +1760,8 @@ public class LibvirtComputingResourceTest {
     @Test
     public void testCheckVirtualMachineCommand() {
         final Connect conn = Mockito.mock(Connect.class);
+        final Domain vm = Mockito.mock(Domain.class);
+        final DomainInfo domainInfo = Mockito.mock(DomainInfo.class);
         final LibvirtUtilitiesHelper libvirtUtilitiesHelper = Mockito.mock(LibvirtUtilitiesHelper.class);
 
         final String vmName = "Test";
@@ -1768,6 +1770,8 @@ public class LibvirtComputingResourceTest {
         when(libvirtComputingResourceMock.getLibvirtUtilitiesHelper()).thenReturn(libvirtUtilitiesHelper);
         try {
             when(libvirtUtilitiesHelper.getConnectionByVmName(vmName)).thenReturn(conn);
+            when(conn.domainLookupByName(vmName)).thenReturn(vm);
+            when(vm.getInfo()).thenReturn(domainInfo);
         } catch (final LibvirtException e) {
             fail(e.getMessage());
         }

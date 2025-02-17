@@ -32,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
+import com.cloud.agent.api.CheckVirtualMachineAnswer;
+import com.cloud.agent.api.CheckVirtualMachineCommand;
 import com.cloud.agent.api.PrepareForMigrationAnswer;
 import org.apache.cloudstack.engine.subsystem.api.storage.ChapInfo;
 import org.apache.cloudstack.engine.subsystem.api.storage.ClusterScope;
@@ -2121,20 +2123,39 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
             boolean kvmAutoConvergence = StorageManager.KvmAutoConvergence.value();
             migrateCommand.setAutoConvergence(kvmAutoConvergence);
 
-            MigrateAnswer migrateAnswer = (MigrateAnswer)agentManager.send(srcHost.getId(), migrateCommand);
-
-            boolean success = migrateAnswer != null && migrateAnswer.getResult();
+            MigrateAnswer migrateAnswer = null;
+            boolean success = false;
+            try {
+                migrateAnswer = (MigrateAnswer)agentManager.send(srcHost.getId(), migrateCommand);
+                success = migrateAnswer != null && migrateAnswer.getResult();
+            } catch (OperationTimedoutException ex) {
+                if (HypervisorType.KVM.equals(vm.getHypervisorType())) {
+                    final Answer answer = agentManager.send(destHost.getId(), new CheckVirtualMachineCommand(vm.getInstanceName()));
+                    if (answer != null && answer.getResult() && answer instanceof CheckVirtualMachineAnswer) {
+                        final CheckVirtualMachineAnswer vmAnswer = (CheckVirtualMachineAnswer)answer;
+                        if (VirtualMachine.PowerState.PowerOn.equals(vmAnswer.getState())) {
+                            logger.info(String.format("Vm %s is found on destination host %s. Migration is successful", vm, destHost));
+                            success = true;
+                        }
+                    }
+                }
+                if (!success) {
+                    throw ex;
+                }
+            }
 
             handlePostMigration(success, srcVolumeInfoToDestVolumeInfo, vmTO, destHost);
 
-            if (migrateAnswer == null) {
-                throw new CloudRuntimeException("Unable to get an answer to the migrate command");
-            }
+            if (!success) {
+                if (migrateAnswer == null) {
+                    throw new CloudRuntimeException("Unable to get an answer to the migrate command");
+                }
 
-            if (!migrateAnswer.getResult()) {
-                errMsg = migrateAnswer.getDetails();
+                if (!migrateAnswer.getResult()) {
+                    errMsg = migrateAnswer.getDetails();
 
-                throw new CloudRuntimeException(errMsg);
+                    throw new CloudRuntimeException(errMsg);
+                }
             }
         } catch (AgentUnavailableException | OperationTimedoutException | CloudRuntimeException ex) {
             String volumesAndStorages = volumeDataStoreMap.entrySet().stream().map(entry -> formatEntryOfVolumesAndStoragesAsJsonToDisplayOnLog(entry)).collect(Collectors.joining(","));
