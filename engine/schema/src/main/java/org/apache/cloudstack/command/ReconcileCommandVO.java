@@ -190,8 +190,4 @@ public class ReconcileCommandVO implements InfrastructureEntity, InternalIdentit
     public void setRetryCount(Long retryCount) {
         this.retryCount = retryCount;
     }
-
-    public void incrementRetryCount() {
-        this.retryCount += 1;
-    }
 }

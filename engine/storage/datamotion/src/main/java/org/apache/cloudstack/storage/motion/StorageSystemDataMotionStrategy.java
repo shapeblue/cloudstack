@@ -1994,6 +1994,8 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
     @Override
     public void copyAsync(Map<VolumeInfo, DataStore> volumeDataStoreMap, VirtualMachineTO vmTO, Host srcHost, Host destHost, AsyncCompletionCallback<CopyCommandResult> callback) {
         String errMsg = null;
+        boolean success = false;
+        Map<VolumeInfo, VolumeInfo> srcVolumeInfoToDestVolumeInfo = new HashMap<>();
 
         try {
             if (srcHost.getHypervisorType() != HypervisorType.KVM) {
@@ -2007,7 +2009,6 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
             List<MigrateDiskInfo> migrateDiskInfoList = new ArrayList<MigrateDiskInfo>();
 
             Map<String, MigrateCommand.MigrateDiskInfo> migrateStorage = new HashMap<>();
-            Map<VolumeInfo, VolumeInfo> srcVolumeInfoToDestVolumeInfo = new HashMap<>();
 
             boolean managedStorageDestination = false;
             boolean migrateNonSharedInc = false;
@@ -2124,7 +2125,6 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
             migrateCommand.setAutoConvergence(kvmAutoConvergence);
 
             MigrateAnswer migrateAnswer = null;
-            boolean success = false;
             try {
                 migrateAnswer = (MigrateAnswer)agentManager.send(srcHost.getId(), migrateCommand);
                 success = migrateAnswer != null && migrateAnswer.getResult();
@@ -2165,6 +2165,15 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
 
             throw new CloudRuntimeException(errMsg);
         } finally {
+            if (!success && !srcVolumeInfoToDestVolumeInfo.isEmpty()) {
+                for (VolumeInfo destVolumeInfo : srcVolumeInfoToDestVolumeInfo.values()) {
+                    logger.info(String.format("Updating dest volume %s to Destroy state as part of failed VM migration with volumes command for VM [%s].", destVolumeInfo.getId(), vmTO.getId()));
+                    VolumeVO destVolume = _volumeDao.findById(destVolumeInfo.getId());
+                    destVolume.setState(Volume.State.Destroy);
+                    _volumeDao.update(destVolume.getId(), destVolume);
+                }
+            }
+
             CopyCmdAnswer copyCmdAnswer = new CopyCmdAnswer(errMsg);
 
             CopyCommandResult result = new CopyCommandResult(null, copyCmdAnswer);

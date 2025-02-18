@@ -420,25 +420,27 @@ public abstract class AgentAttache {
                         } catch (final InterruptedException e) {
                             logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted");
                         }
-                        if (answers == null) {
-                            logger.debug("Getting the answer of reconcile command from cloudstack database");
-                            Pair<Command.State, Answer> commandInfo = _agentMgr.getStateAndAnswerOfReconcileCommand(req.getSequence(), cmds[0]);
-                            if (commandInfo == null) {
-                                continue;
-                            }
-                            Command.State state = commandInfo.first();
-                            if (Command.State.INTERRUPTED.equals(state)) {
-                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent, will reconcile it");
-                                throw new CloudRuntimeException("Interrupted by agent");
-                            } else if (Command.State.DANGLED_IN_BACKEND.equals(state)) {
-                                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, will reconcile it");
-                                throw new CloudRuntimeException("It is not being processed by agent");
-                            }
-                            Answer answer = commandInfo.second();
-                            logger.debug("Got the answer of reconcile command from cloudstack database: " + answer);
-                            if (answer != null) {
-                                answers = new Answer[] { answer };
-                            }
+                        if (answers != null) {
+                            break;
+                        }
+                        logger.debug(String.format("Getting the answer of reconcile command from cloudstack database for %s-%s", seq, cmds[0]));
+                        Pair<Command.State, Answer> commandInfo = _agentMgr.getStateAndAnswerOfReconcileCommand(req.getSequence(), cmds[0]);
+                        if (commandInfo == null) {
+                            continue;
+                        }
+                        Command.State state = commandInfo.first();
+                        if (Command.State.INTERRUPTED.equals(state)) {
+                            logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent, will reconcile it");
+                            throw new CloudRuntimeException("Interrupted by agent");
+                        } else if (Command.State.DANGLED_IN_BACKEND.equals(state)) {
+                            logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, will reconcile it");
+                            throw new CloudRuntimeException("It is not being processed by agent");
+                        }
+                        Answer answer = commandInfo.second();
+                        logger.debug(String.format("Got the answer of reconcile command from cloudstack database for %s-%s: %s", seq, cmds[0], answer));
+                        if (answer != null) {
+                            answers = new Answer[] { answer };
+                            break;
                         }
                         waitTimeLeft -= waitTime;
                     }

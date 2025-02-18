@@ -90,7 +90,7 @@ import org.springframework.stereotype.Component;
 public class ReconcileCommandServiceImpl extends ManagerBase implements ReconcileCommandService, Configurable {
 
     final static long ManagementServerId = ManagementServerNode.getManagementServerId();
-    final static int MaxReconcileAttempts = 10;
+    final static int MaxReconcileAttempts = 20;
     final static int GracePeriod = 10 * 60;  // 10 minutes
     final static List<Hypervisor.HypervisorType> SupportedHypervisorTypes = Arrays.asList(Hypervisor.HypervisorType.KVM);
 
@@ -204,7 +204,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                 updated = true;
             }
             if (State.RECONCILE_FAILED.equals(newStateByManagement)) {
-                reconcileCommandVO.incrementRetryCount();
+                reconcileCommandVO.setRetryCount(reconcileCommandVO.getRetryCount() + 1);
                 updated = true;
             }
             if (ManagementServerId != ManagementServerNode.getManagementServerId()) {
@@ -262,7 +262,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             if (msHost == null || msHost.getMsid() != ManagementServerId) {
                 return new ArrayList<>();
             }
-            return reconcileCommandDao.listByState(State.INTERRUPTED, State.TIMED_OUT, State.RECONCILE_RETRY);
+            return reconcileCommandDao.listByState(State.INTERRUPTED, State.TIMED_OUT, State.RECONCILE_RETRY, State.RECONCILING, State.RECONCILE_FAILED, State.CREATED);
         }
 
         public void reallyRun() {
@@ -400,11 +400,11 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             } else if (stateByAgent == null) {
                 logger.debug(String.format("Skipping the reconciliation of command %s, because the state by agent is null", commandKey));
             } else if (Arrays.asList(State.STARTED, State.PROCESSING, State.PROCESSING_IN_BACKEND).contains(stateByAgent)) {
-                if (Status.Up.equals(host.getStatus())) {
+                if (host.getRemoved() == null && Status.Up.equals(host.getStatus())) {
                     logger.debug(String.format("Skipping the reconciliation of command %s, because the host is Up, the command may be still in processing", commandKey));
                     return new ReconcileCommandResult(requestSequence, command, null, false);
                 } else {
-                    logger.debug(String.format("The host is disconnected on %s, removed on %s, Reconciling command %s ...", host.getDisconnectedOn(), host.getRemoved(), commandKey));
+                    logger.debug(String.format("The host is in %s state, removed on %s, Reconciling command %s ...", host.getStatus(), host.getRemoved(), commandKey));
                     return reconcile(reconcileCommand);
                 }
             } else if (Arrays.asList(State.COMPLETED, State.FAILED).contains(stateByAgent)) {
@@ -683,9 +683,9 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         }
 
         if (!(reconcileAnswer.getSourceHostId().equals(vm.getLastHostId()) && reconcileAnswer.getDestinationHostId().equals(vm.getHostId()))
-                && !(reconcileAnswer.getSourceHostId().equals(vm.getHostId()) && reconcileAnswer.getDestinationHostId().equals(vm.getLastHostId()))) {
-            logger.debug(String.format("VM (id: %s) should have host_id (%s) and last_host_id (%s), or vice versa, but actual host_id is %s and last_host_id is %s",
-                    vmId, reconcileAnswer.getDestinationHostId(), reconcileAnswer.getSourceHostId(), vm.getHostId(), vm.getLastHostId()));
+                && !(reconcileAnswer.getSourceHostId().equals(vm.getHostId()))) {
+            logger.debug(String.format("VM (id: %s) should have host_id (%s), or host_id (%s) and last_host_id (%s), but actual host_id is %s and last_host_id is %s",
+                    vmId, reconcileAnswer.getSourceHostId(), reconcileAnswer.getDestinationHostId(), reconcileAnswer.getSourceHostId(), vm.getHostId(), vm.getLastHostId()));
             return true;
         }
 
