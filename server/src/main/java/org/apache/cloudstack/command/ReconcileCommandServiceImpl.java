@@ -93,6 +93,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
     final static int MaxReconcileAttempts = 20;
     final static int GracePeriod = 10 * 60;  // 10 minutes
     final static List<Hypervisor.HypervisorType> SupportedHypervisorTypes = Arrays.asList(Hypervisor.HypervisorType.KVM);
+    private boolean _reconcileCommandsEnabled = false;
 
     private ScheduledExecutorService reconcileCommandsExecutor;
     private ExecutorService reconcileCommandTaskExecutor;
@@ -119,7 +120,8 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
-        if (ReconcileCommandsEnabled.value()) {
+        _reconcileCommandsEnabled = ReconcileCommandsEnabled.value();
+        if (_reconcileCommandsEnabled) {
             // create thread pool and blocking queue
             final int workersCount = ReconcileCommandsWorkers.value();
             reconcileCommandTaskExecutor = Executors.newFixedThreadPool(workersCount, new NamedThreadFactory("Reconcile-Command-Task-Executor"));
@@ -142,7 +144,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         if (reconcileCommandTaskExecutor != null) {
             reconcileCommandTaskExecutor.shutdownNow();
         }
-        if (ReconcileCommandsEnabled.value()) {
+        if (_reconcileCommandsEnabled) {
             reconcileCommandDao.updateCommandsToInterruptedByManagementServerId(ManagementServerId);
         }
 
@@ -161,7 +163,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
 
     @Override
     public void persistReconcileCommands(Long hostId, Long requestSequence, Command[] commands) {
-        if (!ReconcileCommandsEnabled.value()) {
+        if (!_reconcileCommandsEnabled) {
             return;
         }
         HostVO host = hostDao.findById(hostId);
@@ -301,6 +303,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                         reconcileCommandDao.removeCommand(requestSequence, result.getCommand().toString(), null);
                     } else {
                         logger.info(String.format("Command %s is not reconciled, will retry", commandKey));
+                        updateReconcileCommand(requestSequence, result.getCommand(), answer, State.RECONCILE_RETRY, null);
                     }
                 } catch (InterruptedException | ExecutionException e) {
                     logger.error(String.format("Failed to reconcile command due to: %s", e.getMessage()), e);
@@ -449,10 +452,15 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
 
     boolean preReconcileCheck(Command command) {
         if (command instanceof MigrateCommand) {
-            Long vmId = ((MigrateCommand) command).getVirtualMachine().getId();
+            MigrateCommand migrateCommand = (MigrateCommand) command;
+            Long vmId = migrateCommand.getVirtualMachine().getId();
             VMInstanceVO vm = vmInstanceDao.findById(vmId);
             if (vm == null || !Arrays.asList(VirtualMachine.State.Migrating, VirtualMachine.State.Running, VirtualMachine.State.Stopped).contains(vm.getState()))  {
                 logger.debug(String.format("Skipping reconciliation of command %s as vm %s is removed or not Migrating, Running or Stopped", command, vm));
+                return false;
+            }
+            if (MapUtils.isEmpty(migrateCommand.getMigrateStorage())) {
+                logger.debug(String.format("Skipping reconciliation of command %s as the migration does not migrate volumes of vm %s", command, vm));
                 return false;
             }
         } else if (command instanceof CopyCommand) {
@@ -552,6 +560,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         if (host == null || !Status.Up.equals(host.getStatus())) {
             EndPoint endPoint = getEndpoint(srcData, destData);
             if (endPoint == null) {
+                logger.debug(String.format("Unable to reconcile command %s with srcData %s and destData %s as endpoint is null", command, srcData, destData));
                 return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
             }
             host = hostDao.findById(endPoint.getId());
@@ -689,7 +698,6 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             return true;
         }
 
-        boolean isMigratingState = VirtualMachine.State.Migrating.equals(vm.getState());
         boolean isMigrated = false;
 
         List<String> diskPaths = null;
@@ -722,7 +730,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         if (MapUtils.isEmpty(migrateDiskInfoMap)) {
             return true;
         }
-        if (isMigratingState && isMigrated) {
+        if (isMigrated) {
             // Update source and destination volume state
             for (Map.Entry<String, MigrateCommand.MigrateDiskInfo> entry : migrateDiskInfoMap.entrySet()) {
                 logger.debug(String.format("Searching for volumes with instance_id = %s and path = %s", vmId, entry.getKey()));
@@ -865,6 +873,12 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                         lastVolume.setState(Volume.State.Ready);        // Update last volume to Ready
                         volumeDao.update(lastVolume.getId(), lastVolume);
                     }
+                    // remove record from volume_store_ref with Copying state
+                    VolumeDataStoreVO volumeDataStoreVO = volumeDataStoreDao.findByVolume(lastVolume.getId());
+                    if (volumeDataStoreVO != null && volumeDataStoreVO.getState().equals(ObjectInDataStoreStateMachine.State.Copying)) {
+                        logger.debug(String.format("Removing record (id: %s) for volume (id :%s) from volume_store_ref as part of reconciliation of command %s and answer %s", volumeDataStoreVO.getId(), sourceVolume.getId(), command, reconcileAnswer));
+                        volumeDataStoreDao.remove(volumeDataStoreVO.getId());
+                    }
                 }
                 return true;
             }
@@ -874,9 +888,9 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                 sourceVolume.setState(sourceVolumeState);   // Update source volume state
                 volumeDao.update(sourceVolume.getId(), sourceVolume);
 
-                // remove record from volume_store_ref
+                // remove record from volume_store_ref with Creating state
                 VolumeDataStoreVO volumeDataStoreVO = volumeDataStoreDao.findByVolume(sourceVolume.getId());
-                if (volumeDataStoreVO != null && volumeDataStoreVO.getState().equals(ObjectInDataStoreStateMachine.State.Copying)) {
+                if (volumeDataStoreVO != null && volumeDataStoreVO.getState().equals(ObjectInDataStoreStateMachine.State.Creating)) {
                     logger.debug(String.format("Removing record (id: %s) for volume (id :%s) from volume_store_ref as part of reconciliation of command %s and answer %s", volumeDataStoreVO.getId(), sourceVolume.getId(), command, reconcileAnswer));
                     volumeDataStoreDao.remove(volumeDataStoreVO.getId());
                 }

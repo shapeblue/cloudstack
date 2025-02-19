@@ -2167,10 +2167,9 @@ public class StorageSystemDataMotionStrategy implements DataMotionStrategy {
         } finally {
             if (!success && !srcVolumeInfoToDestVolumeInfo.isEmpty()) {
                 for (VolumeInfo destVolumeInfo : srcVolumeInfoToDestVolumeInfo.values()) {
-                    logger.info(String.format("Updating dest volume %s to Destroy state as part of failed VM migration with volumes command for VM [%s].", destVolumeInfo.getId(), vmTO.getId()));
-                    VolumeVO destVolume = _volumeDao.findById(destVolumeInfo.getId());
-                    destVolume.setState(Volume.State.Destroy);
-                    _volumeDao.update(destVolume.getId(), destVolume);
+                    logger.info(String.format("Expunging dest volume [id: %s, state: %s] as part of failed VM migration with volumes command for VM [%s].", destVolumeInfo.getId(), destVolumeInfo.getState(), vmTO.getId()));
+                    destVolumeInfo.processEvent(Event.OperationFailed);
+                    _volumeService.expungeVolumeAsync(destVolumeInfo);
                 }
             }
 

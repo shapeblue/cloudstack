@@ -202,6 +202,8 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
     private final ConcurrentHashMap<String, Long> newAgentConnections = new ConcurrentHashMap<>();
     protected ScheduledExecutorService newAgentConnectionsMonitor;
 
+    private boolean _reconcileCommandsEnabled = false;
+
     @Inject
     ResourceManager _resourceMgr;
     @Inject
@@ -270,6 +272,8 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         newAgentConnectionsMonitor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("NewAgentConnectionsMonitor"));
 
         initializeCommandTimeouts();
+
+        _reconcileCommandsEnabled = ReconcileCommandService.ReconcileCommandsEnabled.value();
 
         return true;
     }
@@ -2014,7 +2018,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
                     params.put(Config.RouterAggregationCommandEachTimeout.toString(), _configDao.getValue(Config.RouterAggregationCommandEachTimeout.toString()));
                     params.put(Config.MigrateWait.toString(), _configDao.getValue(Config.MigrateWait.toString()));
                     params.put(NetworkOrchestrationService.TUNGSTEN_ENABLED.key(), String.valueOf(NetworkOrchestrationService.TUNGSTEN_ENABLED.valueIn(host.getDataCenterId())));
-                    params.put(ReconcileCommandService.ReconcileCommandsEnabled.key(), String.valueOf(ReconcileCommandService.ReconcileCommandsEnabled.value()));
+                    params.put(ReconcileCommandService.ReconcileCommandsEnabled.key(), String.valueOf(_reconcileCommandsEnabled));
 
                     try {
                         SetHostParamsCommand cmds = new SetHostParamsCommand(params);
@@ -2099,8 +2103,12 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         return GlobalLock.getInternLock(String.format("%s-%s", "Host-Join", hostId));
     }
 
+    public boolean isReconcileCommandsEnabled() {
+        return _reconcileCommandsEnabled;
+    }
+
     public void updateReconcileCommandsIfNeeded(long requestSeq, Command[] commands, Command.State state) {
-        if (!ReconcileCommandService.ReconcileCommandsEnabled.value()) {
+        if (!_reconcileCommandsEnabled) {
             return;
         }
         for (Command command: commands) {

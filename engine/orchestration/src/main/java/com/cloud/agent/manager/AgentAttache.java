@@ -411,7 +411,7 @@ public abstract class AgentAttache {
             for (int i = 0; i < 2; i++) {
                 Answer[] answers = null;
                 Command[] cmds = req.getCommands();
-                if (cmds != null && cmds.length == 1 && (cmds[0] != null) && cmds[0].isReconcile()) {
+                if (cmds != null && cmds.length == 1 && (cmds[0] != null) && cmds[0].isReconcile() && _agentMgr.isReconcileCommandsEnabled()) {
                     int waitTimeLeft = wait;
                     while (waitTimeLeft > 0 && answers == null) {
                         int waitTime = Math.min(waitTimeLeft, ReconcileInterval);
