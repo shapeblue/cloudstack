@@ -84,13 +84,13 @@ import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ReconcileCommandServiceImpl extends ManagerBase implements ReconcileCommandService, Configurable {
 
     final static long ManagementServerId = ManagementServerNode.getManagementServerId();
-    final static int MaxReconcileAttempts = 20;
     final static int GracePeriod = 10 * 60;  // 10 minutes
     final static List<Hypervisor.HypervisorType> SupportedHypervisorTypes = Arrays.asList(Hypervisor.HypervisorType.KVM);
     private boolean _reconcileCommandsEnabled = false;
@@ -158,7 +158,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[]{ ReconcileCommandsEnabled, ReconcileCommandsInterval, ReconcileCommandsWorkers };
+        return new ConfigKey<?>[]{ ReconcileCommandsEnabled, ReconcileCommandsInterval, ReconcileCommandsWorkers, ReconcileCommandsMaxAttempts };
     }
 
     @Override
@@ -392,11 +392,12 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                     reconcileCommandDao.update(reconcileCommand.getId(), reconcileCommand);
                 }
             } else if (State.RECONCILE_FAILED.equals(stateByManagement)) {
-                if (retryCount != null && retryCount <= MaxReconcileAttempts) {
+                if (retryCount != null && retryCount <= ReconcileCommandsMaxAttempts.value()) {
                     logger.debug(String.format("The command %s has been reconciled %s times, retrying", commandKey, retryCount));
                     return reconcile(reconcileCommand);
                 } else {
                     logger.debug(String.format("The command %s has been reconciled %s times, skipping", commandKey, retryCount));
+                    return new ReconcileCommandResult(requestSequence, command, null, true);
                 }
             } else if (State.RECONCILED.equals(stateByManagement)) {
                 logger.debug(String.format("The command %s has been reconciled, skipping", commandKey));
@@ -455,14 +456,22 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             MigrateCommand migrateCommand = (MigrateCommand) command;
             Long vmId = migrateCommand.getVirtualMachine().getId();
             VMInstanceVO vm = vmInstanceDao.findById(vmId);
-            if (vm == null || !Arrays.asList(VirtualMachine.State.Migrating, VirtualMachine.State.Running, VirtualMachine.State.Stopped).contains(vm.getState()))  {
-                logger.debug(String.format("Skipping reconciliation of command %s as vm %s is removed or not Migrating, Running or Stopped", command, vm));
+            if (vm == null)  {
+                logger.debug(String.format("Skipping reconciliation of command %s as vm %s has been removed", command, vm));
                 return false;
             }
             if (MapUtils.isEmpty(migrateCommand.getMigrateStorage())) {
                 logger.debug(String.format("Skipping reconciliation of command %s as the migration does not migrate volumes of vm %s", command, vm));
                 return false;
             }
+            List<VolumeVO> volumes = volumeDao.findByInstance(vmId);
+            for (VolumeVO volume : volumes) {
+                if (Volume.State.Migrating.equals(volume.getState())) {
+                    return true;
+                }
+            }
+            logger.debug(String.format("Skipping reconciliation of command %s as the vm %s does not have volume in Migrating state", command, vm));
+            return false;
         } else if (command instanceof CopyCommand) {
             DataTO srcData = ((CopyCommand) command).getSrcTO();
             DataTO destData = ((CopyCommand) command).getDestTO();
@@ -501,36 +510,34 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
     }
 
     private ReconcileCommandResult reconcile(ReconcileCommandVO reconcileCommandVO, MigrateCommand command) {
+        Long vmId = command.getVirtualMachine().getId();
+        VMInstanceVO vm = vmInstanceDao.findById(vmId);
+        if (vm == null) {
+            logger.debug(String.format("VM (id: %s) has been removed", vmId));
+            return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, true);
+        }
+        if (!VirtualMachine.State.Running.equals(vm.getState())) {
+            logger.debug(String.format("VM (id: %s) is not Running, actual state is %s, wait for next run", vmId, vm.getHostId()));
+            return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, null, false);
+        }
+
         ReconcileMigrateAnswer reconcileMigrateAnswer = new ReconcileMigrateAnswer();
         reconcileMigrateAnswer.setResourceType(ApiCommandResourceType.VirtualMachine);
-        reconcileMigrateAnswer.setResourceId(command.getVirtualMachine().getId());
+        reconcileMigrateAnswer.setResourceId(vmId);
 
-        Long hostId = reconcileCommandVO.getHostId();
+        Long hostId = vm.getHostId();
         HostVO sourceHost = hostDao.findById(hostId);
         if (sourceHost != null && sourceHost.getStatus() == Status.Up) {
-            ReconcileMigrateCommand reconcileMigrateCommand = new ReconcileMigrateCommand(command.getVmName(), true);
+            ReconcileMigrateCommand reconcileMigrateCommand = new ReconcileMigrateCommand(command.getVmName());
             Answer reconcileAnswer = agentManager.easySend(sourceHost.getId(), reconcileMigrateCommand);
-            reconcileMigrateAnswer.setSourceHostId(sourceHost.getId());
+            reconcileMigrateAnswer.setHostId(sourceHost.getId());
             if (reconcileAnswer instanceof ReconcileMigrateAnswer) {
-                reconcileMigrateAnswer.setStateOnSourceHost(((ReconcileMigrateAnswer) reconcileAnswer).getStateOnSourceHost());
-                reconcileMigrateAnswer.setDisksOnSourceHost(((ReconcileMigrateAnswer) reconcileAnswer).getDisksOnSourceHost());
+                reconcileMigrateAnswer.setVmState(((ReconcileMigrateAnswer) reconcileAnswer).getVmState());
+                reconcileMigrateAnswer.setVmDisks(((ReconcileMigrateAnswer) reconcileAnswer).getVmDisks());
             }
         }
 
-        String destinationIp = command.getDestinationIp();
-        HostVO destinationHost = hostDao.findByIp(destinationIp);
-        if (destinationHost != null && destinationHost.getStatus() == Status.Up) {
-            ReconcileMigrateCommand reconcileMigrateCommand = new ReconcileMigrateCommand(command.getVmName(), false);
-            Answer reconcileAnswer = agentManager.easySend(destinationHost.getId(), reconcileMigrateCommand);
-            reconcileMigrateAnswer.setDestinationHostId(destinationHost.getId());
-            if (reconcileAnswer instanceof ReconcileMigrateAnswer) {
-                reconcileMigrateAnswer.setStateOnDestinationHost(((ReconcileMigrateAnswer) reconcileAnswer).getStateOnDestinationHost());
-                reconcileMigrateAnswer.setDisksOnDestinationHost(((ReconcileMigrateAnswer) reconcileAnswer).getDisksOnDestinationHost());
-            }
-        }
-
-        boolean isReconciled = (reconcileMigrateAnswer.getStateOnSourceHost() != null && reconcileMigrateAnswer.getStateOnDestinationHost() != null)
-                || VirtualMachine.State.Running.equals(reconcileMigrateAnswer.getStateOnDestinationHost());
+        boolean isReconciled = (reconcileMigrateAnswer.getVmState() != null);
         return new ReconcileCommandResult(reconcileCommandVO.getRequestSequence(), command, reconcileMigrateAnswer, isReconciled);
     }
 
@@ -685,60 +692,34 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             logger.debug(String.format("VM (id: %s) has been removed", vmId));
             return true;
         }
-
-        if (!Arrays.asList(VirtualMachine.State.Migrating, VirtualMachine.State.Running, VirtualMachine.State.Stopped).contains(vm.getState())) {
-            logger.debug(String.format("VM (id: %s) is not Migrating or Running or Stopped, the actual state is %s", vmId, vm.getState()));
+        if (!VirtualMachine.State.Running.equals(vm.getState())) {
+            logger.debug(String.format("VM (id: %s) is not Running, the actual state is %s", vmId, vm.getState()));
             return true;
         }
-
-        if (!(reconcileAnswer.getSourceHostId().equals(vm.getLastHostId()) && reconcileAnswer.getDestinationHostId().equals(vm.getHostId()))
-                && !(reconcileAnswer.getSourceHostId().equals(vm.getHostId()))) {
-            logger.debug(String.format("VM (id: %s) should have host_id (%s), or host_id (%s) and last_host_id (%s), but actual host_id is %s and last_host_id is %s",
-                    vmId, reconcileAnswer.getSourceHostId(), reconcileAnswer.getDestinationHostId(), reconcileAnswer.getSourceHostId(), vm.getHostId(), vm.getLastHostId()));
-            return true;
-        }
-
-        boolean isMigrated = false;
-
-        List<String> diskPaths = null;
-        if (VirtualMachine.State.Running.equals(reconcileAnswer.getStateOnDestinationHost())) {
-            logger.debug(String.format("VM (id: %s) is %s on source host and Running on destination host, mark state as Running on destination host", reconcileAnswer.getStateOnSourceHost(), vmId));
-            vm.setState(VirtualMachine.State.Running);
-            vmInstanceDao.update(vmId, vm);
-            isMigrated = true;
-            diskPaths = reconcileAnswer.getDisksOnDestinationHost();
-        } else if (VirtualMachine.State.Running.equals(reconcileAnswer.getStateOnSourceHost()) && VirtualMachine.State.Stopped.equals(reconcileAnswer.getStateOnDestinationHost())) {
-            logger.debug(String.format("VM (id: %s) is Running on source host and Stopped on destination host, mark state as Running on source host", vmId));
-            vm.setState(VirtualMachine.State.Running);
-            vm.setHostId(reconcileAnswer.getSourceHostId());
-            vm.setLastHostId(reconcileAnswer.getDestinationHostId());
-            vmInstanceDao.update(vmId, vm);
-            diskPaths = reconcileAnswer.getDisksOnSourceHost();
-        } else if (VirtualMachine.State.Stopped.equals(reconcileAnswer.getStateOnSourceHost()) && VirtualMachine.State.Stopped.equals(reconcileAnswer.getStateOnDestinationHost())) {
-            logger.debug(String.format("VM (id: %s) is Stopped on source host and Stopped on destination host, mark state as Stopped on source host", vmId));
-            vm.setState(VirtualMachine.State.Stopped);
-            vm.setHostId(null);
-            vm.setLastHostId(reconcileAnswer.getSourceHostId());
-            vmInstanceDao.update(vmId, vm);
-        } else {
-            logger.debug(String.format("VM (id: %s) is %s on source host and %s on destination host, skipping", vmId, reconcileAnswer.getStateOnSourceHost(), reconcileAnswer.getStateOnDestinationHost()));
-            return false;
-        }
-        logger.debug(String.format("The attached disks to the VM after live vm migration are: %s", diskPaths));
-
         Map<String, MigrateCommand.MigrateDiskInfo> migrateDiskInfoMap = command.getMigrateStorage();
         if (MapUtils.isEmpty(migrateDiskInfoMap)) {
             return true;
         }
-        if (isMigrated) {
-            // Update source and destination volume state
-            for (Map.Entry<String, MigrateCommand.MigrateDiskInfo> entry : migrateDiskInfoMap.entrySet()) {
-                logger.debug(String.format("Searching for volumes with instance_id = %s and path = %s", vmId, entry.getKey()));
-                VolumeVO volumeVO = volumeDao.findByInstanceIdAndPath(vmId, entry.getKey());
-                if (volumeVO != null) {
-                    logger.debug(String.format("Searching for volumes with last_id = %s", volumeVO.getId()));
-                    VolumeVO destVolume = volumeDao.findByLastIdAndState(volumeVO.getId(), Volume.State.Migrating);
-                    if (destVolume != null) {
+        if (!VirtualMachine.State.Running.equals(reconcileAnswer.getVmState())) {
+            logger.debug(String.format("VM (id: %s) is %s state on the host, will retry", vmId, vm.getState()));
+            return false;
+        }
+        List<String> diskPaths = reconcileAnswer.getVmDisks();
+        logger.debug(String.format("The attached disks to the VM after live vm migration are: %s", diskPaths));
+
+        List<VolumeVO> volumes = volumeDao.findByInstance(vmId);
+        for (VolumeVO volumeVO : volumes) {
+            if (Volume.State.Migrating.equals(volumeVO.getState())) {
+                logger.debug(String.format("Reconciling vm %s with volume %s in Migrating state", vmId, volumeVO.getId()));
+                logger.debug(String.format("Searching for volumes with last_id = %s", volumeVO.getId()));
+                VolumeVO destVolume = volumeDao.findByLastIdAndState(volumeVO.getId(), Volume.State.Migrating);
+                if (destVolume != null) {
+                    Boolean isVolumeMigrated = isVolumeMigrated(diskPaths, volumeVO.getPath(), destVolume.getPath());
+                    if (isVolumeMigrated == null) {
+                        logger.debug(String.format("Unable to determine if source volume %s has been migrated to destination volume %s", volumeVO.getId(), destVolume.getId()));
+                        continue;
+                    }
+                    if (isVolumeMigrated) {
                         logger.debug(String.format("Adding destination volume %s to vm %s as part of reconciliation of command %s and answer %s", destVolume.getId(), vmId, command, reconcileAnswer));
                         destVolume.setState(Volume.State.Ready);
                         destVolume.setInstanceId(vmId);
@@ -749,29 +730,13 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                         volumeVO.setVolumeType(Volume.Type.DATADISK);
                         volumeVO.setInstanceId(null);
                         volumeDao.update(volumeVO.getId(), volumeVO);
-                    }
-                }
-            }
-
-            List<VolumeVO> volumes = volumeDao.findByInstance(vmId);
-            logger.debug(String.format("The attached disks of volumes after reconciliation of successful vm migration are: %s", volumes.stream().map(VolumeVO::getPath).collect(Collectors.toList())));
-        } else {
-            for (Map.Entry<String, MigrateCommand.MigrateDiskInfo> entry : migrateDiskInfoMap.entrySet()) {
-                logger.debug(String.format("Searching for volumes with instance_id = %s and path = %s", vmId, entry.getKey()));
-                VolumeVO volumeVO = volumeDao.findByInstanceIdAndPath(vmId, entry.getKey());
-                if (volumeVO != null) {
-                    logger.debug(String.format("Searching for volumes with last_id = %s", volumeVO.getId()));
-                    VolumeVO destVolume = volumeDao.findByLastIdAndState(volumeVO.getId(), Volume.State.Migrating);
-                    if (destVolume != null) {
-                        // Update destination volume state
+                    } else {
                         logger.debug(String.format("Removing destination volume %s from vm %s as part of reconciliation of command %s and answer %s", destVolume.getId(), vmId, command, reconcileAnswer));
                         destVolume.setState(Volume.State.Destroy);
                         destVolume.setVolumeType(Volume.Type.DATADISK);
                         destVolume.setInstanceId(null);
                         volumeDao.update(destVolume.getId(), destVolume);
-                    }
-                    if (Volume.State.Migrating.equals(volumeVO.getState())) {
-                        // Update source volume state if it is Migrating
+
                         logger.debug(String.format("Adding volume %s to vm %s as part of reconciliation of command %s and answer %s", volumeVO.getId(), vmId, command, reconcileAnswer));
                         volumeVO.setState(Volume.State.Ready);
                         volumeVO.setInstanceId(vmId);
@@ -779,12 +744,25 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                     }
                 }
             }
-
-            List<VolumeVO> volumes = volumeDao.findByInstance(vmId);
-            logger.debug(String.format("The attached disks of volumes after reconciliation of failed vm migration are: %s", volumes.stream().map(VolumeVO::getPath).collect(Collectors.toList())));
         }
+        volumes = volumeDao.findByInstance(vmId);
+        logger.debug(String.format("The attached disks of volumes after reconciliation of successful vm migration are: %s", volumes.stream().map(VolumeVO::getPath).collect(Collectors.toList())));
 
         return true;
+    }
+
+    private Boolean isVolumeMigrated(List<String> diskPaths, String sourceVolumePath, String destVolumePath) {
+        if (StringUtils.isAnyBlank(sourceVolumePath, destVolumePath)) {
+            return null;
+        }
+        for (String diskPath : diskPaths) {
+            if (diskPath.contains(sourceVolumePath) && !diskPath.contains(destVolumePath)) {
+                return false;   // Not migrated
+            } else if (!diskPath.contains(sourceVolumePath) && diskPath.contains(destVolumePath)) {
+                return true;    // Migrated
+            }
+        }
+        return null;    // Unable to determine
     }
 
     private boolean processReconcileCopyAnswer(long requestSequence, CopyCommand command, ReconcileCopyAnswer reconcileAnswer) {

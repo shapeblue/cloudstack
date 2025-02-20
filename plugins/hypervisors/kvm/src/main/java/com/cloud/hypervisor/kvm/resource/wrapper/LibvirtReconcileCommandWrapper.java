@@ -77,40 +77,34 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         final LibvirtUtilitiesHelper libvirtUtilitiesHelper = libvirtComputingResource.getLibvirtUtilitiesHelper();
 
         ReconcileMigrateAnswer answer;
-        boolean isSourceHost = reconcileCommand.isSourceHost();
         try {
             Connect conn = libvirtUtilitiesHelper.getConnectionByVmName(vmName);
             Domain vm = conn.domainLookupByName(vmName);
             DomainState domainState = vm.getInfo().state;
             logger.debug(String.format("Found VM %s with domain state %s", vmName, domainState));
-            VirtualMachine.State state = getState(domainState, isSourceHost);
+            VirtualMachine.State state = getState(domainState);
             List<String> disks = null;
             if (VirtualMachine.State.Running.equals(state)) {
                 disks = getVmDiskPaths(libvirtComputingResource.getDisks(conn, vmName));
             }
-            if (isSourceHost) {
-                answer = new ReconcileMigrateAnswer(state, null);
-                answer.setDisksOnSourceHost(disks);
-            } else {
-                answer = new ReconcileMigrateAnswer(null, state);
-                answer.setDisksOnDestinationHost(disks);
-            }
+            answer = new ReconcileMigrateAnswer(state);
+            answer.setVmDisks(disks);
         } catch (LibvirtException e) {
             logger.debug(String.format("Failed to get state of VM %s, assume it is Stopped", vmName));
             VirtualMachine.State state = VirtualMachine.State.Stopped;
-            answer = new ReconcileMigrateAnswer(isSourceHost ? state : null, isSourceHost ? null : state);
+            answer = new ReconcileMigrateAnswer(state);
         }
         return answer;
     }
 
-    static VirtualMachine.State getState(DomainState domainState, boolean isSourceHost) {
+    static VirtualMachine.State getState(DomainState domainState) {
         VirtualMachine.State state;
         if (domainState == DomainState.VIR_DOMAIN_RUNNING) {
             state = VirtualMachine.State.Running;
         } else if (Arrays.asList(DomainState.VIR_DOMAIN_SHUTDOWN, DomainState.VIR_DOMAIN_SHUTOFF, DomainState.VIR_DOMAIN_CRASHED).contains(domainState)) {
             state = VirtualMachine.State.Stopped;
         } else if (domainState == DomainState.VIR_DOMAIN_PAUSED) {
-            state = isSourceHost ? VirtualMachine.State.Unknown : VirtualMachine.State.Migrating;
+            state = VirtualMachine.State.Unknown;
         } else {
             state = VirtualMachine.State.Unknown;
         }

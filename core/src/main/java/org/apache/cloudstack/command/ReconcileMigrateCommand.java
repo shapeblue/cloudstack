@@ -21,18 +21,11 @@ public class ReconcileMigrateCommand extends ReconcileCommand {
 
     String vmName;
 
-    boolean isSourceHost;
-
-    public ReconcileMigrateCommand(String vmName, boolean isSourceHost) {
+    public ReconcileMigrateCommand(String vmName) {
         this.vmName = vmName;
-        this.isSourceHost = isSourceHost;
     }
 
     public String getVmName() {
         return vmName;
-    }
-
-    public boolean isSourceHost() {
-        return isSourceHost;
     }
 }

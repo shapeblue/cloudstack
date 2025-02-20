@@ -25,66 +25,38 @@ import java.util.List;
 
 public class ReconcileMigrateAnswer extends ReconcileAnswer {
 
-    Long sourceHostId;
-    VirtualMachine.State stateOnSourceHost;
-    List<String> disksOnSourceHost;
-    Long destinationHostId;
-    VirtualMachine.State stateOnDestinationHost;
-    List<String> disksOnDestinationHost;
+    Long hostId;
+    VirtualMachine.State vmState;
+    List<String> vmDisks;
 
     public ReconcileMigrateAnswer() {
     }
 
-    public ReconcileMigrateAnswer(VirtualMachine.State stateOnSourceHost, VirtualMachine.State stateOnDestinationHost) {
-        this.stateOnSourceHost = stateOnSourceHost;
-        this.stateOnDestinationHost = stateOnDestinationHost;
+    public ReconcileMigrateAnswer(VirtualMachine.State vmState) {
+        this.vmState = vmState;
     }
 
-    public Long getSourceHostId() {
-        return sourceHostId;
+    public Long getHostId() {
+        return hostId;
     }
 
-    public void setSourceHostId(Long sourceHostId) {
-        this.sourceHostId = sourceHostId;
+    public void setHostId(Long hostId) {
+        this.hostId = hostId;
     }
 
-    public Long getDestinationHostId() {
-        return destinationHostId;
+    public VirtualMachine.State getVmState() {
+        return vmState;
     }
 
-    public void setDestinationHostId(Long destinationHostId) {
-        this.destinationHostId = destinationHostId;
+    public void setVmState(VirtualMachine.State vmState) {
+        this.vmState = vmState;
     }
 
-    public VirtualMachine.State getStateOnSourceHost() {
-        return stateOnSourceHost;
+    public List<String> getVmDisks() {
+        return vmDisks;
     }
 
-    public void setStateOnSourceHost(VirtualMachine.State stateOnSourceHost) {
-        this.stateOnSourceHost = stateOnSourceHost;
-    }
-
-    public VirtualMachine.State getStateOnDestinationHost() {
-        return stateOnDestinationHost;
-    }
-
-    public void setStateOnDestinationHost(VirtualMachine.State stateOnDestinationHost) {
-        this.stateOnDestinationHost = stateOnDestinationHost;
-    }
-
-    public List<String> getDisksOnSourceHost() {
-        return disksOnSourceHost;
-    }
-
-    public void setDisksOnSourceHost(List<String> disksOnSourceHost) {
-        this.disksOnSourceHost = disksOnSourceHost;
-    }
-
-    public List<String> getDisksOnDestinationHost() {
-        return disksOnDestinationHost;
-    }
-
-    public void setDisksOnDestinationHost(List<String> disksOnDestinationHost) {
-        this.disksOnDestinationHost = disksOnDestinationHost;
+    public void setVmDisks(List<String> vmDisks) {
+        this.vmDisks = vmDisks;
     }
 }

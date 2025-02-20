@@ -32,6 +32,10 @@ public interface ReconcileCommandService {
             "reconcile.commands.interval", "60",
             "Interval (in seconds) for the background task to reconcile the commands",
             false);
+    ConfigKey<Integer> ReconcileCommandsMaxAttempts = new ConfigKey<>("Advanced", Integer.class,
+            "reconcile.commands.max.attempts", "30",
+            "The maximum number of attempts to reconcile the commands",
+            true);
 
     ConfigKey<Integer> ReconcileCommandsWorkers = new ConfigKey<>("Advanced", Integer.class,
             "reconcile.commands.workers", "100",
