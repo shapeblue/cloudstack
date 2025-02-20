@@ -32,6 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.cloud.agent.api.CleanupPersistentNetworkResourceCommand;
+import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.utils.Pair;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.agent.lb.SetupMSListCommand;
@@ -116,6 +117,7 @@ public abstract class AgentAttache {
     protected final long _id;
     protected String _uuid;
     protected String _name = null;
+    protected HypervisorType _hypervisorType;
     protected final ConcurrentHashMap<Long, Listener> _waitForList;
     protected final LinkedList<Request> _requests;
     protected Long _currentSequence;
@@ -139,10 +141,11 @@ public abstract class AgentAttache {
 
     final int ReconcileInterval = 10;  // Check Answer in database for ReconcileCommand
 
-    protected AgentAttache(final AgentManagerImpl agentMgr, final long id, final String uuid, final String name, final boolean maintenance) {
+    protected AgentAttache(final AgentManagerImpl agentMgr, final long id, final String uuid, final String name, final HypervisorType hypervisorType, final boolean maintenance) {
         _id = id;
         _uuid = uuid;
         _name = name;
+        _hypervisorType = hypervisorType;
         _waitForList = new ConcurrentHashMap<Long, Listener>();
         _currentSequence = null;
         _maintenance = maintenance;
@@ -263,6 +266,10 @@ public abstract class AgentAttache {
 
     public String getName() {
         return _name;
+    }
+
+    public HypervisorType get_hypervisorType() {
+        return _hypervisorType;
     }
 
     public int getQueueSize() {
