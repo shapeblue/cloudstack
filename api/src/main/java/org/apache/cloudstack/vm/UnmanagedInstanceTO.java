@@ -33,8 +33,6 @@ public class UnmanagedInstanceTO {
 
     private String internalCSName;
 
-    private String path;
-
     private PowerState powerState;
 
     private PowerState cloneSourcePowerState;
@@ -75,14 +73,6 @@ public class UnmanagedInstanceTO {
 
     public void setInternalCSName(String internalCSName) {
         this.internalCSName = internalCSName;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
     }
 
     public PowerState getPowerState() {
