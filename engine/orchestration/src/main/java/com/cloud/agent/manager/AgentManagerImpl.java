@@ -203,6 +203,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
     protected ScheduledExecutorService newAgentConnectionsMonitor;
 
     private boolean _reconcileCommandsEnabled = false;
+    private Integer _reconcileCommandInterval;
 
     @Inject
     ResourceManager _resourceMgr;
@@ -274,6 +275,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         initializeCommandTimeouts();
 
         _reconcileCommandsEnabled = ReconcileCommandService.ReconcileCommandsEnabled.value();
+        _reconcileCommandInterval = ReconcileCommandService.ReconcileCommandsInterval.value();
 
         return true;
     }
@@ -2129,5 +2131,9 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         }
         Answer answer = ReconcileCommandUtils.parseAnswerFromAnswerInfo(reconcileCommandVO.getAnswerName(), reconcileCommandVO.getAnswerInfo());
         return new Pair<>(state, answer);
+    }
+
+    public Integer getReconcileInterval() {
+        return _reconcileCommandInterval;
     }
 }

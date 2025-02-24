@@ -140,8 +140,6 @@ public abstract class AgentAttache {
         Arrays.sort(s_commandsNotAllowedInConnectingMode);
     }
 
-    final int ReconcileInterval = 10;  // Check Answer in database for ReconcileCommand
-
     protected AgentAttache(final AgentManagerImpl agentMgr, final long id, final String uuid, final String name, final HypervisorType hypervisorType, final boolean maintenance) {
         _id = id;
         _uuid = uuid;
@@ -422,45 +420,7 @@ public abstract class AgentAttache {
                 if (cmds != null && cmds.length == 1 && (cmds[0] != null) && cmds[0].isReconcile()
                         && !sl.isDisconnected() && _agentMgr.isReconcileCommandsEnabled(_hypervisorType)) {
                     // only available if (1) the only command is a Reconcile command (2) agent is connected; (3) reconciliation is enabled; (4) hypervisor is KVM;
-                    int waitTimeLeft = wait;
-                    while (waitTimeLeft > 0) {
-                        int waitTime = Math.min(waitTimeLeft, ReconcileInterval);
-                        logger.debug(String.format("Waiting %s seconds for the answer of reconcile command %s-%s", waitTime, seq, cmds[0]));
-                        if (sl.isDisconnected()) {
-                            logger.debug(String.format("Disconnected while waiting for the answer of reconcile command %s-%s", seq, cmds[0]));
-                            break;
-                        }
-                        try {
-                            answers = sl.waitFor(waitTime);
-                        } catch (final InterruptedException e) {
-                            logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted");
-                        }
-                        if (answers != null) {
-                            break;
-                        }
-
-                        logger.debug(String.format("Getting the answer of reconcile command from cloudstack database for %s-%s", seq, cmds[0]));
-                        Pair<Command.State, Answer> commandInfo = _agentMgr.getStateAndAnswerOfReconcileCommand(req.getSequence(), cmds[0]);
-                        if (commandInfo == null) {
-                            logger.debug(String.format("Cannot get the answer of reconcile command from cloudstack database for %s-%s", seq, cmds[0]));
-                            continue;
-                        }
-                        Command.State state = commandInfo.first();
-                        if (Command.State.INTERRUPTED.equals(state)) {
-                            logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent, will reconcile it");
-                            throw new CloudRuntimeException("Interrupted by agent");
-                        } else if (Command.State.DANGLED_IN_BACKEND.equals(state)) {
-                            logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, will reconcile it");
-                            throw new CloudRuntimeException("It is not being processed by agent");
-                        }
-                        Answer answer = commandInfo.second();
-                        logger.debug(String.format("Got the answer of reconcile command from cloudstack database for %s-%s: %s", seq, cmds[0], answer));
-                        if (answer != null && !(answer instanceof ReconcileAnswer)) {
-                            answers = new Answer[] { answer };
-                            break;
-                        }
-                        waitTimeLeft -= waitTime;
-                    }
+                    answers = waitForAnswerOfReconcileCommand(sl, seq, cmds[0], wait);
                 } else {
                     try {
                         answers = sl.waitFor(wait);
@@ -513,6 +473,50 @@ public abstract class AgentAttache {
         } finally {
             unregisterListener(seq);
         }
+    }
+
+    private Answer[] waitForAnswerOfReconcileCommand(SynchronousListener sl, final long seq, final Command command, final int wait) {
+        Answer[] answers = null;
+        int waitTimeLeft = wait;
+        while (waitTimeLeft > 0) {
+            int waitTime = Math.min(waitTimeLeft, _agentMgr.getReconcileInterval());
+            logger.debug(String.format("Waiting %s seconds for the answer of reconcile command %s-%s", waitTime, seq, command));
+            if (sl.isDisconnected()) {
+                logger.debug(String.format("Disconnected while waiting for the answer of reconcile command %s-%s", seq, command));
+                break;
+            }
+            try {
+                answers = sl.waitFor(waitTime);
+            } catch (final InterruptedException e) {
+                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted");
+            }
+            if (answers != null) {
+                break;
+            }
+
+            logger.debug(String.format("Getting the answer of reconcile command from cloudstack database for %s-%s", seq, command));
+            Pair<Command.State, Answer> commandInfo = _agentMgr.getStateAndAnswerOfReconcileCommand(seq, command);
+            if (commandInfo == null) {
+                logger.debug(String.format("Cannot get the answer of reconcile command from cloudstack database for %s-%s", seq, command));
+                continue;
+            }
+            Command.State state = commandInfo.first();
+            if (Command.State.INTERRUPTED.equals(state)) {
+                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Interrupted by agent, will reconcile it");
+                throw new CloudRuntimeException("Interrupted by agent");
+            } else if (Command.State.DANGLED_IN_BACKEND.equals(state)) {
+                logger.debug(LOG_SEQ_FORMATTED_STRING, seq, "Dangling in backend, it seems the agent was restarted, will reconcile it");
+                throw new CloudRuntimeException("It is not being processed by agent");
+            }
+            Answer answer = commandInfo.second();
+            logger.debug(String.format("Got the answer of reconcile command from cloudstack database for %s-%s: %s", seq, command, answer));
+            if (answer != null && !(answer instanceof ReconcileAnswer)) {
+                answers = new Answer[] { answer };
+                break;
+            }
+            waitTimeLeft -= waitTime;
+        }
+        return answers;
     }
 
     protected synchronized void sendNext(final long seq) {
