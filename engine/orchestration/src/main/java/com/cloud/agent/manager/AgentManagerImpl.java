@@ -2103,8 +2103,8 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
         return GlobalLock.getInternLock(String.format("%s-%s", "Host-Join", hostId));
     }
 
-    public boolean isReconcileCommandsEnabled() {
-        return _reconcileCommandsEnabled;
+    public boolean isReconcileCommandsEnabled(HypervisorType hypervisorType) {
+        return _reconcileCommandsEnabled && ReconcileCommandService.SupportedHypervisorTypes.contains(hypervisorType);
     }
 
     public void updateReconcileCommandsIfNeeded(long requestSeq, Command[] commands, Command.State state) {

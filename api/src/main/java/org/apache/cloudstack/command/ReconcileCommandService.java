@@ -19,7 +19,11 @@ package org.apache.cloudstack.command;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
+import com.cloud.hypervisor.Hypervisor;
 import org.apache.cloudstack.framework.config.ConfigKey;
+
+import java.util.Arrays;
+import java.util.List;
 
 public interface ReconcileCommandService {
 
@@ -41,6 +45,8 @@ public interface ReconcileCommandService {
             "reconcile.commands.workers", "100",
             "The Number of worker threads to reconcile the commands",
             false);
+
+    List<Hypervisor.HypervisorType> SupportedHypervisorTypes = Arrays.asList(Hypervisor.HypervisorType.KVM);
 
     void persistReconcileCommands(Long hostId, Long requestSequence, Command[] cmd);
 

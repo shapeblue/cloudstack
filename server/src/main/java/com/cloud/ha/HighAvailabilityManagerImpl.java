@@ -590,7 +590,7 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements Configur
             return null;
         }
         if (vm.getHostId() != null && !vm.getHostId().equals(work.getHostId())) {
-            logger.info("VM " + vm + " has been changed.  Current host id = " + vm.getHostId() + " Previous State = " + work.getHostId());
+            logger.info("VM " + vm + " has been changed.  Current host id = " + vm.getHostId() + " Previous host id = " + work.getHostId());
             return null;
         }
 

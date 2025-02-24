@@ -36,6 +36,7 @@ import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.utils.Pair;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.agent.lb.SetupMSListCommand;
+import org.apache.cloudstack.command.ReconcileAnswer;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.utils.reflectiontostringbuilderutils.ReflectionToStringBuilderUtils;
 import org.apache.logging.log4j.Logger;
@@ -418,10 +419,17 @@ public abstract class AgentAttache {
             for (int i = 0; i < 2; i++) {
                 Answer[] answers = null;
                 Command[] cmds = req.getCommands();
-                if (cmds != null && cmds.length == 1 && (cmds[0] != null) && cmds[0].isReconcile() && _agentMgr.isReconcileCommandsEnabled()) {
+                if (cmds != null && cmds.length == 1 && (cmds[0] != null) && cmds[0].isReconcile()
+                        && !sl.isDisconnected() && _agentMgr.isReconcileCommandsEnabled(_hypervisorType)) {
+                    // only available if (1) the only command is a Reconcile command (2) agent is connected; (3) reconciliation is enabled; (4) hypervisor is KVM;
                     int waitTimeLeft = wait;
-                    while (waitTimeLeft > 0 && answers == null) {
+                    while (waitTimeLeft > 0) {
                         int waitTime = Math.min(waitTimeLeft, ReconcileInterval);
+                        logger.debug(String.format("Waiting %s seconds for the answer of reconcile command %s-%s", waitTime, seq, cmds[0]));
+                        if (sl.isDisconnected()) {
+                            logger.debug(String.format("Disconnected while waiting for the answer of reconcile command %s-%s", seq, cmds[0]));
+                            break;
+                        }
                         try {
                             answers = sl.waitFor(waitTime);
                         } catch (final InterruptedException e) {
@@ -430,9 +438,11 @@ public abstract class AgentAttache {
                         if (answers != null) {
                             break;
                         }
+
                         logger.debug(String.format("Getting the answer of reconcile command from cloudstack database for %s-%s", seq, cmds[0]));
                         Pair<Command.State, Answer> commandInfo = _agentMgr.getStateAndAnswerOfReconcileCommand(req.getSequence(), cmds[0]);
                         if (commandInfo == null) {
+                            logger.debug(String.format("Cannot get the answer of reconcile command from cloudstack database for %s-%s", seq, cmds[0]));
                             continue;
                         }
                         Command.State state = commandInfo.first();
@@ -445,7 +455,7 @@ public abstract class AgentAttache {
                         }
                         Answer answer = commandInfo.second();
                         logger.debug(String.format("Got the answer of reconcile command from cloudstack database for %s-%s: %s", seq, cmds[0], answer));
-                        if (answer != null) {
+                        if (answer != null && !(answer instanceof ReconcileAnswer)) {
                             answers = new Answer[] { answer };
                             break;
                         }

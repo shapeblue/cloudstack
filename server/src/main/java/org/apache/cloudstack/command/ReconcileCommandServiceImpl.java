@@ -52,7 +52,6 @@ import com.cloud.cluster.dao.ManagementServerHostDao;
 import com.cloud.host.HostVO;
 import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
-import com.cloud.hypervisor.Hypervisor;
 import com.cloud.storage.Volume;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.VolumeDao;
@@ -92,7 +91,6 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
 
     final static long ManagementServerId = ManagementServerNode.getManagementServerId();
     final static int GracePeriod = 10 * 60;  // 10 minutes
-    final static List<Hypervisor.HypervisorType> SupportedHypervisorTypes = Arrays.asList(Hypervisor.HypervisorType.KVM);
     private boolean _reconcileCommandsEnabled = false;
 
     private ScheduledExecutorService reconcileCommandsExecutor;
@@ -201,7 +199,14 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         }
         boolean updated = false;
         if (newStateByManagement != null) {
-            if (!newStateByManagement.equals(reconcileCommandVO.getStateByManagement())) {
+            if (State.RECONCILE_RETRY.equals(newStateByManagement)) {
+                if (State.RECONCILING.equals(reconcileCommandVO.getStateByManagement())) {
+                    reconcileCommandVO.setStateByManagement(newStateByManagement);
+                    updated = true;
+                } else {
+                    logger.debug(String.format("Skipping the update of state by management of command %s from %s to %s", commandKey, reconcileCommandVO.getStateByManagement(), newStateByManagement));
+                }
+            } else if (!newStateByManagement.equals(reconcileCommandVO.getStateByManagement())) {
                 reconcileCommandVO.setStateByManagement(newStateByManagement);
                 updated = true;
             }
@@ -401,12 +406,11 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                 }
             } else if (State.RECONCILED.equals(stateByManagement)) {
                 logger.debug(String.format("The command %s has been reconciled, skipping", commandKey));
-            } else if (stateByAgent == null) {
+            } else if (stateByAgent == null) {  // state by management is CREATED
                 logger.debug(String.format("Skipping the reconciliation of command %s, because the state by agent is null", commandKey));
             } else if (Arrays.asList(State.STARTED, State.PROCESSING, State.PROCESSING_IN_BACKEND).contains(stateByAgent)) {
                 if (host.getRemoved() == null && Status.Up.equals(host.getStatus())) {
                     logger.debug(String.format("Skipping the reconciliation of command %s, because the host is Up, the command may be still in processing", commandKey));
-                    return new ReconcileCommandResult(requestSequence, command, null, false);
                 } else {
                     logger.debug(String.format("The host is in %s state, removed on %s, Reconciling command %s ...", host.getStatus(), host.getRemoved(), commandKey));
                     return reconcile(reconcileCommand);
