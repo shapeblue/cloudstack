@@ -929,7 +929,7 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         }
         Answer previousAnswer = ReconcileCommandUtils.parseAnswerFromAnswerInfo(reconcileCommandVO.getAnswerName(), reconcileCommandVO.getAnswerInfo());
         if (!(previousAnswer instanceof ReconcileMigrateVolumeAnswer)) {
-            logger.debug(String.format("The reconcile command for sfor migrating volume %s does not have previous reconcileAnswer in database, ignoring this time", srcData.getId()));
+            logger.debug(String.format("The reconcile command for for migrating volume %s does not have previous reconcileAnswer in database, ignoring this time", srcData.getId()));
             return false;
         }
         List<String> diskPaths = reconcileAnswer.getVmDiskPaths();

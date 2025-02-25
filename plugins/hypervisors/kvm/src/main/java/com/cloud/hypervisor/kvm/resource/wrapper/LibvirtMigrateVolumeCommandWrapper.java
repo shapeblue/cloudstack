@@ -143,6 +143,8 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
             cancelHook = new VolumeMigrationCancelHook(dm, destDiskLabel);
             libvirtComputingResource.addDisconnectHook(cancelHook);
 
+            libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.PROCESSING_IN_BACKEND);
+
             dm.blockCopy(destDiskLabel, diskdef, parameters, Domain.BlockCopyFlags.REUSE_EXT);
             logger.info(String.format("Block copy has started for the volume %s : %s ", destDiskLabel, srcPath));
 
