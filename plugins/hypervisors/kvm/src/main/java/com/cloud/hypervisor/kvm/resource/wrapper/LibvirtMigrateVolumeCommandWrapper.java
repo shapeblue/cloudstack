@@ -25,6 +25,7 @@ import com.cloud.agent.api.storage.MigrateVolumeAnswer;
 import com.cloud.agent.api.storage.MigrateVolumeCommand;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
+import com.cloud.hypervisor.kvm.resource.disconnecthook.VolumeMigrationCancelHook;
 import com.cloud.hypervisor.kvm.storage.KVMPhysicalDisk;
 import com.cloud.hypervisor.kvm.storage.KVMStoragePool;
 import com.cloud.hypervisor.kvm.storage.KVMStoragePoolManager;
@@ -104,6 +105,8 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
         final String destDiskFileName = ScaleIOUtil.DISK_NAME_PREFIX + destSystemId + "-" + destVolumeId;
         final String diskFilePath = ScaleIOUtil.DISK_PATH + File.separator + destDiskFileName;
 
+        VolumeMigrationCancelHook cancelHook = null;
+
         Domain dm = null;
         try {
             final LibvirtUtilitiesHelper libvirtUtilitiesHelper = libvirtComputingResource.getLibvirtUtilitiesHelper();
@@ -137,6 +140,9 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
             TypedParameter[] parameters = new TypedParameter[1];
             parameters[0] = parameter;
 
+            cancelHook = new VolumeMigrationCancelHook(dm, destDiskLabel);
+            libvirtComputingResource.addDisconnectHook(cancelHook);
+
             dm.blockCopy(destDiskLabel, diskdef, parameters, Domain.BlockCopyFlags.REUSE_EXT);
             logger.info(String.format("Block copy has started for the volume %s : %s ", destDiskLabel, srcPath));
 
@@ -153,6 +159,9 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
             }
             return new MigrateVolumeAnswer(command, false, msg, null);
         } finally {
+            if (cancelHook != null) {
+                libvirtComputingResource.removeDisconnectHook(cancelHook);
+            }
             if (dm != null) {
                 try {
                     dm.free();
