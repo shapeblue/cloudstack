@@ -43,10 +43,16 @@ public class ReconcileCommandUtils {
             String logFileName = getLogFileNameForCommand(logPath, cmd);
             LOGGER.debug(String.format("Updating log file %s with %s state", logFileName, state));
             File logFile = new File(logFileName);
+            CommandInfo commandInfo = null;
             if (logFile.exists()) {
+                commandInfo = readLogFileForCommand(logFileName);
                 logFile.delete();
             }
-            CommandInfo commandInfo = new CommandInfo(cmd.getRequestSequence(), cmd, state);
+            if (commandInfo == null) {
+                commandInfo = new CommandInfo(cmd.getRequestSequence(), cmd, state);
+            } else {
+                commandInfo.setState(state);
+            }
             try {
                 BufferedWriter writer = new BufferedWriter(new FileWriter(logFile));
                 writer.write(CommandInfo.GSON.toJson(commandInfo));

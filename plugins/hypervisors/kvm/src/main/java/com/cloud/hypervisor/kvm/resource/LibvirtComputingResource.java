@@ -1988,9 +1988,9 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
                 }
                 if (update) {
                     if (Command.State.PROCESSING.equals(commandInfo.getState())) {
-                        ReconcileCommandUtils.updateLogFileForCommand(commandInfo.getCommand(), Command.State.INTERRUPTED);
+                        ReconcileCommandUtils.updateLogFileForCommand(file.getAbsolutePath(), Command.State.INTERRUPTED);
                     } else if (Command.State.PROCESSING_IN_BACKEND.equals(commandInfo.getState())) {
-                        ReconcileCommandUtils.updateLogFileForCommand(commandInfo.getCommand(), Command.State.DANGLED_IN_BACKEND);
+                        ReconcileCommandUtils.updateLogFileForCommand(file.getAbsolutePath(), Command.State.DANGLED_IN_BACKEND);
                     }
                 }
                 logger.debug(String.format("Adding reconcile command with seq: %s, command: %s, answer: %s", commandInfo.getRequestSeq(), commandInfo.getCommandName(), commandInfo.getAnswer()));
