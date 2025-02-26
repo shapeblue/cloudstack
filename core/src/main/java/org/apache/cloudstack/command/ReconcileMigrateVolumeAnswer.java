@@ -25,10 +25,19 @@ import java.util.List;
 
 public class ReconcileMigrateVolumeAnswer extends ReconcileVolumeAnswer {
 
+    String vmName;
     List<String> vmDiskPaths;
 
     public ReconcileMigrateVolumeAnswer(VolumeOnStorageTO volumeOnSource, VolumeOnStorageTO volumeOnDestination) {
         super(volumeOnSource, volumeOnDestination);
+    }
+
+    public String getVmName() {
+        return vmName;
+    }
+
+    public void setVmName(String vmName) {
+        this.vmName = vmName;
     }
 
     public List<String> getVmDiskPaths() {

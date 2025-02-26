@@ -25,11 +25,8 @@ import com.cloud.agent.api.to.DataStoreTO;
 import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
-import com.cloud.hypervisor.Hypervisor;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
 import com.cloud.hypervisor.kvm.resource.LibvirtVMDef;
-import com.cloud.hypervisor.kvm.storage.KVMPhysicalDisk;
-import com.cloud.hypervisor.kvm.storage.KVMStoragePoolManager;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
 import com.cloud.storage.DataStoreRole;
@@ -140,16 +137,16 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         } else if (srcData.getObjectType() == DataObjectType.VOLUME &&
                 (srcData.getDataStore().getRole() == DataStoreRole.ImageCache || srcDataStore.getRole() == DataStoreRole.Image)) {
             logger.debug("Reconciling: copy volume from image cache to primary");
-            return reconcileCopyVolumeFromImageCacheToPrimary(srcData, destData, reconcileCommand.getOption2(), libvirtComputingResource.getStoragePoolMgr());
+            return reconcileCopyVolumeFromImageCacheToPrimary(srcData, destData, reconcileCommand.getOption2(), libvirtComputingResource);
         } else if (srcData.getObjectType() == DataObjectType.VOLUME && srcData.getDataStore().getRole() == DataStoreRole.Primary) {
             if (destData.getObjectType() == DataObjectType.VOLUME) {
                 if ((srcData instanceof VolumeObjectTO && ((VolumeObjectTO)srcData).isDirectDownload()) ||
                         destData.getDataStore().getRole() == DataStoreRole.Primary) {
                     logger.debug("Reconciling: copy volume from primary to primary");
-                    return reconcileCopyVolumeFromPrimaryToPrimary(srcData, destData, libvirtComputingResource.getStoragePoolMgr());
+                    return reconcileCopyVolumeFromPrimaryToPrimary(srcData, destData, libvirtComputingResource);
                 } else {
                     logger.debug("Reconciling: copy volume from primary to secondary");
-                    return reconcileCopyVolumeFromPrimaryToSecondary(srcData, destData, reconcileCommand.getOption(), libvirtComputingResource.getStoragePoolMgr());
+                    return reconcileCopyVolumeFromPrimaryToSecondary(srcData, destData, reconcileCommand.getOption(), libvirtComputingResource);
                 }
             } else if (destData.getObjectType() == DataObjectType.TEMPLATE) {
                 String reason = "create volume from template";
@@ -170,7 +167,7 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         return new ReconcileCopyAnswer(true, "not implemented yet");
     }
 
-    private ReconcileCopyAnswer reconcileCopyVolumeFromImageCacheToPrimary(DataTO srcData, DataTO destData, Map<String, String> details, KVMStoragePoolManager storagePoolManager) {
+    private ReconcileCopyAnswer reconcileCopyVolumeFromImageCacheToPrimary(DataTO srcData, DataTO destData, Map<String, String> details, LibvirtComputingResource libvirtComputingResource) {
         // consistent with KVMStorageProcessor.copyVolumeFromImageCacheToPrimary
         final DataStoreTO srcStore = srcData.getDataStore();
         if (!(srcStore instanceof NfsTO)) {
@@ -189,14 +186,14 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
             return new ReconcileCopyAnswer(true, "path and iqn on destination storage are null");
         }
         try {
-            VolumeOnStorageTO volumeOnDestination = getVolumeOnStorage(primaryStore, path, storagePoolManager);
+            VolumeOnStorageTO volumeOnDestination = libvirtComputingResource.getVolumeOnStorage(primaryStore, path);
             return new ReconcileCopyAnswer(null, volumeOnDestination);
         } catch (final CloudRuntimeException e) {
             logger.debug("Failed to reconcile CopyVolumeFromImageCacheToPrimary: ", e);
             return new ReconcileCopyAnswer(false, false, e.toString());
         }
     }
-    private ReconcileCopyAnswer reconcileCopyVolumeFromPrimaryToPrimary(DataTO srcData, DataTO destData, KVMStoragePoolManager storagePoolManager) {
+    private ReconcileCopyAnswer reconcileCopyVolumeFromPrimaryToPrimary(DataTO srcData, DataTO destData, LibvirtComputingResource libvirtComputingResource) {
         // consistent with KVMStorageProcessor.copyVolumeFromPrimaryToPrimary
         final String srcVolumePath = srcData.getPath();
         final String destVolumePath = destData.getPath();
@@ -208,9 +205,9 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         VolumeOnStorageTO volumeOnSource = null;
         VolumeOnStorageTO volumeOnDestination = null;
         try {
-            volumeOnSource = getVolumeOnStorage(srcPrimaryStore, srcVolumePath, storagePoolManager);
+            volumeOnSource = libvirtComputingResource.getVolumeOnStorage(srcPrimaryStore, srcVolumePath);
             if (destPrimaryStore.isManaged() || destVolumePath != null) {
-                volumeOnDestination = getVolumeOnStorage(destPrimaryStore, destVolumePath, storagePoolManager);
+                volumeOnDestination = libvirtComputingResource.getVolumeOnStorage(destPrimaryStore, destVolumePath);
             }
             return new ReconcileCopyAnswer(volumeOnSource, volumeOnDestination);
         } catch (final CloudRuntimeException e) {
@@ -219,7 +216,7 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         }
     }
 
-    private ReconcileCopyAnswer reconcileCopyVolumeFromPrimaryToSecondary(DataTO srcData, DataTO destData, Map<String, String> details, KVMStoragePoolManager storagePoolManager) {
+    private ReconcileCopyAnswer reconcileCopyVolumeFromPrimaryToSecondary(DataTO srcData, DataTO destData, Map<String, String> details, LibvirtComputingResource libvirtComputingResource) {
         // consistent with KVMStorageProcessor.copyVolumeFromPrimaryToSecondary
         final String srcVolumePath = srcData.getPath();
         final DataStoreTO srcStore = srcData.getDataStore();
@@ -228,33 +225,11 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         if (!(destStore instanceof NfsTO)) {
             return new ReconcileCopyAnswer(true, "can only handle nfs storage as destination");
         }
-        VolumeOnStorageTO volumeOnSource = getVolumeOnStorage(primaryStore, srcVolumePath, storagePoolManager);
+        VolumeOnStorageTO volumeOnSource = libvirtComputingResource.getVolumeOnStorage(primaryStore, srcVolumePath);
         return new ReconcileCopyAnswer(volumeOnSource, null);
     }
 
-    private VolumeOnStorageTO getVolumeOnStorage(PrimaryDataStoreTO primaryStore, String volumePath, KVMStoragePoolManager storagePoolManager) {
-        try {
-            if (primaryStore.isManaged()) {
-                if (!storagePoolManager.connectPhysicalDisk(primaryStore.getPoolType(), primaryStore.getUuid(), volumePath, primaryStore.getDetails())) {
-                    logger.warn(String.format("Failed to connect src volume %s, in storage pool %s", volumePath, primaryStore));
-                }
-            }
-            final KVMPhysicalDisk srcVolume = storagePoolManager.getPhysicalDisk(primaryStore.getPoolType(), primaryStore.getUuid(), volumePath);
-            if (srcVolume == null) {
-                logger.debug("Failed to get physical disk for volume: " + volumePath);
-                throw new CloudRuntimeException("Failed to get physical disk for volume at path: " + volumePath);
-            }
-            return new VolumeOnStorageTO(Hypervisor.HypervisorType.KVM, srcVolume.getName(), srcVolume.getName(), srcVolume.getPath(),
-                    srcVolume.getFormat().toString(), srcVolume.getSize(), srcVolume.getVirtualSize());
-        } catch (final CloudRuntimeException e) {
-            logger.debug(String.format("Failed to get volume %s on storage %s: %s", volumePath, primaryStore, e));
-            return new VolumeOnStorageTO();
-        } finally {
-            if (primaryStore.isManaged()) {
-                storagePoolManager.disconnectPhysicalDisk(primaryStore.getPoolType(), primaryStore.getUuid(), volumePath);
-            }
-        }
-    }
+
 
     private ReconcileAnswer handle(final ReconcileMigrateVolumeCommand reconcileCommand, final LibvirtComputingResource libvirtComputingResource) {
         // consistent with LibvirtMigrateVolumeCommandWrapper.execute
@@ -263,8 +238,8 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         PrimaryDataStoreTO srcDataStore = (PrimaryDataStoreTO) srcData.getDataStore();
         PrimaryDataStoreTO destDataStore = (PrimaryDataStoreTO) destData.getDataStore();
 
-        VolumeOnStorageTO volumeOnSource = getVolumeOnStorage(srcDataStore, srcData.getPath(), libvirtComputingResource.getStoragePoolMgr());
-        VolumeOnStorageTO volumeOnDestination = getVolumeOnStorage(destDataStore, destData.getPath(), libvirtComputingResource.getStoragePoolMgr());
+        VolumeOnStorageTO volumeOnSource = libvirtComputingResource.getVolumeOnStorage(srcDataStore, srcData.getPath());
+        VolumeOnStorageTO volumeOnDestination = libvirtComputingResource.getVolumeOnStorage(destDataStore, destData.getPath());
 
         ReconcileMigrateVolumeAnswer answer = new ReconcileMigrateVolumeAnswer(volumeOnSource, volumeOnDestination);
         String vmName = reconcileCommand.getVmName();
@@ -273,6 +248,7 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
                 LibvirtUtilitiesHelper libvirtUtilitiesHelper = libvirtComputingResource.getLibvirtUtilitiesHelper();
                 Connect conn = libvirtUtilitiesHelper.getConnectionByVmName(vmName);
                 List<String> disks = getVmDiskPaths(libvirtComputingResource.getDisks(conn, vmName));
+                answer.setVmName(vmName);
                 answer.setVmDiskPaths(disks);
             } catch (LibvirtException e) {
                 logger.error(String.format("Unable to get disks for %s due to %s", vmName, e.getMessage()));

@@ -53,20 +53,24 @@ import com.cloud.host.HostVO;
 import com.cloud.host.Status;
 import com.cloud.host.dao.HostDao;
 import com.cloud.storage.Volume;
+import com.cloud.storage.VolumeApiService;
 import com.cloud.storage.VolumeVO;
 import com.cloud.storage.dao.VolumeDao;
+import com.cloud.user.Account;
+import com.cloud.user.AccountManager;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.concurrency.NamedThreadFactory;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.exception.CloudRuntimeException;
-
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.dao.VMInstanceDao;
+
 import org.apache.cloudstack.api.ApiCommandResourceType;
 import org.apache.cloudstack.command.dao.ReconcileCommandDao;
+import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStore;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.engine.subsystem.api.storage.EndPoint;
@@ -82,8 +86,10 @@ import org.apache.cloudstack.storage.datastore.db.VolumeDataStoreVO;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -115,6 +121,12 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
     DataStoreManager dataStoreManager;
     @Inject
     VolumeDataStoreDao volumeDataStoreDao;
+    @Inject
+    VolumeOrchestrationService volumeManager;
+    @Autowired
+    private VolumeApiService volumeApiService;
+    @Autowired
+    private AccountManager accountManager;
 
     @Override
     public boolean configure(final String name, final Map<String, Object> params) throws ConfigurationException {
@@ -509,6 +521,10 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
                 logger.debug(String.format("Skipping reconciliation of command %s as the volume %s is removed or not Migrating", command, volumeVO));
                 return false;
             }
+            if (!volumeVO.getPath().equals(destData.getPath())) {
+                logger.debug(String.format("Skipping reconciliation of command %s as the volume path (%s) is not same as destination volume path (%s)", command, volumeVO.getPath(), destData.getPath()));
+                return false;
+            }
         }
         return true;
     }
@@ -549,10 +565,16 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         EndPoint endPoint = null;
         if (srcData.getDataStore() instanceof PrimaryDataStoreTO) {
             PrimaryDataStoreTO srcDataStore = (PrimaryDataStoreTO) srcData.getDataStore();
+            if (srcDataStore.isManaged()) {
+                return null;
+            }
             DataStore store = dataStoreManager.getPrimaryDataStore(srcDataStore.getId());
             endPoint = endPointSelector.select(store);
         } else if (destData != null && destData.getDataStore() instanceof PrimaryDataStoreTO) {
             PrimaryDataStoreTO destDataStore = (PrimaryDataStoreTO) destData.getDataStore();
+            if (destDataStore.isManaged()) {
+                return null;
+            }
             DataStore store = dataStoreManager.getPrimaryDataStore(destDataStore.getId());
             endPoint = endPointSelector.select(store);
         }
@@ -815,28 +837,34 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         final Long destStoreId = destData.getDataStore() instanceof PrimaryDataStoreTO ? ((PrimaryDataStoreTO) destData.getDataStore()).getId() : null;
 
         boolean isSourceMigrating = sourceVolume != null && sourceVolume.getRemoved() == null && sourceVolume.getState().equals(Volume.State.Migrating);
-        boolean isDestMigrating = destVolume != null && destVolume.getRemoved() != null && destVolume.getState().equals(Volume.State.Migrating);
         if (sourceVolume != null && destVolume != null) {
-            // copy from primary to primary
+            // copy from primary to primary (offline volume migration)
             if (Volume.State.Ready.equals(sourceVolumeState)) {
                 if (isSourceMigrating && srcStoreId != null && srcStoreId.equals(sourceVolume.getPoolId()) && destVolumeState != null) {
                     sourceVolume.setState(Volume.State.Ready);
+                    sourceVolume.setUpdated(new Date());
                     volumeDao.update(sourceVolume.getId(), sourceVolume);
                 }
-                if (isDestMigrating && destStoreId != null && destStoreId.equals(destVolume.getPoolId()) && destVolumeState != null) {
+                if (Volume.State.Creating.equals(destVolume.getState()) && destStoreId != null && destStoreId.equals(destVolume.getPoolId()) && destVolumeState != null) {
                     destVolume.setState(destVolumeState);
+                    destVolume.setUpdated(new Date());
                     volumeDao.update(destVolume.getId(), destVolume);
                 }
                 return true;
             } else if (Volume.State.Ready.equals(destVolumeState)) {
+                if (Volume.State.Creating.equals(destVolume.getState()) && destStoreId != null && destStoreId.equals(destVolume.getPoolId())) {
+                    destVolume.setState(Volume.State.Ready);
+                    destVolume.setUpdated(new Date());
+                    destVolume.setInstanceId(sourceVolume.getInstanceId());
+                    destVolume.setPath(volumeOnDestination.getPath());  // Update path of destination volume
+                    destVolume.set_iScsiName(volumeOnDestination.getPath());
+                    volumeDao.update(destVolume.getId(), destVolume);
+                }
                 if (isSourceMigrating && srcStoreId != null && srcStoreId.equals(sourceVolume.getPoolId()) && sourceVolumeState != null) {
                     sourceVolume.setState(sourceVolumeState);
+                    sourceVolume.setUpdated(new Date());
+                    sourceVolume.setInstanceId(null);
                     volumeDao.update(sourceVolume.getId(), sourceVolume);
-                }
-                if (isDestMigrating && destStoreId != null && destStoreId.equals(destVolume.getPoolId())) {
-                    destVolume.setState(Volume.State.Ready);
-                    destVolume.setPath(volumeOnDestination.getPath());  // Update path of destination volume
-                    volumeDao.update(destVolume.getId(), destVolume);
                 }
                 return true;
             }
@@ -935,6 +963,9 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         List<String> diskPaths = reconcileAnswer.getVmDiskPaths();
         logger.debug(String.format("The attached disks to the VM after live volume migration are: %s", diskPaths));
 
+        PrimaryDataStoreTO srcDataStore = (PrimaryDataStoreTO) srcData.getDataStore();
+        PrimaryDataStoreTO destDataStore = (PrimaryDataStoreTO) destData.getDataStore();
+
         VolumeOnStorageTO volumeOnSource = reconcileAnswer.getVolumeOnSource();
         VolumeOnStorageTO volumeOnDestination = reconcileAnswer.getVolumeOnDestination();
         ReconcileMigrateVolumeAnswer previousReconcileAnswer = (ReconcileMigrateVolumeAnswer) previousAnswer;
@@ -943,17 +974,51 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
         Volume.State destVolumeState = statePair.second();
         logger.debug(String.format("Processing volume (id: %s, state: %s) on source pool and volume (id: %s, state: %s) on destination pool", srcData.getId(), sourceVolumeState, destData.getId(), destVolumeState));
         if (Volume.State.Ready.equals(sourceVolumeState)) {
-            sourceVolume.setState(Volume.State.Ready);
-            sourceVolume.setPoolId(sourceVolume.getLastPoolId());   // restore pool_id, path is the same
-            volumeDao.update(sourceVolume.getId(), sourceVolume);
+            updateVolumeAndDestroyOldVolume(sourceVolume, srcData, srcDataStore, destData, destDataStore, volumeOnDestination);
             return true;
         } else if (Volume.State.Ready.equals(destVolumeState)) {
-            sourceVolume.setState(Volume.State.Ready);
-            volumeDao.update(sourceVolume.getId(), sourceVolume);
+            updateVolumeAndDestroyOldVolume(sourceVolume, destData, destDataStore, srcData, srcDataStore, volumeOnSource);
             return true;
+        } else if (CollectionUtils.isNotEmpty(diskPaths)) {
+            // VM is Running
+            if (!Volume.State.Migrating.equals(destVolumeState) && volumeOnDestination != null) {
+                for (String diskPath : diskPaths) {
+                    if (diskPath.equals(volumeOnDestination.getFullPath())) {
+                        logger.debug(String.format("The VM %s is running with the volume %s on destination pool %s, the volume has been migrated", reconcileAnswer.getVmName(), volumeOnDestination.getFullPath(), destData.getDataStore()));
+                        updateVolumeAndDestroyOldVolume(sourceVolume, destData, destDataStore, srcData, srcDataStore, volumeOnSource);
+                        return true;
+                    } else if (diskPath.equals(volumeOnSource.getFullPath())) {
+                        logger.debug(String.format("The VM %s is running with the volume %s on source pool %s, the volume has not been migrated", reconcileAnswer.getVmName(), volumeOnSource.getFullPath(), srcData.getDataStore()));
+                        updateVolumeAndDestroyOldVolume(sourceVolume, srcData, srcDataStore, destData, destDataStore, volumeOnDestination);
+                        return true;
+                    }
+                }
+            }
         }
-
         return false;
+    }
+
+    private void updateVolumeAndDestroyOldVolume(VolumeVO sourceVolume, DataTO srcData, PrimaryDataStoreTO srcDataStore, DataTO destData, PrimaryDataStoreTO destDataStore, VolumeOnStorageTO volumeToBeDeleted) {
+        // update volume to Ready on source pool
+        sourceVolume.setState(Volume.State.Ready);
+        sourceVolume.setPoolId(srcDataStore.getId());   // restore pool_id and update path
+        sourceVolume.setPath(srcData.getPath());
+        sourceVolume.set_iScsiName(srcData.getPath());
+        sourceVolume.setUpdated(new Date());
+        volumeDao.update(sourceVolume.getId(), sourceVolume);
+
+        if (volumeToBeDeleted != null) {
+            // create new dummy volume on destination pool, then destroy it
+            Volume newVol = volumeManager.allocateDuplicateVolume(sourceVolume, null, null);
+            VolumeVO newVolume = (VolumeVO) newVol;
+            newVolume.setInstanceId(null);
+            newVolume.setPoolId(destDataStore.getId());
+            newVolume.setState(Volume.State.Creating);
+            newVolume.setPath(destData.getPath());
+            newVolume.set_iScsiName(destData.getPath());
+            volumeDao.update(newVolume.getId(), newVolume);
+            volumeApiService.destroyVolume(newVolume.getId(), accountManager.getAccount(Account.ACCOUNT_ID_SYSTEM), true, true);
+        }
     }
 
     private Pair<Volume.State, Volume.State> getVolumeStateOnSourceAndDestination(DataTO srcData, DataTO destData, VolumeOnStorageTO volumeOnSource, VolumeOnStorageTO volumeOnDestination, ReconcileVolumeAnswer previousReconcileAnswer) {
@@ -980,6 +1045,9 @@ public class ReconcileCommandServiceImpl extends ManagerBase implements Reconcil
             if (isDestinationVolumeChanged) {
                 logger.debug(String.format("Volume (id :%s) on destination (id: %s) is still being updated, skipping", destData.getId(), destStoreId));
                 return new Pair<>(Volume.State.Migrating, Volume.State.Migrating);
+            } else if (destData.getId() == srcData.getId()) {
+                logger.debug(String.format("Volume (id :%s) on destination (id: %s) is not updated, cannot determine the state on source and destination pool", destData.getId(), destStoreId));
+                return new Pair<>(null, null);
             } else {
                 logger.debug(String.format("Volume (id :%s) on destination (id: %s) is not updated, updating state to Ready on source pool and Destroy on destination pool", destData.getId(), destStoreId));
                 return new Pair<>(Volume.State.Ready, Volume.State.Destroy);

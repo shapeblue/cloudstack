@@ -62,6 +62,7 @@ import org.apache.cloudstack.storage.configdrive.ConfigDrive;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 import org.apache.cloudstack.utils.bytescale.ByteScaleUtils;
 import org.apache.cloudstack.utils.cryptsetup.CryptSetup;
 import org.apache.cloudstack.utils.hypervisor.HypervisorUtils;
@@ -5704,6 +5705,30 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             _disconnectHooks.remove(hook);
         } else {
             LOGGER.debug("Requested removal of disconnect hook, but hook not found: " + hook);
+        }
+    }
+
+    public VolumeOnStorageTO getVolumeOnStorage(PrimaryDataStoreTO primaryStore, String volumePath) {
+        try {
+            if (primaryStore.isManaged()) {
+                if (!storagePoolManager.connectPhysicalDisk(primaryStore.getPoolType(), primaryStore.getUuid(), volumePath, primaryStore.getDetails())) {
+                    logger.warn(String.format("Failed to connect src volume %s, in storage pool %s", volumePath, primaryStore));
+                }
+            }
+            final KVMPhysicalDisk srcVolume = storagePoolManager.getPhysicalDisk(primaryStore.getPoolType(), primaryStore.getUuid(), volumePath);
+            if (srcVolume == null) {
+                logger.debug("Failed to get physical disk for volume: " + volumePath);
+                throw new CloudRuntimeException("Failed to get physical disk for volume at path: " + volumePath);
+            }
+            return new VolumeOnStorageTO(HypervisorType.KVM, srcVolume.getName(), srcVolume.getName(), srcVolume.getPath(),
+                    srcVolume.getFormat().toString(), srcVolume.getSize(), srcVolume.getVirtualSize());
+        } catch (final CloudRuntimeException e) {
+            logger.debug(String.format("Failed to get volume %s on storage %s: %s", volumePath, primaryStore, e));
+            return new VolumeOnStorageTO();
+        } finally {
+            if (primaryStore.isManaged()) {
+                storagePoolManager.disconnectPhysicalDisk(primaryStore.getPoolType(), primaryStore.getUuid(), volumePath);
+            }
         }
     }
 }

@@ -148,7 +148,15 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
             dm.blockCopy(destDiskLabel, diskdef, parameters, Domain.BlockCopyFlags.REUSE_EXT);
             logger.info(String.format("Block copy has started for the volume %s : %s ", destDiskLabel, srcPath));
 
-            return checkBlockJobStatus(command, dm, destDiskLabel, srcPath, destPath, libvirtComputingResource, conn, srcSecretUUID);
+            MigrateVolumeAnswer answer = checkBlockJobStatus(command, dm, destDiskLabel, srcPath, destPath, libvirtComputingResource, conn, srcSecretUUID);
+            if (answer != null) {
+                if (answer.getResult()) {
+                    libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.COMPLETED);
+                } else {
+                    libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.FAILED);
+                }
+            }
+            return answer;
         } catch (Exception e) {
             String msg = "Migrate volume failed due to " + e.toString();
             logger.warn(msg, e);
@@ -159,6 +167,7 @@ public class LibvirtMigrateVolumeCommandWrapper extends CommandWrapper<MigrateVo
                     logger.error("Migrate volume failed while aborting the block job due to " + ex.getMessage());
                 }
             }
+            libvirtComputingResource.createOrUpdateLogFileForCommand(command, Command.State.FAILED);
             return new MigrateVolumeAnswer(command, false, msg, null);
         } finally {
             if (cancelHook != null) {
