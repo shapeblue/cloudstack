@@ -229,8 +229,6 @@ public final class LibvirtReconcileCommandWrapper extends CommandWrapper<Reconci
         return new ReconcileCopyAnswer(volumeOnSource, null);
     }
 
-
-
     private ReconcileAnswer handle(final ReconcileMigrateVolumeCommand reconcileCommand, final LibvirtComputingResource libvirtComputingResource) {
         // consistent with LibvirtMigrateVolumeCommandWrapper.execute
         DataTO srcData = reconcileCommand.getSrcData();

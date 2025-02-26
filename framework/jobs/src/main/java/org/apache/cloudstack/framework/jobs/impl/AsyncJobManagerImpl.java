@@ -1168,7 +1168,7 @@ public class AsyncJobManagerImpl extends ManagerBase implements AsyncJobManager,
         if (vol.getState().isTransitional()) {
             if (Volume.State.Migrating.equals(vol.getState()) && Arrays.asList(ImageFormat.RAW, ImageFormat.QCOW2).contains(vol.getFormat())
                     && ReconcileCommandService.ReconcileCommandsEnabled.value()) {
-                logger.debug("Skipping cleaning up Migrating volume with Id: " + volumeId);
+                logger.debug("Skipping cleaning up Migrating volume: " + vol);
                 return true;
             }
             logger.debug("Cleaning up volume with Id: " + volumeId);

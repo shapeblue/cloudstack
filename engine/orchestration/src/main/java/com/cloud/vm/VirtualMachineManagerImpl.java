@@ -2855,7 +2855,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                             }
                         }
                     } catch (Exception ex) {
-                        logger.error(String.format("Failed to get state of VM %s on destination host %s: %s", vm.getId(), vm.getHostId(), ex.getMessage()));
+                        logger.error(String.format("Failed to get state of VM %s on destination host %s: %s", vm, vm.getHostId(), ex.getMessage()));
                     }
                 }
                 if (!success) {

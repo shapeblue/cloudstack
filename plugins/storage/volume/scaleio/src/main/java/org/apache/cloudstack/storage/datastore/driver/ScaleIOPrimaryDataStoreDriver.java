@@ -949,10 +949,10 @@ public class ScaleIOPrimaryDataStoreDriver implements PrimaryDataStoreDriver {
             }
             Pair<Long, Long> volumeStats = getVolumeStats(storagePoolDao.findById(srcStore.getId()), srcVolumePath);
             if (volumeStats == null) {
-                logger.debug(String.format("Unable to find volume stats for %s", srcVolumePath));
+                logger.debug(String.format("Unable to find volume stats for %s on pool %s", srcVolumePath, srcStore.getName()));
                 return false;
             }
-            logger.debug(String.format("Found volume stats for %s: provisionedSizeInBytes = %s, allocatedSizeInBytes = %s", srcVolumePath, volumeStats.first(), volumeStats.second()));
+            logger.debug(String.format("Found volume stats for %s: provisionedSizeInBytes = %s, allocatedSizeInBytes = %s on pool %s", srcVolumePath, volumeStats.first(), volumeStats.second(), srcStore.getName()));
             return volumeStats.first().equals(volumeStats.second());
         } catch (Exception ex) {
             logger.error(String.format("Failed to check if PowerFlex volume %s exists on source pool %s", srcVolumePath, srcStore.getName()));
