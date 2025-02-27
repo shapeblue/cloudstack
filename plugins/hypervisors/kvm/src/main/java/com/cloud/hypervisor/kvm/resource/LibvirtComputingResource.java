@@ -1352,13 +1352,6 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
         setupMemoryBalloonStatsPeriod(conn);
 
-        File commandsLogPath = new File(COMMANDS_LOG_PATH);
-        if (!commandsLogPath.exists()) {
-            commandsLogPath.mkdirs();
-        }
-        // Update state of reconcile commands
-        getCommandInfosFromLogFiles(true);
-
         return true;
     }
 
@@ -1519,6 +1512,14 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
         if (params.get(ReconcileCommandService.ReconcileCommandsEnabled.key()) != null) {
             isReconcileCommandsEnabled = Boolean.parseBoolean(params.get(ReconcileCommandService.ReconcileCommandsEnabled.key()));
+        }
+        if (isReconcileCommandsEnabled) {
+            File commandsLogPath = new File(COMMANDS_LOG_PATH);
+            if (!commandsLogPath.exists()) {
+                commandsLogPath.mkdirs();
+            }
+            // Update state of reconcile commands
+            getCommandInfosFromLogFiles(true);
         }
 
         return true;
@@ -1966,7 +1967,9 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
      */
     @Override
     public Answer executeRequest(final Command cmd) {
-        ReconcileCommandUtils.updateLogFileForCommand(COMMANDS_LOG_PATH, cmd, Command.State.STARTED);
+        if (isReconcileCommandsEnabled) {
+            ReconcileCommandUtils.updateLogFileForCommand(COMMANDS_LOG_PATH, cmd, Command.State.STARTED);
+        }
 
         final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
         try {
@@ -2003,7 +2006,15 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     public void createOrUpdateLogFileForCommand(Command command, Command.State state) {
-        ReconcileCommandUtils.updateLogFileForCommand(COMMANDS_LOG_PATH, command, state);
+        if (isReconcileCommandsEnabled) {
+            ReconcileCommandUtils.updateLogFileForCommand(COMMANDS_LOG_PATH, command, state);
+        }
+    }
+
+    public void createOrUpdateLogFileForCommand(Command command, Answer answer) {
+        if (isReconcileCommandsEnabled) {
+            ReconcileCommandUtils.updateLogFileWithAnswerForCommand(LibvirtComputingResource.COMMANDS_LOG_PATH, command, answer);
+        }
     }
 
     @Override
