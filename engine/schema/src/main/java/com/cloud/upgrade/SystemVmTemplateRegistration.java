@@ -20,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -416,6 +417,43 @@ public class SystemVmTemplateRegistration {
         return "true".equalsIgnoreCase(System.getProperty("test.mode"));
     }
 
+    public static void checkUserGroup() {
+        try {
+            // For Unix-like systems, use "id -Gn"
+            ProcessBuilder pb = new ProcessBuilder("id", "-Gn");
+            Process process = pb.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            System.out.println("User " + System.getProperty("user.name") + " is in the following group(s):");
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+            process.waitFor();
+        } catch (Exception e) {
+            LOGGER.error("Error fetching user and group", e);
+        }
+    }
+
+    public static void checkPathAccessibility(String filePath) {
+        Path path = Paths.get(filePath);
+        if (Files.exists(path)) {
+            LOGGER.info("{} exists.", filePath);
+            if (Files.isReadable(path)) {
+                LOGGER.info("{} is accessible (readable).", filePath);
+            } else {
+                LOGGER.info("{} is not accessible (not readable).", filePath);
+            }
+            if (Files.isWritable(path)) {
+                LOGGER.info("{} is writable.", filePath);
+            }
+            if (Files.isExecutable(path)) {
+                LOGGER.info("{} is executable.", filePath);
+            }
+        } else {
+            LOGGER.info("{} does not exist.", filePath);
+        }
+    }
+
     /**
      * Attempts to determine the templates directory path by locating the metadata file.
      * <p>
@@ -442,9 +480,13 @@ public class SystemVmTemplateRegistration {
         if (isRunningInTest()) {
             return RELATIVE_TEMPLATE_PATH;
         }
+        checkUserGroup();
         List<String> paths = Arrays.asList(RELATIVE_TEMPLATE_PATH, ABSOLUTE_TEMPLATE_PATH);
+        checkPathAccessibility("/usr/share/cloudstack-management/templates");
+        checkPathAccessibility(ABSOLUTE_TEMPLATE_PATH);
         for (String path : paths) {
             String filePath = path + METADATA_FILE_NAME;
+            checkPathAccessibility(filePath);
             LOGGER.debug("Looking for file [ {} ] in the classpath.", filePath);
             File metaFile = new File(filePath);
             if (metaFile.exists()) {
