@@ -2493,6 +2493,12 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
         tableWithColumnsNeedRefresh.add(_table);
     }
 
+    @Override
+    public void refreshColumns() {
+        final SqlGenerator generator = new SqlGenerator(_entityBeanType);
+        _allColumns = generator.getAllColumns();
+    }
+
     private void refreshColumnsIfNeeded() {
         if (!tableWithColumnsNeedRefresh.contains(_table)) {
             return;
