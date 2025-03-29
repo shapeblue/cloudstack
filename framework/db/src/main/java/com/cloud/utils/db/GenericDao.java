@@ -314,5 +314,5 @@ public interface GenericDao<T, ID extends Serializable> {
 
     default void markForColumnsRefresh() {}
 
-    void refreshColumns();
+    default void refreshColumns() {}
 }
