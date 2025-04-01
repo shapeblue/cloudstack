@@ -14,15 +14,20 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.user;
+package org.apache.cloudstack.remoteregion.dao;
 
-import org.apache.cloudstack.api.Identity;
-import org.apache.cloudstack.api.InternalIdentity;
+import java.util.List;
 
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import org.apache.cloudstack.remoteregion.RemoteRegionVO;
+import com.cloud.utils.db.GenericDao;
 
-@Entity
-@Table(name = "foreign_region")
-public class RemoteRegionVO  implements RemoteRegion, Identity, InternalIdentity {
+public interface RemoteRegionDao extends GenericDao<RemoteRegionVO, Long> {
+
+    /**
+     * List remote regions by endpoint URL
+     *
+     * @param endpoint Endpoint URL to filter by
+     * @return List of matching RemoteRegionVO objects
+     */
+    List<RemoteRegionVO> listByEndpoint(String endpoint);
 }

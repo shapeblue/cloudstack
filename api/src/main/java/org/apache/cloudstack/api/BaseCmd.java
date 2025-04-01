@@ -43,6 +43,7 @@ import org.apache.cloudstack.network.RoutedIpv4Manager;
 import org.apache.cloudstack.network.lb.ApplicationLoadBalancerService;
 import org.apache.cloudstack.network.lb.InternalLoadBalancerVMService;
 import org.apache.cloudstack.query.QueryService;
+import org.apache.cloudstack.remoteregion.RemoteRegionManager;
 import org.apache.cloudstack.storage.object.BucketApiService;
 import org.apache.cloudstack.storage.ImageStoreService;
 import org.apache.cloudstack.storage.template.VnfTemplateManager;
@@ -221,6 +222,8 @@ public abstract class BaseCmd {
     public BucketApiService _bucketService;
     @Inject
     public BGPService bgpService;
+    @Inject
+    public RemoteRegionManager remoteRegionManager;
 
     @Inject
     public RoutedIpv4Manager routedIpv4Manager;

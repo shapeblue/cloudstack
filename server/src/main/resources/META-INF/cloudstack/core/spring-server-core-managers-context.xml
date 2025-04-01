@@ -382,4 +382,5 @@
     <bean id="sharedFSServiceImpl" class="org.apache.cloudstack.storage.sharedfs.SharedFSServiceImpl">
         <property name="sharedFSProviders" value="#{sharedFSProvidersRegistry.registered}" />
     </bean>
+    <bean id="remoteRegionManager" class="org.apache.cloudstack.remoteregion.RemoteRegionManagerImpl" />
 </beans>

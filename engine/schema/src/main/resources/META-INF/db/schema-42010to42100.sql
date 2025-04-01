@@ -51,6 +51,6 @@ CREATE TABLE `cloud`.`foreign_region` (
   `enabled` int(1) NOT NULL DEFAULT 1 COMMENT 'Enabled or disabled',
   `created` datetime NOT NULL COMMENT 'date created',
   `removed` datetime COMMENT 'date removed if not null',
-  `SCOPE` varchar COMMENT 'the scope of the access (GLOBAL, DOMAIN, SUBDOMAIN, ACCOUNT, USER)',
+  `SCOPE` varchar(40) COMMENT 'the scope of the access (GLOBAL, DOMAIN, SUBDOMAIN, ACCOUNT, USER)',
   PRIMARY KEY (`id`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
