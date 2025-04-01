@@ -72,7 +72,6 @@ import com.cloud.utils.HttpUtils.ApiSessionKeyCheckOption;
 import com.cloud.utils.StringUtils;
 import com.cloud.utils.db.EntityManager;
 import com.cloud.utils.net.NetUtils;
-
 @Component("apiServlet")
 public class ApiServlet extends HttpServlet {
     protected static Logger LOGGER = LogManager.getLogger(ApiServlet.class);

@@ -37,3 +37,20 @@ WHERE rp.rule = 'quotaStatement'
 AND NOT EXISTS(SELECT 1 FROM cloud.role_permissions rp_ WHERE rp.role_id = rp_.role_id AND rp_.rule = 'quotaCreditsList');
 
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.host', 'last_mgmt_server_id', 'bigint unsigned DEFAULT NULL COMMENT "last management server this host is connected to" AFTER `mgmt_server_id`');
+
+-- Create table for OAuth provider details
+DROP TABLE IF EXISTS `cloud`.`foreign_region`;
+CREATE TABLE `cloud`.`foreign_region` (
+  `id` bigint unsigned NOT NULL auto_increment COMMENT 'id',
+  `uuid` varchar(40) NOT NULL COMMENT 'unique identifier',
+  `description` varchar(1024) COMMENT 'description of the region',
+  `endpoint` varchar(255) NOT NULL COMMENT 'name/ip of the foreign region',
+  `api_key` varchar(255) NOT NULL COMMENT 'client id which is configured in the foreign region',
+  `secret_key` varchar(255) NOT NULL COMMENT 'secret key which is configured in the foreign region',
+  `ssl_verify` int(1) NOT NULL DEFAULT 1 COMMENT 'Enabled or disabled',
+  `enabled` int(1) NOT NULL DEFAULT 1 COMMENT 'Enabled or disabled',
+  `created` datetime NOT NULL COMMENT 'date created',
+  `removed` datetime COMMENT 'date removed if not null',
+  `SCOPE` varchar COMMENT 'the scope of the access (GLOBAL, DOMAIN, SUBDOMAIN, ACCOUNT, USER)',
+  PRIMARY KEY (`id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
