@@ -26,10 +26,8 @@ import javax.inject.Inject;
 
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 
 import com.cloud.upgrade.SystemVmTemplateRegistration;
-import com.cloud.utils.component.ComponentContext;
 import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 
@@ -106,12 +104,8 @@ public class Upgrade42010to42100 extends DbUpgradeAbstractImpl implements DbUpgr
         migrateExistingConfigurationScopeValues(conn);
         DbUpgradeUtils.dropTableColumnsIfExist(conn, "configuration", List.of("scope"));
         DbUpgradeUtils.changeTableColumnIfNotExist(conn, "configuration", "new_scope", "scope", "BIGINT NOT NULL DEFAULT 0 COMMENT 'Bitmask for scope(s) of this parameter'");
-        try {
-            ConfigurationDao dao =
-                    ComponentContext.getDelegateComponentOfType(ConfigurationDao.class);
-            dao.refreshColumns();
-        } catch (NoSuchBeanDefinitionException ignored) {
-            logger.debug("No ConfigurationDao bean found for ConfigurationDao");
+        if (configurationDao != null) {
+            configurationDao.refreshColumns();
         }
     }
 
