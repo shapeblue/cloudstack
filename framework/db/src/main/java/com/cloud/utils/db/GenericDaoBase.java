@@ -690,6 +690,8 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
             }
         } catch (final IllegalAccessException e) {
             throw new CloudRuntimeException("Yikes! ", e);
+        } catch (final SQLException e) {
+            throw e;
         }
     }
 
