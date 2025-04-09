@@ -22,10 +22,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
-import javax.inject.Inject;
-
 import org.apache.cloudstack.framework.config.ConfigKey;
-import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
+import org.apache.cloudstack.framework.config.dao.ConfigurationDaoImpl;
 
 import com.cloud.upgrade.SystemVmTemplateRegistration;
 import com.cloud.utils.db.TransactionLegacy;
@@ -33,9 +31,6 @@ import com.cloud.utils.exception.CloudRuntimeException;
 
 public class Upgrade42010to42100 extends DbUpgradeAbstractImpl implements DbUpgrade, DbUpgradeSystemVmTemplate {
     private SystemVmTemplateRegistration systemVmTemplateRegistration;
-
-    @Inject
-    ConfigurationDao configurationDao;
 
     @Override
     public String[] getUpgradableVersionRange() {
@@ -104,9 +99,8 @@ public class Upgrade42010to42100 extends DbUpgradeAbstractImpl implements DbUpgr
         migrateExistingConfigurationScopeValues(conn);
         DbUpgradeUtils.dropTableColumnsIfExist(conn, "configuration", List.of("scope"));
         DbUpgradeUtils.changeTableColumnIfNotExist(conn, "configuration", "new_scope", "scope", "BIGINT NOT NULL DEFAULT 0 COMMENT 'Bitmask for scope(s) of this parameter'");
-        if (configurationDao != null) {
-            configurationDao.refreshColumns();
-        }
+        ConfigurationDaoImpl configurationDao = new ConfigurationDaoImpl();
+        configurationDao.refreshColumns();
     }
 
     protected void migrateExistingConfigurationScopeValues(Connection conn) {
