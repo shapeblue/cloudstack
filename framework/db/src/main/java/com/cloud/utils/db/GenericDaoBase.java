@@ -548,8 +548,8 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
 
     @DB()
     protected void setField(Object entity, Field field, ResultSet rs, int index) throws SQLException {
+        final Class<?> type = field.getType();
         try {
-            final Class<?> type = field.getType();
             if (type == String.class) {
                 byte[] bytes = rs.getBytes(index);
                 if (bytes != null) {
@@ -691,6 +691,7 @@ public abstract class GenericDaoBase<T, ID extends Serializable> extends Compone
         } catch (final IllegalAccessException e) {
             throw new CloudRuntimeException("Yikes! ", e);
         } catch (final SQLException e) {
+            logger.error("SQL Exception on index {}, type {}, entity {}, rs {}, field {}, e {} ", index, type.toString(), entity.toString(), rs.toString(), field.toString(), e);
             throw e;
         }
     }
