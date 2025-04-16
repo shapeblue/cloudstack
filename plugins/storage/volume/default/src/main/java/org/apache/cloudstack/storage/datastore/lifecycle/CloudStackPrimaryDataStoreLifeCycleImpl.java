@@ -134,17 +134,32 @@ public class CloudStackPrimaryDataStoreLifeCycleImpl extends BasePrimaryDataStor
 
         PrimaryDataStoreParameters parameters = new PrimaryDataStoreParameters();
 
-        String tags = (String)dsInfos.get("tags");
-        Map<String, String> details = (Map<String, String>)dsInfos.get("details");
+        if (dsInfos.get("capacityBytes") != null) {
+            Long capacityBytes = (Long)dsInfos.get("capacityBytes");
+            if (capacityBytes <= 0) {
+                throw new IllegalArgumentException("'capacityBytes' must be greater than 0.");
+            }
+            parameters.setCapacityBytes(capacityBytes);
+        }
 
+        if (dsInfos.get("capacityIops") != null) {
+            Long capacityIops = (Long)dsInfos.get("capacityIops");
+            if (capacityIops <= 0) {
+                throw new IllegalArgumentException("'capacityIops' must be greater than 0.");
+            }
+            parameters.setCapacityIops(capacityIops);
+        }
+
+        Map<String, String> details = (Map<String, String>)dsInfos.get("details");
+        parameters.setDetails(details);
+
+        String tags = (String)dsInfos.get("tags");
         parameters.setTags(tags);
         parameters.setIsTagARule((Boolean)dsInfos.get("isTagARule"));
-        parameters.setDetails(details);
 
         String scheme = dsInfos.get("scheme").toString();
         String storageHost = dsInfos.get("host").toString();
         String hostPath = dsInfos.get("hostPath").toString();
-        String uri = String.format("%s://%s%s", scheme, storageHost, hostPath);
 
         Object localStorage = dsInfos.get("localStorage");
         if (localStorage != null) {
