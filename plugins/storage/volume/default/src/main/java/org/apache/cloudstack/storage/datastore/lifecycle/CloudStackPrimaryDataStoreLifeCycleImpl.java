@@ -68,6 +68,7 @@ import org.apache.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -133,11 +134,17 @@ public class CloudStackPrimaryDataStoreLifeCycleImpl extends BasePrimaryDataStor
 
         PrimaryDataStoreParameters parameters = new PrimaryDataStoreParameters();
 
+        Map<String, String> details = (Map<String, String>)dsInfos.get("details");
+
         if (dsInfos.get("capacityBytes") != null) {
             Long capacityBytes = (Long)dsInfos.get("capacityBytes");
             if (capacityBytes <= 0) {
                 throw new IllegalArgumentException("'capacityBytes' must be greater than 0.");
             }
+            if (details == null) {
+                details = new HashMap<>();
+            }
+            details.put(PrimaryDataStoreLifeCycle.CAPACITY_BYTES, String.valueOf(capacityBytes));
             parameters.setCapacityBytes(capacityBytes);
         }
 
@@ -146,10 +153,13 @@ public class CloudStackPrimaryDataStoreLifeCycleImpl extends BasePrimaryDataStor
             if (capacityIops <= 0) {
                 throw new IllegalArgumentException("'capacityIops' must be greater than 0.");
             }
+            if (details == null) {
+                details = new HashMap<>();
+            }
+            details.put(PrimaryDataStoreLifeCycle.CAPACITY_IOPS, String.valueOf(capacityIops));
             parameters.setCapacityIops(capacityIops);
         }
 
-        Map<String, String> details = (Map<String, String>)dsInfos.get("details");
         parameters.setDetails(details);
 
         String tags = (String)dsInfos.get("tags");
