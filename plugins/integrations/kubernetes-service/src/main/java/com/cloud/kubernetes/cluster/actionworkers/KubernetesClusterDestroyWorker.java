@@ -18,6 +18,7 @@
 package com.cloud.kubernetes.cluster.actionworkers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,6 +65,13 @@ public class KubernetesClusterDestroyWorker extends KubernetesClusterResourceMod
     @Inject
     private AnnotationDao annotationDao;
 
+    private static final List<KubernetesCluster.State> INVALID_CLUSTER_DELETE_STATE = Arrays.asList(
+            KubernetesCluster.State.Starting,
+            KubernetesCluster.State.Stopping,
+            KubernetesCluster.State.Scaling,
+            KubernetesCluster.State.Upgrading,
+            KubernetesCluster.State.Recovering);
+
     private List<KubernetesClusterVmMapVO> clusterVMs;
 
     public KubernetesClusterDestroyWorker(final KubernetesCluster kubernetesCluster, final KubernetesClusterManagerImpl clusterManager) {
@@ -71,11 +79,7 @@ public class KubernetesClusterDestroyWorker extends KubernetesClusterResourceMod
     }
 
     private void validateClusterSate() {
-        if (!(kubernetesCluster.getState().equals(KubernetesCluster.State.Running)
-                || kubernetesCluster.getState().equals(KubernetesCluster.State.Stopped)
-                || kubernetesCluster.getState().equals(KubernetesCluster.State.Alert)
-                || kubernetesCluster.getState().equals(KubernetesCluster.State.Error)
-                || kubernetesCluster.getState().equals(KubernetesCluster.State.Destroying))) {
+        if (INVALID_CLUSTER_DELETE_STATE.contains(kubernetesCluster.getState())) {
             String msg = String.format("Cannot perform delete operation on cluster : %s in state: %s",
                 kubernetesCluster.getName(), kubernetesCluster.getState());
             LOGGER.warn(msg);

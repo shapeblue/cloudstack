@@ -42,8 +42,11 @@ public class KubernetesClusterDaoImpl extends GenericDaoBase<KubernetesClusterVO
         AccountIdSearch.done();
 
         GarbageCollectedSearch = createSearchBuilder();
-        GarbageCollectedSearch.and("gc", GarbageCollectedSearch.entity().isCheckForGc(), SearchCriteria.Op.EQ);
-        GarbageCollectedSearch.and("state", GarbageCollectedSearch.entity().getState(), SearchCriteria.Op.EQ);
+        GarbageCollectedSearch.and().op("state1", GarbageCollectedSearch.entity().getState(), SearchCriteria.Op.EQ);
+        GarbageCollectedSearch.or().op("gc", GarbageCollectedSearch.entity().isCheckForGc(), SearchCriteria.Op.EQ);
+        GarbageCollectedSearch.and("state2", GarbageCollectedSearch.entity().getState(), SearchCriteria.Op.EQ);
+        GarbageCollectedSearch.cp();
+        GarbageCollectedSearch.cp();
         GarbageCollectedSearch.and("cluster_type", GarbageCollectedSearch.entity().getClusterType(), SearchCriteria.Op.EQ);
         GarbageCollectedSearch.done();
 
@@ -72,7 +75,8 @@ public class KubernetesClusterDaoImpl extends GenericDaoBase<KubernetesClusterVO
     public List<KubernetesClusterVO> findKubernetesClustersToGarbageCollect() {
         SearchCriteria<KubernetesClusterVO> sc = GarbageCollectedSearch.create();
         sc.setParameters("gc", true);
-        sc.setParameters("state", KubernetesCluster.State.Destroying);
+        sc.setParameters("state1", KubernetesCluster.State.Destroyed);
+        sc.setParameters("state2", KubernetesCluster.State.Destroying);
         sc.setParameters("cluster_type", KubernetesCluster.ClusterType.CloudManaged);
         return listBy(sc);
     }
