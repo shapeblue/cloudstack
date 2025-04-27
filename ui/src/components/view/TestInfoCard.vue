@@ -1,21 +1,5 @@
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
 <template>
-  <a-spin :spinning="loading">
+  <a-spin :spinning="false">
     <a-card class="spin-content" :bordered="bordered" :title="title">
       <div class="card-body">
         <div class="card-content">
@@ -855,7 +839,7 @@
             </a-spin>
           </div>
         </div>
-        <div class="card-footer" v-if="footerVisible">
+        <div class="card-footer">
           <slot name="footer-content"></slot>
         </div>
       </div>
@@ -878,7 +862,7 @@ import ResourceIcon from '@/components/view/ResourceIcon'
 import ResourceLabel from '@/components/widgets/ResourceLabel'
 
 export default {
-  name: 'InfoCard',
+  name: 'TestInfoCard',
   components: {
     Console,
     OsLogo,
@@ -907,10 +891,6 @@ export default {
       default: true
     },
     isStatic: {
-      type: Boolean,
-      default: false
-    },
-    footerVisible: {
       type: Boolean,
       default: false
     }
@@ -961,6 +941,9 @@ export default {
         }
         this.updateResourceAdditionalData()
       }
+    },
+    async templateIcon () {
+      this.getIcons()
     }
   },
   created () {
@@ -989,6 +972,9 @@ export default {
         return this.resource.keypairs.split(',')
       }
       return [this.resource.keypairs.toString()]
+    },
+    templateIcon () {
+      return this.resource.templateid
     },
     resourceIcon () {
       if (this.$showIcon()) {
@@ -1031,7 +1017,7 @@ export default {
     getImage (image) {
       return (image || this.resource?.icon?.base64image)
     },
-    getIcons () {
+    async getIcons () {
       this.images = {
         zone: '',
         template: '',
@@ -1043,28 +1029,28 @@ export default {
         network: ''
       }
       if (this.resource.templateid) {
-        this.fetchResourceIcon(this.resource.templateid, 'template')
+        await this.fetchResourceIcon(this.resource.templateid, 'template')
       }
       if (this.resource.isoid) {
-        this.fetchResourceIcon(this.resource.isoid, 'iso')
+        await this.fetchResourceIcon(this.resource.isoid, 'iso')
       }
       if (this.resource.zoneid) {
-        this.fetchResourceIcon(this.resource.zoneid, 'zone')
+        await this.fetchResourceIcon(this.resource.zoneid, 'zone')
       }
       if (this.resource.domainid) {
-        this.fetchResourceIcon(this.resource.domainid, 'domain')
+        await this.fetchResourceIcon(this.resource.domainid, 'domain')
       }
       if (this.resource.account) {
-        this.fetchAccount()
+        await this.fetchAccount()
       }
       if (this.resource.projectid) {
-        this.fetchResourceIcon(this.resource.projectid, 'project')
+        await this.fetchResourceIcon(this.resource.projectid, 'project')
       }
       if (this.resource.vpcid) {
-        this.fetchResourceIcon(this.resource.vpcid, 'vpc')
+        await this.fetchResourceIcon(this.resource.vpcid, 'vpc')
       }
       if (this.resource.networkid) {
-        this.fetchResourceIcon(this.resource.networkid, 'network')
+        await this.fetchResourceIcon(this.resource.networkid, 'network')
       }
     },
     fetchAccount () {
@@ -1229,14 +1215,16 @@ export default {
           query[item.param] = this.resource.id
         }
       }
+
       return query
     }
   }
 }
 </script>
 
-<style lang="scss" scoped>
-:deep(.ant-card-body) {  padding: 0;
+<style scoped lang="scss">
+:deep(.ant-card-body) {
+  padding: 0;
 }
 
 .card-body {

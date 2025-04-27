@@ -818,36 +818,28 @@
                 </template>
               </a-step>
             </a-steps>
-            <div class="card-footer">
-              <a-form-item name="stayonpage" ref="stayonpage">
-                <a-switch
-                  class="form-item-hidden"
-                  v-model:checked="form.stayonpage" />
-              </a-form-item>
-              <!-- ToDo extract as component -->
-              <a-button @click="() => $router.back()" :disabled="loading.deploy">
-                {{ $t('label.cancel') }}
-              </a-button>
-              <a-dropdown-button style="margin-left: 10px" type="primary" ref="submit" @click="handleSubmit" :loading="loading.deploy">
-                <rocket-outlined />
-                {{ this.form.startvm ? $t('label.launch.vm') : $t('label.create.vm') }}
-                <template #icon><down-outlined /></template>
-                <template #overlay>
-                  <a-menu type="primary" @click="handleSubmitAndStay" theme="dark" class="btn-stay-on-page">
-                    <a-menu-item type="primary" key="1">
-                      <rocket-outlined />
-                      {{ this.form.startvm ? $t('label.launch.vm.and.stay') : $t('label.create.vm.and.stay') }}
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown-button>
-            </div>
+            <a-form-item name="stayonpage" ref="stayonpage">
+              <a-switch
+                class="form-item-hidden"
+                v-model:checked="form.stayonpage" />
+            </a-form-item>
           </a-form>
         </a-card>
       </a-col>
       <a-col :md="24" :lg="7" v-if="!isMobile()">
         <a-affix :offsetTop="75" class="vm-info-card">
-          <info-card :resource="vm" :title="$t('label.yourinstance')" @change-resource="(data) => resource = data" />
+          <info-card :footerVisible="true" :resource="vm" :title="$t('label.yourinstance')" @change-resource="(data) => resource = data">
+            <template #footer-content>
+              <deploy-buttons
+                :loading="loading.deploy"
+                :deployButtonText="form.startvm ? $t('label.launch.vm') : $t('label.create.vm')"
+                :deployButtonMenuOptions="deployMenuOptions"
+                @handle-cancel="() => $router.back()"
+                @handle-deploy="handleSubmit"
+                @handle-deploy-menu="handleSubmitAndStay"
+              />
+            </template>
+          </info-card>
         </a-affix>
       </a-col>
     </a-row>
@@ -865,6 +857,7 @@ import eventBus from '@/config/eventBus'
 
 import OwnershipSelection from '@views/compute/wizard/OwnershipSelection'
 import InfoCard from '@/components/view/InfoCard'
+import DeployButtons from '@views/compute/wizard/DeployButtons'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import ZoneBlockRadioGroupSelect from '@views/compute/wizard/ZoneBlockRadioGroupSelect'
 import BlockRadioGroupSelect from '@/components/widgets/BlockRadioGroupSelect'
@@ -889,6 +882,7 @@ export default {
   components: {
     OwnershipSelection,
     InfoCard,
+    DeployButtons,
     ResourceIcon,
     ZoneBlockRadioGroupSelect,
     BlockRadioGroupSelect,
@@ -1429,6 +1423,9 @@ export default {
     },
     showAllCategoryForModernImageSelection () {
       return this.$config.showAllCategoryForModernImageSelection
+    },
+    deployMenuOptions () {
+      return [this.form.startvm ? this.$t('label.launch.vm.and.stay') : this.$t('label.create.vm.and.stay')]
     }
   },
   watch: {
@@ -3046,6 +3043,31 @@ export default {
       margin-left: 8px;
     }
   }
+  .card-footer .button-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
+  }
+
+  .card-footer .equal-size-button {
+    flex-grow: 1; /* Make each button grow equally */
+    min-width: 120px; /* Set a minimum width so that the buttons don't shrink too much */
+  }
+
+  @media (max-width: 600px) {
+    .card-footer .button-container {
+      flex-direction: column;
+    }
+
+    .card-footer .equal-size-button {
+      min-width: 100%; /* Make buttons take full width in column layout */
+    }
+
+    .card-footer .equal-size-button .ant-btn {
+      min-width: 100%; /* Make buttons take full width in column layout */
+    }
+  }
 
   .ant-list-item-meta-avatar {
     font-size: 1rem;
@@ -3075,7 +3097,7 @@ export default {
   .vm-info-card {
     .ant-card-body {
       min-height: 250px;
-      max-height: calc(100vh - 150px);
+      height: calc(100vh - 229px);
       overflow-y: auto;
       scroll-behavior: smooth;
     }
