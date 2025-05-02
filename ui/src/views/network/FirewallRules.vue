@@ -37,17 +37,36 @@
             <a-select-option value="tcp" :label="$t('label.tcp')">{{ $t('label.tcp') }}</a-select-option>
             <a-select-option value="udp" :label="$t('label.udp')">{{ $t('label.udp') }}</a-select-option>
             <a-select-option value="icmp" :label="$t('label.icmp')">{{ $t('label.icmp') }}</a-select-option>
+            <a-select-option value="all" :label="$t('label.all')">{{ $t('label.all') }}</a-select-option>
+            <a-select-option value="protocolnumber" :label="$t('label.protocol.number')">{{ $t('label.protocol.number') }}</a-select-option>
           </a-select>
         </div>
-        <div v-show="newRule.protocol === 'tcp' || newRule.protocol === 'udp'" class="form__item">
+        <div
+          v-if="newRule.protocol === 'protocolnumber'"
+          :label="$t('label.protocolnumber')"
+          ref="protocolnumber"
+          name="protocolnumber">
+          <a-select
+            v-model:value="protocolnumber"
+            showSearch
+            optionFilterProp="label"
+            :filterOption="(input, option) => {
+              return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }" >
+            <a-select-option v-for="(opt, optIndex) in protocolNumbers" :key="optIndex" :value="opt.name" :label="opt.name">
+              {{ opt.index + ' - ' + opt.name }}
+            </a-select-option>
+          </a-select>
+        </div>
+        <div v-show="['tcp', 'udp', 'protocolnumber'].includes(newRule.protocol) && !(newRule.protocol === 'protocolnumber' && protocolnumber === 'ICMP')" class="form__item">
           <div class="form__label">{{ $t('label.startport') }}</div>
           <a-input v-model:value="newRule.startport"></a-input>
         </div>
-        <div v-show="newRule.protocol === 'tcp' || newRule.protocol === 'udp'" class="form__item">
+        <div v-show="['tcp', 'udp', 'protocolnumber'].includes(newRule.protocol) && !(newRule.protocol === 'protocolnumber' && protocolnumber === 'ICMP')" class="form__item">
           <div class="form__label">{{ $t('label.endport') }}</div>
           <a-input v-model:value="newRule.endport"></a-input>
         </div>
-        <div v-show="newRule.protocol === 'icmp'" class="form__item">
+        <div v-show="newRule.protocol === 'icmp' || (newRule.protocol === 'protocolnumber' && protocolnumber === 'ICMP')" class="form__item">
           <div class="form__label">{{ $t('label.icmptype') }}</div>
           <a-select
             v-model:value="newRule.icmptype"
@@ -62,7 +81,7 @@
             </a-select-option>
           </a-select>
         </div>
-        <div v-show="newRule.protocol === 'icmp'" class="form__item">
+        <div v-show="newRule.protocol === 'icmp' || (newRule.protocol === 'protocolnumber' && protocolnumber === 'ICMP')" class="form__item">
           <div class="form__label">{{ $t('label.icmpcode') }}</div>
           <a-select
             v-model:value="newRule.icmpcode"
@@ -259,6 +278,7 @@ export default {
         startport: null,
         endport: null
       },
+      protocolnumber: null,
       protocolNumbers: [],
       icmpTypes: [],
       icmpCodes: [],
@@ -457,6 +477,11 @@ export default {
     addRule () {
       if (this.loading) return
       this.loading = true
+      if (this.newRule.protocol === 'protocolnumber') {
+        console.log('Protocol value ', this.protocolnumber)
+        this.newRule.protocol = this.protocolnumber.toLowerCase()
+        this.newRule.protocolnumber = null
+      }
       if (this.newRule.cidrlist == null || this.newRule.cidrlist.trim?.() === '') {
         delete this.newRule.cidrlist
       }

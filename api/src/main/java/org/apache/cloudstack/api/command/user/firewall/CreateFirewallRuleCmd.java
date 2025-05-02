@@ -63,7 +63,7 @@ public class CreateFirewallRuleCmd extends BaseAsyncCreateCmd implements Firewal
     @Parameter(name = ApiConstants.PROTOCOL,
                type = CommandType.STRING,
                required = true,
-               description = "the protocol for the firewall rule. Valid values are TCP/UDP/ICMP.")
+               description = "the protocol for the firewall rule. Valid values are TCP/UDP/ICMP/ALL or valid protocol number.")
     private String protocol;
 
     @Parameter(name = ApiConstants.START_PORT, type = CommandType.INTEGER, description = "the starting port of firewall rule")

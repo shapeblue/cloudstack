@@ -708,6 +708,7 @@ export default {
 
         const data = this.getDataFromForm(values)
         data.aclid = this.resource.id
+        console.log(JSON.stringify(data))
 
         api('createNetworkACL', {}, 'POST', data).then(() => {
           this.$notification.success({
