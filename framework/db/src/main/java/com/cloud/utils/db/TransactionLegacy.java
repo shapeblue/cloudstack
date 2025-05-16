@@ -611,6 +611,18 @@ public class TransactionLegacy implements Closeable {
         }
         if (s_ds instanceof HikariDataSource) {
             ((HikariDataSource)s_ds).getHikariPoolMXBean().softEvictConnections();
+        } else if (s_ds instanceof PoolingDataSource) {
+            try {
+                java.lang.reflect.Field poolField = PoolingDataSource.class.getDeclaredField("_pool");
+                poolField.setAccessible(true);
+                ObjectPool<?> pool = (ObjectPool<?>) poolField.get(s_ds);
+                if (pool instanceof GenericObjectPool) {
+                    GenericObjectPool<?> genericPool = (GenericObjectPool<?>) pool;
+                    genericPool.evict();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to refresh DBCP connections", e);
+            }
         }
     }
 
