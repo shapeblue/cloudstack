@@ -118,4 +118,9 @@ public class Upgrade42010to42100 extends DbUpgradeAbstractImpl implements DbUpgr
             throw new CloudRuntimeException(String.format("Failed to migrate existing configuration scope values to bitmask due to: %s", e.getMessage()));
         }
     }
+
+    @Override
+    public boolean refreshPoolConnectionsAfterUpgrade() {
+        return true;
+    }
 }

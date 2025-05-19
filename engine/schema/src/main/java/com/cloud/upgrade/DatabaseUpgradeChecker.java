@@ -379,7 +379,9 @@ public class DatabaseUpgradeChecker implements SystemIntegrityChecker {
         } finally {
             txn.close();
         }
-        TransactionLegacy.refreshConnections(TransactionLegacy.CLOUD_DB);
+        if (upgrade.refreshPoolConnectionsAfterUpgrade()) {
+            TransactionLegacy.refreshConnections(TransactionLegacy.CLOUD_DB);
+        }
         return version;
     }
 
