@@ -2142,7 +2142,7 @@ Configurable, StateListener<VirtualMachine.State, VirtualMachine.Event, VirtualM
         }
         Vpc vpc = _vpcDao.findById(router.getVpcId());
         if (vpc == null) {
-            s_logger.warn(String.format("Cannot find VPC with ID %s from router %s", router.getVpcId(), router.getName()));
+            logger.warn(String.format("Cannot find VPC with ID %s from router %s", router.getVpcId(), router.getName()));
             return false;
         }
         return vpc.useRouterIpAsResolver();
