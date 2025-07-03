@@ -88,6 +88,7 @@ override_dh_auto_install:
 	cp -r engine/schema/dist/systemvm-templates/* $(DESTDIR)/usr/share/$(PACKAGE)-management/templates/systemvm/
 	cp -r plugins/integrations/kubernetes-service/src/main/resources/conf/* $(DESTDIR)/usr/share/$(PACKAGE)-management/cks/conf/
 	rm -rf $(DESTDIR)/usr/share/$(PACKAGE)-management/templates/systemvm/md5sum.txt
+	cp extensions/Proxmox/proxmox.sh $(DESTDIR)/$(SYSCONFDIR)/$(PACKAGE)/extensions/Proxmox/
 	cp extensions/HyperV/hyperv.py $(DESTDIR)/$(SYSCONFDIR)/$(PACKAGE)/extensions/HyperV/
 
 	# Bundle cmk in cloudstack-management
