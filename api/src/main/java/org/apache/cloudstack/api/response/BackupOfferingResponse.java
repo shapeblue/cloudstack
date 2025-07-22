@@ -57,6 +57,10 @@ public class BackupOfferingResponse extends BaseResponse {
     @Param(description = "zone name")
     private String zoneName;
 
+    @SerializedName(ApiConstants.PROVIDER)
+    @Param(description = "provider for this backup offering", since = "4.21")
+    private String provider;
+
     @SerializedName(ApiConstants.CREATED)
     @Param(description = "the date this backup offering was created")
     private Date created;
@@ -87,6 +91,10 @@ public class BackupOfferingResponse extends BaseResponse {
 
     public void setZoneName(String zoneName) {
         this.zoneName = zoneName;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
     }
 
     public void setCreated(Date created) {

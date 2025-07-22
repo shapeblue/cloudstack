@@ -254,11 +254,8 @@ export default {
           dataView: true,
           args: ['virtualmachineid'],
           show: (record) => { return record.backupofferingid },
-          mapping: {
-            virtualmachineid: {
-              value: (record, params) => { return record.id }
-            }
-          }
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/compute/StartBackup.vue')))
         },
         {
           api: 'createBackupSchedule',

@@ -468,6 +468,10 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
             throw new CloudRuntimeException("The selected backup offering does not allow user-defined backup schedule");
         }
 
+        if (!"nas".equals(offering.getProvider()) && cmd.getQuiesceVM() != null) {
+            throw new InvalidParameterValueException("Quiesce VM option is supported only for NAS backup provider");
+        }
+
         if (maxBackups == null && !"veeam".equals(offering.getProvider())) {
             throw new CloudRuntimeException("Please specify the maximum number of buckets to retain.");
         }
@@ -489,7 +493,7 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
 
         final BackupScheduleVO schedule = backupScheduleDao.findByVMAndIntervalType(vmId, intervalType);
         if (schedule == null) {
-            return backupScheduleDao.persist(new BackupScheduleVO(vmId, intervalType, scheduleString, timezoneId, nextDateTime, maxBackups));
+            return backupScheduleDao.persist(new BackupScheduleVO(vmId, intervalType, scheduleString, timezoneId, nextDateTime, maxBackups, cmd.getQuiesceVM()));
         }
 
         schedule.setScheduleType((short) intervalType.ordinal());
@@ -497,6 +501,7 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
         schedule.setTimezone(timezoneId);
         schedule.setScheduledTimestamp(nextDateTime);
         schedule.setMaxBackups(maxBackups);
+        schedule.setQuiesceVM(cmd.getQuiesceVM());
         backupScheduleDao.update(schedule.getId(), schedule);
         return backupScheduleDao.findById(schedule.getId());
     }
@@ -564,7 +569,8 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
 
     @Override
     @ActionEvent(eventType = EventTypes.EVENT_VM_BACKUP_CREATE, eventDescription = "creating VM backup", async = true)
-    public boolean createBackup(final Long vmId, final Long scheduleId) throws ResourceAllocationException {
+    public boolean createBackup(CreateBackupCmd cmd) throws ResourceAllocationException {
+        Long vmId = cmd.getVmId();
         final VMInstanceVO vm = findVmById(vmId);
         validateForZone(vm.getDataCenterId());
         accountManager.checkAccess(CallContext.current().getCallingAccount(), null, true, vm);
@@ -582,7 +588,11 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
             throw new CloudRuntimeException("The assigned backup offering does not allow ad-hoc user backup");
         }
 
-        Backup.Type type = getBackupType(scheduleId);
+        if (!"nas".equals(offering.getProvider()) && cmd.getQuiesceVM() != null) {
+            throw new InvalidParameterValueException("Quiesce VM option is supported only for NAS backup provider");
+        }
+
+        Backup.Type type = getBackupType(cmd.getScheduleId());
         Account owner = accountManager.getAccount(vm.getAccountId());
         try {
             resourceLimitMgr.checkResourceLimit(owner, Resource.ResourceType.backup);
@@ -626,7 +636,7 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
 
         final BackupProvider backupProvider = getBackupProvider(offering.getProvider());
         if (backupProvider != null) {
-            Pair<Boolean, Backup> result = backupProvider.takeBackup(vm);
+            Pair<Boolean, Backup> result = backupProvider.takeBackup(vm, cmd.getQuiesceVM());
             if (!result.first()) {
                 throw new CloudRuntimeException("Failed to create VM backup");
             }
@@ -1270,6 +1280,7 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
         for (final BackupScheduleVO backupSchedule: backupsToBeExecuted) {
             final Long backupScheduleId = backupSchedule.getId();
             final Long vmId = backupSchedule.getVmId();
+            final Boolean quiesceVm = backupSchedule.getQuiesceVM();
 
             final VMInstanceVO vm = vmInstanceDao.findById(vmId);
             if (vm == null || vm.getBackupOfferingId() == null) {
@@ -1311,6 +1322,9 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
                 final Map<String, String> params = new HashMap<String, String>();
                 params.put(ApiConstants.VIRTUAL_MACHINE_ID, "" + vmId);
                 params.put(ApiConstants.SCHEDULE_ID, "" + backupScheduleId);
+                if (quiesceVm != null) {
+                    params.put(ApiConstants.QUIESCE_VM, "" + quiesceVm.toString());
+                }
                 params.put("ctxUserId", "1");
                 params.put("ctxAccountId", "" + vm.getAccountId());
                 params.put("ctxStartEventId", String.valueOf(eventId));

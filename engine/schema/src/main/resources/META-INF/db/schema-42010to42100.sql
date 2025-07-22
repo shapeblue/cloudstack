@@ -204,6 +204,9 @@ SET `sort_key` = CASE
 END;
 -- End: Changes for Guest OS category cleanup
 
+-- Add column quiescevm to backup_schedule table
+CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.backup_schedule', 'quiescevm', 'tinyint(1) default NULL COMMENT "Quiesce VM before taking backup"');
+
 -- Update description for configuration: host.capacityType.to.order.clusters
 UPDATE `cloud`.`configuration` SET
     `description` = 'The host capacity type (CPU, RAM or COMBINED) is used by deployment planner to order clusters during VM resource allocation'

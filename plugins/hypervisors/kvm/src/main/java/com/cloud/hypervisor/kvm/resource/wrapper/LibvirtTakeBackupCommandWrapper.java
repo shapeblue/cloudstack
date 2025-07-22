@@ -54,6 +54,7 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
                 "-s", backupRepoAddress,
                 "-m", Objects.nonNull(mountOptions) ? mountOptions : "",
                 "-p", backupPath,
+                "-q", command.getQuiesce() != null && command.getQuiesce() ? "true" : "false",
                 "-d", (Objects.nonNull(diskPaths) && !diskPaths.isEmpty()) ? String.join(",", diskPaths) : ""
         });
 

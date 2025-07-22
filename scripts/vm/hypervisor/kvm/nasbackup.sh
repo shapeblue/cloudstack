@@ -31,6 +31,7 @@ NAS_ADDRESS=""
 MOUNT_OPTS=""
 BACKUP_DIR=""
 DISK_PATHS=""
+QUIESCE=""
 logFile="/var/log/cloudstack/agent/agent.log"
 
 log() {
@@ -99,8 +100,21 @@ backup_running_vm() {
   done
   echo "</disks></domainbackup>" >> $dest/backup.xml
 
-  # Start push backup
+  local thaw=0
+  if [[ ${QUIESCE} == "true" ]]; then
+    if virsh -c qemu:///system qemu-agent-command "$VM" '{"execute":"guest-fsfreeze-freeze"}' > /dev/null 2>/dev/null; then
+      thaw=1
+    fi
+  fi
+
   virsh -c qemu:///system backup-begin --domain $VM --backupxml $dest/backup.xml > /dev/null 2>/dev/null
+
+  if [[ $thaw -eq 1 ]]; then
+    if ! response=$(virsh -c qemu:///system qemu-agent-command "$VM" '{"execute":"guest-fsfreeze-thaw"}' 2>&1 > /dev/null); then
+      echo "Failed to thaw the filesystem for vm $VM: $response"
+      exit 1
+    fi
+  fi
 
   # Backup domain information
   virsh -c qemu:///system dumpxml $VM > $dest/domain-config.xml 2>/dev/null
@@ -165,7 +179,7 @@ mount_operation() {
 
 function usage {
   echo ""
-  echo "Usage: $0 -o <operation> -v|--vm <domain name> -t <storage type> -s <storage address> -m <mount options> -p <backup path> -d <disks path>"
+  echo "Usage: $0 -o <operation> -v|--vm <domain name> -t <storage type> -s <storage address> -m <mount options> -p <backup path> -d <disks path> -q|--quiesce <true|false>"
   echo ""
   exit 1
 }
@@ -199,6 +213,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     -p|--path)
       BACKUP_DIR="$2"
+      shift
+      shift
+      ;;
+    -q|--quiesce)
+      QUIESCE="$2"
       shift
       shift
       ;;
