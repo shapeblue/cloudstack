@@ -17,6 +17,8 @@
 package com.cloud.network.as.dao;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 import org.springframework.stereotype.Component;
@@ -44,6 +46,8 @@ public class AutoScaleVmGroupVmMapDaoImpl extends GenericDaoBase<AutoScaleVmGrou
 
     SearchBuilder<AutoScaleVmGroupVmMapVO> AllFieldsSearch;
 
+    GenericSearchBuilder<VMInstanceVO, VmStateCount> VmStateCountSearch;
+
     @PostConstruct
     protected void init() {
         CountBy = createSearchBuilder(Integer.class);
@@ -59,6 +63,16 @@ public class AutoScaleVmGroupVmMapDaoImpl extends GenericDaoBase<AutoScaleVmGrou
         AllFieldsSearch.and("vmGroupId", AllFieldsSearch.entity().getVmGroupId(), SearchCriteria.Op.EQ);
         AllFieldsSearch.and("instanceId", AllFieldsSearch.entity().getInstanceId(), SearchCriteria.Op.EQ);
         AllFieldsSearch.done();
+
+        VmStateCountSearch = vmInstanceDao.createSearchBuilder(VmStateCount.class);
+        VmStateCountSearch.select("state", SearchCriteria.Func.NATIVE, VmStateCountSearch.entity().getState());
+        VmStateCountSearch.select("count", SearchCriteria.Func.COUNT, null);
+        VmStateCountSearch.and("states", VmStateCountSearch.entity().getState(), SearchCriteria.Op.IN);
+        SearchBuilder<AutoScaleVmGroupVmMapVO> asgGroupSb = createSearchBuilder();
+        asgGroupSb.and("vmGroupId", asgGroupSb.entity().getVmGroupId(), SearchCriteria.Op.EQ);
+        VmStateCountSearch.join("autoScaleVmGroup", asgGroupSb, VmStateCountSearch.entity().getId(), asgGroupSb.entity().getInstanceId(), JoinBuilder.JoinType.INNER);
+        VmStateCountSearch.groupBy(VmStateCountSearch.entity().getState());
+        VmStateCountSearch.done();
     }
 
     @Override
@@ -123,5 +137,31 @@ public class AutoScaleVmGroupVmMapDaoImpl extends GenericDaoBase<AutoScaleVmGrou
         sc.setJoinParameters("vmSearch", "states", State.Error);
         final List<Integer> results = customSearch(sc, null);
         return results.get(0);
+    }
+
+    @Override
+    public Map<State, Integer> getAsgVmCountByState(long vmGroupId) {
+        SearchCriteria<VmStateCount> sc = VmStateCountSearch.create();
+        sc.setParameters("states",
+                State.Starting, State.Running, State.Stopping, State.Migrating, State.Error);
+        sc.setJoinParameters("autoScaleVmGroup", "vmGroupId", vmGroupId);
+        List<VmStateCount> vmStateResult = vmInstanceDao.customSearch(sc, null);
+        return vmStateResult.stream().collect(Collectors.toMap(VmStateCount::getState, VmStateCount::getCount));
+    }
+
+    public static class VmStateCount {
+        public State state;
+        public int count;
+
+        public VmStateCount() {
+        }
+
+        public int getCount() {
+            return count;
+        }
+
+        public State getState() {
+            return state;
+        }
     }
 }

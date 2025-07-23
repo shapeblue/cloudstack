@@ -1710,17 +1710,22 @@ public class AutoScaleManagerImpl extends ManagerBase implements AutoScaleManage
 
     private boolean checkConditionUp(AutoScaleVmGroupVO asGroup, Integer numVm) {
         // check maximum
-        Integer currentVM = autoScaleVmGroupVmMapDao.countAvailableVmsByGroup(asGroup.getId());
+        Map<VirtualMachine.State, Integer> result = autoScaleVmGroupVmMapDao.getAsgVmCountByState(asGroup.getId());
+        Integer currentVM = result.getOrDefault(VirtualMachine.State.Starting, 0)
+                + result.getOrDefault(VirtualMachine.State.Running, 0)
+                + result.getOrDefault(VirtualMachine.State.Stopping, 0)
+                + result.getOrDefault(VirtualMachine.State.Migrating, 0);
         Integer maxVm = asGroup.getMaxMembers();
         if (currentVM + numVm > maxVm) {
             s_logger.warn("number of VM will greater than the maximum in this group if scaling up, so do nothing more");
             return false;
         }
-        int erroredInstanceCount = autoScaleVmGroupVmMapDao.getErroredInstanceCount(asGroup.getId());
+        int erroredInstanceCount = result.getOrDefault(VirtualMachine.State.Error, 0);
         if (erroredInstanceCount > AutoScaleManager.AutoScaleErroredInstanceThreshold.value()) {
             s_logger.warn("number of Errored Instances are greater than the threshold in this group for scaling up, so do nothing more");
             return false;
         }
+
         return true;
     }
 

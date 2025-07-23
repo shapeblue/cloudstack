@@ -17,9 +17,11 @@
 package com.cloud.network.as.dao;
 
 import java.util.List;
+import java.util.Map;
 
 import com.cloud.network.as.AutoScaleVmGroupVmMapVO;
 import com.cloud.utils.db.GenericDao;
+import com.cloud.vm.VirtualMachine;
 
 public interface AutoScaleVmGroupVmMapDao extends GenericDao<AutoScaleVmGroupVmMapVO, Long> {
     int countAvailableVmsByGroup(long vmGroupId);
@@ -37,4 +39,6 @@ public interface AutoScaleVmGroupVmMapDao extends GenericDao<AutoScaleVmGroupVmM
     public boolean removeByGroup(long vmGroupId);
 
     int getErroredInstanceCount(long vmGroupId);
+
+    Map<VirtualMachine.State, Integer> getAsgVmCountByState(long vmGroupId);
 }
