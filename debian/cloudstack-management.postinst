@@ -61,6 +61,8 @@ if [ "$1" = configure ]; then
 
     chmod -R 0755 /etc/cloudstack/extensions
     chown -R cloud:cloud /etc/cloudstack/extensions
+	  chmod 0555 /etc/cloudstack/extensions/HyperV/hyperv.sh
+	  chmod 0555 /etc/cloudstack/extensions/Proxmox/proxmox.sh
 
     ln -sf ${CONFDIR}/log4j-cloud.xml ${CONFDIR}/log4j2.xml
 
