@@ -636,6 +636,8 @@ pip3 install --upgrade /usr/share/cloudstack-marvin/Marvin-*.tar.gz
 %{_datadir}/%{name}-management/setup/wheel/*.whl
 %dir %attr(0755,cloud,cloud) %{_sysconfdir}/%{name}/extensions
 %attr(0755,cloud,cloud) %{_sysconfdir}/%{name}/extensions/*
+%attr(0555,cloud,cloud) %{_sysconfdir}/%{name}/extensions/Proxmox/proxmox.sh
+%attr(0555,cloud,cloud) %{_sysconfdir}/%{name}/extensions/HyperV/hyperv.py
 
 %files agent
 %attr(0755,root,root) %{_bindir}/%{name}-setup-agent
