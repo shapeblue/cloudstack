@@ -28,7 +28,6 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.NetworkOfferingResponse;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.dc.DataCenter;
 import com.cloud.domain.Domain;
@@ -39,7 +38,6 @@ import com.cloud.user.Account;
 @APICommand(name = "updateNetworkOffering", description = "Updates a network offering.", responseObject = NetworkOfferingResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class UpdateNetworkOfferingCmd extends BaseCmd {
-    public static final Logger s_logger = Logger.getLogger(UpdateNetworkOfferingCmd.class.getName());
 
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
@@ -54,8 +52,8 @@ public class UpdateNetworkOfferingCmd extends BaseCmd {
     @Parameter(name = ApiConstants.DISPLAY_TEXT, type = CommandType.STRING, description = "The display text of the network offering")
     private String displayText;
 
-    @Parameter(name = ApiConstants.AVAILABILITY, type = CommandType.STRING, description = "The availability of network offering."
-            + " Default value is Required for Guest Virtual network offering; Optional for Guest Direct network offering")
+    @Parameter(name = ApiConstants.AVAILABILITY, type = CommandType.STRING, description = "the availability of network offering."
+            + " The value is Required makes this network offering default for Guest Virtual Networks. Only one network offering can have the value Required ")
     private String availability;
 
     @Parameter(name = ApiConstants.SORT_KEY, type = CommandType.INTEGER, description = "Sort key of the network offering, integer")

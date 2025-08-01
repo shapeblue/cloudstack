@@ -17,16 +17,28 @@
 package com.cloud.storage.dao;
 
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.springframework.stereotype.Component;
 
+import com.cloud.storage.GuestOS;
 import com.cloud.storage.GuestOSVO;
+import com.cloud.utils.Pair;
+import com.cloud.utils.db.DB;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDaoBase;
+import com.cloud.utils.db.GenericSearchBuilder;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+import com.cloud.utils.db.TransactionLegacy;
+import com.cloud.utils.exception.CloudRuntimeException;
 
 @Component
 public class GuestOSDaoImpl extends GenericDaoBase<GuestOSVO, Long> implements GuestOSDao {
@@ -49,7 +61,7 @@ public class GuestOSDaoImpl extends GenericDaoBase<GuestOSVO, Long> implements G
     }
 
     @Override
-    public GuestOSVO listByDisplayName(String displayName) {
+    public GuestOSVO findOneByDisplayName(String displayName) {
         SearchCriteria<GuestOSVO> sc = Search.create();
         sc.setParameters("display_name", displayName);
         return findOneBy(sc);
@@ -75,5 +87,80 @@ public class GuestOSDaoImpl extends GenericDaoBase<GuestOSVO, Long> implements G
             return guestOSlist.get(0);
         }
         return null;
+    }
+
+    /**
+     +       "select display_name from"
+     +              "(select display_name, count(1) as count from guest_os go1 where removed is null group by display_name having count > 1) tab0";
+     *
+     * @return
+     */
+    @Override
+    @DB
+    public Set<String> findDoubleNames() {
+        String selectSql = "SELECT display_name FROM (SELECT display_name, count(1) AS count FROM guest_os go1 WHERE removed IS NULL GROUP BY display_name HAVING count > 1) tab0";
+        Set<String> names = new HashSet<>();
+        Connection conn = TransactionLegacy.getStandaloneConnection();
+        try {
+            PreparedStatement stmt = conn.prepareStatement(selectSql);
+            ResultSet rs = stmt.executeQuery();
+            while (rs != null && rs.next()) {
+                names.add(rs.getString(1));
+            }
+        } catch (SQLException ex) {
+            throw new CloudRuntimeException("Error while trying to find duplicate guest OSses", ex);
+        }
+        return names;
+    }
+
+    /**
+     * get all with a certain display name
+     * @param displayName
+     * @return a list with GuestOS objects
+     */
+    @Override
+    public List<GuestOSVO> listByDisplayName(String displayName) {
+        SearchCriteria<GuestOSVO> sc = Search.create();
+        sc.setParameters("display_name", displayName);
+        return listBy(sc);
+    }
+
+    public Pair<List<? extends GuestOS>, Integer> listGuestOSByCriteria(Long startIndex, Long pageSize, Long id, Long osCategoryId, String description, String keyword, Boolean forDisplay) {
+        final Filter searchFilter = new Filter(GuestOSVO.class, "displayName", true, startIndex, pageSize);
+        final SearchCriteria<GuestOSVO> sc = createSearchCriteria();
+
+        if (id != null) {
+            sc.addAnd("id", SearchCriteria.Op.EQ, id);
+        }
+
+        if (osCategoryId != null) {
+            sc.addAnd("categoryId", SearchCriteria.Op.EQ, osCategoryId);
+        }
+
+        if (description != null) {
+            sc.addAnd("displayName", SearchCriteria.Op.LIKE, "%" + description + "%");
+        }
+
+        if (keyword != null) {
+            sc.addAnd("displayName", SearchCriteria.Op.LIKE, "%" + keyword + "%");
+        }
+
+        if (forDisplay != null) {
+            sc.addAnd("display", SearchCriteria.Op.EQ, forDisplay);
+        }
+
+        final Pair<List<GuestOSVO>, Integer> result = searchAndCount(sc, searchFilter);
+        return new Pair<>(result.first(), result.second());
+    }
+
+    @Override
+    public List<Long> listIdsByCategoryId(final long categoryId) {
+        GenericSearchBuilder<GuestOSVO, Long> sb = createSearchBuilder(Long.class);
+        sb.selectFields(sb.entity().getId());
+        sb.and("categoryId", sb.entity().getCategoryId(), SearchCriteria.Op.EQ);
+        sb.done();
+        SearchCriteria<Long> sc = sb.create();
+        sc.setParameters("categoryId", categoryId);
+        return customSearch(sc, null);
     }
 }

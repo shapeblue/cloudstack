@@ -42,11 +42,9 @@ import javax.script.ScriptEngine;
 
 @RunWith(MockitoJUnitRunner.class)
 public class JsInterpreterTest {
-    private long timeout = 2000;
-
     @InjectMocks
     @Spy
-    JsInterpreter jsInterpreterSpy = new JsInterpreter(timeout);
+    JsInterpreter jsInterpreterSpy = new JsInterpreter();
 
     @Mock
     ExecutorService executorMock;
@@ -178,5 +176,23 @@ public class JsInterpreterTest {
 
         Assert.assertEquals(scriptEngineMock, jsInterpreterSpy.interpreter);
         Mockito.verify(nashornScriptEngineFactoryMock).getScriptEngine("--no-java");
+    }
+
+    @Test
+    public void injectStringVariableTestNullValueDoNothing() {
+        jsInterpreterSpy.variables = new LinkedHashMap<>();
+
+        jsInterpreterSpy.injectStringVariable("a", null);
+
+        Assert.assertTrue(jsInterpreterSpy.variables.isEmpty());
+    }
+
+    @Test
+    public void injectStringVariableTestNotNullValueSurroundWithDoubleQuotes() {
+        jsInterpreterSpy.variables = new LinkedHashMap<>();
+
+        jsInterpreterSpy.injectStringVariable("a", "b");
+
+        Assert.assertEquals(jsInterpreterSpy.variables.get("a"), "\"b\"");
     }
 }

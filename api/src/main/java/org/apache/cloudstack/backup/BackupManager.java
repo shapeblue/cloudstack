@@ -19,9 +19,11 @@ package org.apache.cloudstack.backup;
 
 import java.util.List;
 
+import com.cloud.exception.ResourceAllocationException;
 import org.apache.cloudstack.api.command.admin.backup.ImportBackupOfferingCmd;
 import org.apache.cloudstack.api.command.admin.backup.UpdateBackupOfferingCmd;
 import org.apache.cloudstack.api.command.user.backup.CreateBackupScheduleCmd;
+import org.apache.cloudstack.api.command.user.backup.DeleteBackupScheduleCmd;
 import org.apache.cloudstack.api.command.user.backup.ListBackupOfferingsCmd;
 import org.apache.cloudstack.api.command.user.backup.ListBackupsCmd;
 import org.apache.cloudstack.framework.config.ConfigKey;
@@ -55,6 +57,54 @@ public interface BackupManager extends BackupService, Configurable, PluggableSer
             "backup.enable.attach.detach.of.volumes",
             "false",
             "Enable volume attach/detach operations for VMs that are assigned to Backup Offerings.", true);
+
+    ConfigKey<Long> DefaultMaxAccountBackups = new ConfigKey<Long>("Account Defaults", Long.class,
+            "max.account.backups",
+            "20",
+            "The default maximum number of backups that can be created for an account",
+            false,
+            ConfigKey.Scope.Global,
+            null);
+
+    ConfigKey<Long> DefaultMaxAccountBackupStorage = new ConfigKey<Long>("Account Defaults", Long.class,
+            "max.account.backup.storage",
+            "400",
+            "The default maximum backup storage space (in GiB) that can be used for an account",
+            false,
+            ConfigKey.Scope.Global,
+            null);
+
+    ConfigKey<Long> DefaultMaxProjectBackups = new ConfigKey<Long>("Project Defaults", Long.class,
+            "max.project.backups",
+            "20",
+            "The default maximum number of backups that can be created for a project",
+            false,
+            ConfigKey.Scope.Global,
+            null);
+
+    ConfigKey<Long> DefaultMaxProjectBackupStorage = new ConfigKey<Long>("Project Defaults", Long.class,
+            "max.project.backup.storage",
+            "400",
+            "The default maximum backup storage space (in GiB) that can be used for a project",
+            false,
+            ConfigKey.Scope.Global,
+            null);
+
+    ConfigKey<Long> DefaultMaxDomainBackups = new ConfigKey<Long>("Domain Defaults", Long.class,
+            "max.domain.backups",
+            "40",
+            "The default maximum number of backups that can be created for a domain",
+            false,
+            ConfigKey.Scope.Global,
+            null);
+
+    ConfigKey<Long> DefaultMaxDomainBackupStorage = new ConfigKey<Long>("Domain Defaults", Long.class,
+            "max.domain.backup.storage",
+            "800",
+            "The default maximum backup storage space (in GiB) that can be used for a domain",
+            false,
+            ConfigKey.Scope.Global,
+            null);
 
     /**
      * List backup provider offerings
@@ -107,21 +157,22 @@ public interface BackupManager extends BackupService, Configurable, PluggableSer
      * @param vmId
      * @return
      */
-    BackupSchedule listBackupSchedule(Long vmId);
+    List<BackupSchedule> listBackupSchedule(Long vmId);
 
     /**
      * Deletes VM backup schedule for a VM
-     * @param vmId
+     * @param cmd
      * @return
      */
-    boolean deleteBackupSchedule(Long vmId);
+    boolean deleteBackupSchedule(DeleteBackupScheduleCmd cmd);
 
     /**
      * Creates backup of a VM
      * @param vmId Virtual Machine ID
+     * @param job The async job associated with the backup retention
      * @return returns operation success
      */
-    boolean createBackup(final Long vmId);
+    boolean createBackup(final Long vmId, Object job) throws ResourceAllocationException;
 
     /**
      * List existing backups for a VM

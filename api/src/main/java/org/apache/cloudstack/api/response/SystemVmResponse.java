@@ -38,14 +38,6 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
     @Param(description = "The System VM type")
     private String systemVmType;
 
-    @SerializedName("jobid")
-    @Param(description = "The job ID associated with the System VM. This is only displayed if the router listed is part of a currently running asynchronous job.")
-    private String jobId;
-
-    @SerializedName("jobstatus")
-    @Param(description = "The job status associated with the System VM.  This is only displayed if the router listed is part of a currently running asynchronous job.")
-    private Integer jobStatus;
-
     @SerializedName("zoneid")
     @Param(description = "The Zone ID for the System VM")
     private String zoneId;
@@ -177,6 +169,18 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
     @SerializedName(ApiConstants.IS_DYNAMICALLY_SCALABLE)
     @Param(description = "True if the Instance contains XS/VMWare tools in order to support dynamic scaling of Instance CPU/memory.")
     private Boolean isDynamicallyScalable;
+
+    @SerializedName(ApiConstants.SERVICE_OFFERING_ID)
+    @Param(description = "the ID of the service offering of the system virtual machine.")
+    private String serviceOfferingId;
+
+    @SerializedName("serviceofferingname")
+    @Param(description = "the name of the service offering of the system virtual machine.")
+    private String serviceOfferingName;
+
+    @SerializedName(ApiConstants.ARCH)
+    @Param(description = "CPU arch of the system VM", since = "4.20.1")
+    private String arch;
 
     @Override
     public String getObjectId() {
@@ -465,5 +469,25 @@ public class SystemVmResponse extends BaseResponseWithAnnotations {
 
     public void setDynamicallyScalable(Boolean dynamicallyScalable) {
         isDynamicallyScalable = dynamicallyScalable;
+    }
+
+    public String getServiceOfferingId() {
+        return serviceOfferingId;
+    }
+
+    public void setServiceOfferingId(String serviceOfferingId) {
+        this.serviceOfferingId = serviceOfferingId;
+    }
+
+    public String getServiceOfferingName() {
+        return serviceOfferingName;
+    }
+
+    public void setServiceOfferingName(String serviceOfferingName) {
+        this.serviceOfferingName = serviceOfferingName;
+    }
+
+    public void setArch(String arch) {
+        this.arch = arch;
     }
 }

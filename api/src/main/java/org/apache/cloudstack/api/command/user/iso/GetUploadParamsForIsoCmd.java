@@ -28,8 +28,8 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.GetUploadParamsResponse;
 import org.apache.cloudstack.api.response.GuestOSResponse;
-import org.apache.cloudstack.api.response.ZoneResponse;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.commons.lang3.StringUtils;
 
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
@@ -37,14 +37,12 @@ import com.cloud.exception.NetworkRuleConflictException;
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
 
-@APICommand(name = GetUploadParamsForIsoCmd.APINAME,
-        description = "Upload an existing ISO into the CloudStack cloud.",
+@APICommand(name = "getUploadParamsForIso",
+        description = "upload an existing ISO into the CloudStack cloud.",
         responseObject = GetUploadParamsResponse.class, since = "4.13",
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
 public class GetUploadParamsForIsoCmd extends AbstractGetUploadParamsCmd {
-
-    public static final String APINAME = "getUploadParamsForIso";
 
     private static final String s_name = "postuploadisoresponse";
 
@@ -57,7 +55,6 @@ public class GetUploadParamsForIsoCmd extends AbstractGetUploadParamsCmd {
 
     @Parameter(name = ApiConstants.DISPLAY_TEXT,
             type = BaseCmd.CommandType.STRING,
-            required = true,
             description = "The display text of the ISO. This is usually used for display purposes.",
             length = 4096)
     private String displayText;
@@ -95,7 +92,7 @@ public class GetUploadParamsForIsoCmd extends AbstractGetUploadParamsCmd {
     }
 
     public String getDisplayText() {
-        return displayText;
+        return StringUtils.isBlank(displayText) ? getName() : displayText;
     }
 
     public Boolean isFeatured() {
@@ -110,17 +107,10 @@ public class GetUploadParamsForIsoCmd extends AbstractGetUploadParamsCmd {
         return extractable;
     }
 
-    public String getIsoName() {
-        return isoName;
-    }
-
     public Long getOsTypeId() {
         return osTypeId;
     }
 
-    public Long getZoneId() {
-        return zoneId;
-    }
 
     /////////////////////////////////////////////////////
     /////////////// API Implementation///////////////////
@@ -134,7 +124,7 @@ public class GetUploadParamsForIsoCmd extends AbstractGetUploadParamsCmd {
             response.setResponseName(getCommandName());
             setResponseObject(response);
         } catch (ResourceAllocationException | MalformedURLException e) {
-            s_logger.error("Exception while registering Template", e);
+            logger.error("Exception while registering ISO", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Exception while registering ISO: " + e.getMessage());
         }
     }

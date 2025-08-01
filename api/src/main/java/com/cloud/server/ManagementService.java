@@ -25,16 +25,20 @@ import org.apache.cloudstack.api.command.admin.cluster.ListClustersCmd;
 import org.apache.cloudstack.api.command.admin.config.ListCfgGroupsByCmd;
 import org.apache.cloudstack.api.command.admin.config.ListCfgsByCmd;
 import org.apache.cloudstack.api.command.admin.config.UpdateHypervisorCapabilitiesCmd;
+import org.apache.cloudstack.api.command.admin.guest.AddGuestOsCategoryCmd;
 import org.apache.cloudstack.api.command.admin.guest.AddGuestOsCmd;
 import org.apache.cloudstack.api.command.admin.guest.AddGuestOsMappingCmd;
+import org.apache.cloudstack.api.command.admin.guest.DeleteGuestOsCategoryCmd;
 import org.apache.cloudstack.api.command.admin.guest.GetHypervisorGuestOsNamesCmd;
 import org.apache.cloudstack.api.command.admin.guest.ListGuestOsMappingCmd;
 import org.apache.cloudstack.api.command.admin.guest.RemoveGuestOsCmd;
 import org.apache.cloudstack.api.command.admin.guest.RemoveGuestOsMappingCmd;
+import org.apache.cloudstack.api.command.admin.guest.UpdateGuestOsCategoryCmd;
 import org.apache.cloudstack.api.command.admin.guest.UpdateGuestOsCmd;
 import org.apache.cloudstack.api.command.admin.guest.UpdateGuestOsMappingCmd;
 import org.apache.cloudstack.api.command.admin.host.ListHostsCmd;
 import org.apache.cloudstack.api.command.admin.host.UpdateHostPasswordCmd;
+import org.apache.cloudstack.api.command.admin.management.RemoveManagementServerCmd;
 import org.apache.cloudstack.api.command.admin.pod.ListPodsByCmd;
 import org.apache.cloudstack.api.command.admin.resource.ArchiveAlertsCmd;
 import org.apache.cloudstack.api.command.admin.resource.DeleteAlertsCmd;
@@ -59,8 +63,10 @@ import org.apache.cloudstack.api.command.user.ssh.CreateSSHKeyPairCmd;
 import org.apache.cloudstack.api.command.user.ssh.DeleteSSHKeyPairCmd;
 import org.apache.cloudstack.api.command.user.ssh.ListSSHKeyPairsCmd;
 import org.apache.cloudstack.api.command.user.ssh.RegisterSSHKeyPairCmd;
+import org.apache.cloudstack.api.command.user.userdata.DeleteCniConfigurationCmd;
 import org.apache.cloudstack.api.command.user.userdata.DeleteUserDataCmd;
 import org.apache.cloudstack.api.command.user.userdata.ListUserDataCmd;
+import org.apache.cloudstack.api.command.user.userdata.RegisterCniConfigurationCmd;
 import org.apache.cloudstack.api.command.user.userdata.RegisterUserDataCmd;
 import org.apache.cloudstack.api.command.user.vm.GetVMPasswordCmd;
 import org.apache.cloudstack.api.command.user.vmgroup.UpdateVMGroupCmd;
@@ -106,7 +112,7 @@ public interface ManagementService {
     Pair<List<? extends Configuration>, Integer> searchForConfigurations(ListCfgsByCmd c);
 
     /**
-     * returns the the configuration groups
+     * returns the configuration groups
      *
      * @return list of configuration groups
      */
@@ -167,6 +173,12 @@ public interface ManagementService {
      * @return list of GuestOSCategories
      */
     Pair<List<? extends GuestOsCategory>, Integer> listGuestOSCategoriesByCriteria(ListGuestOsCategoriesCmd cmd);
+
+    GuestOsCategory addGuestOsCategory(AddGuestOsCategoryCmd cmd);
+
+    GuestOsCategory updateGuestOsCategory(UpdateGuestOsCategoryCmd cmd);
+
+    boolean deleteGuestOsCategory(DeleteGuestOsCategoryCmd cmd);
 
     /**
      * Obtains a list of all guest OS mappings
@@ -360,17 +372,23 @@ public interface ManagementService {
      *            The api command class.
      * @return The list of userdatas found.
      */
-    Pair<List<? extends UserData>, Integer> listUserDatas(ListUserDataCmd cmd);
+    Pair<List<? extends UserData>, Integer> listUserDatas(ListUserDataCmd cmd, boolean forCks);
+
+    /**
+     * Registers a cni configuration.
+     *
+     * @param cmd    The api command class.
+     * @return A VO with the registered user data.
+     */
+    UserData registerCniConfiguration(RegisterCniConfigurationCmd cmd);
 
     /**
      * Registers a userdata.
      *
-     * @param cmd
-     *            The api command class.
+     * @param cmd    The api command class.
      * @return A VO with the registered userdata.
      */
     UserData registerUserData(RegisterUserDataCmd cmd);
-
     /**
      * Deletes a userdata.
      *
@@ -380,6 +398,14 @@ public interface ManagementService {
      */
     boolean deleteUserData(DeleteUserDataCmd cmd);
 
+    /**
+     * Deletes user data.
+     *
+     * @param cmd
+     *            The api command class.
+     * @return True on success. False otherwise.
+     */
+    boolean deleteCniConfiguration(DeleteCniConfigurationCmd cmd);
     /**
      * Search registered key pairs for the logged in user.
      *
@@ -441,16 +467,19 @@ public interface ManagementService {
      */
     Ternary<Pair<List<? extends Host>, Integer>, List<? extends Host>, Map<Host, Boolean>> listHostsForMigrationOfVM(Long vmId, Long startIndex, Long pageSize, String keyword);
 
+    Ternary<Pair<List<? extends Host>, Integer>, List<? extends Host>, Map<Host, Boolean>> listHostsForMigrationOfVM(VirtualMachine vm, Long startIndex, Long pageSize, String keyword, List<VirtualMachine> vmList);
+
     /**
      * List storage pools for live migrating of a volume. The API returns list of all pools in the cluster to which the
      * volume can be migrated. Current pool is not included in the list. In case of vSphere datastore cluster storage pools,
      * this method removes the child storage pools and adds the corresponding parent datastore cluster for API response listing
      *
      * @param Long volumeId
+     * @param String keyword if passed, will only return storage pools that contain this keyword in the name
      * @return Pair<List<? extends StoragePool>, List<? extends StoragePool>> List of storage pools in cluster and list
      *         of pools with enough capacity.
      */
-    Pair<List<? extends StoragePool>, List<? extends StoragePool>> listStoragePoolsForMigrationOfVolume(Long volumeId);
+    Pair<List<? extends StoragePool>, List<? extends StoragePool>> listStoragePoolsForMigrationOfVolume(Long volumeId, String keyword);
 
     Pair<List<? extends StoragePool>, List<? extends StoragePool>> listStoragePoolsForSystemMigrationOfVolume(Long volumeId, Long newDiskOfferingId, Long newSize, Long newMinIops, Long newMaxIops, boolean keepSourceStoragePool, boolean bypassStorageTypeCheck);
 
@@ -477,5 +506,7 @@ public interface ManagementService {
     void cleanupVMReservations();
 
     Pair<Boolean, String> patchSystemVM(PatchSystemVMCmd cmd);
+
+    boolean removeManagementServer(RemoveManagementServerCmd cmd);
 
 }

@@ -16,6 +16,8 @@
 // under the License.
 package com.cloud.storage;
 
+import java.util.List;
+
 import com.cloud.user.Account;
 
 public class CreateSnapshotPayload {
@@ -25,6 +27,8 @@ public class CreateSnapshotPayload {
     private boolean quiescevm;
     private Snapshot.LocationType locationType;
     private boolean asyncBackup;
+    private List<Long> zoneIds;
+    private boolean kvmIncrementalSnapshot = false;
 
     public Long getSnapshotPolicyId() {
         return snapshotPolicyId;
@@ -66,5 +70,21 @@ public class CreateSnapshotPayload {
 
     public boolean getAsyncBackup() {
         return this.asyncBackup;
+    }
+
+    public List<Long> getZoneIds() {
+        return zoneIds;
+    }
+
+    public void setZoneIds(List<Long> zoneIds) {
+        this.zoneIds = zoneIds;
+    }
+
+    public boolean isKvmIncrementalSnapshot() {
+        return kvmIncrementalSnapshot;
+    }
+
+    public void setKvmIncrementalSnapshot(boolean kvmIncrementalSnapshot) {
+        this.kvmIncrementalSnapshot = kvmIncrementalSnapshot;
     }
 }

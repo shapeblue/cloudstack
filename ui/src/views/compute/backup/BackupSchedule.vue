@@ -21,7 +21,7 @@
       size="small"
       :columns="columns"
       :dataSource="dataSchedules"
-      :rowKey="record => record.virtualmachineid"
+      :rowKey="record => record.intervaltype"
       :pagination="false"
       :loading="loading">
       <template #bodyCell="{ column, text, record }">
@@ -40,6 +40,9 @@
               <calendar-outlined />
             </span>
           </label>
+        </template>
+        <template v-if="column.key === 'intervaltype'" :name="text">
+          <label>{{ record.intervaltype }}</label>
         </template>
         <template v-if="column.key === 'time'" :name="text">
           <label class="interval-content">
@@ -75,7 +78,7 @@
 </template>
 
 <script>
-import { api } from '@/api'
+import { postAPI } from '@/api'
 import { timeZoneName } from '@/utils/timezone'
 import TooltipButton from '@/components/widgets/TooltipButton'
 
@@ -115,7 +118,10 @@ export default {
           width: 30
         },
         {
-          key: 'time',
+          title: this.$t('label.intervaltype'),
+          dataIndex: 'intervaltype'
+        },
+        {
           title: this.$t('label.time'),
           dataIndex: 'schedule'
         },
@@ -123,6 +129,11 @@ export default {
           key: 'interval',
           title: '',
           dataIndex: 'interval'
+        },
+        {
+          key: 'keep',
+          title: this.$t('label.keep'),
+          dataIndex: 'maxbackups'
         },
         {
           key: 'timezone',
@@ -141,7 +152,7 @@ export default {
   mounted () {
     this.dataSchedules = []
     if (this.dataSource && Object.keys(this.dataSource).length > 0) {
-      this.dataSchedules.push(this.dataSource)
+      this.dataSchedules = this.dataSource
     }
   },
   inject: ['refreshSchedule'],
@@ -149,19 +160,16 @@ export default {
     dataSource: {
       deep: true,
       handler (newData) {
-        this.dataSchedules = []
-        if (newData && Object.keys(newData).length > 0) {
-          this.dataSchedules.push(newData)
-        }
+        this.dataSchedules = newData
       }
     }
   },
   methods: {
     handleClickDelete (record) {
       const params = {}
-      params.virtualmachineid = record.virtualmachineid
+      params.id = record.id
       this.actionLoading = true
-      api('deleteBackupSchedule', params).then(json => {
+      postAPI('deleteBackupSchedule', params).then(json => {
         if (json.deletebackupscheduleresponse.success) {
           this.$notification.success({
             message: this.$t('label.scheduled.backups'),

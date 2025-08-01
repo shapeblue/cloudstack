@@ -29,9 +29,10 @@ import com.cloud.utils.fsm.StateObject;
 public interface VMSnapshot extends ControlledEntity, Identity, InternalIdentity, StateObject<VMSnapshot.State> {
 
     enum State {
-        Allocated("The Instance Snapshot is allocated but has not been created yet."), Creating("The Instance Snapshot is being created."), Ready(
+        Allocated("The Instance Snapshot is allocated but has not been created yet."), Creating("The Instance snapshot is being created."), Ready(
                 "The Instance Snapshot is ready to be used."), Reverting("The Instance Snapshot is being used to revert"), Expunging("The volume is being expunging"), Removed(
-                "The volume is destroyed, and can't be recovered."), Error("The volume is in error state, and can't be recovered");
+                "The volume is destroyed, and can't be recovered."), Error("The volume is in error state, and can't be recovered"),
+        Hidden("The Instance Snapshot is hidden from the user and cannot be recovered.");
 
         String _description;
 
@@ -60,6 +61,8 @@ public interface VMSnapshot extends ControlledEntity, Identity, InternalIdentity
             s_fsm.addTransition(Expunging, Event.ExpungeRequested, Expunging);
             s_fsm.addTransition(Expunging, Event.OperationSucceeded, Removed);
             s_fsm.addTransition(Expunging, Event.OperationFailed, Error);
+            s_fsm.addTransition(Expunging, Event.Hide, Hidden);
+            s_fsm.addTransition(Hidden, Event.ExpungeRequested, Expunging);
         }
     }
 
@@ -68,7 +71,7 @@ public interface VMSnapshot extends ControlledEntity, Identity, InternalIdentity
     }
 
     enum Event {
-        CreateRequested, OperationFailed, OperationSucceeded, RevertRequested, ExpungeRequested,
+        CreateRequested, OperationFailed, OperationSucceeded, RevertRequested, ExpungeRequested, Hide,
     }
 
     @Override
