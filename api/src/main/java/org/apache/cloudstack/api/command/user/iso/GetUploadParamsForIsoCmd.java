@@ -79,10 +79,6 @@ public class GetUploadParamsForIsoCmd extends AbstractGetUploadParamsCmd {
             description = "The ID of the OS type that best represents the OS of this ISO. If the ISO is bootable this parameter needs to be passed")
     private Long osTypeId;
 
-    @Parameter(name=ApiConstants.ZONE_ID, type= BaseCmd.CommandType.UUID, entityType = ZoneResponse.class,
-            required=true, description = "The ID of the zone you wish to register the ISO to.")
-    protected Long zoneId;
-
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
