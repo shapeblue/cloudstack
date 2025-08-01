@@ -234,7 +234,7 @@ export default {
           docHelp: 'adminguide/virtual_machines.html#backup-offerings',
           dataView: true,
           args: ['virtualmachineid', 'backupofferingid'],
-          show: (record) => { return record.hypervisor !== 'External' && !record.backupofferingid },
+          show: (record) => { return ['Running', 'Stopped', 'Shutdown'].includes(record.state) && record.hypervisor !== 'External' && !record.backupofferingid },
           mapping: {
             backupofferingid: {
               api: 'listBackupOfferings',
@@ -252,13 +252,9 @@ export default {
           message: 'message.backup.create',
           docHelp: 'adminguide/virtual_machines.html#creating-vm-backups',
           dataView: true,
-          args: ['virtualmachineid'],
           show: (record) => { return record.backupofferingid },
-          mapping: {
-            virtualmachineid: {
-              value: (record, params) => { return record.id }
-            }
-          }
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/compute/StartBackup.vue')))
         },
         {
           api: 'createBackupSchedule',
@@ -400,7 +396,7 @@ export default {
         {
           api: 'resetUserDataForVirtualMachine',
           icon: 'solution-outlined',
-          label: 'label.reset.userdata.on.vm',
+          label: 'label.reset.user.data.on.vm',
           message: 'message.desc.reset.userdata',
           docHelp: 'adminguide/virtual_machines.html#resetting-userdata',
           dataView: true,
@@ -941,7 +937,7 @@ export default {
     },
     {
       name: 'userdata',
-      title: 'label.user.data',
+      title: 'label.user.data.library',
       icon: 'solution-outlined',
       docHelp: 'adminguide/virtual_machines.html#user-data-and-meta-data',
       permission: ['listUserData'],
@@ -980,7 +976,7 @@ export default {
           api: 'registerUserData',
           icon: 'plus-outlined',
           label: 'label.register.user.data',
-          docHelp: 'adminguide/virtual_machines.html#creating-the-ssh-keypair',
+          docHelp: 'adminguide/virtual_machines.html#user-data-and-meta-data',
           listView: true,
           popup: true,
           component: shallowRef(defineAsyncComponent(() => import('@/views/compute/RegisterUserData.vue')))

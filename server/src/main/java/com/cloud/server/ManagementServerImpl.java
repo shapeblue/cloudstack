@@ -631,6 +631,7 @@ import org.apache.cloudstack.api.command.user.vpn.UpdateVpnGatewayCmd;
 import org.apache.cloudstack.api.command.user.zone.ListZonesCmd;
 import org.apache.cloudstack.auth.UserAuthenticator;
 import org.apache.cloudstack.auth.UserTwoFactorAuthenticator;
+import org.apache.cloudstack.backup.BackupManager;
 import org.apache.cloudstack.config.ApiServiceConfiguration;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.config.ConfigurationGroup;
@@ -774,14 +775,12 @@ import com.cloud.network.dao.NetworkDao;
 import com.cloud.network.dao.NetworkDomainDao;
 import com.cloud.network.dao.NetworkDomainVO;
 import com.cloud.network.dao.NetworkVO;
-import com.cloud.network.dao.PublicIpQuarantineDao;
 import com.cloud.network.vpc.dao.VpcDao;
 import com.cloud.org.Cluster;
 import com.cloud.org.Grouping.AllocationState;
 import com.cloud.projects.Project;
 import com.cloud.projects.Project.ListProjectResourcesCriteria;
 import com.cloud.projects.ProjectManager;
-import com.cloud.resource.ResourceManager;
 import com.cloud.server.ResourceTag.ResourceObjectType;
 import com.cloud.service.ServiceOfferingVO;
 import com.cloud.service.dao.ServiceOfferingDao;
@@ -883,8 +882,8 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     static final ConfigKey<Integer> sshKeyLength = new ConfigKey<>("Advanced", Integer.class, "ssh.key.length", "2048", "Specifies custom SSH key length (bit)", true, ConfigKey.Scope.Global);
     static final ConfigKey<Boolean> humanReadableSizes = new ConfigKey<>("Advanced", Boolean.class, "display.human.readable.sizes", "true", "Enables outputting human readable byte sizes to logs and usage records.", false, ConfigKey.Scope.Global);
     public static final ConfigKey<String> customCsIdentifier = new ConfigKey<>("Advanced", String.class, "custom.cs.identifier", UUID.randomUUID().toString().split("-")[0].substring(4), "Custom identifier for the cloudstack installation", true, ConfigKey.Scope.Global);
-    public static final ConfigKey<Boolean> exposeCloudStackVersionInApiXmlResponse = new ConfigKey<Boolean>("Advanced", Boolean.class, "expose.cloudstack.version.api.xml.response", "true", "Indicates whether ACS version should appear in the root element of an API XML response.", true, ConfigKey.Scope.Global);
-    public static final ConfigKey<Boolean> exposeCloudStackVersionInApiListCapabilities = new ConfigKey<Boolean>("Advanced", Boolean.class, "expose.cloudstack.version.api.list.capabilities", "true", "Indicates whether ACS version should show in the listCapabilities API.", true, ConfigKey.Scope.Global);
+    public static final ConfigKey<Boolean> exposeCloudStackVersionInApiXmlResponse = new ConfigKey<>("Advanced", Boolean.class, "expose.cloudstack.version.api.xml.response", "true", "Indicates whether ACS version should appear in the root element of an API XML response.", true, ConfigKey.Scope.Global);
+    public static final ConfigKey<Boolean> exposeCloudStackVersionInApiListCapabilities = new ConfigKey<>("Advanced", Boolean.class, "expose.cloudstack.version.api.list.capabilities", "true", "Indicates whether ACS version should show in the listCapabilities API.", true, ConfigKey.Scope.Global);
 
     private static final VirtualMachine.Type []systemVmTypes = { VirtualMachine.Type.SecondaryStorageVm, VirtualMachine.Type.ConsoleProxy};
     private static final List<HypervisorType> LIVE_MIGRATION_SUPPORTING_HYPERVISORS = List.of(HypervisorType.Hyperv, HypervisorType.KVM,
@@ -991,8 +990,6 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     @Inject
     private ProjectManager _projectMgr;
     @Inject
-    private ResourceManager _resourceMgr;
-    @Inject
     private HighAvailabilityManager _haMgr;
     @Inject
     private HostTagsDao _hostTagsDao;
@@ -1049,11 +1046,9 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     @Inject
     StoragePoolTagsDao storagePoolTagsDao;
     @Inject
-    protected ManagementServerJoinDao managementServerJoinDao;
-
+    private BackupManager backupManager;
     @Inject
-    private PublicIpQuarantineDao publicIpQuarantineDao;
-
+    protected ManagementServerJoinDao managementServerJoinDao;
     @Inject
     ClusterManager _clusterMgr;
 
@@ -1080,7 +1075,6 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     private List<UserAuthenticator> _userAuthenticators;
     private List<UserTwoFactorAuthenticator> _userTwoFactorAuthenticators;
     private List<UserAuthenticator> _userPasswordEncoders;
-    protected boolean _executeInSequence;
 
     protected List<DeploymentPlanner> _planners;
 
@@ -3569,7 +3563,8 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
     }
 
     List<SummedCapacity> getStorageCapacities(Long clusterId, Long podId, Long zoneId, List<Long> poolIds, Short capacityType) {
-        List<Short> capacityTypes = Arrays.asList(Capacity.CAPACITY_TYPE_STORAGE, Capacity.CAPACITY_TYPE_SECONDARY_STORAGE);
+        List<Short> capacityTypes = Arrays.asList(Capacity.CAPACITY_TYPE_STORAGE, Capacity.CAPACITY_TYPE_SECONDARY_STORAGE,
+                Capacity.CAPACITY_TYPE_BACKUP_STORAGE, Capacity.CAPACITY_TYPE_OBJECT_STORAGE);
         if (capacityType != null && !capacityTypes.contains(capacityType)) {
             return null;
         }
@@ -3577,7 +3572,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
             capacityTypes = capacityTypes.stream().filter(x -> x.equals(capacityType)).collect(Collectors.toList());
         }
         if (CollectionUtils.isNotEmpty(poolIds)) {
-            capacityTypes = capacityTypes.stream().filter(x -> x != Capacity.CAPACITY_TYPE_SECONDARY_STORAGE).collect(Collectors.toList());
+            capacityTypes = capacityTypes.stream().filter(x -> x == Capacity.CAPACITY_TYPE_STORAGE).collect(Collectors.toList());
         }
         if (CollectionUtils.isEmpty(capacityTypes)) {
             return null;
@@ -3603,6 +3598,12 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
             if (capacityTypes.contains(Capacity.CAPACITY_TYPE_STORAGE)) {
                 capacities.add(_storageMgr.getStoragePoolUsedStats(dc.getId(), podId, clusterId, poolIds));
             }
+            if (capacityTypes.contains(Capacity.CAPACITY_TYPE_OBJECT_STORAGE)) {
+                capacities.add(_storageMgr.getObjectStorageUsedStats(dc.getId()));
+            }
+            if (capacityTypes.contains(Capacity.CAPACITY_TYPE_BACKUP_STORAGE)) {
+                capacities.add((CapacityVO) backupManager.getBackupStorageUsedStats(dc.getId()));
+            }
             for (CapacityVO capacity : capacities) {
                 if (capacity.getTotalCapacity() != 0) {
                     capacity.setUsedPercentage((float)capacity.getUsedCapacity() / capacity.getTotalCapacity());
@@ -3617,6 +3618,22 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         return list;
     }
 
+    private void addZoneWideCapacitiesByType(final Integer capacityType, Long zId, List<CapacityVO> taggedCapacities) {
+        if (capacityType == null) {
+            taggedCapacities.add(_storageMgr.getSecondaryStorageUsedStats(null, zId));
+            taggedCapacities.add(_storageMgr.getObjectStorageUsedStats(zId));
+            taggedCapacities.add((CapacityVO) backupManager.getBackupStorageUsedStats(zId));
+            return;
+        }
+
+        if (capacityType == Capacity.CAPACITY_TYPE_SECONDARY_STORAGE) {
+            taggedCapacities.add(_storageMgr.getSecondaryStorageUsedStats(null, zId));
+        } else if (capacityType == Capacity.CAPACITY_TYPE_OBJECT_STORAGE) {
+            taggedCapacities.add(_storageMgr.getObjectStorageUsedStats(zId));
+        } else if (capacityType == Capacity.CAPACITY_TYPE_BACKUP_STORAGE) {
+            taggedCapacities.add((CapacityVO) backupManager.getBackupStorageUsedStats(zId));
+        }
+    }
 
     protected List<CapacityVO> listCapacitiesWithDetails(final Long zoneId, final Long podId, Long clusterId,
              final Integer capacityType, final String tag, List<Long> dcList) {
@@ -3645,11 +3662,9 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
             for (final Long zId : dcList) {
                 // op_host_Capacity contains only allocated stats and the real time
                 // stats are stored "in memory".
-                // List secondary storage capacity only when the api is invoked for the zone layer.
-                if ((capacityType == null || capacityType == Capacity.CAPACITY_TYPE_SECONDARY_STORAGE) &&
-                        podId == null && clusterId == null &&
-                        StringUtils.isEmpty(t)) {
-                    taggedCapacities.add(_storageMgr.getSecondaryStorageUsedStats(null, zId));
+                // List secondary, object and backup storage capacities only when the api is invoked for the zone layer.
+                if (podId == null && clusterId == null && StringUtils.isEmpty(t)) {
+                    addZoneWideCapacitiesByType(capacityType, zId, taggedCapacities);
                 }
                 if ((capacityType == null || capacityType == Capacity.CAPACITY_TYPE_STORAGE) && storagePoolIdsForCapacity.first()) {
                     taggedCapacities.add(_storageMgr.getStoragePoolUsedStats(zId, podId, clusterId, storagePoolIdsForCapacity.second()));
@@ -4751,6 +4766,7 @@ public class ManagementServerImpl extends ManagerBase implements ManagementServe
         capabilities.put(ApiConstants.INSTANCES_DISKS_STATS_RETENTION_ENABLED, StatsCollector.vmDiskStatsRetentionEnabled.value());
         capabilities.put(ApiConstants.INSTANCES_DISKS_STATS_RETENTION_TIME, StatsCollector.vmDiskStatsMaxRetentionTime.value());
         capabilities.put(ApiConstants.INSTANCE_LEASE_ENABLED, VMLeaseManager.InstanceLeaseEnabled.value());
+        capabilities.put(ApiConstants.DYNAMIC_SCALING_ENABLED, UserVmManager.EnableDynamicallyScaleVm.value());
         if (apiLimitEnabled) {
             capabilities.put("apiLimitInterval", apiLimitInterval);
             capabilities.put("apiLimitMax", apiLimitMax);
