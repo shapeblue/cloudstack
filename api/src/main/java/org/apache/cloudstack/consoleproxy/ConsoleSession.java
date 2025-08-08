@@ -14,30 +14,32 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package org.apache.cloudstack.engine.subsystem.api.storage;
+package org.apache.cloudstack.consoleproxy;
 
+import org.apache.cloudstack.api.Identity;
+import org.apache.cloudstack.api.InternalIdentity;
 
-import com.cloud.storage.Snapshot;
-import org.apache.cloudstack.framework.async.AsyncCompletionCallback;
+import java.util.Date;
 
-public interface SnapshotStrategy {
+public interface ConsoleSession extends InternalIdentity, Identity {
 
-    enum SnapshotOperation {
-        TAKE, BACKUP, DELETE, REVERT, COPY
-    }
+    Date getCreated();
 
-    SnapshotInfo takeSnapshot(SnapshotInfo snapshot);
+    long getDomainId();
 
-    SnapshotInfo backupSnapshot(SnapshotInfo snapshot);
+    long getAccountId();
 
-    boolean deleteSnapshot(Long snapshotId, Long zoneId);
+    long getUserId();
 
-    boolean revertSnapshot(SnapshotInfo snapshot);
+    long getInstanceId();
 
-    StrategyPriority canHandle(Snapshot snapshot, Long zoneId, SnapshotOperation op);
+    long getHostId();
 
-    void postSnapshotCreation(SnapshotInfo snapshot);
+    Date getRemoved();
 
-    default void copySnapshot(DataObject snapshotSource, DataObject snapshotDest, AsyncCompletionCallback<CreateCmdResult> caller) {
-    }
+    Date getAcquired();
+
+    String getConsoleEndpointCreatorAddress();
+
+    String getClientAddress();
 }
