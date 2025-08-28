@@ -37,6 +37,7 @@ Optional arguments:
    -b, --brand string                      Set branding to be used in package name (it will override any branding string in POM version)
    -T, --use-timestamp                     Use epoch timestamp instead of SNAPSHOT in the package name (if not provided, use "SNAPSHOT")
    -t --templates                          Passes necessary flag to package the required templates. Comma separated string - kvm,xen,vmware,ovm,hyperv
+   -f, --fast-build                        Skip RPM checks for faster build creation
 
 Other arguments:
    -h, --help                              Display this help message and exit
@@ -48,6 +49,7 @@ Examples:
    package.sh --distribution el8 --pack noredist -t "kvm,xen"
    package.sh --distribution el8 --release 42
    package.sh --distribution el8 --pack noredist --release 42
+   package.sh --distribution el8 --fast-build
 
 USAGE
     exit 0
@@ -63,6 +65,7 @@ NOW="$(date +%s)"
 #   $4 package release version
 #   $5 brand string to apply/override
 #   $6 use timestamp flag
+#   $7 fast build flag
 function packaging() {
     RPMDIR=$PWD/../dist/rpmbuild
     PACK_PROJECT=cloudstack
@@ -77,6 +80,13 @@ function packaging() {
         INDICATOR="$NOW"
     else
         INDICATOR="SNAPSHOT"
+    fi
+
+    # Set up fast build options
+    RPMBUILD_OPTIONS=""
+    if [ "$7" == "true" ]; then
+        RPMBUILD_OPTIONS="--nocheck"
+        echo "Fast build mode enabled - skipping RPM checks"
     fi
 
     DISTRO=$3
@@ -173,7 +183,7 @@ function packaging() {
     echo ". executing rpmbuild"
     cp "$PWD/$DISTRO/cloud.spec" "$RPMDIR/SPECS"
 
-    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFFULLVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFTEMP+"$DEFTEMP"} -bb SPECS/cloud.spec)
+    (cd "$RPMDIR"; rpmbuild --define "_topdir ${RPMDIR}" "${DEFVER}" "${DEFFULLVER}" "${DEFREL}" ${DEFPRE+"$DEFPRE"} ${DEFOSSNOSS+"$DEFOSSNOSS"} ${DEFSIM+"$DEFSIM"} ${DEFTEMP+"$DEFTEMP"} -bb SPECS/cloud.spec $RPMBUILD_OPTIONS)
     if [ $? -ne 0 ]; then
         if [ "$USE_TIMESTAMP" == "true" ]; then
             (cd $PWD/../; git reset --hard)
@@ -195,6 +205,7 @@ PACKAGEVAL=""
 RELEASE=""
 BRANDING=""
 USE_TIMESTAMP="false"
+FAST_BUILD="true"
 
 unrecognized_flags=""
 
@@ -263,6 +274,11 @@ while [ -n "$1" ]; do
             shift 1
             ;;
 
+        -f | --fast-build)
+            FAST_BUILD="true"
+            shift 1
+            ;;
+
         -*)
             unrecognized_flags="${unrecognized_flags}$1 "
             shift 1
@@ -293,4 +309,4 @@ if [ "$USE_TIMESTAMP" == "true" ]; then
 fi
 
 echo "Packaging CloudStack..."
-packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE" "$BRANDING" "$USE_TIMESTAMP"
+packaging "$PACKAGEVAL" "$SIM" "$TARGETDISTRO" "$RELEASE" "$BRANDING" "$USE_TIMESTAMP" "$FAST_BUILD"
