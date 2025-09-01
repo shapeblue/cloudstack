@@ -16,7 +16,7 @@
 -- under the License.
 
 --;
--- Schema upgrade from 4.19.3.0 to 4.19.4.0
+-- Schema upgrade from 4.20.1.0 to 4.20.2.0
 --;
 
 -- Add vm_id column to usage_event table for volume usage events
