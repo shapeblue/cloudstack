@@ -46,15 +46,15 @@
           v-model:value="form.policy"
           @change="val => { form.policy = val }"
           showSearch
-          optionFilterProp="value"
+          optionFilterProp="label"
           :filterOption="(input, option) => {
-              return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }" >
           <a-select-option
-            :value="policy"
-            v-for="(policy,idx) in policyList"
-            :key="idx"
-          >{{ policy }}</a-select-option>
+            v-for="policy in policyList"
+            :value="policy.value"
+            :key="policy.value"
+          >{{ policy.label }}</a-select-option>
         </a-select>
       </a-form-item>
       <div :span="24" class="action-button">
@@ -91,7 +91,10 @@ export default {
   },
   created () {
     this.initForm()
-    this.policyList = ['Public', 'Private']
+    this.policyList = [
+      { label: 'External', value: 'Public' },
+      { label: 'Private', value: 'Private' }
+    ]
     this.fetchData()
   },
   methods: {

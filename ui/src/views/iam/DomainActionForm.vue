@@ -67,8 +67,13 @@
                 :filterOption="(input, option) => {
                   return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }" >
-                <a-select-option v-for="(opt, optIndex) in action.mapping[field.name].options" :key="optIndex" :label="opt">
-                  {{ opt }}
+                <a-select-option
+                  v-for="(opt, optIndex) in action.mapping[field.name].options"
+                  :key="optIndex"
+                  :value="optIndex"
+                  :label="opt.label || opt"
+                >
+                  {{ opt.label || opt }}
                 </a-select-option>
               </a-select>
               <a-select
@@ -205,7 +210,8 @@ export default {
                 break
               }
               if (this.action.mapping && key in this.action.mapping && this.action.mapping[key].options) {
-                params[key] = this.action.mapping[key].options[input]
+                const option = this.action.mapping[key].options[input]
+                params[key] = option && option.value !== undefined ? option.value : option
               } else if (param.type === 'uuid') {
                 params[key] = param.opts[input].id
               } else if (param.type === 'list') {

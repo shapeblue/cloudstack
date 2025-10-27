@@ -1414,7 +1414,7 @@ export default {
           INSTANCE_GROUP: 'Instance Group',
           NETWORK: 'Network',
           VPC: 'VPC',
-          PUBLIC_IP_ADDRESS: 'Public IP Address',
+          PUBLIC_IP_ADDRESS: 'External IP Address',
           VPN_CUSTOMER_GATEWAY: 'VPC Customer Gateway',
           TEMPLATE: 'Template',
           ISO: 'ISO',

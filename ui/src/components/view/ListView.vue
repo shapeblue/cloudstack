@@ -1352,7 +1352,7 @@ export default {
         case 'INSTANCE_GROUP' : return 'Instance Group'
         case 'NETWORK' : return 'Network'
         case 'VPC' : return 'VPC'
-        case 'PUBLIC_IP_ADDRESS' : return 'Public IP Address'
+        case 'PUBLIC_IP_ADDRESS' : return 'External IP Address'
         case 'VPN_CUSTOMER_GATEWAY' : return 'VPC Customer Gateway'
         case 'TEMPLATE' : return 'Template'
         case 'ISO' : return 'ISO'
