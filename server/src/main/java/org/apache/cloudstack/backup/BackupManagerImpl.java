@@ -30,8 +30,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -75,7 +76,6 @@ import org.apache.cloudstack.framework.jobs.AsyncJobDispatcher;
 import org.apache.cloudstack.framework.jobs.AsyncJobManager;
 import org.apache.cloudstack.framework.jobs.impl.AsyncJobVO;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
-import org.apache.cloudstack.managed.context.ManagedContextTimerTask;
 import org.apache.cloudstack.poll.BackgroundPollManager;
 import org.apache.cloudstack.poll.BackgroundPollTask;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
@@ -85,6 +85,8 @@ import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import com.amazonaws.util.CollectionUtils;
 import com.cloud.alert.AlertManager;
@@ -146,6 +148,7 @@ import com.cloud.utils.Pair;
 import com.cloud.utils.Ternary;
 import com.cloud.utils.component.ComponentContext;
 import com.cloud.utils.component.ManagerBase;
+import com.cloud.utils.concurrency.NamedThreadFactory;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GlobalLock;
@@ -170,8 +173,6 @@ import com.cloud.vm.dao.VMInstanceDetailsDao;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 
 public class BackupManagerImpl extends ManagerBase implements BackupManager {
 
@@ -239,7 +240,7 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
     private GuestOSDao _guestOSDao;
 
     private AsyncJobDispatcher asyncJobDispatcher;
-    private Timer backupTimer;
+    private ScheduledExecutorService backupScheduleExecutor;
     private Date currentTimestamp;
 
     private static Map<String, BackupProvider> backupProvidersMap = new HashMap<>();
@@ -1887,19 +1888,20 @@ public class BackupManagerImpl extends ManagerBase implements BackupManager {
         for (final BackupScheduleVO backupSchedule : backupScheduleDao.listAll()) {
             scheduleNextBackupJob(backupSchedule);
         }
-        final TimerTask backupPollTask = new ManagedContextTimerTask() {
+        final ManagedContextRunnable backupPollRunnable = new ManagedContextRunnable() {
             @Override
             protected void runInContext() {
-            try {
-                poll(new Date());
-            } catch (final Throwable t) {
-                logger.warn("Catch throwable in backup scheduler ", t);
-            }
+                try {
+                    poll(new Date());
+                } catch (final Throwable t) {
+                    logger.warn("Catch throwable in backup scheduler ", t);
+                }
             }
         };
 
-        backupTimer = new Timer("BackupPollTask");
-        backupTimer.schedule(backupPollTask, BackupSyncPollingInterval.value() * 1000L, BackupSyncPollingInterval.value() * 1000L);
+        backupScheduleExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Backup-Scheduler-Executor"));
+        backupScheduleExecutor.scheduleAtFixedRate(backupPollRunnable, BackupSyncPollingInterval.value(),
+                BackupSyncPollingInterval.value(), TimeUnit.MINUTES);
         return true;
     }
 
