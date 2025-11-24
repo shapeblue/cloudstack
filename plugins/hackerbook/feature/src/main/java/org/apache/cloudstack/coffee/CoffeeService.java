@@ -21,6 +21,7 @@ package org.apache.cloudstack.coffee;
 
 import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.command.ListCoffeeCmd;
+import org.apache.cloudstack.api.command.CreateCoffeeCmd;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +31,7 @@ public class CoffeeService implements PluggableService {
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> cmdList = new ArrayList<>();
+        cmdList.add(CreateCoffeeCmd.class);
         cmdList.add(ListCoffeeCmd.class);
         return cmdList;
     }
