@@ -23,6 +23,7 @@ import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.command.ListCoffeeCmd;
 import org.apache.cloudstack.api.command.CreateCoffeeCmd;
 import org.apache.cloudstack.api.command.UpdateCoffeeCmd;
+import org.apache.cloudstack.api.command.RemoveCoffeeCmd;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,7 @@ public class CoffeeService implements PluggableService {
         cmdList.add(CreateCoffeeCmd.class);
         cmdList.add(ListCoffeeCmd.class);
         cmdList.add(UpdateCoffeeCmd.class);
+        cmdList.add(RemoveCoffeeCmd.class);
         return cmdList;
     }
 }
