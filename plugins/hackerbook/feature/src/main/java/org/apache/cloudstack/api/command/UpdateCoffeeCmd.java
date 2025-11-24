@@ -23,9 +23,12 @@ import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.Parameter;
+import org.apache.cloudstack.api.Coffee;
+import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.acl.RoleType;
 
+import javax.inject.Inject;
 import java.util.Map;
 
 @APICommand(
@@ -38,6 +41,9 @@ import java.util.Map;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class UpdateCoffeeCmd extends BaseAsyncCmd {
+
+    @Inject
+    private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
             type = CommandType.STRING,
@@ -59,13 +65,14 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
 
     @Override
     public void execute() {
-        // Hardcoded response for now
+        Coffee coffee = coffeeManager.updateCoffee(this);
+
         CoffeeResponse response = new CoffeeResponse();
-        response.setId(id);
-        response.setName("Updated Coffee Order");
-        response.setOffering("Espresso");
-        response.setSize(size != null ? size : "MEDIUM");
-        response.setState("Created");
+        response.setId(coffee.getUuid());
+        response.setName(coffee.getName());
+        response.setOffering(coffee.getOffering().name());
+        response.setSize(coffee.getSize().name());
+        response.setState(coffee.getState().name());
         response.setObjectName("coffee");
         response.setResponseName(getCommandName());
 

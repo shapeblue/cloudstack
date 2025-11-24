@@ -20,55 +20,95 @@
 package org.apache.cloudstack.api.command;
 
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseListCmd;
+import org.apache.cloudstack.api.Parameter;
+import org.apache.cloudstack.api.Coffee;
+import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.api.response.ListResponse;
+import org.apache.cloudstack.acl.RoleType;
+import org.jetbrains.annotations.NotNull;
 
+import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 
 @APICommand(
         name = "listCoffees",
-        description = "Lists all coffees",
+        description = "Lists all coffees with optional filters",
         responseObject = CoffeeResponse.class,
         since = "4.23.0.0",
         requestHasSensitiveInfo = false,
-        responseHasSensitiveInfo = false
+        responseHasSensitiveInfo = false,
+        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class ListCoffeeCmd extends BaseListCmd {
 
+    @Inject
+    private CoffeeManager coffeeManager;
+
+    @Parameter(name = ApiConstants.ID,
+            type = CommandType.STRING,
+            required = false,
+            description = "the ID of the coffee order")
+    private String id;
+
+    @Parameter(name = "offering",
+            type = CommandType.STRING,
+            required = false,
+            description = "type of coffee (Espresso, Cappuccino, Mocha, Latte)")
+    private String offering;
+
+    @Parameter(name = "size",
+            type = CommandType.STRING,
+            required = false,
+            description = "size of coffee (SMALL, MEDIUM, LARGE)")
+    private String size;
+
     @Override
     public void execute() {
-        List<CoffeeResponse> coffeeList = new ArrayList<>();
+        List<Coffee> coffees = coffeeManager.listCoffees(this);
 
-        CoffeeResponse espresso = new CoffeeResponse();
-        espresso.setId("1");
-        espresso.setName("Morning Espresso");
-        espresso.setOffering("Espresso");
-        espresso.setSize("SMALL");
-        espresso.setState("Brewed");
-        espresso.setObjectName("coffee");
+        List<CoffeeResponse> responseList = getCoffeeResponses(coffees);
 
-        CoffeeResponse latte = new CoffeeResponse();
-        latte.setId("2");
-        latte.setName("Cloud Latte");
-        latte.setOffering("Latte");
-        latte.setSize("LARGE");
-        latte.setState("Created");
-        latte.setObjectName("coffee");
+        ListResponse<CoffeeResponse> listResponse = new ListResponse<>();
+        listResponse.setResponses(responseList, responseList.size());
+        listResponse.setResponseName(getCommandName());
+        listResponse.setObjectName("coffee");
+        setResponseObject(listResponse);
+    }
 
-        coffeeList.add(espresso);
-        coffeeList.add(latte);
-
-        ListResponse<CoffeeResponse> response = new ListResponse<>();
-        response.setResponses(coffeeList, coffeeList.size());
-        response.setResponseName(getCommandName());
-        response.setObjectName("coffee");
-        setResponseObject(response);
+    @NotNull
+    private static List<CoffeeResponse> getCoffeeResponses(List<Coffee> coffees) {
+        List<CoffeeResponse> responseList = new ArrayList<>();
+        for (Coffee coffee : coffees) {
+            CoffeeResponse response = new CoffeeResponse();
+            response.setId(coffee.getUuid());
+            response.setName(coffee.getName());
+            response.setOffering(coffee.getOffering().name());
+            response.setSize(coffee.getSize().name());
+            response.setState(coffee.getState().name());
+            response.setObjectName("coffee");
+            responseList.add(response);
+        }
+        return responseList;
     }
 
     @Override
     public long getEntityOwnerId() {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getOffering() {
+        return offering;
+    }
+
+    public String getSize() {
+        return size;
     }
 }

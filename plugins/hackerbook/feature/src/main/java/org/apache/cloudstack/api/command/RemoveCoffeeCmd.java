@@ -23,9 +23,11 @@ import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.Parameter;
+import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.acl.RoleType;
 
+import javax.inject.Inject;
 import java.util.List;
 
 @APICommand(
@@ -38,6 +40,9 @@ import java.util.List;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class RemoveCoffeeCmd extends BaseAsyncCmd {
+
+    @Inject
+    private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
             type = CommandType.STRING,
@@ -54,18 +59,22 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
 
     @Override
     public void execute() {
-        // Hardcoded success response for now
+        boolean result = coffeeManager.removeCoffee(this);
+
         SuccessResponse response = new SuccessResponse();
 
-        if (id != null) {
+        if (result) {
             response.setSuccess(true);
-            response.setDisplayText("Successfully removed coffee order: " + id);
-        } else if (ids != null && !ids.isEmpty()) {
-            response.setSuccess(true);
-            response.setDisplayText("Successfully removed " + ids.size() + " coffee orders");
+            if (id != null) {
+                response.setDisplayText("Successfully removed coffee order: " + id);
+            } else if (ids != null && !ids.isEmpty()) {
+                response.setDisplayText("Successfully removed " + ids.size() + " coffee orders");
+            } else {
+                response.setDisplayText("Coffee removal completed");
+            }
         } else {
             response.setSuccess(false);
-            response.setDisplayText("No coffee ID provided");
+            response.setDisplayText("Failed to remove coffee order");
         }
 
         response.setResponseName(getCommandName());

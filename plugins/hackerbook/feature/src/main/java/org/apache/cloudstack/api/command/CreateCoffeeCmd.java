@@ -23,9 +23,12 @@ import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseAsyncCreateCmd;
 import org.apache.cloudstack.api.Parameter;
+import org.apache.cloudstack.api.Coffee;
+import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.acl.RoleType;
 
+import javax.inject.Inject;
 import java.util.Map;
 
 @APICommand(
@@ -38,6 +41,9 @@ import java.util.Map;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
+
+    @Inject
+    private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.NAME,
             type = CommandType.STRING,
@@ -63,25 +69,26 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
             description = "details for the coffee order")
     private Map<String, String> details;
 
-    private Long coffeeId;
+    private Coffee coffee;
 
     @Override
     public void create() {
-        // Just set a fake ID for now
-        coffeeId = 3L;
-        setEntityId(coffeeId);
-        setEntityUuid("fake-uuid-" + coffeeId);
+        coffee = coffeeManager.createCoffee(this);
+
+        if (coffee != null) {
+            setEntityId(coffee.getId());
+            setEntityUuid(coffee.getUuid());
+        }
     }
 
     @Override
     public void execute() {
-        // Hardcoded response for now
         CoffeeResponse response = new CoffeeResponse();
-        response.setId(String.valueOf(coffeeId));
-        response.setName(name);
-        response.setOffering(offering);
-        response.setSize(size);
-        response.setState("Created");
+        response.setId(coffee.getUuid());
+        response.setName(coffee.getName());
+        response.setOffering(coffee.getOffering().name());
+        response.setSize(coffee.getSize().name());
+        response.setState(coffee.getState().name());
         response.setObjectName("coffee");
         response.setResponseName(getCommandName());
 
