@@ -17,26 +17,21 @@
  * under the License.
  */
 
-package org.apache.cloudstack.coffee;
+package org.apache.cloudstack.api;
 
-import com.cloud.utils.component.PluggableService;
-import org.apache.cloudstack.api.command.ListCoffeeCmd;
 import org.apache.cloudstack.api.command.CreateCoffeeCmd;
-import org.apache.cloudstack.api.command.UpdateCoffeeCmd;
+import org.apache.cloudstack.api.command.ListCoffeeCmd;
 import org.apache.cloudstack.api.command.RemoveCoffeeCmd;
+import org.apache.cloudstack.api.command.UpdateCoffeeCmd;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class CoffeeService implements PluggableService {
+public interface CoffeeManager {
+    Coffee createCoffee(CreateCoffeeCmd cmd);
 
-    @Override
-    public List<Class<?>> getCommands() {
-        List<Class<?>> cmdList = new ArrayList<>();
-        cmdList.add(CreateCoffeeCmd.class);
-        cmdList.add(ListCoffeeCmd.class);
-        cmdList.add(UpdateCoffeeCmd.class);
-        cmdList.add(RemoveCoffeeCmd.class);
-        return cmdList;
-    }
+    List<Coffee> listCoffees(ListCoffeeCmd cmd);
+
+    Coffee updateCoffee(UpdateCoffeeCmd cmd);
+
+    boolean removeCoffee(RemoveCoffeeCmd cmd);
 }

@@ -21,5 +21,7 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
                            http://www.springframework.org/schema/beans/spring-beans.xsd">
 
-    <bean id="coffeeService" class="org.apache.cloudstack.coffee.CoffeeService"/>
+    <!-- CoffeeManager bean - manages coffee order lifecycle -->
+    <bean id="coffeeManager" class="org.apache.cloudstack.feature.CoffeeManagerImpl" />
+
 </beans>
