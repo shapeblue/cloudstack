@@ -21,6 +21,9 @@ package org.apache.cloudstack.feature;
 
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.component.PluggableService;
+import org.apache.cloudstack.managed.context.ManagedContextRunnable;
+import org.apache.cloudstack.poll.BackgroundPollManager;
+import org.apache.cloudstack.poll.BackgroundPollTask;
 import org.apache.cloudstack.api.Coffee;
 import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.command.CreateCoffeeCmd;
@@ -32,6 +35,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 
+import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,12 +45,25 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
 
     private static final Logger s_logger = LogManager.getLogger(CoffeeManagerImpl.class);
 
+    @Inject
+    private BackgroundPollManager backgroundPollManager;
+
     private static final ConfigKey<Long> CoffeeTTLInterval = new ConfigKey<Long>(
             "Advanced",
             Long.class,
             "coffee.ttl.interval",
             "600",
             "The max time in seconds after which coffee becomes stale.",
+            true,
+            ConfigKey.Scope.Zone
+    );
+
+    private static final ConfigKey<Long> CoffeeGCInterval = new ConfigKey<Long>(
+            "Advanced",
+            Long.class,
+            "coffee.gc.interval",
+            "300",
+            "The interval in seconds at which the coffee garbage collection task runs.",
             true,
             ConfigKey.Scope.Zone
     );
@@ -91,10 +108,41 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
         public void setState(State state) { this.state = state; }
     }
 
+    private static final class CoffeeGCTask extends ManagedContextRunnable implements BackgroundPollTask {
+        private CoffeeManager coffeeManager;
+
+        private CoffeeGCTask(CoffeeManager coffeeManager) {
+            this.coffeeManager = coffeeManager;
+        }
+
+        @Override
+        protected void runInContext() {
+            try {
+                if (s_logger.isTraceEnabled()) {
+                    s_logger.trace("Coffee GC task is running...");
+                }
+
+                final Long ttl = CoffeeTTLInterval.value();
+
+                s_logger.info("Coffee GC task executed. TTL: " + ttl + " seconds");
+
+            } catch (final Throwable t) {
+                s_logger.error("Error trying to run Coffee GC task", t);
+            }
+        }
+
+        @Override
+        public Long getDelay() {
+            return CoffeeGCInterval.value() * 1000L;
+        }
+    }
+
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
         super.configure(name, params);
         s_logger.info("CoffeeManager is being configured");
+        backgroundPollManager.submitTask(new CoffeeGCTask(this));
+        s_logger.info("Coffee GC background task has been scheduled");
         return true;
     }
 
@@ -128,7 +176,8 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey[]{
-                CoffeeTTLInterval
+                CoffeeTTLInterval,
+                CoffeeGCInterval
         };
     }
 
