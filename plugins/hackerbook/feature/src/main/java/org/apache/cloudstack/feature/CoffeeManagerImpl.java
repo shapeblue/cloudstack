@@ -27,6 +27,8 @@ import org.apache.cloudstack.api.command.CreateCoffeeCmd;
 import org.apache.cloudstack.api.command.ListCoffeeCmd;
 import org.apache.cloudstack.api.command.RemoveCoffeeCmd;
 import org.apache.cloudstack.api.command.UpdateCoffeeCmd;
+import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 
@@ -35,9 +37,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, PluggableService {
+public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Configurable, PluggableService {
 
     private static final Logger s_logger = LogManager.getLogger(CoffeeManagerImpl.class);
+
+    private static final ConfigKey<Long> CoffeeTTLInterval = new ConfigKey<Long>(
+            "Advanced",
+            Long.class,
+            "coffee.ttl.interval",
+            "600",
+            "The max time in seconds after which coffee becomes stale.",
+            true,
+            ConfigKey.Scope.Zone
+    );
 
     private static class HardcodedCoffee implements Coffee {
         private final long id;
@@ -106,6 +118,18 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Plu
         cmdList.add(UpdateCoffeeCmd.class);
         cmdList.add(RemoveCoffeeCmd.class);
         return cmdList;
+    }
+
+    @Override
+    public String getConfigComponentName() {
+        return CoffeeManager.class.getSimpleName();
+    }
+
+    @Override
+    public ConfigKey<?>[] getConfigKeys() {
+        return new ConfigKey[]{
+                CoffeeTTLInterval
+        };
     }
 
     @Override
