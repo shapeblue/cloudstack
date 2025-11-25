@@ -37,7 +37,7 @@ import java.util.Map;
 
 public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, PluggableService {
 
-    private static final Logger LOGGER = LogManager.getLogger(CoffeeManagerImpl.class);
+    private static final Logger s_logger = LogManager.getLogger(CoffeeManagerImpl.class);
 
     private static class HardcodedCoffee implements Coffee {
         private final long id;
@@ -82,19 +82,19 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Plu
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
         super.configure(name, params);
-        LOGGER.info("CoffeeManager is being configured");
+        s_logger.info("CoffeeManager is being configured");
         return true;
     }
 
     @Override
     public boolean start() {
-        LOGGER.info("CoffeeManager is starting");
+        s_logger.info("CoffeeManager is starting");
         return true;
     }
 
     @Override
     public boolean stop() {
-        LOGGER.info("CoffeeManager is stopping");
+        s_logger.info("CoffeeManager is stopping");
         return true;
     }
 
@@ -110,7 +110,7 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Plu
 
     @Override
     public Coffee createCoffee(CreateCoffeeCmd cmd) {
-        LOGGER.info("Creating coffee: " + cmd.getName());
+        s_logger.info("Creating coffee: " + cmd.getName());
         Coffee coffee = new HardcodedCoffee(
                 3L,
                 "fake-uuid-3",
@@ -120,13 +120,13 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Plu
                 Coffee.State.Created
         );
 
-        LOGGER.debug("Created coffee with ID: " + coffee.getId());
+        s_logger.debug("Created coffee with ID: " + coffee.getId());
         return coffee;
     }
 
     @Override
     public List<Coffee> listCoffees(ListCoffeeCmd cmd) {
-        LOGGER.info("Listing coffees");
+        s_logger.info("Listing coffees");
         List<Coffee> coffees = new ArrayList<>();
 
         coffees.add(new HardcodedCoffee(1L, "uuid-1", "Espresso",
@@ -161,13 +161,13 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Plu
             }
         }
 
-        LOGGER.debug("Returning " + filtered.size() + " coffees");
+        s_logger.debug("Returning " + filtered.size() + " coffees");
         return filtered;
     }
 
     @Override
     public Coffee updateCoffee(UpdateCoffeeCmd cmd) {
-        LOGGER.info("Updating coffee with ID: " + cmd.getId());
+        s_logger.info("Updating coffee with ID: " + cmd.getId());
 
         HardcodedCoffee coffee = new HardcodedCoffee(
                 Long.parseLong(cmd.getId()),
@@ -178,16 +178,16 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Plu
                 Coffee.State.Created
         );
 
-        LOGGER.debug("Updated coffee: " + coffee.getName());
+        s_logger.debug("Updated coffee: " + coffee.getName());
         return coffee;
     }
 
     @Override
     public boolean removeCoffee(RemoveCoffeeCmd cmd) {
         if (cmd.getId() != null) {
-            LOGGER.info("Removing coffee with ID: " + cmd.getId());
+            s_logger.info("Removing coffee with ID: " + cmd.getId());
         } else if (cmd.getIds() != null) {
-            LOGGER.info("Removing " + cmd.getIds().size() + " coffees");
+            s_logger.info("Removing " + cmd.getIds().size() + " coffees");
         }
 
         return true;
