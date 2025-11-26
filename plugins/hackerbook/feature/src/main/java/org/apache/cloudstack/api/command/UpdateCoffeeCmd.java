@@ -46,10 +46,10 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
     private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
-            type = CommandType.STRING,
+            type = CommandType.UUID,
             required = true,
             description = "the ID of the coffee order")
-    private String id;
+    private Long id;
 
     @Parameter(name = "size",
             type = CommandType.STRING,
@@ -94,7 +94,7 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 

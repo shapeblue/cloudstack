@@ -48,10 +48,10 @@ public class ListCoffeeCmd extends BaseListCmd {
     private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
-            type = CommandType.STRING,
+            type = CommandType.UUID,
             required = false,
             description = "the ID of the coffee order")
-    private String id;
+    private Long id;
 
     @Parameter(name = "offering",
             type = CommandType.STRING,
@@ -98,7 +98,7 @@ public class ListCoffeeCmd extends BaseListCmd {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 

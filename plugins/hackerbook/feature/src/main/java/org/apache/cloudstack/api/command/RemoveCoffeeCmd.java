@@ -45,10 +45,10 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
     private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
-            type = CommandType.STRING,
+            type = CommandType.UUID,
             required = false,
             description = "the ID of the coffee order to remove")
-    private String id;
+    private Long id;
 
     @Parameter(name = "ids",
             type = CommandType.LIST,
@@ -101,7 +101,7 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
