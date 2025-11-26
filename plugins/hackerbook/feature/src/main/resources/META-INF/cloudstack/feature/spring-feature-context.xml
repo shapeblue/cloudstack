@@ -21,4 +21,5 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
                            http://www.springframework.org/schema/beans/spring-beans.xsd">
     <bean id="coffeeManager" class="org.apache.cloudstack.feature.CoffeeManagerImpl" />
+    <bean id="coffeeDao" class="org.apache.cloudstack.feature.dao.CoffeeDaoImpl" />
 </beans>
