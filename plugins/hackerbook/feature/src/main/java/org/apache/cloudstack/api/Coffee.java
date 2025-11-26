@@ -43,7 +43,5 @@ public interface Coffee extends InternalIdentity, Identity {
     long getId();
     String getUuid();
     String getName();
-    Offering getOffering();
-    Size getSize();
     State getState();
 }
