@@ -85,6 +85,16 @@ public class CoffeeVO implements Coffee {
     }
 
     @Override
+    public Offering getOffering() {
+        return null;
+    }
+
+    @Override
+    public Size getSize() {
+        return null;
+    }
+
+    @Override
     public State getState() {
         return state;
     }
