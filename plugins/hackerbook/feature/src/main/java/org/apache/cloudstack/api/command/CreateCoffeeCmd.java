@@ -32,7 +32,7 @@ import javax.inject.Inject;
 import java.util.Map;
 
 @APICommand(
-        name = "createCoffee",
+        name = CreateCoffeeCmd.APINAME,
         description = "Creates a new coffee order",
         responseObject = CoffeeResponse.class,
         since = "4.23.0.0",
@@ -41,9 +41,14 @@ import java.util.Map;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
+    public static final String APINAME = "createCoffee";
 
     @Inject
     private CoffeeManager coffeeManager;
+
+    /////////////////////////////////////////////////////
+    //////////////// API parameters /////////////////////
+    /////////////////////////////////////////////////////
 
     @Parameter(name = ApiConstants.NAME,
             type = CommandType.STRING,
@@ -71,6 +76,22 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
 
     private Coffee coffee;
 
+    /////////////////////////////////////////////////////
+    /////////////////// Accessors ///////////////////////
+    /////////////////////////////////////////////////////
+
+    public String getName() {
+        return name;
+    }
+
+    public String getOffering() {
+        return offering;
+    }
+
+    public String getSize() {
+        return size;
+    }
+
     @Override
     public void create() {
         coffee = coffeeManager.createCoffee(this);
@@ -80,6 +101,10 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
             setEntityUuid(coffee.getUuid());
         }
     }
+
+    /////////////////////////////////////////////////////
+    /////////////// API Implementation///////////////////
+    /////////////////////////////////////////////////////
 
     @Override
     public void execute() {
@@ -108,21 +133,5 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
     @Override
     public long getEntityOwnerId() {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getOffering() {
-        return offering;
-    }
-
-    public String getSize() {
-        return size;
-    }
-
-    public Map<String, String> getDetails() {
-        return details;
     }
 }

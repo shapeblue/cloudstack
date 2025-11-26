@@ -40,8 +40,6 @@ public interface Coffee extends InternalIdentity, Identity {
         Brewed
     }
 
-    long getId();
-    String getUuid();
     String getName();
     Offering getOffering();
     Size getSize();

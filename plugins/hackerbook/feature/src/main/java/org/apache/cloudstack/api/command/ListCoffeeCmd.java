@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @APICommand(
-        name = "listCoffees",
+        name = ListCoffeeCmd.APINAME,
         description = "Lists all coffees with optional filters",
         responseObject = CoffeeResponse.class,
         since = "4.23.0.0",
@@ -43,9 +43,14 @@ import java.util.List;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class ListCoffeeCmd extends BaseListCmd {
+    public static final String APINAME = "listCoffees";
 
     @Inject
     private CoffeeManager coffeeManager;
+
+    /////////////////////////////////////////////////////
+    //////////////// API parameters /////////////////////
+    /////////////////////////////////////////////////////
 
     @Parameter(name = ApiConstants.ID,
             type = CommandType.LONG,
@@ -65,18 +70,25 @@ public class ListCoffeeCmd extends BaseListCmd {
             description = "size of coffee (SMALL, MEDIUM, LARGE)")
     private String size;
 
-    @Override
-    public void execute() {
-        List<Coffee> coffees = coffeeManager.listCoffees(this);
+    /////////////////////////////////////////////////////
+    /////////////////// Accessors ///////////////////////
+    /////////////////////////////////////////////////////
 
-        List<CoffeeResponse> responseList = getCoffeeResponses(coffees);
-
-        ListResponse<CoffeeResponse> listResponse = new ListResponse<>();
-        listResponse.setResponses(responseList, responseList.size());
-        listResponse.setResponseName(getCommandName());
-        listResponse.setObjectName("coffee");
-        setResponseObject(listResponse);
+    public Long getId() {
+        return id;
     }
+
+    public String getOffering() {
+        return offering;
+    }
+
+    public String getSize() {
+        return size;
+    }
+
+    /////////////////////////////////////////////////////
+    /////////////// API Implementation///////////////////
+    /////////////////////////////////////////////////////
 
     private static List<CoffeeResponse> getCoffeeResponses(List<Coffee> coffees) {
         List<CoffeeResponse> responseList = new ArrayList<>();
@@ -94,19 +106,20 @@ public class ListCoffeeCmd extends BaseListCmd {
     }
 
     @Override
+    public void execute() {
+        List<Coffee> coffees = coffeeManager.listCoffees(this);
+
+        List<CoffeeResponse> responseList = getCoffeeResponses(coffees);
+
+        ListResponse<CoffeeResponse> listResponse = new ListResponse<>();
+        listResponse.setResponses(responseList, responseList.size());
+        listResponse.setResponseName(getCommandName());
+        listResponse.setObjectName("coffee");
+        setResponseObject(listResponse);
+    }
+
+    @Override
     public long getEntityOwnerId() {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getOffering() {
-        return offering;
-    }
-
-    public String getSize() {
-        return size;
     }
 }

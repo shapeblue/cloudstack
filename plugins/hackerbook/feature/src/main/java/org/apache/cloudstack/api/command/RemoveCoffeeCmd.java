@@ -31,7 +31,7 @@ import javax.inject.Inject;
 import java.util.List;
 
 @APICommand(
-        name = "removeCoffee",
+        name = RemoveCoffeeCmd.APINAME,
         description = "Removes a coffee order or multiple coffee orders",
         responseObject = SuccessResponse.class,
         since = "4.23.0.0",
@@ -40,9 +40,14 @@ import java.util.List;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class RemoveCoffeeCmd extends BaseAsyncCmd {
+    public static final String APINAME = "removeCoffee";
 
     @Inject
     private CoffeeManager coffeeManager;
+
+    /////////////////////////////////////////////////////
+    //////////////// API parameters /////////////////////
+    /////////////////////////////////////////////////////
 
     @Parameter(name = ApiConstants.ID,
             type = CommandType.LONG,
@@ -56,6 +61,22 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
             required = false,
             description = "the IDs of coffee orders to remove")
     private List<String> ids;
+
+    /////////////////////////////////////////////////////
+    /////////////////// Accessors ///////////////////////
+    /////////////////////////////////////////////////////
+
+    public Long getId() {
+        return id;
+    }
+
+    public List<String> getIds() {
+        return ids;
+    }
+
+    /////////////////////////////////////////////////////
+    /////////////// API Implementation///////////////////
+    /////////////////////////////////////////////////////
 
     @Override
     public void execute() {
@@ -99,13 +120,5 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
     @Override
     public long getEntityOwnerId() {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public List<String> getIds() {
-        return ids;
     }
 }

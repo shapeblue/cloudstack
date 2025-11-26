@@ -32,7 +32,7 @@ import javax.inject.Inject;
 import java.util.Map;
 
 @APICommand(
-        name = "updateCoffee",
+        name = UpdateCoffeeCmd.APINAME,
         description = "Updates an existing coffee order",
         responseObject = CoffeeResponse.class,
         since = "4.23.0.0",
@@ -41,9 +41,14 @@ import java.util.Map;
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}
 )
 public class UpdateCoffeeCmd extends BaseAsyncCmd {
+    public static final String APINAME = "updateCoffee";
 
     @Inject
     private CoffeeManager coffeeManager;
+
+    /////////////////////////////////////////////////////
+    //////////////// API parameters /////////////////////
+    /////////////////////////////////////////////////////
 
     @Parameter(name = ApiConstants.ID,
             type = CommandType.LONG,
@@ -62,6 +67,22 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
             required = false,
             description = "updated details for the coffee order")
     private Map<String, String> details;
+
+    /////////////////////////////////////////////////////
+    /////////////////// Accessors ///////////////////////
+    /////////////////////////////////////////////////////
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getSize() {
+        return size;
+    }
+
+    /////////////////////////////////////////////////////
+    /////////////// API Implementation///////////////////
+    /////////////////////////////////////////////////////
 
     @Override
     public void execute() {
@@ -92,17 +113,5 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
     @Override
     public long getEntityOwnerId() {
         return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getSize() {
-        return size;
-    }
-
-    public Map<String, String> getDetails() {
-        return details;
     }
 }
