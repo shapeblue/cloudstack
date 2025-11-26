@@ -166,34 +166,41 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
 
         List<CoffeeVO> coffees = coffeeDao.listAll();
 
-        String id = cmd.getId();
+        Long id = cmd.getId();
+        String offering = cmd.getOffering();
+        String size = cmd.getSize();
 
-        List<Coffee> filtered = new ArrayList<>();
+        List<Coffee> filteredCoffeeList = new ArrayList<>();
+
         for (CoffeeVO coffee : coffees) {
-            if (coffee.getRemoved() != null) {
-                continue;
+            boolean isCoffeeFound = true;
+
+            if (id != null && coffee.getId() != id) {
+                isCoffeeFound = false;
             }
 
-            boolean match = true;
-
-            if (id != null && coffee.getId() != Long.parseLong(id)) {
-                match = false;
+            if (offering != null && !coffee.getOffering().name().equalsIgnoreCase(offering)) {
+                isCoffeeFound = false;
             }
 
-            if (match) {
-                filtered.add(coffee);
+            if (size != null && !coffee.getSize().name().equalsIgnoreCase(size)) {
+                isCoffeeFound = false;
+            }
+
+            if (isCoffeeFound) {
+                filteredCoffeeList.add(coffee);
             }
         }
 
-        s_logger.debug("Returning " + filtered.size() + " coffees");
-        return filtered;
+        s_logger.debug("Returning " + filteredCoffeeList.size() + " coffees");
+        return filteredCoffeeList;
     }
 
     @Override
     public Coffee updateCoffee(UpdateCoffeeCmd cmd) {
         s_logger.info("Updating coffee with ID: " + cmd.getId());
 
-        long id = Long.parseLong(cmd.getId());
+        long id = cmd.getId();
         CoffeeVO coffee = coffeeDao.findById(id);
 
         if (coffee == null) {
@@ -201,7 +208,7 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
         }
 
         if (cmd.getSize() != null) {
-            s_logger.debug("Size update requested but not yet supported in minimal schema");
+            coffee.setSize(Coffee.Size.valueOf(cmd.getSize()));
         }
 
         coffeeDao.update(id, coffee);
@@ -214,7 +221,7 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
     public boolean removeCoffee(RemoveCoffeeCmd cmd) {
         if (cmd.getId() != null) {
             s_logger.info("Removing coffee with ID: " + cmd.getId());
-            long id = Long.parseLong(cmd.getId());
+            long id = cmd.getId();
 
             boolean result = coffeeDao.remove(id);
 
