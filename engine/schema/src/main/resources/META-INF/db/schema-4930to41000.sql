@@ -255,3 +255,19 @@ CREATE TABLE IF NOT EXISTS `cloud`.`firewall_rules_dcidrs`(
   KEY `fk_firewall_dcidrs_firewall_rules` (`firewall_rule_id`),
   CONSTRAINT `fk_firewall_dcidrs_firewall_rules` FOREIGN KEY (`firewall_rule_id`) REFERENCES `firewall_rules` (`id`) ON DELETE CASCADE
 )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Coffee table for HackerBook training
+CREATE TABLE IF NOT EXISTS `cloud`.`coffee` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `uuid` varchar(40) UNIQUE,
+  `name` varchar(255) NOT NULL,
+  `state` varchar(40) NOT NULL,
+  `size` varchar(40) NOT NULL,
+  `offering` varchar(40) NOT NULL,
+  `account_id` bigint unsigned NOT NULL,
+  `created` datetime NOT NULL COMMENT 'date of creation',
+  `removed` datetime COMMENT 'date of removal',
+  PRIMARY KEY (`id`),
+  KEY (`uuid`),
+  KEY `i_coffee` (`name`, `account_id`, `created`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
