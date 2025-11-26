@@ -28,7 +28,6 @@ import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.acl.RoleType;
-import org.jetbrains.annotations.NotNull;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -79,7 +78,6 @@ public class ListCoffeeCmd extends BaseListCmd {
         setResponseObject(listResponse);
     }
 
-    @NotNull
     private static List<CoffeeResponse> getCoffeeResponses(List<Coffee> coffees) {
         List<CoffeeResponse> responseList = new ArrayList<>();
         for (Coffee coffee : coffees) {
