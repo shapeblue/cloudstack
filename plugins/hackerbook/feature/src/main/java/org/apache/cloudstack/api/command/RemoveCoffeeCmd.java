@@ -45,7 +45,7 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
     private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
-            type = CommandType.UUID,
+            type = CommandType.LONG,
             required = false,
             description = "the ID of the coffee order to remove")
     private Long id;

@@ -48,7 +48,7 @@ public class ListCoffeeCmd extends BaseListCmd {
     private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
-            type = CommandType.UUID,
+            type = CommandType.LONG,
             required = false,
             description = "the ID of the coffee order")
     private Long id;

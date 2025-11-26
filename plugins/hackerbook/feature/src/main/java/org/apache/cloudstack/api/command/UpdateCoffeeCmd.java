@@ -46,7 +46,7 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
     private CoffeeManager coffeeManager;
 
     @Parameter(name = ApiConstants.ID,
-            type = CommandType.UUID,
+            type = CommandType.LONG,
             required = true,
             description = "the ID of the coffee order")
     private Long id;
