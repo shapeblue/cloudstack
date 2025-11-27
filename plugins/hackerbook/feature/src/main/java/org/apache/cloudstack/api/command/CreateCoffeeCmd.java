@@ -71,12 +71,6 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
             description = "size of coffee (SMALL, MEDIUM, LARGE)")
     private String size;
 
-    @Parameter(name = "details",
-            type = CommandType.MAP,
-            required = false,
-            description = "details for the coffee order")
-    private Map<String, String> details;
-
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////

@@ -63,12 +63,6 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
             description = "new size of coffee (SMALL, MEDIUM, LARGE)")
     private String size;
 
-    @Parameter(name = "details",
-            type = CommandType.MAP,
-            required = false,
-            description = "updated details for the coffee order")
-    private Map<String, String> details;
-
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
     /////////////////////////////////////////////////////
