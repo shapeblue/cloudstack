@@ -31,6 +31,7 @@ import org.apache.cloudstack.api.command.CreateCoffeeCmd;
 import org.apache.cloudstack.api.command.ListCoffeeCmd;
 import org.apache.cloudstack.api.command.RemoveCoffeeCmd;
 import org.apache.cloudstack.api.command.UpdateCoffeeCmd;
+import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.feature.dao.CoffeeDao;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.ConfigKey;
@@ -44,14 +45,13 @@ import java.util.List;
 import java.util.Map;
 
 public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Configurable, PluggableService {
-
-    private static final Logger s_logger = LogManager.getLogger(CoffeeManagerImpl.class);
-
-    @Inject
-    private CoffeeDao coffeeDao;
+    protected Logger logger = LogManager.getLogger(getClass());
 
     @Inject
-    private BackgroundPollManager backgroundPollManager;
+    private CoffeeDao _coffeeDao;
+
+    @Inject
+    private BackgroundPollManager _backgroundPollManager;
 
     private static final ConfigKey<Long> CoffeeTTLInterval = new ConfigKey<Long>(
             "Advanced",
@@ -83,16 +83,16 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
         @Override
         protected void runInContext() {
             try {
-                if (s_logger.isTraceEnabled()) {
-                    s_logger.trace("Coffee GC task is running...");
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Coffee GC task is running...");
                 }
 
                 final Long ttl = CoffeeTTLInterval.value();
 
-                s_logger.info("Coffee GC task executed. TTL: " + ttl + " seconds");
+                logger.info("Coffee GC task executed. TTL: " + ttl + " seconds");
 
             } catch (final Throwable t) {
-                s_logger.error("Error trying to run Coffee GC task", t);
+                logger.error("Error trying to run Coffee GC task", t);
             }
         }
 
@@ -105,21 +105,21 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
     @Override
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
         super.configure(name, params);
-        s_logger.info("CoffeeManager is being configured");
-        backgroundPollManager.submitTask(new CoffeeGCTask(this));
-        s_logger.info("Coffee GC background task has been scheduled");
+        logger.info("CoffeeManager is being configured");
+        _backgroundPollManager.submitTask(new CoffeeGCTask(this));
+        logger.info("Coffee GC background task has been scheduled");
         return true;
     }
 
     @Override
     public boolean start() {
-        s_logger.info("CoffeeManager is starting");
+        logger.info("CoffeeManager is starting");
         return true;
     }
 
     @Override
     public boolean stop() {
-        s_logger.info("CoffeeManager is stopping");
+        logger.info("CoffeeManager is stopping");
         return true;
     }
 
@@ -147,24 +147,45 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
     }
 
     @Override
+    public CoffeeResponse createCoffeeResponse(Coffee coffee) {
+        CoffeeResponse response = new CoffeeResponse();
+        response.setId(coffee.getUuid());
+        response.setName(coffee.getName());
+        response.setOffering(coffee.getOffering().name());
+        response.setSize(coffee.getSize().name());
+        response.setState(coffee.getState().name());
+        response.setObjectName("coffee");
+        return response;
+    }
+
+    @Override
+    public List<CoffeeResponse> createCoffeeResponses(List<Coffee> coffees) {
+        List<CoffeeResponse> responses = new ArrayList<>();
+        for (Coffee coffee : coffees) {
+            responses.add(createCoffeeResponse(coffee));
+        }
+        return responses;
+    }
+
+    @Override
     public Coffee createCoffee(CreateCoffeeCmd cmd) {
-        s_logger.info("Creating coffee: " + cmd.getName());
+        logger.info("Creating coffee: " + cmd.getName());
 
         Coffee.Offering offering = Coffee.Offering.valueOf(cmd.getOffering());
         Coffee.Size size = Coffee.Size.valueOf(cmd.getSize());
 
         CoffeeVO coffee = new CoffeeVO(cmd.getName(), offering, size, 1L);
-        coffee = coffeeDao.persist(coffee);
+        coffee = _coffeeDao.persist(coffee);
 
-        s_logger.debug("Created coffee with ID: " + coffee.getId() + ", UUID: " + coffee.getUuid());
+        logger.debug("Created coffee with ID: " + coffee.getId() + ", UUID: " + coffee.getUuid());
         return coffee;
     }
 
     @Override
     public List<Coffee> listCoffees(ListCoffeeCmd cmd) {
-        s_logger.info("Listing coffees");
+        logger.info("Listing coffees");
 
-        List<CoffeeVO> coffees = coffeeDao.listAll();
+        List<CoffeeVO> coffees = _coffeeDao.listAll();
 
         Long id = cmd.getId();
         String offering = cmd.getOffering();
@@ -192,16 +213,16 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
             }
         }
 
-        s_logger.debug("Returning " + filteredCoffeeList.size() + " coffees");
+        logger.debug("Returning " + filteredCoffeeList.size() + " coffees");
         return filteredCoffeeList;
     }
 
     @Override
     public Coffee updateCoffee(UpdateCoffeeCmd cmd) {
-        s_logger.info("Updating coffee with ID: " + cmd.getId());
+        logger.info("Updating coffee with ID: " + cmd.getId());
 
         long id = cmd.getId();
-        CoffeeVO coffee = coffeeDao.findById(id);
+        CoffeeVO coffee = _coffeeDao.findById(id);
 
         if (coffee == null) {
             throw new CloudRuntimeException("Coffee with ID " + id + " not found");
@@ -211,19 +232,19 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
             coffee.setSize(Coffee.Size.valueOf(cmd.getSize()));
         }
 
-        coffeeDao.update(id, coffee);
+        _coffeeDao.update(id, coffee);
 
-        s_logger.debug("Updated coffee: " + coffee.getName());
+        logger.debug("Updated coffee: " + coffee.getName());
         return coffee;
     }
 
     @Override
     public boolean removeCoffee(RemoveCoffeeCmd cmd) {
         if (cmd.getId() != null) {
-            s_logger.info("Removing coffee with ID: " + cmd.getId());
+            logger.info("Removing coffee with ID: " + cmd.getId());
             long id = cmd.getId();
 
-            boolean result = coffeeDao.remove(id);
+            boolean result = _coffeeDao.remove(id);
 
             if (!result) {
                 throw new CloudRuntimeException("Failed to remove coffee with ID " + id);
@@ -231,9 +252,9 @@ public class CoffeeManagerImpl extends ManagerBase implements CoffeeManager, Con
 
             return true;
         } else if (cmd.getIds() != null) {
-            s_logger.info("Removing " + cmd.getIds().size() + " coffees");
-            for (String id : cmd.getIds()) {
-                coffeeDao.remove(Long.parseLong(id));
+            logger.info("Removing " + cmd.getIds().size() + " coffees");
+            for (Long id : cmd.getIds()) {
+                _coffeeDao.remove(id);
             }
             return true;
         }

@@ -27,6 +27,7 @@ import org.apache.cloudstack.api.Coffee;
 import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -61,7 +62,7 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
     @Parameter(name = "offering",
             type = CommandType.STRING,
             required = true,
-            description = "type of coffee (Espresso, Cappuccino, Mocha, Latte)")
+            description = "type of coffee (ESPRESSO, CAPPUCCINO, MOCHA, LATTE)")
     private String offering;
 
     @Parameter(name = "size",
@@ -108,15 +109,8 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
 
     @Override
     public void execute() {
-        CoffeeResponse response = new CoffeeResponse();
-        response.setId(coffee.getUuid());
-        response.setName(coffee.getName());
-        response.setOffering(coffee.getOffering().name());
-        response.setSize(coffee.getSize().name());
-        response.setState(coffee.getState().name());
-        response.setObjectName("coffee");
+        CoffeeResponse response = coffeeManager.createCoffeeResponse(coffee);
         response.setResponseName(getCommandName());
-
         setResponseObject(response);
     }
 
@@ -132,6 +126,6 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
 
     @Override
     public long getEntityOwnerId() {
-        return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
+        return CallContext.current().getCallingAccountId();
     }
 }

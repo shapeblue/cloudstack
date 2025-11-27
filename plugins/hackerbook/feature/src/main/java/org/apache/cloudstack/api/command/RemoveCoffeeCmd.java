@@ -26,6 +26,7 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
 import java.util.List;
@@ -57,10 +58,10 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
 
     @Parameter(name = "ids",
             type = CommandType.LIST,
-            collectionType = CommandType.STRING,
+            collectionType = CommandType.LONG,
             required = false,
             description = "the IDs of coffee orders to remove")
-    private List<String> ids;
+    private List<Long> ids;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
@@ -70,7 +71,7 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
         return id;
     }
 
-    public List<String> getIds() {
+    public List<Long> getIds() {
         return ids;
     }
 
@@ -119,6 +120,6 @@ public class RemoveCoffeeCmd extends BaseAsyncCmd {
 
     @Override
     public long getEntityOwnerId() {
-        return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
+        return CallContext.current().getCallingAccountId();
     }
 }

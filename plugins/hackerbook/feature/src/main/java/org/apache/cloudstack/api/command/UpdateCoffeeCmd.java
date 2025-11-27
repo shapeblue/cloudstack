@@ -27,6 +27,7 @@ import org.apache.cloudstack.api.Coffee;
 import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -87,16 +88,8 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
     @Override
     public void execute() {
         Coffee coffee = coffeeManager.updateCoffee(this);
-
-        CoffeeResponse response = new CoffeeResponse();
-        response.setId(coffee.getUuid());
-        response.setName(coffee.getName());
-        response.setOffering(coffee.getOffering().name());
-        response.setSize(coffee.getSize().name());
-        response.setState(coffee.getState().name());
-        response.setObjectName("coffee");
+        CoffeeResponse response = coffeeManager.createCoffeeResponse(coffee);
         response.setResponseName(getCommandName());
-
         setResponseObject(response);
     }
 
@@ -112,6 +105,6 @@ public class UpdateCoffeeCmd extends BaseAsyncCmd {
 
     @Override
     public long getEntityOwnerId() {
-        return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
+        return CallContext.current().getCallingAccountId();
     }
 }

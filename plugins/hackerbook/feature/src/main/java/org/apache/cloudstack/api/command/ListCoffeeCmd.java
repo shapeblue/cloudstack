@@ -28,9 +28,9 @@ import org.apache.cloudstack.api.CoffeeManager;
 import org.apache.cloudstack.api.response.CoffeeResponse;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.acl.RoleType;
+import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
-import java.util.ArrayList;
 import java.util.List;
 
 @APICommand(
@@ -61,7 +61,7 @@ public class ListCoffeeCmd extends BaseListCmd {
     @Parameter(name = "offering",
             type = CommandType.STRING,
             required = false,
-            description = "type of coffee (Espresso, Cappuccino, Mocha, Latte)")
+            description = "type of coffee (ESPRESSO, CAPPUCCINO, MOCHA, LATTE)")
     private String offering;
 
     @Parameter(name = "size",
@@ -90,36 +90,19 @@ public class ListCoffeeCmd extends BaseListCmd {
     /////////////// API Implementation///////////////////
     /////////////////////////////////////////////////////
 
-    private static List<CoffeeResponse> getCoffeeResponses(List<Coffee> coffees) {
-        List<CoffeeResponse> responseList = new ArrayList<>();
-        for (Coffee coffee : coffees) {
-            CoffeeResponse response = new CoffeeResponse();
-            response.setId(coffee.getUuid());
-            response.setName(coffee.getName());
-            response.setOffering(coffee.getOffering().name());
-            response.setSize(coffee.getSize().name());
-            response.setState(coffee.getState().name());
-            response.setObjectName("coffee");
-            responseList.add(response);
-        }
-        return responseList;
-    }
-
     @Override
     public void execute() {
         List<Coffee> coffees = coffeeManager.listCoffees(this);
-
-        List<CoffeeResponse> responseList = getCoffeeResponses(coffees);
+        List<CoffeeResponse> responseList = coffeeManager.createCoffeeResponses(coffees);
 
         ListResponse<CoffeeResponse> listResponse = new ListResponse<>();
         listResponse.setResponses(responseList, responseList.size());
         listResponse.setResponseName(getCommandName());
-        listResponse.setObjectName("coffee");
         setResponseObject(listResponse);
     }
 
     @Override
     public long getEntityOwnerId() {
-        return com.cloud.user.Account.ACCOUNT_ID_SYSTEM;
+        return CallContext.current().getCallingAccountId();
     }
 }

@@ -19,29 +19,61 @@
 
 package org.apache.cloudstack.api;
 
+/**
+ * Represents a coffee order in the system.
+ * @since 4.23.0.0
+ */
 public interface Coffee extends InternalIdentity, Identity {
 
+    /**
+     * Size options for coffee orders.
+     */
     enum Size {
         SMALL,
         MEDIUM,
         LARGE
     }
 
+    /**
+     * Available coffee offerings/types.
+     */
     enum Offering {
-        Espresso,
-        Cappuccino,
-        Mocha,
-        Latte
+        ESPRESSO,
+        CAPPUCCINO,
+        MOCHA,
+        LATTE
     }
 
+    /**
+     * Lifecycle states for a coffee order.
+     */
     enum State {
-        Created,
-        Brewing,
-        Brewed
+        CREATED,
+        BREWING,
+        BREWED
     }
 
+    /**
+     * Returns the name of the coffee order.
+     * @return the coffee name
+     */
     String getName();
+
+    /**
+     * Returns the type of coffee ordered.
+     * @return the coffee offering type
+     */
     Offering getOffering();
+
+    /**
+     * Returns the size of the coffee order.
+     * @return the coffee size
+     */
     Size getSize();
+
+    /**
+     * Returns the current state of the coffee order.
+     * @return the coffee state
+     */
     State getState();
 }

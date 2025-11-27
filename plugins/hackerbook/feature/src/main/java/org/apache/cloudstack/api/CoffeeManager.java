@@ -23,6 +23,7 @@ import org.apache.cloudstack.api.command.CreateCoffeeCmd;
 import org.apache.cloudstack.api.command.ListCoffeeCmd;
 import org.apache.cloudstack.api.command.RemoveCoffeeCmd;
 import org.apache.cloudstack.api.command.UpdateCoffeeCmd;
+import org.apache.cloudstack.api.response.CoffeeResponse;
 
 import java.util.List;
 
@@ -34,4 +35,8 @@ public interface CoffeeManager {
     Coffee updateCoffee(UpdateCoffeeCmd cmd);
 
     boolean removeCoffee(RemoveCoffeeCmd cmd);
+
+    CoffeeResponse createCoffeeResponse(Coffee coffee);
+
+    List<CoffeeResponse> createCoffeeResponses(List<Coffee> coffees);
 }
