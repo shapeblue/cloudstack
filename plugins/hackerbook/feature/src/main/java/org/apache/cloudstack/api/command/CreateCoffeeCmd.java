@@ -30,7 +30,6 @@ import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
-import java.util.Map;
 
 @APICommand(
         name = CreateCoffeeCmd.APINAME,
