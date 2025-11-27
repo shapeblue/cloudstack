@@ -46,6 +46,8 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
     @Inject
     private CoffeeManager coffeeManager;
 
+    private Coffee coffee;
+
     /////////////////////////////////////////////////////
     //////////////// API parameters /////////////////////
     /////////////////////////////////////////////////////
@@ -73,8 +75,6 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
             required = false,
             description = "details for the coffee order")
     private Map<String, String> details;
-
-    private Coffee coffee;
 
     /////////////////////////////////////////////////////
     /////////////////// Accessors ///////////////////////
