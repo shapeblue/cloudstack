@@ -92,6 +92,10 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
         return size;
     }
 
+    /////////////////////////////////////////////////////
+    /////////////// API Implementation///////////////////
+    /////////////////////////////////////////////////////
+
     @Override
     public void create() {
         coffee = coffeeManager.createCoffee(this);
@@ -101,10 +105,6 @@ public class CreateCoffeeCmd extends BaseAsyncCreateCmd {
             setEntityUuid(coffee.getUuid());
         }
     }
-
-    /////////////////////////////////////////////////////
-    /////////////// API Implementation///////////////////
-    /////////////////////////////////////////////////////
 
     @Override
     public void execute() {
