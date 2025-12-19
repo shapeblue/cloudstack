@@ -48,14 +48,21 @@ import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.messagebus.MessageBus;
 import org.apache.cloudstack.test.utils.SpringUtils;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.mockito.ArgumentMatchers;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScan.Filter;
@@ -68,7 +75,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
 
-import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -88,41 +94,48 @@ import static org.mockito.Mockito.when;
 @ContextConfiguration(loader = AnnotationConfigContextLoader.class)
 public class AffinityGroupServiceImplTest {
 
-    @Inject
+    @Spy
+    @InjectMocks
     AffinityGroupServiceImpl _affinityService;
 
-    @Inject
+    @Mock
     AccountManager _acctMgr;
 
-    @Inject
+    @Mock
     AffinityGroupProcessor _processor;
 
-    @Inject
+    @Mock
     AffinityGroupDao _groupDao;
 
-    @Inject
+    @Mock
     UserVmDao _vmDao;
 
-    @Inject
+    @Mock
     AffinityGroupVMMapDao _affinityGroupVMMapDao;
 
-    @Inject
+    @Mock
+    AffinityGroupDomainMapDao _affinityGroupDomainMapDao;
+
+    @Mock
     AffinityGroupDao _affinityGroupDao;
 
-    @Inject
+    @Mock
     ActionEventUtils _eventUtils;
 
-    @Inject
+    @Mock
     AccountDao _accountDao;
 
-    @Inject
+    @Mock
     ProjectDao _projectDao;
 
-    @Inject
+    @Mock
     EventDao _eventDao;
 
-    @Inject
+    @Mock
     DedicatedResourceDao _dedicatedDao;
+
+    @Mock
+    MessageBus _messageBus;
 
     private static final long DOMAIN_ID = 5L;
     private static final long PROJECT_ID = 10L;
@@ -130,6 +143,7 @@ public class AffinityGroupServiceImplTest {
     private static final String AFFINITY_GROUP_NAME = "group1";
 
     private AccountVO acct;
+    private AutoCloseable mockHolder;
 
     @BeforeClass
     public static void setUpClass() throws ConfigurationException {
@@ -137,6 +151,7 @@ public class AffinityGroupServiceImplTest {
 
     @Before
     public void setUp() {
+        mockHolder = MockitoAnnotations.openMocks(this);
         ComponentContext.initComponentsLifeCycle();
         acct = new AccountVO(200L);
         acct.setType(Account.Type.NORMAL);
@@ -165,8 +180,9 @@ public class AffinityGroupServiceImplTest {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
         CallContext.unregister();
+        mockHolder.close();
     }
 
     @Test

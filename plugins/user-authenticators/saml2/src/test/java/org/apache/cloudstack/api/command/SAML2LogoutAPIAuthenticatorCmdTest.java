@@ -23,9 +23,9 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.security.cert.X509Certificate;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import org.apache.cloudstack.api.ApiServerService;
 import org.apache.cloudstack.api.auth.APIAuthenticationType;

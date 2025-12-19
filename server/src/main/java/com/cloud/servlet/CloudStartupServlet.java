@@ -19,9 +19,9 @@ package com.cloud.servlet;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
 
 import org.springframework.web.context.support.SpringBeanAutowiringSupport;
 

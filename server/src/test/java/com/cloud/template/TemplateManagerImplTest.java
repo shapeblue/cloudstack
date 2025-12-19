@@ -69,6 +69,7 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.UserVmDao;
 import com.cloud.vm.dao.VMInstanceDao;
+
 import org.apache.cloudstack.api.command.user.template.CreateTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.DeleteTemplateCmd;
 import org.apache.cloudstack.api.command.user.template.RegisterTemplateCmd;
@@ -104,12 +105,18 @@ import org.apache.cloudstack.storage.datastore.db.TemplateDataStoreVO;
 import org.apache.cloudstack.storage.heuristics.HeuristicRuleHelper;
 import org.apache.cloudstack.storage.template.VnfTemplateManager;
 import org.apache.cloudstack.test.utils.SpringUtils;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.springframework.context.annotation.Bean;
@@ -150,25 +157,26 @@ import static org.mockito.Mockito.when;
 @ContextConfiguration(loader = AnnotationConfigContextLoader.class)
 public class TemplateManagerImplTest {
 
-    @Inject
-    TemplateManagerImpl templateManager = new TemplateManagerImpl();
+    @Spy
+    @InjectMocks
+    TemplateManagerImpl templateManager;
 
-    @Inject
+    @Mock
     DataStoreManager dataStoreManager;
 
-    @Inject
+    @Mock
     VMTemplateDao vmTemplateDao;
 
-    @Inject
+    @Mock
     VMTemplatePoolDao vmTemplatePoolDao;
 
-    @Inject
+    @Mock
     TemplateDataStoreDao templateDataStoreDao;
 
     @Inject
     StoragePoolHostDao storagePoolHostDao;
 
-    @Inject
+    @Mock
     PrimaryDataStoreDao primaryDataStoreDao;
 
     @Inject
@@ -181,35 +189,35 @@ public class TemplateManagerImplTest {
     GuestOSDao guestOSDao;
 
     @Inject
-    VMTemplateDao tmpltDao;
-
-    @Inject
-    SnapshotDao snapshotDao;
-
-    @Inject
     VMTemplateDetailsDao tmpltDetailsDao;
 
     @Inject
     StorageStrategyFactory storageStrategyFactory;
 
-    @Inject
+    @Mock
     VMInstanceDao _vmInstanceDao;
 
-    @Inject
+    @Mock
     private VMTemplateDao _tmpltDao;
 
     @Inject
     HypervisorGuruManager _hvGuruMgr;
 
-    @Inject
+    @Mock
     AccountManager _accountMgr;
+
     @Inject
     VnfTemplateManager vnfTemplateManager;
     @Inject
     SnapshotJoinDao snapshotJoinDao;
 
-    @Inject
+    @Mock
+    SnapshotDao _snapshotDao;
+
+    @Mock
     HeuristicRuleHelper heuristicRuleHelperMock;
+
+    AutoCloseable mockHolder;
 
     public class CustomThreadPoolExecutor extends ThreadPoolExecutor {
         AtomicInteger ai = new AtomicInteger(0);
@@ -238,6 +246,7 @@ public class TemplateManagerImplTest {
 
     @Before
     public void setUp() {
+        mockHolder = MockitoAnnotations.openMocks(this);
         ComponentContext.initComponentsLifeCycle();
         AccountVO account = new AccountVO("admin", 1L, "networkDomain", Account.Type.NORMAL, "uuid");
         UserVO user = new UserVO(1, "testuser", "password", "firstname", "lastName", "email", "timezone", UUID.randomUUID().toString(), User.Source.UNKNOWN);
@@ -245,8 +254,9 @@ public class TemplateManagerImplTest {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception{
         CallContext.unregister();
+        mockHolder.close();
     }
 
     @Test(expected = InvalidParameterValueException.class)
@@ -305,13 +315,13 @@ public class TemplateManagerImplTest {
     @Test
     public void testPrepareTemplateIsSeeded() {
         VMTemplateVO mockTemplate = mock(VMTemplateVO.class);
-        when(mockTemplate.getId()).thenReturn(202l);
+        when(mockTemplate.getId()).thenReturn(202L);
 
         StoragePoolVO mockPool = mock(StoragePoolVO.class);
-        when(mockPool.getId()).thenReturn(2l);
+        when(mockPool.getId()).thenReturn(2L);
 
         PrimaryDataStore mockPrimaryDataStore = mock(PrimaryDataStore.class);
-        when(mockPrimaryDataStore.getId()).thenReturn(2l);
+        when(mockPrimaryDataStore.getId()).thenReturn(2L);
 
         VMTemplateStoragePoolVO mockTemplateStore = mock(VMTemplateStoragePoolVO.class);
         when(mockTemplateStore.getDownloadState()).thenReturn(VMTemplateStorageResourceAssoc.Status.DOWNLOADED);
@@ -319,6 +329,7 @@ public class TemplateManagerImplTest {
         when(dataStoreManager.getPrimaryDataStore(anyLong())).thenReturn(mockPrimaryDataStore);
         when(vmTemplateDao.findById(anyLong(), anyBoolean())).thenReturn(mockTemplate);
         when(vmTemplatePoolDao.findByPoolTemplate(anyLong(), anyLong(), nullable(String.class))).thenReturn(mockTemplateStore);
+        when(_tmpltDao.findById(202L)).thenReturn(mockTemplate);
 
         doNothing().when(mockTemplateStore).setMarkedForGC(anyBoolean());
 
@@ -329,7 +340,7 @@ public class TemplateManagerImplTest {
     @Test
     public void testPrepareTemplateNotDownloaded() {
         VMTemplateVO mockTemplate = mock(VMTemplateVO.class);
-        when(mockTemplate.getId()).thenReturn(202l);
+        when(mockTemplate.getId()).thenReturn(202L);
 
         StoragePoolVO mockPool = mock(StoragePoolVO.class);
         when(mockPool.getId()).thenReturn(2l);
@@ -342,6 +353,7 @@ public class TemplateManagerImplTest {
         when(vmTemplateDao.findById(anyLong(), anyBoolean())).thenReturn(mockTemplate);
         when(vmTemplatePoolDao.findByPoolTemplate(anyLong(), anyLong(), nullable(String.class))).thenReturn(null);
         when(templateDataStoreDao.findByTemplateZoneDownloadStatus(202l, 1l, VMTemplateStorageResourceAssoc.Status.DOWNLOADED)).thenReturn(null);
+        when(_tmpltDao.findById(202L)).thenReturn(mockTemplate);
 
         VMTemplateStoragePoolVO returnObject = templateManager.prepareTemplateForCreate(mockTemplate, (StoragePool) mockPrimaryDataStore);
         assertTrue("Test template is not ready", returnObject == null);
@@ -394,6 +406,7 @@ public class TemplateManagerImplTest {
         when(vmTemplateDao.findById(anyLong(), anyBoolean())).thenReturn(mockTemplate);
         when(vmTemplatePoolDao.findByPoolTemplate(anyLong(), anyLong(), nullable(String.class))).thenReturn(mockTemplateStore);
         when(primaryDataStoreDao.findById(anyLong())).thenReturn(mockPool);
+        when(_tmpltDao.findById(202L)).thenReturn(mockTemplate);
 
         doNothing().when(mockTemplateStore).setMarkedForGC(anyBoolean());
 
@@ -423,6 +436,7 @@ public class TemplateManagerImplTest {
         when(vmTemplateDao.findById(anyLong(), anyBoolean())).thenReturn(mockTemplate);
         when(vmTemplatePoolDao.findByPoolTemplate(anyLong(), anyLong(), nullable(String.class))).thenReturn(mockTemplateStore);
         when(primaryDataStoreDao.findById(anyLong())).thenReturn(mockPool);
+        when(_tmpltDao.findById(202L)).thenReturn(mockTemplate);
 
         doNothing().when(mockTemplateStore).setMarkedForGC(anyBoolean());
 
@@ -468,6 +482,7 @@ public class TemplateManagerImplTest {
         when(primaryDataStoreDao.findById(3l)).thenReturn(mockPool2);
         when(primaryDataStoreDao.findById(4l)).thenReturn(mockPool3);
         when(primaryDataStoreDao.listByStatus(StoragePoolStatus.Up)).thenReturn(pools);
+        when(_tmpltDao.findById(202L)).thenReturn(mockTemplate);
 
         doNothing().when(mockTemplateStore).setMarkedForGC(anyBoolean());
 
@@ -501,7 +516,7 @@ public class TemplateManagerImplTest {
         Account mockTemplateOwner = mock(Account.class);
 
         SnapshotVO mockSnapshot = mock(SnapshotVO.class);
-        when(snapshotDao.findById(anyLong())).thenReturn(mockSnapshot);
+        when(_snapshotDao.findById(anyLong())).thenReturn(mockSnapshot);
 
         when(mockSnapshot.getVolumeId()).thenReturn(1L);
         when(mockSnapshot.getState()).thenReturn(Snapshot.State.BackedUp);
@@ -513,14 +528,14 @@ public class TemplateManagerImplTest {
         GuestOSVO mockGuestOS = mock(GuestOSVO.class);
         when(guestOSDao.findById(anyLong())).thenReturn(mockGuestOS);
 
-        when(tmpltDao.getNextInSequence(eq(Long.class), eq("id"))).thenReturn(1L);
+        when(_tmpltDao.getNextInSequence(eq(Long.class), eq("id"))).thenReturn(1L);
 
         List<ImageStoreVO> mockRegionStores = new ArrayList<>();
         ImageStoreVO mockRegionStore = mock(ImageStoreVO.class);
         mockRegionStores.add(mockRegionStore);
         when(imgStoreDao.findRegionImageStores()).thenReturn(mockRegionStores);
 
-        when(tmpltDao.persist(any(VMTemplateVO.class))).thenAnswer(new Answer<VMTemplateVO>() {
+        when(_tmpltDao.persist(any(VMTemplateVO.class))).thenAnswer(new Answer<VMTemplateVO>() {
             @Override
             public VMTemplateVO answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();

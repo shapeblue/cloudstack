@@ -19,7 +19,6 @@
 
 package com.cloud.utils.component;
 
-import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +33,6 @@ import net.sf.cglib.proxy.NoOp;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
 
 import com.cloud.utils.Pair;
@@ -100,11 +98,6 @@ public class ComponentInstantiationPostProcessor implements InstantiationAwareBe
     @Override
     public boolean postProcessAfterInstantiation(Object bean, String beanName) throws BeansException {
         return true;
-    }
-
-    @Override
-    public PropertyValues postProcessPropertyValues(PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) throws BeansException {
-        return pvs;
     }
 
     protected class InterceptorDispatcher implements MethodInterceptor {

@@ -44,8 +44,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
+import org.mockito.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -74,38 +73,42 @@ import static org.mockito.Mockito.when;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(loader = AnnotationConfigContextLoader.class)
 public class NetworkACLManagerTest extends TestCase {
-    @Inject
+
+    @Spy
+    @InjectMocks
     NetworkACLManagerImpl _aclMgr;
 
-    @Inject
+    @Mock
     AccountManager _accountMgr;
-    @Inject
+    @Mock
     VpcManager _vpcMgr;
-    @Inject
+    @Mock
     NetworkACLDao _networkACLDao;
-    @Inject
+    @Mock
     NetworkACLItemDao _networkACLItemDao;
-    @Inject
+    @Mock
     NetworkDao _networkDao;
-    @Inject
+    @Mock
     NetworkOfferingDao networkOfferingDao;
-    @Inject
+    @Mock
     NetworkModel _networkModel;
-    @Inject
+    @Mock
     List<NetworkACLServiceProvider> _networkAclElements;
-    @Inject
+    @Mock
     VpcService _vpcSvc;
-    @Inject
+    @Mock
     VpcGatewayDao _vpcGatewayDao;
-    @Inject
+    @Mock
     private ResourceTagDao resourceTagDao;
 
     private NetworkACLVO acl;
     private NetworkACLItemVO aclItem;
+    private AutoCloseable closeable;
 
     @Override
     @Before
     public void setUp() {
+        closeable = MockitoAnnotations.openMocks(this);
         ComponentContext.initComponentsLifeCycle();
         final Account account = new AccountVO("testaccount", 1, "testdomain", Account.Type.NORMAL, UUID.randomUUID().toString());
         final UserVO user = new UserVO(1, "testuser", "password", "firstname", "lastName", "email", "timezone", UUID.randomUUID().toString(), User.Source.UNKNOWN);
@@ -117,8 +120,9 @@ public class NetworkACLManagerTest extends TestCase {
 
     @Override
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
         CallContext.unregister();
+        closeable.close();
     }
 
     @Test
@@ -156,7 +160,7 @@ public class NetworkACLManagerTest extends TestCase {
     @SuppressWarnings("unchecked")
     public void driveTestApplyNetworkACL(final boolean result, final boolean applyNetworkACLs, final boolean applyACLToPrivateGw) throws Exception {
         // In order to test ONLY our scope method, we mock the others
-        final NetworkACLManager aclManager = Mockito.spy(_aclMgr);
+        final NetworkACLManager aclManager = _aclMgr;
 
         // Prepare
         // Reset mocked objects to reuse

@@ -37,9 +37,9 @@ import org.apache.cloudstack.oauth2.OAuth2AuthManager;
 import org.apache.cloudstack.oauth2.api.response.OauthProviderResponse;
 import org.apache.commons.lang.ArrayUtils;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 @APICommand(name = "verifyOAuthCodeAndGetUser", description = "Verify the OAuth Code and fetch the corresponding user from provider", responseObject = OauthProviderResponse.class, entityType = {},
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
