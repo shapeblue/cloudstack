@@ -33,6 +33,7 @@ import javax.inject.Inject;
 
 import com.cloud.capacity.CapacityVO;
 import com.cloud.dc.ClusterDetailsVO;
+
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
 import org.apache.cloudstack.framework.config.ConfigDepot;
@@ -44,12 +45,15 @@ import org.apache.cloudstack.framework.config.dao.ConfigurationSubGroupDao;
 import org.apache.cloudstack.framework.config.impl.ConfigDepotImpl;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.test.utils.SpringUtils;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
+
+import org.mockito.*;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScan.Filter;
@@ -105,43 +109,44 @@ import com.cloud.vm.dao.VMInstanceDao;
 @ContextConfiguration(loader = AnnotationConfigContextLoader.class)
 public class FirstFitPlannerTest {
 
-    @Inject
-    FirstFitPlanner planner = new FirstFitPlanner();
-    @Inject
+    @Spy
+    @InjectMocks
+    FirstFitPlanner planner;
+    @Mock
     DataCenterDao dcDao;
-    @Inject
+    @Mock
     ClusterDao clusterDao;
-    @Inject
+    @Mock
     UserVmDao vmDao;
-    @Inject
+    @Mock
     HostDetailsDao hostDetailsDao;
-    @Inject
+    @Mock
     VMInstanceDetailsDao vmDetailsDao;
-    @Inject
+    @Mock
     ConfigurationDao configDao;
-    @Inject
+    @Mock
     ConfigurationGroupDao configGroupDao;
-    @Inject
+    @Mock
     ConfigurationSubGroupDao configSubGroupDao;
-    @Inject
+    @Mock
     CapacityDao capacityDao;
-    @Inject
+    @Mock
     AccountManager accountMgr;
-    @Inject
+    @Mock
     ServiceOfferingDao serviceOfferingDao;
-    @Inject
+    @Mock
     ServiceOfferingDetailsDao serviceOfferingDetailsDao;
-    @Inject
+    @Mock
     HostGpuGroupsDao hostGpuGroupsDao;
-    @Inject
+    @Mock
     HostTagsDao hostTagsDao;
-    @Inject
+    @Mock
     ConfigDepotImpl configDepot;
-    @Inject
+    @Mock
     ScopedConfigStorage scopedStorage;
-    @Inject
+    @Mock
     HostDao hostDao;
-    @Inject
+    @Mock
     private ClusterDetailsDao clusterDetailsDao;
     private static final double TOLERANCE = 0.0001;
     private static long domainId = 1L;
@@ -152,16 +157,18 @@ public class FirstFitPlannerTest {
     int cpuSpeedInOffering = 500;
     int ramInOffering = 512;
     AccountVO acct = new AccountVO(accountId);
+    private AutoCloseable mockHolder;
 
     @Before
     public void setUp() {
+        mockHolder = MockitoAnnotations.openMocks(this);
+        ComponentContext.initComponentsLifeCycle();
         ConfigKey.init(configDepot);
 
         when(configDepot.global()).thenReturn(configDao);
         when(configDao.getValue(Mockito.anyString())).thenReturn(null);
         when(configDao.getValue(Config.ImplicitHostTags.key())).thenReturn("GPU");
 
-        ComponentContext.initComponentsLifeCycle();
         acct.setType(Account.Type.ADMIN);
         acct.setAccountName("user1");
         acct.setDomainId(domainId);
@@ -169,9 +176,10 @@ public class FirstFitPlannerTest {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception{
         ConfigKey.init(null);
         CallContext.unregister();
+        mockHolder.close();
     }
 
     @Test
@@ -182,7 +190,7 @@ public class FirstFitPlannerTest {
         initializeForTest(vmProfile, plan, avoids);
 
         List<Long> clusterList = planner.orderClusters(vmProfile, plan, avoids);
-        List<Long> reorderedClusterList = new ArrayList<Long>();
+        List<Long> reorderedClusterList = new ArrayList<>();
         reorderedClusterList.add(4L);
         reorderedClusterList.add(3L);
         reorderedClusterList.add(1L);

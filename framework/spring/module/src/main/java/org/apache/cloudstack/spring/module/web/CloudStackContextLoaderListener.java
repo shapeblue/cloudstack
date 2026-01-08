@@ -20,8 +20,8 @@ package org.apache.cloudstack.spring.module.web;
 
 import java.io.IOException;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextEvent;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;

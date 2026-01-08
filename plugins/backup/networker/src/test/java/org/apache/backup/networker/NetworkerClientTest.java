@@ -53,7 +53,6 @@ public class NetworkerClientTest {
     private final String adminUsername = "administrator";
     private final String adminPassword = "password";
     private final int port = 9400;
-    private final String url =  "http://localhost:" + port + "/nwrestapi/v3";
     private NetworkerClient client;
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(port);
@@ -63,6 +62,7 @@ public class NetworkerClientTest {
         wireMockRule.stubFor(get(urlMatching(".*")).withBasicAuth(adminUsername, adminPassword)
                         .willReturn(aResponse()
                         .withStatus(200)));
+        String url = "http://localhost:" + port + "/nwrestapi/v3";
         client = new NetworkerClient(url, adminUsername, adminPassword, false, 60);
         ReflectionTestUtils.setField(client, "backupManager", Mockito.mock(BackupManager.class));
     }
@@ -532,11 +532,11 @@ public class NetworkerClientTest {
         backupedVM.setBackupOfferingId(0L);
         backupedVM.setDataCenterId(1);
         SimpleDateFormat formatterDateTime = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss");
-        Long startTS=1657591323L;
+        long startTS=1657591323L;
         Instant instant = Instant.ofEpochSecond(startTS);
         Date backupDate = Date.from(instant);
         String saveTime = formatterDateTime.format(Date.from(instant));
-        BackupVO vmBackup = client.registerBackupForVm(backupedVM,backupDate,startTS.toString());
+        BackupVO vmBackup = client.registerBackupForVm(backupedVM,backupDate,String.valueOf(startTS));
         verify(getRequestedFor(urlEqualTo("/nwrestapi/v3/global/backups/?q=name:"+backupedVM.getName()+"+and+saveTime:'"+saveTime+"'")));
         Assert.assertEquals("658580844", vmBackup.getSize().toString());
         Assert.assertEquals("d371d629-00000006-84ccd61b-62ccd61b-007d1500-5a80015d",vmBackup.getExternalId());
@@ -625,7 +625,7 @@ public class NetworkerClientTest {
         backupedVM.setDataCenterId(1);
         SimpleDateFormat formatterDate = new SimpleDateFormat("yyyy-MM-dd");
         SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm:ss");
-        Long startTS=1657591323L;
+        long startTS=1657591323L;
         Instant instant = Instant.ofEpochSecond(startTS);
         Date backupDate = Date.from(instant);
         String startDate = formatterDate.format(backupDate);

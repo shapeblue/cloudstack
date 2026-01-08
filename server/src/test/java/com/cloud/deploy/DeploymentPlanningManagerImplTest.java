@@ -123,7 +123,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
 
-import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -149,64 +148,67 @@ public class DeploymentPlanningManagerImplTest {
     @InjectMocks
     DeploymentPlanningManagerImpl _dpm;
 
-    @Inject
+    @Mock
+    AgentManager _agentMgr;
+
+    @Mock
     PlannerHostReservationDao _plannerHostReserveDao;
 
-    @Inject
+    @Mock
     VirtualMachineProfileImpl vmProfile;
 
-    @Inject
+    @Mock
     private AccountDao accountDao;
 
-    @Inject
+    @Mock
     private VMInstanceDao vmInstanceDao;
 
-    @Inject
+    @Mock
     AffinityGroupVMMapDao _affinityGroupVMMapDao;
 
-    @Inject
+    @Mock
     ExcludeList avoids;
 
-    @Inject
+    @Mock
     DataCenterVO dc;
 
-    @Inject
+    @Mock
     DataCenterDao _dcDao;
 
     @Mock
     FirstFitPlanner _planner;
 
-    @Inject
+    @Mock
     ClusterDao _clusterDao;
 
-    @Inject
+    @Mock
     DedicatedResourceDao _dedicatedDao;
 
-    @Inject
+    @Mock
     VMInstanceDetailsDao vmDetailsDao;
 
-    @Inject
+    @Mock
     VMTemplateDao templateDao;
 
-    @Inject
+    @Mock
     HostPodDao hostPodDao;
 
-    @Inject
+    @Mock
     VolumeDao volDao;
 
-    @Inject
+    @Mock
     HostDao hostDao;
 
-    @Inject
+    @Mock
     CapacityManager capacityMgr;
 
-    @Inject
+    @Mock
     ServiceOfferingDetailsDao serviceOfferingDetailsDao;
 
-    @Inject
+    @Mock
     ClusterDetailsDao clusterDetailsDao;
 
-    @Inject
+    @Mock
     PrimaryDataStoreDao primaryDataStoreDao;
 
     @Mock
@@ -218,13 +220,13 @@ public class DeploymentPlanningManagerImplTest {
     @Mock
     AccountManager _accountMgr;
 
-    @Inject
+    @Mock
     DiskOfferingDao _diskOfferingDao;
 
     @Mock
     DataStoreManager _dataStoreManager;
 
-    @Inject
+    @Mock
     HostPodDao _podDao;
 
     private static final long dataCenterId = 1L;

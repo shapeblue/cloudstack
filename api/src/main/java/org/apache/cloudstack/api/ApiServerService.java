@@ -19,7 +19,7 @@ package org.apache.cloudstack.api;
 import java.net.InetAddress;
 import java.util.Map;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 
 import com.cloud.domain.Domain;
 import com.cloud.exception.CloudAuthenticationException;
