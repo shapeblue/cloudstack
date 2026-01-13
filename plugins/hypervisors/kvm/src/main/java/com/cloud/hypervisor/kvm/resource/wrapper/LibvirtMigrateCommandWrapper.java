@@ -157,9 +157,9 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
 
             final String target = command.getDestinationIp();
             xmlDesc = dm.getXMLDesc(xmlFlag);
-            if (logger.isDebugEnabled()) {
-                logger.debug("VM {} with XML configuration {} will be migrated to host {}.", vmName, maskSensitiveInfoInXML(xmlDesc), target);
-            }
+            String finalXmlDesc = xmlDesc;
+            logger.debug("VM {} with XML configuration {} will be migrated to host {}.", () -> vmName,
+                    () -> maskSensitiveInfoInXML(finalXmlDesc), () -> target);
 
             // Limit the VNC password in case the length is greater than 8 characters
             // Since libvirt version 8 VNC passwords are limited to 8 characters
@@ -172,9 +172,12 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
             if (newIsoVolumePath != null && !newIsoVolumePath.equals(oldIsoVolumePath)) {
                 logger.debug(String.format("Editing mount path of ISO from %s to %s", oldIsoVolumePath, newIsoVolumePath));
                 xmlDesc = replaceDiskSourceFile(xmlDesc, newIsoVolumePath, vmName);
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Replaced disk mount point {} with {} in Instance {} XML configuration. New XML configuration is {}.", oldIsoVolumePath, newIsoVolumePath, vmName, maskSensitiveInfoInXML(xmlDesc));
-                }
+                String finalXMLDesc = xmlDesc;
+                logger.debug("Replaced disk mount point {} with {} in Instance {} XML configuration. New XML configuration is {}.",
+                        () -> oldIsoVolumePath,
+                        () -> newIsoVolumePath,
+                        () -> vmName,
+                        () -> maskSensitiveInfoInXML(finalXMLDesc));
             }
 
             // Replace CDROM ISO path
@@ -207,9 +210,10 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
                     logger.debug("Changing VM {} volumes during migration to host: {}.", vmName, target);
                 }
                 xmlDesc = replaceStorage(xmlDesc, mapMigrateStorage, migrateStorageManaged);
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Changed VM {} XML configuration of used storage. New XML configuration is {}.", vmName, maskSensitiveInfoInXML(xmlDesc));
-                }
+                String finalLogXMLDesc = xmlDesc;
+                    logger.debug("Changed VM {} XML configuration of used storage. New XML configuration is {}.",
+                            () -> vmName,
+                            () -> maskSensitiveInfoInXML(finalLogXMLDesc));
                 migrateDiskLabels = getMigrateStorageDeviceLabels(disks, mapMigrateStorage);
             }
 
@@ -219,9 +223,11 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
                     logger.trace("Changing VM {} DPDK interfaces during migration to host: {}.", vmName, target);
                 }
                 xmlDesc = replaceDpdkInterfaces(xmlDesc, dpdkPortsMapping);
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Changed VM {} XML configuration of DPDK interfaces. New XML configuration is {}.", vmName, maskSensitiveInfoInXML(xmlDesc));
-                }
+                String finalLogXMLDesc = xmlDesc;
+                logger.debug("Changed VM {} XML configuration of DPDK interfaces. New XML configuration is {}.",
+                        () -> vmName,
+                        ()-> maskSensitiveInfoInXML(finalLogXMLDesc));
+
             }
 
             xmlDesc = updateVmSharesIfNeeded(command, xmlDesc, libvirtComputingResource);
@@ -233,7 +239,12 @@ public final class LibvirtMigrateCommandWrapper extends CommandWrapper<MigrateCo
             }
 
             //run migration in thread so we can monitor it
-            logger.info("Starting live migration of instance {} to destination host {} having the final XML configuration: {}.", vmName, dconn.getURI(), maskSensitiveInfoInXML(xmlDesc));
+            String finalLogXMLDesc = xmlDesc;
+            String dcURI = dconn.getURI();
+            logger.info("Starting live migration of instance {} to destination host {} having the final XML configuration: {}.",
+                    () -> vmName,
+                    () -> dcURI,
+                    () -> maskSensitiveInfoInXML(finalLogXMLDesc));
             final ExecutorService executor = Executors.newFixedThreadPool(1);
             boolean migrateNonSharedInc = command.isMigrateNonSharedInc() && !migrateStorageManaged;
 
