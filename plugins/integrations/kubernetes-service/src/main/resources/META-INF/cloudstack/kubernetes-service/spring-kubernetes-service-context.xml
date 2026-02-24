@@ -38,4 +38,15 @@
         <property name="name" value="KubernetesServiceHelper" />
     </bean>
 
+    <bean class="org.apache.cloudstack.spring.lifecycle.registry.RegistryLifecycle">
+        <property name="registry" ref="eventBusRegistry" />
+        <property name="typeClass" value="org.apache.cloudstack.framework.events.EventBus" />
+    </bean>
+
+    <bean id="inMemoryEventBus" class="org.apache.cloudstack.mom.inmemory.InMemoryEventBus">
+        <property name="name" value="inMemoryEventBus" />
+    </bean>
+
+    <bean id="testEventSubsManager" class="com.cloud.kubernetes.cluster.TestEventSubsManagerImpl" />
+
 </beans>

@@ -139,5 +139,11 @@
             <artifactId>joda-time</artifactId>
             <version>${cs.joda-time.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.cloudstack</groupId>
+            <artifactId>cloud-mom-inmemory</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 </project>
