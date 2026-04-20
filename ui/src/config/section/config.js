@@ -38,9 +38,9 @@ export default {
       title: 'label.config.key.usage.records',
       icon: 'database-outlined',
       menuHighlight: true,
-      permission: ['listConfigurations'],
-      columns: ['apiname', 'configkey', 'configvalue', 'scope', 'resolvedscope'],
-      details: ['apiname', 'configkey', 'configvalue', 'scope', 'resolvedscope', 'userid', 'accountid']
+      permission: ['listConfigKeyUsageRecords'],
+      columns: ['apiname', 'configkey', 'config_value', 'scope', 'resolved_scope'],
+      details: ['apiname', 'configkey', 'config_value', 'scope', 'resolved_scope', 'userid', 'accountid']
     },
     {
       name: 'ldapsetting',
