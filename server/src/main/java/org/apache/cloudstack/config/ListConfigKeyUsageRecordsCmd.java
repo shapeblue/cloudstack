@@ -90,8 +90,12 @@ public class ListConfigKeyUsageRecordsCmd extends BaseListCmd {
         sb.and("configKey", sb.entity().getConfigKey(), SearchCriteria.Op.EQ);
         sb.and("scope", sb.entity().getScope(), SearchCriteria.Op.EQ);
         sb.and("accountId", sb.entity().getAccountId(), SearchCriteria.Op.EQ);
-        sb.and("apiNameLike", sb.entity().getApiName(), SearchCriteria.Op.LIKE);
-        sb.and("configKeyLike", sb.entity().getConfigKey(), SearchCriteria.Op.LIKE);
+        String keyword = getKeyword();
+        if (StringUtils.isNotEmpty(keyword)) {
+            sb.and().op("apiNameLike", sb.entity().getApiName(), SearchCriteria.Op.LIKE);
+            sb.or("configKeyLike", sb.entity().getConfigKey(), SearchCriteria.Op.LIKE);
+            sb.cp();
+        }
         sb.done();
 
         SearchCriteria<ConfigKeyUsageVO> sc = sb.create();
@@ -112,7 +116,6 @@ public class ListConfigKeyUsageRecordsCmd extends BaseListCmd {
             sc.setParameters("accountId", accountId);
         }
 
-        String keyword = getKeyword();
         if (StringUtils.isNotEmpty(keyword)) {
             sc.setParameters("apiNameLike", "%" + keyword + "%");
             sc.setParameters("configKeyLike", "%" + keyword + "%");
