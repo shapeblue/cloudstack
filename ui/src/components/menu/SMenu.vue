@@ -36,7 +36,10 @@
           </span>
         </template>
         <template v-for="children in item.children" :key="children.path">
-          <a-menu-item :key="children.path" v-if="!children.hidden">
+          <a-menu-item
+            :key="children.path"
+            :class="{ 'demo-highlight-menu-item': children.meta.menuHighlight }"
+            v-if="!children.hidden">
             <router-link :to="{ name: children.name, target: children.meta.target || null }">
               <render-icon
                 v-if="children.meta.icon && typeof (children.meta.icon) === 'string'"
@@ -176,5 +179,28 @@ export default {
 <style>
 .sider .ant-menu-vertical .ant-menu-item {
   margin-right: 0;
+}
+
+/* Demo highlight for newly added menu items. */
+.sider .ant-menu-item.demo-highlight-menu-item {
+  border-left: 3px solid #f5222d;
+}
+
+.sider .ant-menu-light .ant-menu-item.demo-highlight-menu-item {
+  background: #fff1f0;
+}
+
+.sider .ant-menu-dark .ant-menu-item.demo-highlight-menu-item {
+  background: rgba(245, 34, 45, 0.2);
+}
+
+.sider .ant-menu-item.demo-highlight-menu-item .anticon,
+.sider .ant-menu-item.demo-highlight-menu-item a,
+.sider .ant-menu-item.demo-highlight-menu-item span {
+  color: #f5222d;
+}
+
+.sider .ant-menu-item-selected.demo-highlight-menu-item {
+  box-shadow: inset 0 0 0 9999px rgba(245, 34, 45, 0.12);
 }
 </style>

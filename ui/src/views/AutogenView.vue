@@ -550,7 +550,7 @@
         />
       </div>
       <div
-        class="row-element"
+        :class="['row-element', { 'demo-highlight-response': $route.meta.menuHighlight }]"
         v-else
       >
         <advisories-view
@@ -571,7 +571,7 @@
           @refresh="fetchData"
         />
         <a-pagination
-          class="row-element"
+          :class="['row-element', { 'demo-highlight-response-pagination': $route.meta.menuHighlight }]"
           style="margin-top: 10px"
           size="small"
           :current="page"
@@ -2261,6 +2261,19 @@ export default {
 
 .row-element {
   margin-bottom: 10px;
+}
+
+.demo-highlight-response {
+  background: #fff1f0;
+  border: 1px solid #ffa39e;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+/* Keep pagination visually connected with the highlighted response block. */
+.demo-highlight-response-pagination {
+  border-top: 1px solid #ffccc7;
+  padding-top: 10px;
 }
 
 .ant-breadcrumb {

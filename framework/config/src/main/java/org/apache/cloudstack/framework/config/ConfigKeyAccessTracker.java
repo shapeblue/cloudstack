@@ -16,6 +16,9 @@
 // under the License.
 package org.apache.cloudstack.framework.config;
 
+import com.cloud.utils.component.Manager;
+import com.cloud.utils.component.ManagerBase;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -33,7 +36,7 @@ import java.util.regex.Pattern;
  * (e.g. {@code list*,describe*}).  Full Java regular-expression syntax
  * is also accepted.</p>
  */
-public final class ConfigKeyAccessTracker implements Configurable{
+public final class ConfigKeyAccessTracker extends ManagerBase implements Configurable, Manager {
     public static final String UNKNOWN_SCOPE = "Unknown";
 
     /**

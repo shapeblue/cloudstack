@@ -34,6 +34,15 @@ export default {
       component: () => import('@/views/setting/ConfigurationTab.vue')
     },
     {
+      name: 'configkeyusagerecord',
+      title: 'label.config.key.usage.records',
+      icon: 'database-outlined',
+      menuHighlight: true,
+      permission: ['listConfigurations'],
+      columns: ['apiname', 'configkey', 'configvalue', 'scope', 'resolvedscope'],
+      details: ['apiname', 'configkey', 'configvalue', 'scope', 'resolvedscope', 'userid', 'accountid']
+    },
+    {
       name: 'ldapsetting',
       title: 'label.ldap.configuration',
       icon: 'team-outlined',
