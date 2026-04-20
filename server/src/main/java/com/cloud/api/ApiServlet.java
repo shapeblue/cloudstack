@@ -236,6 +236,11 @@ public class ApiServlet extends HttpServlet {
         final Object[] commandObj = params.get(ApiConstants.COMMAND);
         final String command = commandObj == null ? null : (String) commandObj[0];
 
+        // If the API name itself matches an exclusion pattern, disable tracking for this request.
+        if (command != null && ConfigKeyAccessTracker.isExcluded(command)) {
+            ConfigKeyAccessTracker.clear();
+        }
+
         // logging the request start and end in management log for easy debugging
         String reqStr = "";
         String cleanQueryString = StringUtils.cleanString(req.getQueryString());

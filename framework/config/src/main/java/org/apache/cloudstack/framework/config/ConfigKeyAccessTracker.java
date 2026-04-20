@@ -16,17 +16,59 @@
 // under the License.
 package org.apache.cloudstack.framework.config;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 /**
  * Tracks config key access in the current thread.
+ *
+ * <p>Config keys whose names match any pattern in
+ * {@link #CONFIG_KEY_USAGE_EXCLUSION_PATTERNS} are silently skipped.
+ * Patterns are comma-separated and support {@code *} as a wildcard
+ * (e.g. {@code list*,describe*}).  Full Java regular-expression syntax
+ * is also accepted.</p>
  */
 public final class ConfigKeyAccessTracker {
     public static final String UNKNOWN_SCOPE = "Unknown";
 
+    /**
+     * Global setting – comma-separated list of config-key name patterns to
+     * exclude from usage recording.  {@code *} is treated as {@code .*}.
+     * Example: {@code list*,network.throttling.*}
+     */
+    public static final ConfigKey<String> CONFIG_KEY_USAGE_EXCLUSION_PATTERNS = new ConfigKey<>(
+            "Advanced",
+            String.class,
+            "config.key.usage.exclusion.patterns",
+            "",
+            "Comma-separated list of config key name patterns (supports * wildcard and full regex) "
+                    + "that should NOT be recorded in the config_key_usage table. "
+                    + "Example: list*,network.throttling.*",
+            true);
+
+    // -------------------------------------------------------------------
+    // Compiled exclusion patterns – refreshed whenever the raw config value
+    // changes.  The AtomicReference holds a two-element array:
+    //   [0] = the raw String value used to compile the patterns
+    //   [1] = List<Pattern> compiled patterns
+    // -------------------------------------------------------------------
+    private static final AtomicReference<Object[]> s_compiledExclusions = new AtomicReference<>(new Object[]{"", Collections.emptyList()});
+
+    /**
+     * Re-entrancy guard: set to {@code true} on a thread while we are reading
+     * the exclusion-patterns ConfigKey so that the resulting record() call from
+     * ConfigKey.value() does not recurse back into isExcluded().
+     */
+    private static final ThreadLocal<Boolean> s_inExclusionCheck = new ThreadLocal<>();
+
+    /**
+     * Tracks config key access in the current thread.
+     */
     public static final class Access {
         private final String key;
         private final String scope;
@@ -111,6 +153,9 @@ public final class ConfigKeyAccessTracker {
         if (key == null) {
             return;
         }
+        if (isExcluded(key)) {
+            return;
+        }
         Set<Access> keys = TRACKED_KEYS.get();
         if (keys != null) {
             String requestedScope = scope == null ? UNKNOWN_SCOPE : scope;
@@ -135,5 +180,62 @@ public final class ConfigKeyAccessTracker {
     public static void clear() {
         TRACKED_KEYS.remove();
     }
-}
 
+    // -------------------------------------------------------------------
+    // Exclusion helpers
+    // -------------------------------------------------------------------
+
+    /**
+     * Returns {@code true} if {@code name} (a config key name or an API command name)
+     * matches any currently configured exclusion pattern.
+     */
+    public static boolean isExcluded(String name) {
+        if (Boolean.TRUE.equals(s_inExclusionCheck.get())) {
+            // Re-entrant call triggered by reading the ConfigKey itself – skip.
+            return false;
+        }
+        s_inExclusionCheck.set(Boolean.TRUE);
+        try {
+            String rawPatterns = CONFIG_KEY_USAGE_EXCLUSION_PATTERNS.value();
+            if (rawPatterns == null || rawPatterns.isEmpty()) {
+                return false;
+            }
+            List<Pattern> patterns = getCompiledPatterns(rawPatterns);
+            for (Pattern p : patterns) {
+                if (p.matcher(name).matches()) {
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            s_inExclusionCheck.remove();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Pattern> getCompiledPatterns(String rawPatterns) {
+        Object[] cached = s_compiledExclusions.get();
+        if (rawPatterns.equals(cached[0])) {
+            return (List<Pattern>) cached[1];
+        }
+        // Recompile
+        List<Pattern> compiled = new ArrayList<>();
+        for (String token : rawPatterns.split(",")) {
+            String trimmed = token.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            // Convert glob-style * to regex .*; escape dots only when not
+            // followed by * so that users can write plain globs like "list*"
+            // as well as full regex like "network\.throttling\..*"
+            String regex = trimmed
+                    .replace(".", "\\.")       // escape literal dots first
+                    .replace("\\.*", ".*")     // un-escape .* that was a wildcard
+                    .replace("*", ".*");       // bare * → .*
+            compiled.add(Pattern.compile(regex));
+        }
+        List<Pattern> immutable = Collections.unmodifiableList(compiled);
+        s_compiledExclusions.set(new Object[]{rawPatterns, immutable});
+        return immutable;
+    }
+}

@@ -573,6 +573,10 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 String[] command = (String[]) parameterMap.get("command");
                 if (command != null) {
                     apiCommandName = command[0];
+                    // If the API name matches an exclusion pattern, disable tracking for this request.
+                    if (ConfigKeyAccessTracker.isExcluded(apiCommandName)) {
+                        ConfigKeyAccessTracker.clear();
+                    }
                     Class<?> cmdClass = getCmdClass(command[0]);
                     if (cmdClass != null) {
                         List<Field> fields = ReflectUtil.getAllFieldsForClass(cmdClass, BaseCmd.class);
