@@ -42,6 +42,7 @@ public class ApiConstants {
     public static final String ANNOTATION = "annotation";
     public static final String API_KEY = "apikey";
     public static final String API_KEY_ACCESS = "apikeyaccess";
+    public static final String API_NAME = "apiname";
     public static final String ARCHIVED = "archived";
     public static final String ARCH = "arch";
     public static final String AS_NUMBER = "asnumber";
@@ -98,6 +99,7 @@ public class ApiConstants {
     public static final String CERTIFICATE_SERIALNUM = "serialnum";
     public static final String CERTIFICATE_SUBJECT = "subject";
     public static final String CERTIFICATE_VALIDITY = "validity";
+    public static final String CONFIG_KEY = "configkey";
     public static final String CONVERT_INSTANCE_HOST_ID = "convertinstancehostid";
     public static final String CONVERT_INSTANCE_STORAGE_POOL_ID = "convertinstancepoolid";
     public static final String ENABLED_REVOCATION_CHECK = "enabledrevocationcheck";

@@ -18,7 +18,12 @@ package org.apache.cloudstack.config.dao;
 
 import org.apache.cloudstack.config.ConfigKeyUsageVO;
 
+import com.cloud.utils.Pair;
+import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDao;
+import com.cloud.utils.db.SearchCriteria;
+
+import java.util.List;
 
 public interface ConfigKeyUsageDao extends GenericDao<ConfigKeyUsageVO, Long> {
 
@@ -30,5 +35,7 @@ public interface ConfigKeyUsageDao extends GenericDao<ConfigKeyUsageVO, Long> {
      * @return number of rows deleted
      */
     int removeByApiNameAndDifferentContext(String apiName, String currentContextId);
+
+    Pair<List<ConfigKeyUsageVO>, Integer> searchAndCount(SearchCriteria<ConfigKeyUsageVO> sc, Filter filter);
 }
 

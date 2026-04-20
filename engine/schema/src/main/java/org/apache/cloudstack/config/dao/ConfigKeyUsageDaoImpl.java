@@ -19,9 +19,13 @@ package org.apache.cloudstack.config.dao;
 import org.apache.cloudstack.config.ConfigKeyUsageVO;
 import org.springframework.stereotype.Component;
 
+import com.cloud.utils.Pair;
+import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
+
+import java.util.List;
 
 @Component
 public class ConfigKeyUsageDaoImpl extends GenericDaoBase<ConfigKeyUsageVO, Long> implements ConfigKeyUsageDao {
@@ -44,5 +48,10 @@ public class ConfigKeyUsageDaoImpl extends GenericDaoBase<ConfigKeyUsageVO, Long
             sc.setParameters("contextId", currentContextId);
         }
         return expunge(sc);
+    }
+
+    @Override
+    public Pair<List<ConfigKeyUsageVO>, Integer> searchAndCount(SearchCriteria<ConfigKeyUsageVO> sc, Filter filter) {
+        return super.searchAndCount(sc, filter);
     }
 }

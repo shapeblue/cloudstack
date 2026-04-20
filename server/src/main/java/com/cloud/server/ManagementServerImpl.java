@@ -635,6 +635,7 @@ import org.apache.cloudstack.backup.BackupManager;
 import org.apache.cloudstack.config.ApiServiceConfiguration;
 import org.apache.cloudstack.config.Configuration;
 import org.apache.cloudstack.config.ConfigurationGroup;
+import org.apache.cloudstack.config.ListConfigKeyUsageRecordsCmd;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreManager;
@@ -3851,6 +3852,7 @@ public class ManagementServerImpl extends MutualExclusiveIdsManagerBase implemen
         cmdList.add(UpdateCfgCmd.class);
         cmdList.add(UpdateHypervisorCapabilitiesCmd.class);
         cmdList.add(ResetCfgCmd.class);
+        cmdList.add(ListConfigKeyUsageRecordsCmd.class);
         cmdList.add(CreateDomainCmd.class);
         cmdList.add(DeleteDomainCmd.class);
         cmdList.add(ListDomainChildrenCmd.class);
