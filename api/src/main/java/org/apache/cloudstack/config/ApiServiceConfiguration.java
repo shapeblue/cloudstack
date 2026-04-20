@@ -34,6 +34,15 @@ public class ApiServiceConfiguration implements Configurable {
             "true", "Are the source checks on API calls enabled (true) or not (false)? See api.allowed.source.cidr.list", true, ConfigKey.Scope.Global);
     public static final ConfigKey<String> ApiAllowedSourceCidrList = new ConfigKey<>(String.class, "api.allowed.source.cidr.list", "Advanced",
             "0.0.0.0/0,::/0", "Comma separated list of IPv4/IPv6 CIDRs from which API calls can be performed. Can be set on Global and Account levels.", true, ConfigKey.Scope.Account, null, null, null, null, null, ConfigKey.Kind.CSV, null);
+    public static final ConfigKey<String> ConfigKeyUsageExclusionPatterns = new ConfigKey<>(
+            "Advanced",
+            String.class,
+            "config.key.usage.exclusion.patterns",
+            "",
+            "Comma-separated list of config key name patterns (supports * wildcard and full regex) "
+                    + "that should NOT be recorded in the config_key_usage table. "
+                    + "Example: list*,network.throttling.*",
+            true);
 
 
     public static void validateEndpointUrl() {
@@ -55,7 +64,8 @@ public class ApiServiceConfiguration implements Configurable {
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] {ManagementServerAddresses, ApiServletPath, DefaultUIPageSize, ApiSourceCidrChecksEnabled, ApiAllowedSourceCidrList};
+        return new ConfigKey<?>[] {ManagementServerAddresses, ApiServletPath, DefaultUIPageSize, ApiSourceCidrChecksEnabled,
+                ApiAllowedSourceCidrList, ConfigKeyUsageExclusionPatterns};
     }
 
 }

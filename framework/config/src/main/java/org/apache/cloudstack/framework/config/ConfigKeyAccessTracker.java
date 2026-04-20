@@ -16,9 +16,6 @@
 // under the License.
 package org.apache.cloudstack.framework.config;
 
-import com.cloud.utils.component.Manager;
-import com.cloud.utils.component.ManagerBase;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -30,29 +27,15 @@ import java.util.regex.Pattern;
 /**
  * Tracks config key access in the current thread.
  *
- * <p>Config keys whose names match any pattern in
- * {@link #CONFIG_KEY_USAGE_EXCLUSION_PATTERNS} are silently skipped.
+ * <p>Config keys whose names match any pattern configured in the
+ * global setting {@code config.key.usage.exclusion.patterns} are silently skipped.
  * Patterns are comma-separated and support {@code *} as a wildcard
  * (e.g. {@code list*,describe*}).  Full Java regular-expression syntax
  * is also accepted.</p>
  */
-public final class ConfigKeyAccessTracker extends ManagerBase implements Configurable, Manager {
+public final class ConfigKeyAccessTracker {
     public static final String UNKNOWN_SCOPE = "Unknown";
-
-    /**
-     * Global setting – comma-separated list of config-key name patterns to
-     * exclude from usage recording.  {@code *} is treated as {@code .*}.
-     * Example: {@code list*,network.throttling.*}
-     */
-    public static final ConfigKey<String> CONFIG_KEY_USAGE_EXCLUSION_PATTERNS = new ConfigKey<>(
-            "Advanced",
-            String.class,
-            "config.key.usage.exclusion.patterns",
-            "",
-            "Comma-separated list of config key name patterns (supports * wildcard and full regex) "
-                    + "that should NOT be recorded in the config_key_usage table. "
-                    + "Example: list*,network.throttling.*",
-            true);
+    static final String CONFIG_KEY_USAGE_EXCLUSION_PATTERNS_KEY = "config.key.usage.exclusion.patterns";
 
     // -------------------------------------------------------------------
     // Compiled exclusion patterns – refreshed whenever the raw config value
@@ -68,16 +51,6 @@ public final class ConfigKeyAccessTracker extends ManagerBase implements Configu
      * ConfigKey.value() does not recurse back into isExcluded().
      */
     private static final ThreadLocal<Boolean> s_inExclusionCheck = new ThreadLocal<>();
-
-    @Override
-    public String getConfigComponentName() {
-        return ConfigKeyAccessTracker.class.getSimpleName();
-    }
-
-    @Override
-    public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] { CONFIG_KEY_USAGE_EXCLUSION_PATTERNS };
-    }
 
     /**
      * Tracks config key access in the current thread.
@@ -204,12 +177,14 @@ public final class ConfigKeyAccessTracker extends ManagerBase implements Configu
      */
     public static boolean isExcluded(String name) {
         if (Boolean.TRUE.equals(s_inExclusionCheck.get())) {
-            // Re-entrant call triggered by reading the ConfigKey itself – skip.
+            // Re-entrant call while resolving exclusion patterns – skip.
             return false;
         }
         s_inExclusionCheck.set(Boolean.TRUE);
         try {
-            String rawPatterns = CONFIG_KEY_USAGE_EXCLUSION_PATTERNS.value();
+            String rawPatterns = ConfigKey.s_depot != null
+                    ? ConfigKey.s_depot.getConfigStringValue(CONFIG_KEY_USAGE_EXCLUSION_PATTERNS_KEY, ConfigKey.Scope.Global, null)
+                    : null;
             if (rawPatterns == null || rawPatterns.isEmpty()) {
                 return false;
             }
