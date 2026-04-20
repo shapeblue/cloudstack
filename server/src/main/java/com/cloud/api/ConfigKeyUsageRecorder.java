@@ -41,6 +41,16 @@ public class ConfigKeyUsageRecorder {
         Long userId = context != null ? context.getCallingUserId() : null;
         Long accountId = context != null ? context.getCallingAccountId() : null;
         String contextId = context != null ? context.getContextId() : null;
+
+        // Remove stale rows for the same API name that belong to a previous (different) context.
+        if (apiName != null) {
+            try {
+                configKeyUsageDao.removeByApiNameAndDifferentContext(apiName, contextId);
+            } catch (Exception e) {
+                logger.debug("Failed to remove previous config key usage entries for API {}", apiName, e);
+            }
+        }
+
         for (ConfigKeyAccessTracker.Access access : accesses) {
             try {
                 ConfigKeyUsageVO usageVO = new ConfigKeyUsageVO(apiName, contextId, userId, accountId,

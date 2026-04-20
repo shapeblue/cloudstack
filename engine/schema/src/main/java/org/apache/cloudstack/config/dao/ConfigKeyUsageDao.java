@@ -21,5 +21,14 @@ import org.apache.cloudstack.config.ConfigKeyUsageVO;
 import com.cloud.utils.db.GenericDao;
 
 public interface ConfigKeyUsageDao extends GenericDao<ConfigKeyUsageVO, Long> {
+
+    /**
+     * Deletes all rows for {@code apiName} whose {@code context_id} is
+     * different from {@code currentContextId}.  Pass {@code null} as
+     * {@code currentContextId} to delete every row for that API name.
+     *
+     * @return number of rows deleted
+     */
+    int removeByApiNameAndDifferentContext(String apiName, String currentContextId);
 }
 

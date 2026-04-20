@@ -20,7 +20,29 @@ import org.apache.cloudstack.config.ConfigKeyUsageVO;
 import org.springframework.stereotype.Component;
 
 import com.cloud.utils.db.GenericDaoBase;
+import com.cloud.utils.db.SearchBuilder;
+import com.cloud.utils.db.SearchCriteria;
 
 @Component
 public class ConfigKeyUsageDaoImpl extends GenericDaoBase<ConfigKeyUsageVO, Long> implements ConfigKeyUsageDao {
+
+    private final SearchBuilder<ConfigKeyUsageVO> apiNameAndDifferentContextSearch;
+
+    public ConfigKeyUsageDaoImpl() {
+        super();
+        apiNameAndDifferentContextSearch = createSearchBuilder();
+        apiNameAndDifferentContextSearch.and("apiName", apiNameAndDifferentContextSearch.entity().getApiName(), SearchCriteria.Op.EQ);
+        apiNameAndDifferentContextSearch.and("contextId", apiNameAndDifferentContextSearch.entity().getContextId(), SearchCriteria.Op.NEQ);
+        apiNameAndDifferentContextSearch.done();
+    }
+
+    @Override
+    public int removeByApiNameAndDifferentContext(String apiName, String currentContextId) {
+        SearchCriteria<ConfigKeyUsageVO> sc = apiNameAndDifferentContextSearch.create();
+        sc.setParameters("apiName", apiName);
+        if (currentContextId != null) {
+            sc.setParameters("contextId", currentContextId);
+        }
+        return expunge(sc);
+    }
 }
