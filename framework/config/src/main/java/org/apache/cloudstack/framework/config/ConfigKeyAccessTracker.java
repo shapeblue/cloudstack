@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * (e.g. {@code list*,describe*}).  Full Java regular-expression syntax
  * is also accepted.</p>
  */
-public final class ConfigKeyAccessTracker {
+public final class ConfigKeyAccessTracker implements Configurable{
     public static final String UNKNOWN_SCOPE = "Unknown";
 
     /**
@@ -65,6 +65,16 @@ public final class ConfigKeyAccessTracker {
      * ConfigKey.value() does not recurse back into isExcluded().
      */
     private static final ThreadLocal<Boolean> s_inExclusionCheck = new ThreadLocal<>();
+
+    @Override
+    public String getConfigComponentName() {
+        return ConfigKeyAccessTracker.class.getSimpleName();
+    }
+
+    @Override
+    public ConfigKey<?>[] getConfigKeys() {
+        return new ConfigKey<?>[] { CONFIG_KEY_USAGE_EXCLUSION_PATTERNS };
+    }
 
     /**
      * Tracks config key access in the current thread.
