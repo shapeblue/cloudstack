@@ -617,7 +617,7 @@
 "label.conditions": "Conditions",
 "label.configuration": "Configuration",
 "label.configuration.details": "Configuration Details",
-"label.config.key.usage.records": "Config Key Usage Records",
+"label.config.key.usage.records": "Context-based Settings",
 "label.configkey": "Config Key",
 "label.config_value": "Config Value",
 "label.contextid": "Context ID",
