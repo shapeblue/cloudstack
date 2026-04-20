@@ -117,3 +117,24 @@ CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.vpc_offerings','conserve_mode', 'tin
 
 --- Disable/enable NICs
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.nics','enabled', 'TINYINT(1) NOT NULL DEFAULT 1 COMMENT ''Indicates whether the NIC is enabled or not'' ');
+
+-- Record config keys and scopes used while processing API calls
+CREATE TABLE IF NOT EXISTS `cloud`.`config_key_usage` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `uuid` varchar(40) UNIQUE NOT NULL,
+    `api_name` varchar(255) DEFAULT NULL,
+    `context_id` varchar(255) DEFAULT NULL,
+    `user_id` bigint unsigned DEFAULT NULL,
+    `account_id` bigint unsigned DEFAULT NULL,
+    `config_key` varchar(255) NOT NULL,
+    `scope` varchar(32) NOT NULL,
+    `created` datetime NOT NULL,
+    PRIMARY KEY (`id`),
+    INDEX `i_config_key_usage__api_name`(`api_name`),
+    INDEX `i_config_key_usage__user_id`(`user_id`),
+    INDEX `i_config_key_usage__account_id`(`account_id`),
+    INDEX `i_config_key_usage__config_key`(`config_key`),
+    CONSTRAINT `fk_config_key_usage__user_id` FOREIGN KEY (`user_id`) REFERENCES `cloud`.`user`(`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_config_key_usage__account_id` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+

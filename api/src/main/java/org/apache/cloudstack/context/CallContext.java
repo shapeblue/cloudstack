@@ -153,6 +153,13 @@ public class CallContext {
     }
 
     /**
+     * Returns current thread call context without creating a fallback system context.
+     */
+    public static CallContext peek() {
+        return s_currentContext.get();
+    }
+
+    /**
      * This method should only be called if you can propagate the context id
      * from another CallContext.
      *

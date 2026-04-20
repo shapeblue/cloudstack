@@ -386,6 +386,7 @@ public class ConfigKey<T> {
     }
 
     public T value() {
+        ConfigKeyAccessTracker.record(_name, Scope.Global.name());
         if (_value == null || isDynamic()) {
             String value = s_depot != null ? s_depot.getConfigStringValue(_name, Scope.Global, null) : null;
 
@@ -429,6 +430,7 @@ public class ConfigKey<T> {
     }
 
     public T valueInScope(Scope scope, Long id) {
+        ConfigKeyAccessTracker.record(_name, scope == null ? ConfigKeyAccessTracker.UNKNOWN_SCOPE : scope.name());
         if (id == null) {
             return value();
         }

@@ -45,6 +45,12 @@
 
     <bean id="ApiKeyPairManagerImpl" class="org.apache.cloudstack.acl.ApiKeyPairManagerImpl" />
 
+    <bean id="configKeyUsageDaoImpl" class="org.apache.cloudstack.config.dao.ConfigKeyUsageDaoImpl" />
+
+    <bean id="configKeyUsageRecorder" class="com.cloud.api.ConfigKeyUsageRecorder">
+        <property name="configKeyUsageDao" ref="configKeyUsageDaoImpl" />
+    </bean>
+
     <bean id="accountManagerImpl" class="com.cloud.user.AccountManagerImpl">
         <property name="userAuthenticators"
             value="#{userAuthenticatorsRegistry.registered}" />

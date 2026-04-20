@@ -111,6 +111,7 @@ import org.apache.cloudstack.api.response.LoginCmdResponse;
 import org.apache.cloudstack.config.ApiServiceConfiguration;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.ConfigKeyAccessTracker;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.events.EventDistributor;
 import org.apache.cloudstack.framework.jobs.AsyncJob;
@@ -243,6 +244,8 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
     private UserPasswordResetManager userPasswordResetManager;
     @Inject
     private ApiKeyPairManagerImpl keyPairManager;
+    @Inject
+    private ConfigKeyUsageRecorder configKeyUsageRecorder;
 
     private List<PluggableService> pluggableServices;
 
@@ -517,9 +520,11 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public void handle(final HttpRequest request, final HttpResponse response, final HttpContext context) throws HttpException, IOException {
+        ConfigKeyAccessTracker.startTracking();
 
         // Create StringBuffer to log information in access log
         final StringBuilder sb = new StringBuilder();
+        String apiCommandName = null;
         final HttpServerConnection connObj = (HttpServerConnection)context.getAttribute("http.connection");
         if (connObj instanceof SocketHttpServerConnection) {
             final InetAddress remoteAddr = ((SocketHttpServerConnection)connObj).getRemoteAddress();
@@ -567,6 +572,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 //verify that parameter is legit for passing via admin port
                 String[] command = (String[]) parameterMap.get("command");
                 if (command != null) {
+                    apiCommandName = command[0];
                     Class<?> cmdClass = getCmdClass(command[0]);
                     if (cmdClass != null) {
                         List<Field> fields = ReflectUtil.getAllFieldsForClass(cmdClass, BaseCmd.class);
@@ -601,6 +607,18 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
                 throw e;
             }
         } finally {
+            List<ConfigKeyAccessTracker.Access> accessedConfigKeys = ConfigKeyAccessTracker.stopTracking();
+            if (!accessedConfigKeys.isEmpty()) {
+                StringBuilder scopedConfigKeys = new StringBuilder();
+                for (ConfigKeyAccessTracker.Access access : accessedConfigKeys) {
+                    if (scopedConfigKeys.length() > 0) {
+                        scopedConfigKeys.append(',');
+                    }
+                    scopedConfigKeys.append(access.getKey()).append(':').append(access.getScope());
+                }
+                sb.append(" configkeys=").append(scopedConfigKeys);
+            }
+            configKeyUsageRecorder.persist(apiCommandName, CallContext.peek(), accessedConfigKeys);
             ACCESSLOGGER.info(sb.toString());
             CallContext.unregister();
         }

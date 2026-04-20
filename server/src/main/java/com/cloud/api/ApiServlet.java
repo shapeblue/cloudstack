@@ -50,6 +50,7 @@ import org.apache.cloudstack.api.auth.APIAuthenticator;
 import org.apache.cloudstack.api.command.user.consoleproxy.CreateConsoleEndpointCmd;
 import org.apache.cloudstack.api.command.user.gui.theme.ListGuiThemesCmd;
 import org.apache.cloudstack.context.CallContext;
+import org.apache.cloudstack.framework.config.ConfigKeyAccessTracker;
 import org.apache.cloudstack.managed.context.ManagedContext;
 import org.apache.cloudstack.utils.consoleproxy.ConsoleAccessUtils;
 import org.apache.commons.collections.MapUtils;
@@ -128,6 +129,8 @@ public class ApiServlet extends HttpServlet {
     APIAuthenticationManager authManager;
     @Inject
     private ProjectDao projectDao;
+    @Inject
+    private ConfigKeyUsageRecorder configKeyUsageRecorder;
 
     public ApiServlet() {
     }
@@ -204,6 +207,7 @@ public class ApiServlet extends HttpServlet {
     }
 
     void processRequestInContext(final HttpServletRequest req, final HttpServletResponse resp) {
+        ConfigKeyAccessTracker.startTracking();
         InetAddress remoteAddress = null;
         try {
             remoteAddress = getClientAddress(req);
@@ -433,6 +437,18 @@ public class ApiServlet extends HttpServlet {
             LOGGER.error("unknown exception writing api response", ex);
             auditTrailSb.append(" unknown exception writing api response");
         } finally {
+            List<ConfigKeyAccessTracker.Access> accessedConfigKeys = ConfigKeyAccessTracker.stopTracking();
+            if (!accessedConfigKeys.isEmpty()) {
+                StringBuilder scopedConfigKeys = new StringBuilder();
+                for (ConfigKeyAccessTracker.Access access : accessedConfigKeys) {
+                    if (scopedConfigKeys.length() > 0) {
+                        scopedConfigKeys.append(',');
+                    }
+                    scopedConfigKeys.append(access.getKey()).append(':').append(access.getScope());
+                }
+                auditTrailSb.append(" configkeys=").append(scopedConfigKeys);
+            }
+            configKeyUsageRecorder.persist(command, CallContext.peek(), accessedConfigKeys);
             ACCESSLOGGER.info(auditTrailSb.toString());
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("===END=== " + reqStr);
