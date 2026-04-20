@@ -44,7 +44,7 @@ public class ConfigKeyUsageRecorder {
         for (ConfigKeyAccessTracker.Access access : accesses) {
             try {
                 ConfigKeyUsageVO usageVO = new ConfigKeyUsageVO(apiName, contextId, userId, accountId,
-                        access.getKey(), access.getScope());
+                        access.getKey(), access.getScope(), access.getResolvedScope(), access.getValue());
                 configKeyUsageDao.persist(usageVO);
             } catch (Exception e) {
                 logger.debug("Failed to persist config key usage for API {} and key {}", apiName, access.getKey(), e);

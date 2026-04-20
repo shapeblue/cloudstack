@@ -385,8 +385,15 @@ public class ConfigKey<T> {
         throw new CloudRuntimeException("Comparing ConfigKey to " + obj.toString());
     }
 
+    /**
+     * Thread-local that carries the original requested scope name across fallback chains so that
+     * the final record() call can use the originally-requested scope as the "scope" column while
+     * the scope that actually supplied the value is recorded as "resolvedScope".
+     */
+    private static final ThreadLocal<String> s_outerRequestedScope = new ThreadLocal<>();
+
     public T value() {
-        ConfigKeyAccessTracker.record(_name, Scope.Global.name());
+        String effectiveValue = _value == null ? null : String.valueOf(_value);
         if (_value == null || isDynamic()) {
             String value = s_depot != null ? s_depot.getConfigStringValue(_name, Scope.Global, null) : null;
 
@@ -402,7 +409,14 @@ public class ConfigKey<T> {
             }
 
             _value = valueOf(effective);
+            effectiveValue = effective;
         }
+        // Use the outer requested scope when this method is called as a fallback from valueInScope
+        String requestedScopeName = s_outerRequestedScope.get();
+        if (requestedScopeName == null) {
+            requestedScopeName = Scope.Global.name();
+        }
+        ConfigKeyAccessTracker.record(_name, requestedScopeName, Scope.Global.name(), effectiveValue);
         return _value;
     }
 
@@ -430,20 +444,37 @@ public class ConfigKey<T> {
     }
 
     public T valueInScope(Scope scope, Long id) {
-        ConfigKeyAccessTracker.record(_name, scope == null ? ConfigKeyAccessTracker.UNKNOWN_SCOPE : scope.name());
         if (id == null) {
             return value();
         }
-        String value = s_depot != null ? s_depot.getConfigStringValue(_name, scope, id) : null;
-        if (value == null) {
-            return valueInGlobalOrAvailableParentScope(scope, id);
-        }
-        logger.trace("Scope({}) value for config ({}): {}", scope, _name, _value);
+        String scopeName = scope == null ? ConfigKeyAccessTracker.UNKNOWN_SCOPE : scope.name();
 
-        if (value.isEmpty() && _defaultValueIfEmpty != null) {
-            return valueOf(_defaultValueIfEmpty);
+        // Only set the outer requested scope for the outermost valueInScope call so that
+        // fallback chains (parent scope, global) still record the original requested scope.
+        boolean isOutermost = s_outerRequestedScope.get() == null;
+        if (isOutermost) {
+            s_outerRequestedScope.set(scopeName);
         }
-        return valueOf(value);
+        try {
+            String value = s_depot != null ? s_depot.getConfigStringValue(_name, scope, id) : null;
+            if (value == null) {
+                return valueInGlobalOrAvailableParentScope(scope, id);
+            }
+            logger.trace("Scope({}) value for config ({}): {}", scope, _name, _value);
+
+            // Value found at this scope – requested and resolved scopes are the same.
+            String requestedScopeName = s_outerRequestedScope.get() != null ? s_outerRequestedScope.get() : scopeName;
+            if (value.isEmpty() && _defaultValueIfEmpty != null) {
+                ConfigKeyAccessTracker.record(_name, requestedScopeName, scopeName, _defaultValueIfEmpty);
+                return valueOf(_defaultValueIfEmpty);
+            }
+            ConfigKeyAccessTracker.record(_name, requestedScopeName, scopeName, value);
+            return valueOf(value);
+        } finally {
+            if (isOutermost) {
+                s_outerRequestedScope.remove();
+            }
+        }
     }
 
     protected Scope getPrimaryScope() {

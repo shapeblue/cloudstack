@@ -128,6 +128,8 @@ CREATE TABLE IF NOT EXISTS `cloud`.`config_key_usage` (
     `account_id` bigint unsigned DEFAULT NULL,
     `config_key` varchar(255) NOT NULL,
     `scope` varchar(32) NOT NULL,
+    `resolved_scope` varchar(32) NOT NULL,
+    `config_value` text DEFAULT NULL,
     `created` datetime NOT NULL,
     PRIMARY KEY (`id`),
     INDEX `i_config_key_usage__api_name`(`api_name`),

@@ -30,10 +30,18 @@ public final class ConfigKeyAccessTracker {
     public static final class Access {
         private final String key;
         private final String scope;
+        private final String resolvedScope;
+        private final String value;
 
-        public Access(String key, String scope) {
+        public Access(String key, String scope, String value) {
+            this(key, scope, scope, value);
+        }
+
+        public Access(String key, String scope, String resolvedScope, String value) {
             this.key = key;
             this.scope = scope;
+            this.resolvedScope = resolvedScope;
+            this.value = value;
         }
 
         public String getKey() {
@@ -42,6 +50,14 @@ public final class ConfigKeyAccessTracker {
 
         public String getScope() {
             return scope;
+        }
+
+        public String getResolvedScope() {
+            return resolvedScope;
+        }
+
+        public String getValue() {
+            return value;
         }
 
         @Override
@@ -53,12 +69,20 @@ public final class ConfigKeyAccessTracker {
                 return false;
             }
             Access that = (Access) obj;
-            return key.equals(that.key) && scope.equals(that.scope);
+            if (!key.equals(that.key) || !scope.equals(that.scope) || !resolvedScope.equals(that.resolvedScope)) {
+                return false;
+            }
+            if (value == null) {
+                return that.value == null;
+            }
+            return value.equals(that.value);
         }
 
         @Override
         public int hashCode() {
-            return 31 * key.hashCode() + scope.hashCode();
+            int result = 31 * key.hashCode() + scope.hashCode();
+            result = 31 * result + resolvedScope.hashCode();
+            return 31 * result + (value != null ? value.hashCode() : 0);
         }
     }
 
@@ -79,13 +103,18 @@ public final class ConfigKeyAccessTracker {
         TRACKED_KEYS.set(restored);
     }
 
-    public static void record(String key, String scope) {
+    public static void record(String key, String scope, String value) {
+        record(key, scope, scope, value);
+    }
+
+    public static void record(String key, String scope, String resolvedScope, String value) {
         if (key == null) {
             return;
         }
         Set<Access> keys = TRACKED_KEYS.get();
         if (keys != null) {
-            keys.add(new Access(key, scope == null ? UNKNOWN_SCOPE : scope));
+            String requestedScope = scope == null ? UNKNOWN_SCOPE : scope;
+            keys.add(new Access(key, requestedScope, resolvedScope == null ? requestedScope : resolvedScope, value));
         }
     }
 

@@ -58,6 +58,12 @@ public class ConfigKeyUsageVO {
     @Column(name = "scope", nullable = false)
     private String scope;
 
+    @Column(name = "resolved_scope", nullable = false)
+    private String resolvedScope;
+
+    @Column(name = "config_value")
+    private String configValue;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created", nullable = false)
     private Date created = new Date();
@@ -65,13 +71,16 @@ public class ConfigKeyUsageVO {
     public ConfigKeyUsageVO() {
     }
 
-    public ConfigKeyUsageVO(String apiName, String contextId, Long userId, Long accountId, String configKey, String scope) {
+    public ConfigKeyUsageVO(String apiName, String contextId, Long userId, Long accountId, String configKey, String scope,
+            String resolvedScope, String configValue) {
         this.apiName = apiName;
         this.contextId = contextId;
         this.userId = userId;
         this.accountId = accountId;
         this.configKey = configKey;
         this.scope = scope;
+        this.resolvedScope = resolvedScope;
+        this.configValue = configValue;
     }
 
     public Long getId() {
@@ -104,6 +113,14 @@ public class ConfigKeyUsageVO {
 
     public String getScope() {
         return scope;
+    }
+
+    public String getResolvedScope() {
+        return resolvedScope;
+    }
+
+    public String getConfigValue() {
+        return configValue;
     }
 
     public Date getCreated() {
