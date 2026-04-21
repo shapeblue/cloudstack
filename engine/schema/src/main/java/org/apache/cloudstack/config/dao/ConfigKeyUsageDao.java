@@ -16,6 +16,7 @@
 // under the License.
 package org.apache.cloudstack.config.dao;
 
+import org.apache.cloudstack.config.ConfigKeyUsageGroupVO;
 import org.apache.cloudstack.config.ConfigKeyUsageVO;
 
 import com.cloud.utils.Pair;
@@ -37,5 +38,7 @@ public interface ConfigKeyUsageDao extends GenericDao<ConfigKeyUsageVO, Long> {
     int removeByApiNameAndDifferentContext(String apiName, String currentContextId);
 
     Pair<List<ConfigKeyUsageVO>, Integer> searchAndCount(SearchCriteria<ConfigKeyUsageVO> sc, Filter filter);
+
+    Pair<List<ConfigKeyUsageGroupVO>, Integer> searchGroupedByApiNameAndConfigKey(String apiName, String configKey, Long startIndex, Long pageSize);
 }
 
