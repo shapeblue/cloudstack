@@ -55,6 +55,7 @@ import static com.cloud.network.Network.Service.UserData;
 import static org.apache.cloudstack.api.command.utils.OfferingUtils.isNsxWithoutLb;
 import static org.apache.cloudstack.api.command.utils.OfferingUtils.isNetrisNatted;
 import static org.apache.cloudstack.api.command.utils.OfferingUtils.isNetrisRouted;
+import static org.apache.cloudstack.api.command.utils.OfferingUtils.isOvnProvider;
 
 public abstract class NetworkOfferingBaseCmd extends BaseCmd {
 
@@ -249,7 +250,7 @@ public abstract class NetworkOfferingBaseCmd extends BaseCmd {
     }
 
     public boolean isExternalNetworkProvider() {
-        return Arrays.asList("NSX", "Netris").stream()
+        return Arrays.asList("NSX", "Netris", "OVN").stream()
                 .anyMatch(s -> provider != null && s.equalsIgnoreCase(provider));
     }
 
@@ -280,7 +281,7 @@ public abstract class NetworkOfferingBaseCmd extends BaseCmd {
                         SourceNat.getName(),
                         PortForwarding.getName()));
             }
-            if (getNsxSupportsLbService() || (provider != null && isNetrisNatted(getProvider(), getNetworkMode()))) {
+            if (getNsxSupportsLbService() || (provider != null && (isNetrisNatted(getProvider(), getNetworkMode()) || isOvnProvider(getProvider())))) {
                 services.add(Lb.getName());
             }
             if (Boolean.TRUE.equals(forVpc)) {

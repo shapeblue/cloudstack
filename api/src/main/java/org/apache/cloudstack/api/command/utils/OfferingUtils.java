@@ -35,4 +35,8 @@ public class OfferingUtils {
     public static boolean isNetrisRouted(String provider, String networkMode) {
         return "Netris".equalsIgnoreCase(provider) && NetworkOffering.NetworkMode.ROUTED.name().equalsIgnoreCase(networkMode);
     }
+
+    public static boolean isOvnProvider(String provider) {
+        return "Ovn".equalsIgnoreCase(provider);
+    }
 }

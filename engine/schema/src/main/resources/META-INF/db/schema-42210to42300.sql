@@ -117,3 +117,26 @@ CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.vpc_offerings','conserve_mode', 'tin
 
 --- Disable/enable NICs
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.nics','enabled', 'TINYINT(1) NOT NULL DEFAULT 1 COMMENT ''Indicates whether the NIC is enabled or not'' ');
+
+-- OVN Plugin
+CREATE TABLE IF NOT EXISTS `cloud`.`ovn_providers` (
+    `id` bigint unsigned NOT NULL auto_increment COMMENT 'id',
+    `uuid` varchar(40),
+    `zone_id` bigint unsigned NOT NULL COMMENT 'Zone ID',
+    `host_id` bigint unsigned COMMENT 'Optional resource host ID if OVN command routing is enabled',
+    `name` varchar(255) NOT NULL,
+    `nb_connection` varchar(255) NOT NULL COMMENT 'OVN Northbound database connection string',
+    `sb_connection` varchar(255) COMMENT 'OVN Southbound database connection string',
+    `ca_cert_path` varchar(1024) COMMENT 'OVN TLS CA certificate path',
+    `client_cert_path` varchar(1024) COMMENT 'OVN TLS client certificate path',
+    `client_private_key_path` varchar(1024) COMMENT 'OVN TLS client private key path',
+    `external_bridge` varchar(255) COMMENT 'OVN external bridge used for provider network access',
+    `localnet_name` varchar(255) COMMENT 'OVN localnet name used for provider network mapping',
+    `created` datetime NOT NULL COMMENT 'created date',
+    `removed` datetime COMMENT 'removed date if not null',
+    PRIMARY KEY (`id`),
+    CONSTRAINT `fk_ovn_providers__zone_id` FOREIGN KEY `fk_ovn_providers__zone_id` (`zone_id`) REFERENCES `data_center`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_providers__host_id` FOREIGN KEY `fk_ovn_providers__host_id` (`host_id`) REFERENCES `host`(`id`) ON DELETE SET NULL,
+    UNIQUE KEY `uk_ovn_providers__zone_id` (`zone_id`),
+    INDEX `i_ovn_providers__zone_id`(`zone_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
