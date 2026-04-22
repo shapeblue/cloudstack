@@ -75,6 +75,6 @@ public class OvnGuestNetworkGuru extends GuestNetworkGuru implements NetworkMigr
 
     @Override
     public void commitMigration(NicProfile nic, Network network, VirtualMachineProfile vm, ReservationContext src, ReservationContext dst) {
-        // No OVN resources are allocated during migration preparation in Phase 1.
+        // No OVN resources are committed on migration in Phase 1.
     }
 }

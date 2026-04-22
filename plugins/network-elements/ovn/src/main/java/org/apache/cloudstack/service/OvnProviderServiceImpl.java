@@ -38,8 +38,9 @@ import org.apache.cloudstack.api.command.DeleteOvnProviderCmd;
 import org.apache.cloudstack.api.command.ListOvnProvidersCmd;
 import org.apache.cloudstack.api.response.OvnProviderResponse;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -47,6 +48,8 @@ import java.util.List;
 import java.util.Objects;
 
 public class OvnProviderServiceImpl implements OvnProviderService {
+    protected Logger logger = LogManager.getLogger(getClass());
+
     @Inject
     DataCenterDao dataCenterDao;
     @Inject
@@ -92,7 +95,9 @@ public class OvnProviderServiceImpl implements OvnProviderService {
         if (StringUtils.isNotBlank(cmd.getSbConnection()) && !ovnService.isValidConnectionString(cmd.getSbConnection())) {
             throw new InvalidParameterValueException("Invalid OVN Southbound connection string");
         }
-        if (cmd.getNbConnection().startsWith("ssl:") && (StringUtils.isAnyBlank(cmd.getCaCertPath(), cmd.getClientCertPath(), cmd.getClientPrivateKeyPath()))) {
+        boolean sslRequired = cmd.getNbConnection().startsWith("ssl:")
+                || (StringUtils.isNotBlank(cmd.getSbConnection()) && cmd.getSbConnection().startsWith("ssl:"));
+        if (sslRequired && StringUtils.isAnyBlank(cmd.getCaCertPath(), cmd.getClientCertPath(), cmd.getClientPrivateKeyPath())) {
             throw new InvalidParameterValueException("OVN SSL connections require CA certificate, client certificate, and client private key paths");
         }
     }
@@ -127,14 +132,11 @@ public class OvnProviderServiceImpl implements OvnProviderService {
     protected void validateNetworkState(long zoneId) {
         List<PhysicalNetworkVO> physicalNetworks = physicalNetworkDao.listByZone(zoneId);
         for (PhysicalNetworkVO physicalNetwork : physicalNetworks) {
-            List<NetworkVO> networks = networkDao.listByPhysicalNetwork(physicalNetwork.getId());
-            if (CollectionUtils.isNotEmpty(networks)) {
-                for (NetworkVO network : networks) {
-                    if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN
-                            && network.getState() != Network.State.Shutdown
-                            && network.getState() != Network.State.Destroy) {
-                        throw new CloudRuntimeException("This OVN provider cannot be deleted as there are one or more logical networks provisioned by CloudStack on it.");
-                    }
+            for (NetworkVO network : networkDao.listByPhysicalNetwork(physicalNetwork.getId())) {
+                if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN
+                        && network.getState() != Network.State.Shutdown
+                        && network.getState() != Network.State.Destroy) {
+                    throw new CloudRuntimeException("This OVN provider cannot be deleted as there are one or more logical networks provisioned by CloudStack on it.");
                 }
             }
         }
