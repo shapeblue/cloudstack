@@ -100,6 +100,12 @@ public class OvnProviderServiceImpl implements OvnProviderService {
         if (sslRequired && StringUtils.isAnyBlank(cmd.getCaCertPath(), cmd.getClientCertPath(), cmd.getClientPrivateKeyPath())) {
             throw new InvalidParameterValueException("OVN SSL connections require CA certificate, client certificate, and client private key paths");
         }
+        try {
+            ovnService.verifyNbConnection(cmd.getNbConnection(), cmd.getCaCertPath(), cmd.getClientCertPath(), cmd.getClientPrivateKeyPath());
+        } catch (CloudRuntimeException e) {
+            logger.warn("OVN NB health check failed for zone {}: {}", cmd.getZoneId(), e.getMessage());
+            throw new InvalidParameterValueException("OVN NB endpoint is unreachable: " + e.getMessage());
+        }
     }
 
     @Override

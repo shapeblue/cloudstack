@@ -27,36 +27,35 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+
+import java.lang.reflect.Field;
 
 public class AddOvnProviderCmdTest {
-    @Mock
     private OvnProviderService ovnProviderService;
-    @Mock
     private CallContext callContext;
-
     private MockedStatic<CallContext> callContextMockedStatic;
-
-    @InjectMocks
     private AddOvnProviderCmd cmd;
 
-    private AutoCloseable closeable;
-
     @Before
-    public void setup() {
-        closeable = MockitoAnnotations.openMocks(this);
+    public void setup() throws Exception {
+        ovnProviderService = Mockito.mock(OvnProviderService.class);
+        callContext = Mockito.mock(CallContext.class);
         callContextMockedStatic = Mockito.mockStatic(CallContext.class);
         callContextMockedStatic.when(CallContext::current).thenReturn(callContext);
+
+        cmd = new AddOvnProviderCmd();
+        Field svc = AddOvnProviderCmd.class.getDeclaredField("ovnProviderService");
+        svc.setAccessible(true);
+        svc.set(cmd, ovnProviderService);
     }
 
     @After
     public void tearDown() throws Exception {
-        callContextMockedStatic.close();
-        closeable.close();
+        if (callContextMockedStatic != null) {
+            callContextMockedStatic.close();
+        }
     }
 
     @Test

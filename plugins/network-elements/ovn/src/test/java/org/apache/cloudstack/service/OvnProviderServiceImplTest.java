@@ -96,6 +96,7 @@ public class OvnProviderServiceImplTest {
         Mockito.when(ovnProviderDao.findByZoneId(ZONE_ID)).thenReturn(null);
         Mockito.when(ovnService.isValidConnectionString(NB_CONNECTION)).thenReturn(true);
         Mockito.when(ovnService.isValidConnectionString(SB_CONNECTION)).thenReturn(true);
+        Mockito.doNothing().when(ovnService).verifyNbConnection(Mockito.eq(NB_CONNECTION), Mockito.any(), Mockito.any(), Mockito.any());
         Mockito.when(ovnProviderDao.persist(Mockito.any(OvnProviderVO.class))).thenAnswer(invocation -> invocation.getArgument(0));
         transactionMockedStatic.when(() -> Transaction.execute(Mockito.<TransactionCallback<OvnProviderVO>>any())).thenAnswer(invocation -> {
             TransactionCallback<OvnProviderVO> callback = invocation.getArgument(0);
@@ -126,9 +127,10 @@ public class OvnProviderServiceImplTest {
     @Test
     public void testListOvnProvidersWithZoneId() {
         OvnProviderVO providerVO = Mockito.mock(OvnProviderVO.class);
-        Mockito.when(ovnProviderDao.findByZoneId(ZONE_ID)).thenReturn(providerVO);
         Mockito.when(providerVO.getZoneId()).thenReturn(ZONE_ID);
-        Mockito.when(dataCenterDao.findById(ZONE_ID)).thenReturn(getZone());
+        Mockito.when(ovnProviderDao.findByZoneId(ZONE_ID)).thenReturn(providerVO);
+        DataCenterVO zone = getZone();
+        Mockito.when(dataCenterDao.findById(ZONE_ID)).thenReturn(zone);
 
         List<BaseResponse> result = ovnProviderService.listOvnProviders(ZONE_ID);
 
@@ -174,7 +176,8 @@ public class OvnProviderServiceImplTest {
         Mockito.when(provider.getName()).thenReturn(NAME);
         Mockito.when(provider.getNbConnection()).thenReturn(NB_CONNECTION);
         Mockito.when(provider.getSbConnection()).thenReturn(SB_CONNECTION);
-        Mockito.when(dataCenterDao.findById(ZONE_ID)).thenReturn(getZone());
+        DataCenterVO zone = getZone();
+        Mockito.when(dataCenterDao.findById(ZONE_ID)).thenReturn(zone);
 
         OvnProviderResponse response = ovnProviderService.createOvnProviderResponse(provider);
 
