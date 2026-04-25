@@ -20,8 +20,18 @@ import com.cloud.network.ovn.OvnService;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 
+import javax.annotation.PreDestroy;
+
 public class OvnServiceImpl implements OvnService, Configurable {
-    private final OvnNbClient ovnNbClient = new OvnNbClient();
+    private final OvnNbClient ovnNbClient;
+
+    public OvnServiceImpl() {
+        this(new OvnNbClient());
+    }
+
+    OvnServiceImpl(OvnNbClient ovnNbClient) {
+        this.ovnNbClient = ovnNbClient;
+    }
 
     @Override
     public String getLogicalSwitchName(long networkId) {
@@ -44,6 +54,11 @@ public class OvnServiceImpl implements OvnService, Configurable {
     }
 
     @Override
+    public void verifyNbConnection(String nbConnection, String caCertPath, String clientCertPath, String clientPrivateKeyPath) {
+        ovnNbClient.verifyConnection(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath);
+    }
+
+    @Override
     public String getConfigComponentName() {
         return OvnService.class.getSimpleName();
     }
@@ -51,5 +66,10 @@ public class OvnServiceImpl implements OvnService, Configurable {
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey[0];
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        ovnNbClient.shutdown();
     }
 }

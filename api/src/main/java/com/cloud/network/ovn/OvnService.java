@@ -18,11 +18,17 @@ package com.cloud.network.ovn;
 
 /**
  * Service boundary for CloudStack's native OVN integration.
- * Phase 1 only defines stable naming and connection validation helpers; OVN NB operations are added in later phases.
  */
 public interface OvnService {
     String getLogicalSwitchName(long networkId);
     String getLogicalRouterName(long vpcId);
     String getLogicalSwitchPortName(long nicId);
     boolean isValidConnectionString(String connection);
+
+    /**
+     * Opens a transient connection to the OVN Northbound endpoint described by the arguments,
+     * runs an OVSDB echo and confirms the OVN_Northbound database is advertised. Throws a
+     * {@link com.cloud.utils.exception.CloudRuntimeException} on any failure, leaving no resources behind.
+     */
+    void verifyNbConnection(String nbConnection, String caCertPath, String clientCertPath, String clientPrivateKeyPath);
 }

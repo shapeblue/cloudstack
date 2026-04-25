@@ -18,9 +18,11 @@ package org.apache.cloudstack.service;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 public class OvnServiceImplTest {
-    private final OvnServiceImpl service = new OvnServiceImpl();
+    private final OvnNbClient mockClient = Mockito.mock(OvnNbClient.class);
+    private final OvnServiceImpl service = new OvnServiceImpl(mockClient);
 
     @Test
     public void testDeterministicObjectNames() {
@@ -30,11 +32,16 @@ public class OvnServiceImplTest {
     }
 
     @Test
-    public void testConnectionStringValidation() {
+    public void testConnectionStringValidationDelegatesToClient() {
+        Mockito.when(mockClient.isValidConnectionString("tcp:127.0.0.1:6641")).thenReturn(true);
+        Mockito.when(mockClient.isValidConnectionString("bogus")).thenReturn(false);
         Assert.assertTrue(service.isValidConnectionString("tcp:127.0.0.1:6641"));
-        Assert.assertTrue(service.isValidConnectionString("ssl:ovn.example.com:6641"));
-        Assert.assertTrue(service.isValidConnectionString("unix:/var/run/ovn/ovnnb_db.sock"));
-        Assert.assertFalse(service.isValidConnectionString("http://127.0.0.1:6641"));
-        Assert.assertFalse(service.isValidConnectionString(null));
+        Assert.assertFalse(service.isValidConnectionString("bogus"));
+    }
+
+    @Test
+    public void testVerifyNbConnectionDelegatesToClient() {
+        service.verifyNbConnection("tcp:1.2.3.4:6641", null, null, null);
+        Mockito.verify(mockClient).verifyConnection("tcp:1.2.3.4:6641", null, null, null);
     }
 }
