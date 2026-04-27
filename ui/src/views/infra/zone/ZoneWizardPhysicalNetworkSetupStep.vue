@@ -68,6 +68,7 @@
             <a-select-option value="TF"> TF </a-select-option>
             <a-select-option v-if="hypervisor === 'VMware'" value="NSX"> NSX </a-select-option>
             <a-select-option v-if="hypervisor === 'KVM'" value="Netris"> NETRIS </a-select-option>
+            <a-select-option v-if="hypervisor === 'KVM'" value="OVN"> OVN </a-select-option>
 
             <template #suffixIcon>
               <a-tooltip

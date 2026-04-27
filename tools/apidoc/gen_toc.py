@@ -99,6 +99,7 @@ known_categories = {
     'addNsxController': 'NSX',
     'deleteNsxController': 'NSX',
     'NetrisProvider': 'Netris',
+    'OvnProvider': 'OVN',
     'Vpn': 'VPN',
     'Limit': 'Resource Limit',
     'Netscaler': 'Netscaler',
