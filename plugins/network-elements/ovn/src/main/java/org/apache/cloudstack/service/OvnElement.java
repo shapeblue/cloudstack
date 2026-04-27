@@ -17,12 +17,14 @@
 package org.apache.cloudstack.service;
 
 import com.cloud.agent.api.to.LoadBalancerTO;
+import com.cloud.dc.DataCenter;
 import com.cloud.deploy.DeployDestination;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.ResourceUnavailableException;
 import com.cloud.network.IpAddress;
 import com.cloud.network.Network;
+import com.cloud.network.Networks;
 import com.cloud.network.PhysicalNetworkServiceProvider;
 import com.cloud.network.PublicIpAddress;
 import com.cloud.network.element.DhcpServiceProvider;
@@ -31,6 +33,8 @@ import com.cloud.network.element.FirewallServiceProvider;
 import com.cloud.network.element.IpDeployer;
 import com.cloud.network.element.LoadBalancingServiceProvider;
 import com.cloud.network.element.NetworkACLServiceProvider;
+import com.cloud.network.dao.OvnProviderDao;
+import com.cloud.network.element.OvnProviderVO;
 import com.cloud.network.element.PortForwardingServiceProvider;
 import com.cloud.network.element.StaticNatServiceProvider;
 import com.cloud.network.element.VpcProvider;
@@ -45,6 +49,7 @@ import com.cloud.network.vpc.StaticRouteProfile;
 import com.cloud.network.vpc.Vpc;
 import com.cloud.offering.NetworkOffering;
 import com.cloud.utils.component.AdapterBase;
+import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.NicProfile;
 import com.cloud.vm.ReservationContext;
 import com.cloud.vm.VirtualMachineProfile;
@@ -53,12 +58,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.inject.Inject;
 
 public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsServiceProvider, VpcProvider,
         StaticNatServiceProvider, IpDeployer, PortForwardingServiceProvider, FirewallServiceProvider,
         NetworkACLServiceProvider, LoadBalancingServiceProvider {
 
     private final Map<Network.Service, Map<Network.Capability, String>> capabilities = initCapabilities();
+    private final OvnNbClient ovnNbClient = new OvnNbClient();
+
+    @Inject
+    OvnProviderDao ovnProviderDao;
 
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
@@ -110,6 +120,20 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     @Override
     public boolean implement(Network network, NetworkOffering offering, DeployDestination dest, ReservationContext context)
             throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException {
+        if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
+            OvnProviderVO provider = getProviderForNetwork(network);
+            String logicalSwitchName = getLogicalSwitchName(network);
+            Map<String, String> externalIds = new HashMap<>();
+            externalIds.put("cloudstack_network_id", String.valueOf(network.getId()));
+            externalIds.put("cloudstack_network_uuid", network.getUuid());
+            externalIds.put("cloudstack_zone_id", String.valueOf(network.getDataCenterId()));
+            try {
+                ovnNbClient.createLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
+                        provider.getClientPrivateKeyPath(), logicalSwitchName, externalIds);
+            } catch (CloudRuntimeException e) {
+                throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+            }
+        }
         return true;
     }
 
@@ -127,12 +151,37 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean shutdown(Network network, ReservationContext context, boolean cleanup) throws ConcurrentOperationException, ResourceUnavailableException {
+        if (cleanup && network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
+            destroy(network, context);
+        }
         return true;
     }
 
     @Override
     public boolean destroy(Network network, ReservationContext context) throws ConcurrentOperationException, ResourceUnavailableException {
+        if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
+            OvnProviderVO provider = getProviderForNetwork(network);
+            try {
+                ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
+                        provider.getClientPrivateKeyPath(), getLogicalSwitchName(network));
+            } catch (CloudRuntimeException e) {
+                throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+            }
+        }
         return true;
+    }
+
+    protected OvnProviderVO getProviderForNetwork(Network network) throws ResourceUnavailableException {
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(network.getDataCenterId());
+        if (provider == null) {
+            throw new ResourceUnavailableException(String.format("No OVN provider configured for zone %s", network.getDataCenterId()),
+                    DataCenter.class, network.getDataCenterId());
+        }
+        return provider;
+    }
+
+    protected String getLogicalSwitchName(Network network) {
+        return String.format("cs-net-%d", network.getId());
     }
 
     @Override

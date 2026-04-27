@@ -19,6 +19,7 @@ package org.apache.cloudstack.service;
 import com.cloud.dc.DataCenter;
 import com.cloud.deploy.DeploymentPlan;
 import com.cloud.deploy.DeployDestination;
+import com.cloud.exception.InsufficientVirtualNetworkCapacityException;
 import com.cloud.network.Network;
 import com.cloud.network.NetworkMigrationResponder;
 import com.cloud.network.Networks;
@@ -59,8 +60,23 @@ public class OvnGuestNetworkGuru extends GuestNetworkGuru implements NetworkMigr
             return null;
         }
         network.setBroadcastDomainType(Networks.BroadcastDomainType.OVN);
-        network.setBroadcastUri(Networks.BroadcastDomainType.OVN.toUri(String.format("cs-net-%d", network.getId())));
+        // Broadcast URI is deferred to implement(); the network has no persisted ID yet here.
         return network;
+    }
+
+    @Override
+    public Network implement(Network network, NetworkOffering offering, DeployDestination dest, ReservationContext context)
+            throws InsufficientVirtualNetworkCapacityException {
+        Network implemented = super.implement(network, offering, dest, context);
+        if (implemented == null) {
+            return null;
+        }
+        if (implemented instanceof NetworkVO) {
+            NetworkVO impl = (NetworkVO) implemented;
+            impl.setBroadcastDomainType(Networks.BroadcastDomainType.OVN);
+            impl.setBroadcastUri(Networks.BroadcastDomainType.OVN.toUri(String.format("cs-net-%d", network.getId())));
+        }
+        return implemented;
     }
 
     @Override
@@ -70,11 +86,11 @@ public class OvnGuestNetworkGuru extends GuestNetworkGuru implements NetworkMigr
 
     @Override
     public void rollbackMigration(NicProfile nic, Network network, VirtualMachineProfile vm, ReservationContext src, ReservationContext dst) {
-        // No OVN resources are allocated during migration preparation in Phase 1.
+        // No OVN resources are allocated during migration preparation yet.
     }
 
     @Override
     public void commitMigration(NicProfile nic, Network network, VirtualMachineProfile vm, ReservationContext src, ReservationContext dst) {
-        // No OVN resources are committed on migration in Phase 1.
+        // No OVN resources are committed on migration yet.
     }
 }

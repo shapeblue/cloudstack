@@ -120,7 +120,6 @@ import com.cloud.user.AccountManager;
 import com.cloud.utils.DateUtil;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
-import com.cloud.utils.PasswordGenerator;
 import com.cloud.utils.StringUtils;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.DB;
@@ -1269,7 +1268,7 @@ public class ConsoleProxyManagerImpl extends ManagerBase implements ConsoleProxy
         if (VirtualMachine.Type.ConsoleProxy == profile.getVirtualMachine().getType()) {
             buf.append(" vncport=").append(getVncPort(datacenterId));
         }
-        buf.append(" keystore_password=").append(VirtualMachineGuru.getEncodedString(PasswordGenerator.generateRandomPassword(16)));
+        VirtualMachineGuru.appendCertificateDetails(buf, certificate);
 
         if (SystemVmEnableUserData.valueIn(dc.getId())) {
             String userDataUuid = ConsoleProxyVmUserData.valueIn(dc.getId());
@@ -1285,7 +1284,7 @@ public class ConsoleProxyManagerImpl extends ManagerBase implements ConsoleProxy
 
         String bootArgs = buf.toString();
         if (logger.isDebugEnabled()) {
-            logger.debug("Boot Args for " + profile + ": " + bootArgs);
+            logger.debug("Boot Args for " + profile + ": " + bootArgs.replaceAll("(certificate|cacertificate|privatekey|keystore_password)=[^\\s]+", "$1=******"));
         }
 
         return true;

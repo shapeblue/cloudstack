@@ -46,6 +46,8 @@ import com.cloud.hypervisor.kvm.storage.KVMStoragePoolManager;
 import com.cloud.network.Networks.TrafficType;
 import com.cloud.resource.CommandWrapper;
 import com.cloud.resource.ResourceWrapper;
+import com.cloud.utils.Pair;
+import com.cloud.utils.ssh.SshHelper;
 import com.cloud.vm.UserVmManager;
 import com.cloud.vm.VirtualMachine;
 
@@ -131,6 +133,16 @@ public final class LibvirtStartCommandWrapper extends CommandWrapper<StartComman
                     try {
                         File pemFile = new File(LibvirtComputingResource.SSHPRVKEYPATH);
                         FileUtil.scpPatchFiles(controlIp, VRScripts.CONFIG_CACHE_LOCATION, Integer.parseInt(LibvirtComputingResource.DEFAULTDOMRSSHPORT), pemFile, LibvirtComputingResource.systemVmPatchFiles, LibvirtComputingResource.BASEPATH);
+                        if (vmName.startsWith("s-") || vmName.startsWith("v-")) {
+                            Pair<Boolean, String> setupResult = SshHelper.sshExecute(controlIp, Integer.parseInt(LibvirtComputingResource.DEFAULTDOMRSSHPORT), "root", pemFile, null,
+                                    "if [ ! -x /usr/local/cloud/systemvm/_run.sh ] || [ ! -f /usr/local/cloud/systemvm/conf/cloud.jks ]; then /opt/cloud/bin/setup/cloud-early-config; fi && systemctl restart cloud.service",
+                                    10000, 10000, 600000);
+                            if (!setupResult.first()) {
+                                String errMsg = String.format("Failed to setup systemVM after copying patch files: %s", setupResult.second());
+                                logger.error(errMsg);
+                                return new StartAnswer(command, errMsg);
+                            }
+                        }
                         if (!virtRouterResource.isSystemVMSetup(vmName, controlIp)) {
                             String errMsg = "Failed to patch systemVM";
                             logger.error(errMsg);

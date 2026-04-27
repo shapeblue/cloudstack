@@ -137,7 +137,6 @@ import com.cloud.user.AccountService;
 import com.cloud.utils.DateUtil;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
-import com.cloud.utils.PasswordGenerator;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.db.GlobalLock;
 import com.cloud.utils.db.QueryBuilder;
@@ -1233,7 +1232,7 @@ public class SecondaryStorageManagerImpl extends ManagerBase implements Secondar
         if (StringUtils.isNotBlank(nfsVersion)) {
             buf.append(" nfsVersion=").append(nfsVersion);
         }
-        buf.append(" keystore_password=").append(VirtualMachineGuru.getEncodedString(PasswordGenerator.generateRandomPassword(16)));
+        VirtualMachineGuru.appendCertificateDetails(buf, certificate);
 
         if (SystemVmEnableUserData.valueIn(dc.getId())) {
             String userDataUuid = SecondaryStorageVmUserData.valueIn(dc.getId());
@@ -1249,7 +1248,8 @@ public class SecondaryStorageManagerImpl extends ManagerBase implements Secondar
 
         String bootArgs = buf.toString();
         if (logger.isDebugEnabled()) {
-            logger.debug(String.format("Boot args for machine profile [%s]: [%s].", profile.toString(), bootArgs));
+            logger.debug(String.format("Boot args for machine profile [%s]: [%s].", profile.toString(),
+                    bootArgs.replaceAll("(certificate|cacertificate|privatekey|keystore_password)=[^\\s]+", "$1=******")));
         }
 
         boolean useHttpsToUpload = VolumeApiService.UseHttpsToUpload.valueIn(dc.getId());

@@ -109,6 +109,8 @@ cleanup() {
 
 start() {
   log_it "Executing cloud-early-config"
+  exec 9>/var/lock/cloud-early-config.lock
+  flock 9
 
   # Clear /tmp for file lock
   rm -f /tmp/*.lock
