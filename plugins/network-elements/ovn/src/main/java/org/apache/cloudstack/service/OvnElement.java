@@ -638,6 +638,66 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyPFRules(Network network, List<PortForwardingRule> rules) throws ResourceUnavailableException {
+        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(network);
+        String routerName = getLogicalRouterName(network);
+        try {
+            // Anchor the public LRP so ovn-northd materialises the dnat pipeline.
+            String anchorChassis = pickAnchorChassis(provider, network);
+            if (anchorChassis != null) {
+                ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        "lrp-" + getPublicLogicalSwitchName(network), anchorChassis, 10);
+            }
+            for (PortForwardingRule rule : rules) {
+                IPAddressVO ipVo = ipAddressDao.findById(rule.getSourceIpAddressId());
+                if (ipVo == null || ipVo.getAddress() == null) {
+                    continue;
+                }
+                String externalIp = ipVo.getAddress().addr();
+                String logicalIp = rule.getDestIpAddress();
+                String protocol = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
+                int extPortStart = rule.getSourcePortStart() != null ? rule.getSourcePortStart() : 0;
+                int extPortEnd = rule.getSourcePortEnd() != null ? rule.getSourcePortEnd() : extPortStart;
+                int destPortBase = rule.getDestPort() != null ? rule.getDestPort() : extPortStart;
+
+                if (rule.getState() == FirewallRule.State.Revoke) {
+                    for (int extPort = extPortStart; extPort <= extPortEnd; extPort++) {
+                        ovnNbClient.removeNatRulesByExternalIpAndPort(provider.getNbConnection(),
+                                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                                routerName, "dnat_and_snat", externalIp, extPort, protocol);
+                    }
+                    continue;
+                }
+
+                NicVO targetNic = logicalIp != null ? nicDao.findByIp4AddressAndNetworkId(logicalIp, network.getId()) : null;
+                String distributedLogicalPort = targetNic != null ? targetNic.getUuid() : null;
+                String distributedMac = buildRouterMac(network.getId(), true);
+
+                // OVN NAT translates externalIp:externalPort → logicalIp:externalPort (same port).
+                // When destPort ≠ extPort we log a warning; full port-remapping requires an LB rule.
+                for (int i = 0; i <= extPortEnd - extPortStart; i++) {
+                    int extPort = extPortStart + i;
+                    int destPort = destPortBase + i;
+                    if (destPort != extPort) {
+                        logger.warn("OVN NAT cannot remap ports: rule {} maps external port {} to internal port {};"
+                                + " forwarding to external port on VM instead", rule.getId(), extPort, destPort);
+                    }
+                    Map<String, String> ext = new HashMap<>();
+                    ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+                    ext.put("cloudstack_nat_kind", "portforward");
+                    ext.put("cloudstack_pf_rule_id", String.valueOf(rule.getId()));
+                    ovnNbClient.addNatRuleWithPorts(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, "dnat_and_snat", externalIp, extPort, protocol, logicalIp, ext,
+                            distributedMac, distributedLogicalPort);
+                }
+            }
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+        }
         return true;
     }
 
@@ -783,7 +843,140 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyNetworkACLs(Network config, List<? extends NetworkACLItem> rules) throws ResourceUnavailableException {
+        if (config.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(config);
+        String guestLs = getLogicalSwitchName(config);
+        String networkId = String.valueOf(config.getId());
+        try {
+            // Full sync: wipe every ACL currently tagged to this network and re-install
+            // the authoritative set. This keeps OVN state consistent even when rules are
+            // reordered or the ACL list is replaced entirely.
+            ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    guestLs, "cloudstack_network_id", networkId);
+
+            if (rules != null) {
+                for (NetworkACLItem rule : rules) {
+                    if (rule.getState() == NetworkACLItem.State.Revoke) {
+                        continue;
+                    }
+                    programNetworkAclRule(provider, config, guestLs, rule);
+                }
+            }
+            // Always install a default-deny at priority 1 for both directions so that
+            // unmatched traffic is dropped (OVN ACL default is allow when no rule matches).
+            ensureNetworkAclDefaultDeny(provider, config, guestLs);
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, config.getDataCenterId());
+        }
         return true;
+    }
+
+    /**
+     * Translates a single {@link NetworkACLItem} into an OVN ACL row on the guest Logical_Switch.
+     * CloudStack {@code Ingress} (traffic into the VM) maps to OVN {@code to-lport}; {@code Egress}
+     * (traffic from the VM) maps to {@code from-lport}. Priority is derived from the rule number
+     * so that lower CloudStack rule numbers take precedence (higher OVN priority).
+     */
+    protected void programNetworkAclRule(OvnProviderVO provider, Network network,
+                                          String guestLs, NetworkACLItem rule) {
+        String direction = rule.getTrafficType() == NetworkACLItem.TrafficType.Ingress
+                ? "to-lport" : "from-lport";
+        String aclAction = rule.getAction() == NetworkACLItem.Action.Allow ? "allow-related" : "drop";
+        // CloudStack rule number starts at 1; lower = higher CloudStack priority = higher OVN prio.
+        long ovnPriority = Math.max(2L, 1000L - (rule.getNumber() != null ? rule.getNumber() : 500));
+        String matchExpr = buildNetworkAclMatch(direction, rule);
+        if (matchExpr == null) {
+            return;
+        }
+        Map<String, String> ext = new HashMap<>();
+        ext.put("cloudstack_acl_rule_id", String.valueOf(rule.getId()));
+        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        ext.put("cloudstack_acl_direction", direction);
+        ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                guestLs, "nacl-" + rule.getId(), direction, ovnPriority, matchExpr, aclAction, ext);
+    }
+
+    /**
+     * Builds the OVN match expression for a NetworkACL rule on the guest LS. For {@code to-lport}
+     * (ingress) the source address is matched; for {@code from-lport} (egress) the destination
+     * address is matched.
+     */
+    protected String buildNetworkAclMatch(String ovnDirection, NetworkACLItem rule) {
+        boolean isIngress = "to-lport".equals(ovnDirection);
+        String proto = rule.getProtocol() == null ? "all" : rule.getProtocol().toLowerCase();
+        StringBuilder sb = new StringBuilder("ip4");
+        List<String> cidrs = rule.getSourceCidrList();
+        if (cidrs != null && !cidrs.isEmpty()) {
+            StringBuilder cidrSet = new StringBuilder();
+            for (String cidr : cidrs) {
+                if (cidr == null || cidr.isEmpty() || "0.0.0.0/0".equals(cidr)) {
+                    cidrSet.setLength(0);
+                    break;
+                }
+                if (cidrSet.length() > 0) cidrSet.append(", ");
+                cidrSet.append(cidr);
+            }
+            if (cidrSet.length() > 0) {
+                // For ingress the CIDR is the packet source; for egress it is the destination.
+                sb.append(isIngress ? " && ip4.src == {" : " && ip4.dst == {")
+                        .append(cidrSet).append("}");
+            }
+        }
+        switch (proto) {
+            case "tcp":
+            case "udp": {
+                sb.append(" && ").append(proto);
+                Integer portStart = rule.getSourcePortStart();
+                Integer portEnd = rule.getSourcePortEnd();
+                if (portStart != null && portEnd != null) {
+                    String portCol = isIngress ? proto + ".dst" : proto + ".src";
+                    if (portStart.equals(portEnd)) {
+                        sb.append(" && ").append(portCol).append(" == ").append(portStart);
+                    } else {
+                        sb.append(" && ").append(portCol).append(" >= ").append(portStart)
+                                .append(" && ").append(portCol).append(" <= ").append(portEnd);
+                    }
+                }
+                break;
+            }
+            case "icmp": {
+                sb.append(" && icmp4");
+                if (rule.getIcmpType() != null && rule.getIcmpType() != -1) {
+                    sb.append(" && icmp4.type == ").append(rule.getIcmpType());
+                }
+                if (rule.getIcmpCode() != null && rule.getIcmpCode() != -1) {
+                    sb.append(" && icmp4.code == ").append(rule.getIcmpCode());
+                }
+                break;
+            }
+            case "all":
+                break;
+            default:
+                logger.warn("Skipping NetworkACL rule {} with unsupported protocol [{}]", rule.getId(), proto);
+                return null;
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Installs a default-drop ACL at priority 1 for both directions on the guest LS. Without this
+     * OVN would allow any traffic not matched by an explicit rule (OVN ACL default is allow-all).
+     */
+    protected void ensureNetworkAclDefaultDeny(OvnProviderVO provider, Network network, String guestLs) {
+        String networkId = String.valueOf(network.getId());
+        for (String dir : new String[]{"to-lport", "from-lport"}) {
+            Map<String, String> ext = new HashMap<>();
+            ext.put("cloudstack_acl_default", "true");
+            ext.put("cloudstack_network_id", networkId);
+            ext.put("cloudstack_acl_direction", dir);
+            ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    guestLs, "nacl-default-" + dir, dir, 1L, "ip4", "drop", ext);
+        }
     }
 
     @Override

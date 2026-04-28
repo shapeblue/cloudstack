@@ -702,6 +702,171 @@ public class OvnNbClient {
     }
 
     /**
+     * Idempotently adds a port-specific NAT rule (DNAT) to a Logical_Router. The rule matches
+     * traffic arriving at {@code externalIp:externalPort/protocol} and DNATs it to
+     * {@code logicalIp:externalPort} (OVN translates destination port to the same value).
+     * Setting {@code distributedMac} and {@code distributedLogicalPort} marks the row as
+     * distributed so ovn-northd applies DNAT on the workload chassis without the gateway.
+     */
+    public void addNatRuleWithPorts(String nbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath,
+                                    String routerName, String natType, String externalIp,
+                                    int externalPort, String protocol, String logicalIp,
+                                    Map<String, String> externalIds,
+                                    String distributedMac, String distributedLogicalPort) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(natType)
+                || StringUtils.isBlank(externalIp) || StringUtils.isBlank(logicalIp)
+                || StringUtils.isBlank(protocol)) {
+            throw new CloudRuntimeException("addNatRuleWithPorts: arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+            ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+            ColumnSchema<GenericTableSchema, String> natLogCol = natTable.column("logical_ip", String.class);
+            ColumnSchema<GenericTableSchema, Set<Long>> natExtPortCol = natTable.multiValuedColumn("external_port", Long.class);
+            ColumnSchema<GenericTableSchema, Set<String>> natProtoCol = natTable.multiValuedColumn("protocol", String.class);
+
+            if (natRuleWithPortExists(client, schema, natTable, natType, externalIp, externalPort, protocol)) {
+                logger.debug("NAT [{} {}:{}/{}→{}] on {} already exists - skipping",
+                        natType, externalIp, externalPort, protocol, logicalIp, routerName);
+                return null;
+            }
+
+            Insert<GenericTableSchema> insertNat = OVSDB_OPS.insert(natTable)
+                    .withId("newnat")
+                    .value(natTypeCol, natType)
+                    .value(natExtCol, externalIp)
+                    .value(natLogCol, logicalIp)
+                    .value(natExtPortCol, Collections.singleton((long) externalPort))
+                    .value(natProtoCol, Collections.singleton(protocol));
+            if (externalIds != null && !externalIds.isEmpty()) {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                ColumnSchema<GenericTableSchema, Map> extIdsCol = natTable.column("external_ids", Map.class);
+                insertNat = insertNat.value(extIdsCol, new HashMap<>(externalIds));
+            }
+            if (StringUtils.isNotBlank(distributedMac)) {
+                ColumnSchema<GenericTableSchema, String> extMacCol = natTable.column("external_mac", String.class);
+                insertNat = insertNat.value(extMacCol, distributedMac);
+            }
+            if (StringUtils.isNotBlank(distributedLogicalPort)) {
+                ColumnSchema<GenericTableSchema, String> logPortCol = natTable.column("logical_port", String.class);
+                insertNat = insertNat.value(logPortCol, distributedLogicalPort);
+            }
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertNat);
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrNatCol, Mutator.INSERT, Collections.singleton(new UUID("newnat")))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("add NAT %s %s:%d/%s→%s on %s",
+                    natType, externalIp, externalPort, protocol, logicalIp, routerName));
+            logger.info("Added OVN port NAT [{} {}:{}/{} → {}] on Logical_Router [{}] at {}",
+                    natType, externalIp, externalPort, protocol, logicalIp, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes every NAT row matching {@code type + externalIp + externalPort + protocol} from
+     * the Logical_Router. Idempotent: no-op if nothing matches.
+     */
+    public void removeNatRulesByExternalIpAndPort(String nbConnection, String caCertPath, String clientCertPath,
+                                                  String clientPrivateKeyPath,
+                                                  String routerName, String natType,
+                                                  String externalIp, int externalPort, String protocol) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(natType)
+                || StringUtils.isBlank(externalIp) || StringUtils.isBlank(protocol)) {
+            throw new CloudRuntimeException("removeNatRulesByExternalIpAndPort: arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+            ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+            ColumnSchema<GenericTableSchema, UUID> natUuidCol = natTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<Long>> natExtPortCol = natTable.multiValuedColumn("external_port", Long.class);
+            ColumnSchema<GenericTableSchema, Set<String>> natProtoCol = natTable.multiValuedColumn("protocol", String.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
+
+            // Select all rows matching type+externalIp, then filter by port+protocol client-side
+            // because OVSDB conditions cannot match inside set columns.
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(natTable)
+                    .column(natUuidCol).column(natExtPortCol).column(natProtoCol)
+                    .where(natTypeCol.opEqual(natType))
+                    .and(natExtCol.opEqual(externalIp)).build();
+            List<OperationResult> selResult = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selResult == null || selResult.isEmpty() || selResult.get(0).getRows() == null) {
+                return null;
+            }
+            List<UUID> uuids = new ArrayList<>();
+            for (Row<GenericTableSchema> row : selResult.get(0).getRows()) {
+                @SuppressWarnings("unchecked")
+                Set<Long> ports = (Set<Long>) row.getColumn(natExtPortCol).getData();
+                @SuppressWarnings("unchecked")
+                Set<String> protos = (Set<String>) row.getColumn(natProtoCol).getData();
+                if (ports != null && ports.contains((long) externalPort)
+                        && protos != null && protos.contains(protocol)) {
+                    uuids.add(row.getColumn(natUuidCol).getData());
+                }
+            }
+            if (uuids.isEmpty()) {
+                return null;
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrNatCol, Mutator.DELETE, new java.util.HashSet<>(uuids))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            for (UUID u : uuids) {
+                ops.add(OVSDB_OPS.delete(natTable).where(natUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("remove NAT %s %s:%d/%s on %s",
+                    natType, externalIp, externalPort, protocol, routerName));
+            logger.info("Removed {} OVN port NAT row(s) [{} {}:{}/{}] on Logical_Router [{}] at {}",
+                    uuids.size(), natType, externalIp, externalPort, protocol, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    private boolean natRuleWithPortExists(OvsdbClient client, DatabaseSchema schema, GenericTableSchema natTable,
+                                          String natType, String externalIp, int externalPort,
+                                          String protocol) throws Exception {
+        ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+        ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+        ColumnSchema<GenericTableSchema, Set<Long>> natExtPortCol = natTable.multiValuedColumn("external_port", Long.class);
+        ColumnSchema<GenericTableSchema, Set<String>> natProtoCol = natTable.multiValuedColumn("protocol", String.class);
+        ColumnSchema<GenericTableSchema, UUID> uuidCol = natTable.column("_uuid", UUID.class);
+        Operation<GenericTableSchema> sel = OVSDB_OPS.select(natTable)
+                .column(uuidCol).column(natExtPortCol).column(natProtoCol)
+                .where(natTypeCol.opEqual(natType))
+                .and(natExtCol.opEqual(externalIp)).build();
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(sel))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (results == null || results.isEmpty() || results.get(0).getRows() == null) {
+            return false;
+        }
+        for (Row<GenericTableSchema> row : results.get(0).getRows()) {
+            @SuppressWarnings("unchecked")
+            Set<Long> ports = (Set<Long>) row.getColumn(natExtPortCol).getData();
+            @SuppressWarnings("unchecked")
+            Set<String> protos = (Set<String>) row.getColumn(natProtoCol).getData();
+            if (ports != null && ports.contains((long) externalPort)
+                    && protos != null && protos.contains(protocol)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Removes every NAT rule matching {@code type}+{@code external_ip} from the Logical_Router,
      * regardless of logical_ip. Convenient when reverting a static NAT mapping where the caller
      * does not know the previously-bound private address. Idempotent.
