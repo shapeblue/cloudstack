@@ -1139,6 +1139,11 @@ export default {
           args: ['name', 'description', 'sourceipaddress', 'sourceport', 'instanceport', 'algorithm', 'networkid', 'sourceipaddressnetworkid', 'scheme'],
           mapping: {
             algorithm: {
+              // TODO: derive from the selected network's offering capabilities
+              // (service Lb, SupportedLBAlgorithms) - mirrors what LoadBalancing.vue
+              // does for public LB. Doing it here requires AutogenView to support
+              // an async/function-valued `options`, which is a framework change
+              // outside the scope of this UI patch.
               options: ['source', 'roundrobin', 'leastconn']
             },
             scheme: {

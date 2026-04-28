@@ -49,9 +49,7 @@
             :filterOption="(input, option) => {
               return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }" >
-            <a-select-option value="roundrobin" :label="$t('label.lb.algorithm.roundrobin')">{{ $t('label.lb.algorithm.roundrobin') }}</a-select-option>
-            <a-select-option value="leastconn" :label="$t('label.lb.algorithm.leastconn')">{{ $t('label.lb.algorithm.leastconn') }}</a-select-option>
-            <a-select-option value="source" :label="$t('label.lb.algorithm.source')">{{ $t('label.lb.algorithm.source') }}</a-select-option>
+            <a-select-option v-for="algo in supportedAlgorithms" :key="algo" :value="algo" :label="$t('label.lb.algorithm.' + algo)">{{ $t('label.lb.algorithm.' + algo) }}</a-select-option>
           </a-select>
         </div>
         <div class="form__item">
@@ -436,9 +434,7 @@
             :filterOption="(input, option) => {
               return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }" >
-            <a-select-option value="roundrobin" :label="$t('label.lb.algorithm.roundrobin')">{{ $t('label.lb.algorithm.roundrobin') }}</a-select-option>
-            <a-select-option value="leastconn" :label="$t('label.lb.algorithm.leastconn')">{{ $t('label.lb.algorithm.leastconn') }}</a-select-option>
-            <a-select-option value="source" :label="$t('label.lb.algorithm.source')">{{ $t('label.lb.algorithm.source') }}</a-select-option>
+            <a-select-option v-for="algo in supportedAlgorithms" :key="algo" :value="algo" :label="$t('label.lb.algorithm.' + algo)">{{ $t('label.lb.algorithm.' + algo) }}</a-select-option>
           </a-select>
         </div>
         <div v-if="lbProvider !== 'Netris'" class="edit-rule__item">
@@ -872,6 +868,10 @@ export default {
         cidrlist: ''
       },
       lbProvider: null,
+      // Populated from the network's offering capabilities (service Lb,
+      // SupportedLBAlgorithms). Defaults to the union we historically hard-coded so
+      // legacy networks/offerings without an explicit cap keep working.
+      supportedAlgorithms: ['roundrobin', 'leastconn', 'source'],
       addVmModalVisible: false,
       addVmModalLoading: false,
       addVmModalNicLoading: false,
@@ -1089,6 +1089,48 @@ export default {
       this.fetchListTiers()
       this.fetchLBRules()
       this.fetchZone()
+      this.fetchLbCapabilities()
+    },
+    /**
+     * Loads the SupportedLbAlgorithms capability from the network's Lb service.
+     * The capability lives at network.service[name=Lb].capability[name=SupportedLbAlgorithms]
+     * with a CSV value like "roundrobin,source". Falls back to the legacy
+     * static list when the lookup fails so providers that don't declare it
+     * keep their pre-existing behaviour.
+     *
+     * Note: listNetworks is the right endpoint here (not listNetworkOfferings):
+     * the offering response hard-codes only SupportedLBIsolation/ElasticLb/
+     * InlineMode/VmAutoScaling for the Lb service, while the network response
+     * walks the live provider's getCapabilities() and exposes everything we
+     * declared. The capability name on the wire is "SupportedLbAlgorithms"
+     * (note the lowercase 'b' in 'Lb') - that's how Capability.SupportedLBAlgorithms.getName()
+     * serialises.
+     */
+    fetchLbCapabilities () {
+      const networkId = this.resource?.associatednetworkid || this.resource?.networkid
+      if (!networkId) {
+        return
+      }
+      getAPI('listNetworks', { id: networkId, listall: true }).then(json => {
+        const network = json?.listnetworksresponse?.network?.[0]
+        const lbService = network?.service?.find(s => s.name === 'Lb')
+        const algoCap = lbService?.capability?.find(c => c.name === 'SupportedLbAlgorithms')
+        if (algoCap && algoCap.value) {
+          const algos = algoCap.value.split(',').map(s => s.trim()).filter(s => s)
+          if (algos.length > 0) {
+            this.supportedAlgorithms = algos
+            // If the default algorithm is not in the supported set, switch to the
+            // first one so the dropdown shows a valid selection from the start.
+            if (!algos.includes(this.newRule.algorithm)) {
+              this.newRule.algorithm = algos[0]
+            }
+          }
+        }
+      }).catch(error => {
+        // Swallow - we just keep the default list. Don't pop a notification
+        // because this is non-fatal background data.
+        console.warn('Failed to load LB algorithm capabilities; using defaults', error)
+      })
     },
     fetchVpc () {
       if (!this.resource.vpcid) {
