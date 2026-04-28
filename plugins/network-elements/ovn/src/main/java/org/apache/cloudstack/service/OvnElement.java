@@ -346,7 +346,50 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                         routerName, "0.0.0.0/0", externalGateway);
             }
+            applyNatAddressesAnnouncement(provider, network);
         }
+    }
+
+    /**
+     * Tells ovn-controller (running on the gateway chassis for this LR) to announce the public
+     * IPs of this network via gratuitous ARPs. Without this, the upstream switch / router only
+     * learns our LR's MAC when it ARPs for one of those IPs - which races against any other
+     * device on the public segment that may also claim the same address (legitimately or not).
+     *
+     * <p>The mechanism: ovn-controller, when it claims the cr-lrp Port_Binding for this LR's
+     * gateway, looks at {@code options:nat-addresses} on the type=router LSP that peers the
+     * external LRP. If it is set to the explicit {@code "<MAC> <IP> ..."} format, ovn-controller
+     * emits gARP for each IP. The {@code router} keyword only covers {@code dnat_and_snat}
+     * rules with {@code logical_port} set, so it skips plain SNAT - which is why we need the
+     * explicit form here.</p>
+     */
+    protected void applyNatAddressesAnnouncement(OvnProviderVO provider, Network network) {
+        String publicLs = getPublicLogicalSwitchName(network);
+        String externalLrpLsp = "lsp-lrp-" + publicLs;
+        String routerMac = buildRouterMac(network.getId(), true);
+        StringBuilder addresses = new StringBuilder(routerMac);
+        boolean any = false;
+        List<IPAddressVO> ips = ipAddressDao.listByAssociatedNetwork(network.getId(), true);
+        if (ips != null) {
+            for (IPAddressVO ipVo : ips) {
+                if (ipVo.getAddress() == null || !ipVo.isSourceNat()) {
+                    continue;
+                }
+                addresses.append(' ').append(ipVo.getAddress().addr());
+                any = true;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        Map<String, String> options = new HashMap<>();
+        options.put("nat-addresses", addresses.toString());
+        // Without this, ovn-controller would also gARP every Load_Balancer VIP on the LR; we have
+        // no LBs yet, but this stays consistent with the Neutron OVN driver default.
+        options.put("exclude-lb-vips-from-garp", "true");
+        ovnNbClient.setLspOptions(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                externalLrpLsp, options);
     }
 
     @Override
@@ -535,6 +578,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                             routerName, "snat", externalIp, guestCidr, natExt);
                 }
             }
+            // Refresh nat-addresses on the gateway-side LSP so ovn-controller emits gARPs for
+            // every current SourceNat IP. Idempotent and skipped when nothing changed.
+            applyNatAddressesAnnouncement(provider, network);
         } catch (CloudRuntimeException e) {
             throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
         }
@@ -638,65 +684,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyPFRules(Network network, List<PortForwardingRule> rules) throws ResourceUnavailableException {
-        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
-            return true;
-        }
-        OvnProviderVO provider = getProviderForNetwork(network);
-        String routerName = getLogicalRouterName(network);
-        try {
-            // Anchor the public LRP so ovn-northd materialises the dnat pipeline.
-            String anchorChassis = pickAnchorChassis(provider, network);
-            if (anchorChassis != null) {
-                ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
-                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        "lrp-" + getPublicLogicalSwitchName(network), anchorChassis, 10);
-            }
-            for (PortForwardingRule rule : rules) {
-                IPAddressVO ipVo = ipAddressDao.findById(rule.getSourceIpAddressId());
-                if (ipVo == null || ipVo.getAddress() == null) {
-                    continue;
-                }
-                String externalIp = ipVo.getAddress().addr();
-                String logicalIp = rule.getDestIpAddress();
-                String protocol = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
-                int extPortStart = rule.getSourcePortStart() != null ? rule.getSourcePortStart() : 0;
-                int extPortEnd = rule.getSourcePortEnd() != null ? rule.getSourcePortEnd() : extPortStart;
-                int destPortBase = rule.getDestPort() != null ? rule.getDestPort() : extPortStart;
-
-                if (rule.getState() == FirewallRule.State.Revoke) {
-                    for (int extPort = extPortStart; extPort <= extPortEnd; extPort++) {
-                        ovnNbClient.removeNatRulesByExternalIpAndPort(provider.getNbConnection(),
-                                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                                routerName, "dnat_and_snat", externalIp, extPort, protocol);
-                    }
-                    continue;
-                }
-
-                NicVO targetNic = logicalIp != null ? nicDao.findByIp4AddressAndNetworkId(logicalIp, network.getId()) : null;
-                String distributedLogicalPort = targetNic != null ? targetNic.getUuid() : null;
-                String distributedMac = buildRouterMac(network.getId(), true);
-
-                // OVN NAT translates externalIp:externalPort → logicalIp:externalPort (same port).
-                // When destPort ≠ extPort we log a warning; full port-remapping requires an LB rule.
-                for (int i = 0; i <= extPortEnd - extPortStart; i++) {
-                    int extPort = extPortStart + i;
-                    int destPort = destPortBase + i;
-                    if (destPort != extPort) {
-                        logger.warn("OVN NAT cannot remap ports: rule {} maps external port {} to internal port {};"
-                                + " forwarding to external port on VM instead", rule.getId(), extPort, destPort);
-                    }
-                    Map<String, String> ext = new HashMap<>();
-                    ext.put("cloudstack_network_id", String.valueOf(network.getId()));
-                    ext.put("cloudstack_nat_kind", "portforward");
-                    ext.put("cloudstack_pf_rule_id", String.valueOf(rule.getId()));
-                    ovnNbClient.addNatRuleWithPorts(provider.getNbConnection(),
-                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                            routerName, "dnat_and_snat", externalIp, extPort, protocol, logicalIp, ext,
-                            distributedMac, distributedLogicalPort);
-                }
-            }
-        } catch (CloudRuntimeException e) {
-            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+        // OVN NB schema 24.03 dropped NAT.external_port / NAT.protocol in favour of port-based
+        // forwarding via Load_Balancer rows (vips: "<fip>:<ext>" -> "<int_ip>:<int>"). The
+        // previous NAT-based path crashed at runtime because those columns no longer exist.
+        // TODO: re-implement applyPFRules on top of OvnNbClient.{add,remove}LoadBalancer once
+        // the LB primitives land - see ovn_octavia driver in the Neutron tree for the pattern.
+        if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN
+                && rules != null && !rules.isEmpty()) {
+            logger.warn("OVN plugin: PortForwarding requested for network {} but NAT-based PF was"
+                    + " removed from OVN NB 24.03 (no external_port column). Skipping {} rule(s);"
+                    + " Load_Balancer-backed PF is on the roadmap.",
+                    network.getUuid(), rules.size());
         }
         return true;
     }
@@ -886,7 +884,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 ? "to-lport" : "from-lport";
         String aclAction = rule.getAction() == NetworkACLItem.Action.Allow ? "allow-related" : "drop";
         // CloudStack rule number starts at 1; lower = higher CloudStack priority = higher OVN prio.
-        long ovnPriority = Math.max(2L, 1000L - (rule.getNumber() != null ? rule.getNumber() : 500));
+        long ovnPriority = Math.max(2L, 1000L - rule.getNumber());
         String matchExpr = buildNetworkAclMatch(direction, rule);
         if (matchExpr == null) {
             return;

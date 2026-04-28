@@ -422,6 +422,60 @@ public class OvnNbClient {
         });
     }
 
+    /**
+     * Merges the supplied entries into the {@code options} column of an existing Logical_Switch_Port.
+     * Existing keys not in {@code optionsToSet} are preserved; keys in {@code optionsToSet} are
+     * overwritten. Use this to set values like {@code nat-addresses="<MAC> <IP> ..."} on the
+     * gateway-side LSP so ovn-controller emits gratuitous ARPs for SNAT/FIP addresses on claim.
+     */
+    public void setLspOptions(String nbConnection, String caCertPath, String clientCertPath,
+                              String clientPrivateKeyPath,
+                              String lspName, Map<String, String> optionsToSet) {
+        if (StringUtils.isBlank(lspName)) {
+            throw new CloudRuntimeException("LSP name is blank");
+        }
+        if (optionsToSet == null || optionsToSet.isEmpty()) {
+            return;
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> optsCol = lspTable.column("options", Map.class);
+
+            Operation<GenericTableSchema> select = OVSDB_OPS.select(lspTable)
+                    .column(optsCol).where(lspNameCol.opEqual(lspName)).build();
+            List<OperationResult> selResult = client.transact(schema, Collections.<Operation>singletonList(select))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selResult == null || selResult.isEmpty() || selResult.get(0).getRows() == null
+                    || selResult.get(0).getRows().isEmpty()) {
+                throw new CloudRuntimeException("LSP " + lspName + " not found while setting options");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, String> existing = (Map<String, String>) selResult.get(0).getRows().get(0)
+                    .getColumn(optsCol).getData();
+            Map<String, String> merged = new HashMap<>();
+            if (existing != null) merged.putAll(existing);
+            merged.putAll(optionsToSet);
+
+            // Bail out when nothing actually changes - avoids spurious NB notifications that
+            // ripple to ovn-controller and cause unnecessary recomputes.
+            if (existing != null && existing.equals(merged)) {
+                logger.debug("LSP [{}] options already at desired state - skipping update", lspName);
+                return null;
+            }
+
+            Operation<GenericTableSchema> update = OVSDB_OPS.update(lspTable)
+                    .set(optsCol, merged).where(lspNameCol.opEqual(lspName)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(update))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("set options on LSP %s", lspName));
+            logger.info("Set options [{}] on Logical_Switch_Port [{}] at {}", optionsToSet, lspName, nbConnection);
+            return null;
+        });
+    }
+
     private UUID findDhcpOptionsByNetworkId(OvsdbClient client, DatabaseSchema schema,
                                             GenericTableSchema dhcpTable, String networkId) throws Exception {
         ColumnSchema<GenericTableSchema, UUID> uuidCol = dhcpTable.column("_uuid", UUID.class);
