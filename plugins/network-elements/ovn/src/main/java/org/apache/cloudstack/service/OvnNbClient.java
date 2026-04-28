@@ -715,15 +715,41 @@ public class OvnNbClient {
         runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
             DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
             GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
             ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
             ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
-            Operation<GenericTableSchema> delete = OVSDB_OPS.delete(natTable)
+            ColumnSchema<GenericTableSchema, UUID> natUuidCol = natTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
+
+            // Logical_Router.nat is a strong reference set; deleting NAT rows without first
+            // mutating the LR.nat column triggers a referential-integrity violation. Resolve
+            // the UUIDs to remove via select, then mutate-and-delete in one transaction.
+            Operation<GenericTableSchema> selectUuids = OVSDB_OPS.select(natTable).column(natUuidCol)
                     .where(natTypeCol.opEqual(natType))
                     .and(natExtCol.opEqual(externalIp)).build();
-            List<OperationResult> results = client.transact(schema, Collections.singletonList(delete))
+            List<OperationResult> selectResult = client.transact(schema, Collections.<Operation>singletonList(selectUuids))
                     .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selectResult == null || selectResult.isEmpty() || selectResult.get(0).getRows() == null
+                    || selectResult.get(0).getRows().isEmpty()) {
+                logger.debug("No NAT rows match type={} ext={} on {} - nothing to remove", natType, externalIp, routerName);
+                return null;
+            }
+            List<UUID> uuids = new ArrayList<>();
+            for (Row<GenericTableSchema> row : selectResult.get(0).getRows()) {
+                uuids.add(row.getColumn(natUuidCol).getData());
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrNatCol, Mutator.DELETE, new java.util.HashSet<>(uuids))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            for (UUID u : uuids) {
+                ops.add(OVSDB_OPS.delete(natTable).where(natUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
             assertNoError(results, String.format("delete NAT %s ext=%s on %s", natType, externalIp, routerName));
-            logger.info("Deleted OVN NAT [{} ext={}] on Logical_Router [{}] at {}", natType, externalIp, routerName, nbConnection);
+            logger.info("Deleted {} OVN NAT row(s) [{} ext={}] on Logical_Router [{}] at {}",
+                    uuids.size(), natType, externalIp, routerName, nbConnection);
             return null;
         });
     }
@@ -737,18 +763,36 @@ public class OvnNbClient {
         runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
             DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
             GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
             ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
             ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
             ColumnSchema<GenericTableSchema, String> natLogCol = natTable.column("logical_ip", String.class);
-            if (!natRuleExists(client, schema, natTable, natType, externalIp, logicalIp)) {
-                return null;
-            }
-            Operation<GenericTableSchema> delete = OVSDB_OPS.delete(natTable)
+            ColumnSchema<GenericTableSchema, UUID> natUuidCol = natTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
+
+            Operation<GenericTableSchema> selectUuids = OVSDB_OPS.select(natTable).column(natUuidCol)
                     .where(natTypeCol.opEqual(natType))
                     .and(natExtCol.opEqual(externalIp))
                     .and(natLogCol.opEqual(logicalIp)).build();
-            List<OperationResult> results = client.transact(schema, Collections.singletonList(delete))
+            List<OperationResult> selectResult = client.transact(schema, Collections.<Operation>singletonList(selectUuids))
                     .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selectResult == null || selectResult.isEmpty() || selectResult.get(0).getRows() == null
+                    || selectResult.get(0).getRows().isEmpty()) {
+                return null;
+            }
+            List<UUID> uuids = new ArrayList<>();
+            for (Row<GenericTableSchema> row : selectResult.get(0).getRows()) {
+                uuids.add(row.getColumn(natUuidCol).getData());
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrNatCol, Mutator.DELETE, new java.util.HashSet<>(uuids))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            for (UUID u : uuids) {
+                ops.add(OVSDB_OPS.delete(natTable).where(natUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
             assertNoError(results, String.format("delete NAT %s %s→%s on %s", natType, logicalIp, externalIp, routerName));
             logger.info("Deleted OVN NAT [{} {} → {}] on Logical_Router [{}] at {}", natType, logicalIp, externalIp, routerName, nbConnection);
             return null;
