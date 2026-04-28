@@ -54,11 +54,13 @@ import java.util.regex.Pattern;
 public class OvnNbClient {
     protected static final Logger logger = LogManager.getLogger(OvnNbClient.class);
     private static final String NORTHBOUND_DB = "OVN_Northbound";
+    private static final String SOUTHBOUND_DB = "OVN_Southbound";
     private static final String LOGICAL_SWITCH_TABLE = "Logical_Switch";
     private static final String LOGICAL_SWITCH_PORT_TABLE = "Logical_Switch_Port";
     private static final String LOGICAL_ROUTER_TABLE = "Logical_Router";
     private static final String LOGICAL_ROUTER_PORT_TABLE = "Logical_Router_Port";
     private static final String LOGICAL_ROUTER_STATIC_ROUTE_TABLE = "Logical_Router_Static_Route";
+    private static final String GATEWAY_CHASSIS_TABLE = "Gateway_Chassis";
     private static final String DHCP_OPTIONS_TABLE = "DHCP_Options";
     private static final String NAT_TABLE = "NAT";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
@@ -632,12 +634,23 @@ public class OvnNbClient {
 
     /**
      * Idempotently adds a NAT rule to a Logical_Router. {@code natType} should be {@code snat},
-     * {@code dnat} or {@code dnat_and_snat}.
+     * {@code dnat} or {@code dnat_and_snat}. Setting both {@code distributedMac} and
+     * {@code distributedLogicalPort} marks the row as distributed-NAT (so ovn-northd can apply
+     * the rule on the chassis hosting the workload, no Gateway_Chassis required).
      */
     public void addNatRule(String nbConnection, String caCertPath, String clientCertPath,
                            String clientPrivateKeyPath,
                            String routerName, String natType, String externalIp, String logicalIp,
                            Map<String, String> externalIds) {
+        addNatRule(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                routerName, natType, externalIp, logicalIp, externalIds, null, null);
+    }
+
+    public void addNatRule(String nbConnection, String caCertPath, String clientCertPath,
+                           String clientPrivateKeyPath,
+                           String routerName, String natType, String externalIp, String logicalIp,
+                           Map<String, String> externalIds,
+                           String distributedMac, String distributedLogicalPort) {
         if (StringUtils.isBlank(routerName) || StringUtils.isBlank(natType)
                 || StringUtils.isBlank(externalIp) || StringUtils.isBlank(logicalIp)) {
             throw new CloudRuntimeException("NAT rule arguments are incomplete");
@@ -666,6 +679,14 @@ public class OvnNbClient {
                 ColumnSchema<GenericTableSchema, Map> extIdsCol = natTable.column("external_ids", Map.class);
                 insertNat = insertNat.value(extIdsCol, new HashMap<>(externalIds));
             }
+            if (StringUtils.isNotBlank(distributedMac)) {
+                ColumnSchema<GenericTableSchema, String> extMacCol = natTable.column("external_mac", String.class);
+                insertNat = insertNat.value(extMacCol, distributedMac);
+            }
+            if (StringUtils.isNotBlank(distributedLogicalPort)) {
+                ColumnSchema<GenericTableSchema, String> logPortCol = natTable.column("logical_port", String.class);
+                insertNat = insertNat.value(logPortCol, distributedLogicalPort);
+            }
             ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
             List<Operation> ops = new ArrayList<>();
             ops.add(insertNat);
@@ -675,6 +696,33 @@ public class OvnNbClient {
             List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
             assertNoError(results, String.format("add NAT %s %s→%s on %s", natType, logicalIp, externalIp, routerName));
             logger.info("Added OVN NAT [{} {} → {}] on Logical_Router [{}] at {}", natType, logicalIp, externalIp, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes every NAT rule matching {@code type}+{@code external_ip} from the Logical_Router,
+     * regardless of logical_ip. Convenient when reverting a static NAT mapping where the caller
+     * does not know the previously-bound private address. Idempotent.
+     */
+    public void removeNatRulesByExternalIp(String nbConnection, String caCertPath, String clientCertPath,
+                                           String clientPrivateKeyPath,
+                                           String routerName, String natType, String externalIp) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(natType) || StringUtils.isBlank(externalIp)) {
+            throw new CloudRuntimeException("removeNatRulesByExternalIp: arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+            ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+            Operation<GenericTableSchema> delete = OVSDB_OPS.delete(natTable)
+                    .where(natTypeCol.opEqual(natType))
+                    .and(natExtCol.opEqual(externalIp)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(delete))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("delete NAT %s ext=%s on %s", natType, externalIp, routerName));
+            logger.info("Deleted OVN NAT [{} ext={}] on Logical_Router [{}] at {}", natType, externalIp, routerName, nbConnection);
             return null;
         });
     }
@@ -702,6 +750,82 @@ public class OvnNbClient {
                     .get(timeoutMs, TimeUnit.MILLISECONDS);
             assertNoError(results, String.format("delete NAT %s %s→%s on %s", natType, logicalIp, externalIp, routerName));
             logger.info("Deleted OVN NAT [{} {} → {}] on Logical_Router [{}] at {}", natType, logicalIp, externalIp, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Lists the chassis system-ids registered in the OVN_Southbound database. Useful for picking
+     * a deterministic anchor chassis for a Logical_Router gateway port without having to map
+     * CloudStack hostnames onto OVS system-ids.
+     */
+    public List<String> listSouthboundChassisNames(String sbConnection, String caCertPath, String clientCertPath,
+                                                   String clientPrivateKeyPath) {
+        return runOnDb(sbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, SOUTHBOUND_DB, client -> {
+            DatabaseSchema schema = client.getSchema(SOUTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema chassisTable = schema.table("Chassis", GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = chassisTable.column("name", String.class);
+            Operation<GenericTableSchema> select = OVSDB_OPS.select(chassisTable).column(nameCol);
+            List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(select))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            List<String> names = new ArrayList<>();
+            if (results != null && !results.isEmpty() && results.get(0).getRows() != null) {
+                for (Row<GenericTableSchema> row : results.get(0).getRows()) {
+                    String n = row.getColumn(nameCol).getData();
+                    if (n != null && !n.isEmpty()) names.add(n);
+                }
+            }
+            return names;
+        });
+    }
+
+    /**
+     * Idempotently anchors a Logical_Router_Port to a chassis via Gateway_Chassis. This is what
+     * lets ovn-northd materialise the centralised NAT pipeline for the LR (lr_in_dnat,
+     * lr_in_unsnat, lr_out_snat) — without it the lr_in_dnat table only carries the default
+     * priority-0 rule and DNAT silently does not happen.
+     */
+    public void setLrpGatewayChassis(String nbConnection, String caCertPath, String clientCertPath,
+                                     String clientPrivateKeyPath,
+                                     String lrpName, String chassisName, int priority) {
+        if (StringUtils.isBlank(lrpName) || StringUtils.isBlank(chassisName)) {
+            throw new CloudRuntimeException("Gateway_Chassis arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+            GenericTableSchema gcTable = schema.table(GATEWAY_CHASSIS_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrpNameCol = lrpTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> gcChassisCol = gcTable.column("chassis_name", String.class);
+            ColumnSchema<GenericTableSchema, Long> gcPrioCol = gcTable.column("priority", Long.class);
+            ColumnSchema<GenericTableSchema, String> gcNameCol = gcTable.column("name", String.class);
+
+            Operation<GenericTableSchema> existingSel = OVSDB_OPS.select(gcTable).column(gcChassisCol)
+                    .where(gcChassisCol.opEqual(chassisName))
+                    .and(gcNameCol.opEqual(lrpName + "_" + chassisName)).build();
+            List<OperationResult> existing = client.transact(schema, Collections.<Operation>singletonList(existingSel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (existing != null && !existing.isEmpty()
+                    && existing.get(0).getRows() != null && !existing.get(0).getRows().isEmpty()) {
+                logger.debug("Gateway_Chassis for LRP [{}] on [{}] already exists - skipping", lrpName, chassisName);
+                return null;
+            }
+
+            Insert<GenericTableSchema> insertGc = OVSDB_OPS.insert(gcTable)
+                    .withId("newgc")
+                    .value(gcNameCol, lrpName + "_" + chassisName)
+                    .value(gcChassisCol, chassisName)
+                    .value(gcPrioCol, (long) priority);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrpGcCol = lrpTable.multiValuedColumn("gateway_chassis", UUID.class);
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertGc);
+            ops.add(OVSDB_OPS.mutate(lrpTable)
+                    .addMutation(lrpGcCol, Mutator.INSERT, Collections.singleton(new UUID("newgc")))
+                    .where(lrpNameCol.opEqual(lrpName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("set Gateway_Chassis %s on LRP %s", chassisName, lrpName));
+            logger.info("Set OVN Gateway_Chassis [{} prio={}] on Logical_Router_Port [{}] at {}",
+                    chassisName, priority, lrpName, nbConnection);
             return null;
         });
     }
@@ -838,6 +962,11 @@ public class OvnNbClient {
 
     private <T> T runOn(String nbConnection, String caCertPath, String clientCertPath, String clientPrivateKeyPath,
                         NbAction<T> action) {
+        return runOnDb(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, NORTHBOUND_DB, action);
+    }
+
+    private <T> T runOnDb(String nbConnection, String caCertPath, String clientCertPath, String clientPrivateKeyPath,
+                          String expectedDb, NbAction<T> action) {
         Endpoint ep = parse(nbConnection);
         if (ep.scheme == Scheme.UNIX) {
             throw new CloudRuntimeException("Unix-socket OVN connections are not supported by the management server client; use tcp: or ssl:");
@@ -858,13 +987,13 @@ public class OvnNbClient {
                 client = service.connect(addr, ep.port);
             }
             if (client == null) {
-                throw new CloudRuntimeException(String.format("OVN NB at %s did not accept the connection", nbConnection));
+                throw new CloudRuntimeException(String.format("OVN %s at %s did not accept the connection", expectedDb, nbConnection));
             }
             return action.call(client);
         } catch (CloudRuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new CloudRuntimeException("OVN NB operation against " + nbConnection + " failed: " + e.getMessage(), e);
+            throw new CloudRuntimeException("OVN " + expectedDb + " operation against " + nbConnection + " failed: " + e.getMessage(), e);
         } finally {
             if (client != null && service != null) {
                 try { service.disconnect(client); } catch (Exception ignored) { }

@@ -39,6 +39,8 @@ import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.OvnProviderDao;
 import com.cloud.network.element.OvnProviderVO;
+import com.cloud.vm.NicVO;
+import com.cloud.vm.dao.NicDao;
 import com.cloud.network.element.PortForwardingServiceProvider;
 import com.cloud.network.element.StaticNatServiceProvider;
 import com.cloud.network.element.VpcProvider;
@@ -79,6 +81,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Inject
     VlanDao vlanDao;
+
+    @Inject
+    NicDao nicDao;
+
+    @Inject
+    com.cloud.host.dao.HostDao hostDao;
 
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
@@ -319,6 +327,14 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     routerName, publicLs,
                     "lrp-" + publicLs, buildRouterMac(network.getId(), true),
                     java.util.Collections.singletonList(externalIp + prefix));
+            // Anchor the external LRP to a chassis so ovn-northd materialises lr_in_dnat /
+            // lr_in_unsnat / lr_out_snat for the NAT rules attached to this router.
+            String anchorChassis = pickAnchorChassis(provider, network);
+            if (anchorChassis != null) {
+                ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        "lrp-" + publicLs, anchorChassis, 10);
+            }
             Map<String, String> natExt = new HashMap<>();
             natExt.put("cloudstack_network_id", String.valueOf(network.getId()));
             natExt.put("cloudstack_nat_kind", "source");
@@ -525,6 +541,36 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         return true;
     }
 
+    /**
+     * Picks a chassis name to host the centralised gateway pipeline for this network's LR.
+     * For now we deterministically map the network to one of the registered hypervisor hosts
+     * to avoid every LR piling on the same chassis. A future iteration can rotate this when
+     * a chassis goes offline.
+     */
+    protected String pickAnchorChassis(OvnProviderVO provider, Network network) {
+        if (provider == null || provider.getSbConnection() == null || provider.getSbConnection().isEmpty()) {
+            logger.warn("No OVN SB connection configured; cannot pick a Gateway_Chassis anchor for network {}", network);
+            return null;
+        }
+        try {
+            java.util.List<String> chassisNames = ovnNbClient.listSouthboundChassisNames(
+                    provider.getSbConnection(), provider.getCaCertPath(),
+                    provider.getClientCertPath(), provider.getClientPrivateKeyPath());
+            if (chassisNames == null || chassisNames.isEmpty()) {
+                logger.warn("OVN SB reports no registered Chassis yet; deferring Gateway_Chassis anchor for network {}", network);
+                return null;
+            }
+            // Deterministic pick: sort by name and rotate by network id so several LRs do not
+            // all pile on the same chassis. The Chassis row is keyed by the OVS system-id that
+            // ovn-controller registers on each hypervisor.
+            java.util.Collections.sort(chassisNames);
+            return chassisNames.get((int) (Math.abs(network.getId()) % chassisNames.size()));
+        } catch (Exception e) {
+            logger.warn("Failed to query OVN SB for Chassis names while anchoring network {}: {}", network, e.getMessage());
+            return null;
+        }
+    }
+
     private static int maskToPrefix(String netmask) {
         try {
             String[] parts = netmask.split("\\.");
@@ -545,6 +591,48 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyStaticNats(Network config, List<? extends StaticNat> rules) throws ResourceUnavailableException {
+        if (config.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(config);
+        String routerName = getLogicalRouterName(config);
+        try {
+            // Anchor the public LRP to a chassis so ovn-northd materialises the lr_in_dnat
+            // pipeline. Without Gateway_Chassis, dnat_and_snat NAT rows are silently ignored
+            // by lr_in_dnat. setLrpGatewayChassis is idempotent.
+            String anchorChassis = pickAnchorChassis(provider, config);
+            if (anchorChassis != null) {
+                ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        "lrp-" + getPublicLogicalSwitchName(config), anchorChassis, 10);
+            }
+            for (StaticNat rule : rules) {
+                IPAddressVO ipVo = ipAddressDao.findById(rule.getSourceIpAddressId());
+                if (ipVo == null || ipVo.getAddress() == null) {
+                    continue;
+                }
+                String externalIp = ipVo.getAddress().addr();
+                String logicalIp = rule.getDestIpAddress();
+                if (rule.isForRevoke() || logicalIp == null || logicalIp.isEmpty()) {
+                    ovnNbClient.removeNatRulesByExternalIp(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, "dnat_and_snat", externalIp);
+                    continue;
+                }
+                Map<String, String> ext = new HashMap<>();
+                ext.put("cloudstack_network_id", String.valueOf(config.getId()));
+                ext.put("cloudstack_nat_kind", "static");
+                NicVO targetNic = nicDao.findByIp4AddressAndNetworkId(logicalIp, config.getId());
+                String distributedLogicalPort = targetNic != null ? targetNic.getUuid() : null;
+                String distributedMac = buildRouterMac(config.getId(), true);
+                ovnNbClient.addNatRule(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, "dnat_and_snat", externalIp, logicalIp, ext,
+                        distributedMac, distributedLogicalPort);
+            }
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, config.getDataCenterId());
+        }
         return true;
     }
 
