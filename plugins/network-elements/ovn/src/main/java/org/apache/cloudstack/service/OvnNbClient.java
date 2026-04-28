@@ -24,7 +24,9 @@ import org.opendaylight.aaa.cert.api.ICertificateManager;
 import org.opendaylight.ovsdb.lib.OvsdbClient;
 import org.opendaylight.ovsdb.lib.impl.NettyBootstrapFactoryImpl;
 import org.opendaylight.ovsdb.lib.impl.OvsdbConnectionService;
+import org.opendaylight.ovsdb.lib.notation.Mutator;
 import org.opendaylight.ovsdb.lib.notation.Row;
+import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.operations.DefaultOperations;
 import org.opendaylight.ovsdb.lib.operations.Insert;
 import org.opendaylight.ovsdb.lib.operations.Operation;
@@ -39,10 +41,12 @@ import javax.net.ssl.SSLContext;
 import java.net.InetAddress;
 import java.security.KeyStore;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -51,6 +55,7 @@ public class OvnNbClient {
     protected static final Logger logger = LogManager.getLogger(OvnNbClient.class);
     private static final String NORTHBOUND_DB = "OVN_Northbound";
     private static final String LOGICAL_SWITCH_TABLE = "Logical_Switch";
+    private static final String LOGICAL_SWITCH_PORT_TABLE = "Logical_Switch_Port";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -154,6 +159,153 @@ public class OvnNbClient {
             logger.info("Deleted OVN Logical_Switch [{}] at {}", logicalSwitchName, nbConnection);
             return null;
         });
+    }
+
+    /**
+     * Creates a Logical_Switch_Port on the named Logical_Switch and binds it.
+     * The LSP {@code addresses} and {@code port_security} columns are seeded with the supplied
+     * MAC and (optional) IPv4. Idempotent: if an LSP with the same name already exists in the NB
+     * database, the call succeeds without modifying the row. The {@code iface-id} that ovn-controller
+     * looks for on the local OVS port should match {@code lspName}.
+     */
+    public void createLogicalSwitchPort(String nbConnection, String caCertPath, String clientCertPath,
+                                        String clientPrivateKeyPath,
+                                        String logicalSwitchName, String lspName,
+                                        String mac, String ipv4, Map<String, String> externalIds) {
+        if (StringUtils.isBlank(logicalSwitchName) || StringUtils.isBlank(lspName)) {
+            throw new CloudRuntimeException("Logical switch / port name is blank");
+        }
+        if (StringUtils.isBlank(mac)) {
+            throw new CloudRuntimeException("MAC is required for Logical_Switch_Port " + lspName);
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+
+            if (logicalSwitchPortExists(client, schema, lspTable, lspNameCol, lspName)) {
+                logger.debug("Logical_Switch_Port [{}] already exists on {} - skipping create", lspName, nbConnection);
+                return null;
+            }
+
+            String addressEntry = StringUtils.isNotBlank(ipv4) ? mac + " " + ipv4 : mac;
+            ColumnSchema<GenericTableSchema, Set<String>> addressesCol = lspTable.multiValuedColumn("addresses", String.class);
+            ColumnSchema<GenericTableSchema, Set<String>> portSecCol = lspTable.multiValuedColumn("port_security", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> portsCol = lsTable.multiValuedColumn("ports", UUID.class);
+
+            String namedUuid = "newlsp";
+            Insert<GenericTableSchema> insertLsp = OVSDB_OPS.insert(lspTable)
+                    .withId(namedUuid)
+                    .value(lspNameCol, lspName)
+                    .value(addressesCol, Collections.singleton(addressEntry))
+                    .value(portSecCol, Collections.singleton(addressEntry));
+            if (externalIds != null && !externalIds.isEmpty()) {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                ColumnSchema<GenericTableSchema, Map> extIdsCol = lspTable.column("external_ids", Map.class);
+                insertLsp = insertLsp.value(extIdsCol, new HashMap<>(externalIds));
+            }
+
+            UUID lspRef = new UUID(namedUuid);
+            Operation<GenericTableSchema> mutateLs = OVSDB_OPS.mutate(lsTable)
+                    .addMutation(portsCol, Mutator.INSERT, Collections.singleton(lspRef))
+                    .where(lsNameCol.opEqual(logicalSwitchName)).build();
+
+            List<OperationResult> results = client.transact(schema,
+                            Arrays.<Operation>asList(insertLsp, mutateLs))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("create Logical_Switch_Port %s on %s", lspName, logicalSwitchName));
+            logger.info("Created OVN Logical_Switch_Port [{}] on Logical_Switch [{}] at {}",
+                    lspName, logicalSwitchName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes a Logical_Switch_Port by name and detaches it from its parent Logical_Switch.
+     * Idempotent: missing LSP is treated as a successful no-op.
+     */
+    public void deleteLogicalSwitchPort(String nbConnection, String caCertPath, String clientCertPath,
+                                        String clientPrivateKeyPath,
+                                        String logicalSwitchName, String lspName) {
+        if (StringUtils.isBlank(lspName)) {
+            throw new CloudRuntimeException("Logical_Switch_Port name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+
+            UUID lspUuid = findLspUuid(client, schema, lspTable, lspNameCol, lspName);
+            if (lspUuid == null) {
+                logger.debug("Logical_Switch_Port [{}] not present on {} - nothing to delete", lspName, nbConnection);
+                return null;
+            }
+
+            ColumnSchema<GenericTableSchema, Set<UUID>> portsCol = lsTable.multiValuedColumn("ports", UUID.class);
+
+            List<Operation> ops = new ArrayList<>();
+            if (StringUtils.isNotBlank(logicalSwitchName)) {
+                ops.add(OVSDB_OPS.mutate(lsTable)
+                        .addMutation(portsCol, Mutator.DELETE, Collections.singleton(lspUuid))
+                        .where(lsNameCol.opEqual(logicalSwitchName)).build());
+            }
+            ops.add(OVSDB_OPS.delete(lspTable)
+                    .where(lspNameCol.opEqual(lspName)).build());
+
+            List<OperationResult> results = client.transact(schema, ops)
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("delete Logical_Switch_Port %s", lspName));
+            logger.info("Deleted OVN Logical_Switch_Port [{}] at {}", lspName, nbConnection);
+            return null;
+        });
+    }
+
+    private boolean logicalSwitchPortExists(OvsdbClient client, DatabaseSchema schema,
+                                            GenericTableSchema lspTable,
+                                            ColumnSchema<GenericTableSchema, String> nameCol,
+                                            String name) throws Exception {
+        Operation<GenericTableSchema> select = OVSDB_OPS.select(lspTable)
+                .column(nameCol)
+                .where(nameCol.opEqual(name)).build();
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(select))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (results == null || results.isEmpty()) {
+            return false;
+        }
+        OperationResult r = results.get(0);
+        if (r.getError() != null) {
+            throw new CloudRuntimeException("OVSDB select failed for Logical_Switch_Port " + name + ": " + r.getError());
+        }
+        List<Row<GenericTableSchema>> rows = r.getRows();
+        return rows != null && !rows.isEmpty();
+    }
+
+    private UUID findLspUuid(OvsdbClient client, DatabaseSchema schema,
+                             GenericTableSchema lspTable,
+                             ColumnSchema<GenericTableSchema, String> nameCol,
+                             String name) throws Exception {
+        ColumnSchema<GenericTableSchema, UUID> uuidCol = lspTable.column("_uuid", UUID.class);
+        Operation<GenericTableSchema> select = OVSDB_OPS.select(lspTable)
+                .column(uuidCol)
+                .where(nameCol.opEqual(name)).build();
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(select))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (results == null || results.isEmpty()) {
+            return null;
+        }
+        OperationResult r = results.get(0);
+        if (r.getError() != null) {
+            throw new CloudRuntimeException("OVSDB select failed for LSP _uuid lookup " + name + ": " + r.getError());
+        }
+        List<Row<GenericTableSchema>> rows = r.getRows();
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        return rows.get(0).getColumn(uuidCol).getData();
     }
 
     private boolean logicalSwitchExists(OvsdbClient client, DatabaseSchema schema,

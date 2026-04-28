@@ -140,13 +140,51 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     @Override
     public boolean prepare(Network network, NicProfile nic, VirtualMachineProfile vm, DeployDestination dest, ReservationContext context)
             throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException {
+        if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
+            OvnProviderVO provider = getProviderForNetwork(network);
+            String lsName = getLogicalSwitchName(network);
+            String lspName = getLogicalSwitchPortName(nic);
+            Map<String, String> externalIds = new HashMap<>();
+            externalIds.put("cloudstack_nic_id", String.valueOf(nic.getId()));
+            externalIds.put("cloudstack_nic_uuid", nic.getUuid());
+            externalIds.put("cloudstack_vm_id", String.valueOf(vm.getId()));
+            externalIds.put("cloudstack_vm_uuid", vm.getUuid());
+            try {
+                ovnNbClient.createLogicalSwitchPort(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        lsName, lspName, nic.getMacAddress(), nic.getIPv4Address(), externalIds);
+            } catch (CloudRuntimeException e) {
+                throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+            }
+        }
         return true;
     }
 
     @Override
     public boolean release(Network network, NicProfile nic, VirtualMachineProfile vm, ReservationContext context)
             throws ConcurrentOperationException, ResourceUnavailableException {
+        if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
+            OvnProviderVO provider = getProviderForNetwork(network);
+            String lsName = getLogicalSwitchName(network);
+            String lspName = getLogicalSwitchPortName(nic);
+            try {
+                ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        lsName, lspName);
+            } catch (CloudRuntimeException e) {
+                throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+            }
+        }
         return true;
+    }
+
+    /**
+     * Returns the OVN Logical_Switch_Port name for the given NIC. Must match the value the KVM
+     * agent stamps as {@code external_ids:iface-id} on the OVS port — see {@code OvsVifDriver}'s
+     * OVN branch which uses {@link com.cloud.agent.api.to.NicTO#getUuid()} for the same purpose.
+     */
+    protected String getLogicalSwitchPortName(NicProfile nic) {
+        return nic.getUuid();
     }
 
     @Override
