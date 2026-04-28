@@ -1045,6 +1045,79 @@ public class OvnNbClient {
     }
 
     /**
+     * Removes any Gateway_Chassis row attached to {@code lrpName} whose {@code chassis_name} is
+     * not present in {@code liveChassisNames}. Used to clean up after a host is re-added to the
+     * zone with a fresh OVS system-id - the old Gateway_Chassis row would otherwise keep pointing
+     * to a chassis that no longer exists in SB, so ovn-northd never claims the cr-lrp port and
+     * the SNAT/DNAT pipeline stays unmaterialised. Returns the number of rows pruned.
+     */
+    public int pruneStaleGatewayChassis(String nbConnection, String caCertPath, String clientCertPath,
+                                         String clientPrivateKeyPath,
+                                         String lrpName, Set<String> liveChassisNames) {
+        if (StringUtils.isBlank(lrpName) || liveChassisNames == null) {
+            throw new CloudRuntimeException("pruneStaleGatewayChassis: arguments are incomplete");
+        }
+        return runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+            GenericTableSchema gcTable = schema.table(GATEWAY_CHASSIS_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrpNameCol = lrpTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrpGcCol = lrpTable.multiValuedColumn("gateway_chassis", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> gcUuidCol = gcTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, String> gcChassisCol = gcTable.column("chassis_name", String.class);
+
+            // Get the GC UUIDs currently bound to this LRP.
+            Operation<GenericTableSchema> selLrp = OVSDB_OPS.select(lrpTable).column(lrpGcCol)
+                    .where(lrpNameCol.opEqual(lrpName)).build();
+            List<OperationResult> lrpResult = client.transact(schema, Collections.<Operation>singletonList(selLrp))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lrpResult == null || lrpResult.isEmpty() || lrpResult.get(0).getRows() == null
+                    || lrpResult.get(0).getRows().isEmpty()) {
+                return 0;
+            }
+            @SuppressWarnings("unchecked")
+            Set<UUID> gcRefs = (Set<UUID>) lrpResult.get(0).getRows().get(0).getColumn(lrpGcCol).getData();
+            if (gcRefs == null || gcRefs.isEmpty()) {
+                return 0;
+            }
+
+            // Inspect each GC row's chassis_name and collect stale ones.
+            Set<UUID> stale = new java.util.HashSet<>();
+            for (UUID gcUuid : gcRefs) {
+                Operation<GenericTableSchema> selGc = OVSDB_OPS.select(gcTable).column(gcChassisCol)
+                        .where(gcUuidCol.opEqual(gcUuid)).build();
+                List<OperationResult> gcResult = client.transact(schema, Collections.<Operation>singletonList(selGc))
+                        .get(timeoutMs, TimeUnit.MILLISECONDS);
+                if (gcResult == null || gcResult.isEmpty() || gcResult.get(0).getRows() == null
+                        || gcResult.get(0).getRows().isEmpty()) {
+                    continue;
+                }
+                String chassisName = gcResult.get(0).getRows().get(0).getColumn(gcChassisCol).getData();
+                if (chassisName == null || !liveChassisNames.contains(chassisName)) {
+                    stale.add(gcUuid);
+                }
+            }
+            if (stale.isEmpty()) {
+                return 0;
+            }
+
+            // Detach from LRP first (strong ref) then delete each GC row.
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrpTable)
+                    .addMutation(lrpGcCol, Mutator.DELETE, stale)
+                    .where(lrpNameCol.opEqual(lrpName)).build());
+            for (UUID u : stale) {
+                ops.add(OVSDB_OPS.delete(gcTable).where(gcUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("prune stale Gateway_Chassis on LRP %s", lrpName));
+            logger.info("Pruned {} stale Gateway_Chassis row(s) from LRP [{}] (live chassis: {})",
+                    stale.size(), lrpName, liveChassisNames);
+            return stale.size();
+        });
+    }
+
+    /**
      * Idempotently anchors a Logical_Router_Port to a chassis via Gateway_Chassis. This is what
      * lets ovn-northd materialise the centralised NAT pipeline for the LR (lr_in_dnat,
      * lr_in_unsnat, lr_out_snat) — without it the lr_in_dnat table only carries the default

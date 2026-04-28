@@ -392,6 +392,38 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 externalLrpLsp, options);
     }
 
+    /**
+     * Wipes every OVN artifact tied to a public IP that CloudStack is releasing. Called from
+     * applyIps when ip.state == Releasing, regardless of SourceNat flag. This catches things our
+     * per-feature revoke callbacks miss:
+     *
+     * <ul>
+     *   <li>Per-IP default-drop ACL ({@code cloudstack_fw_default=true cloudstack_fw_ip=&lt;ip&gt;}).
+     *       Created by ensureFirewallDefaultDeny without a rule_id, so applyFWRules revoke would
+     *       not delete it. Without explicit cleanup it stays for the next tenant of the IP.</li>
+     *   <li>Any leftover {@code allow-related} ACL still tagged with this IP, in case a
+     *       FirewallRule revoke arrived out of order.</li>
+     *   <li>StaticNat dnat_and_snat NAT rows on this external IP that the StaticNat revoke
+     *       callback may have skipped (defensive).</li>
+     *   <li>Re-emits {@code nat-addresses} on the public LSP so the released IP stops being
+     *       announced via gARP.</li>
+     * </ul>
+     */
+    protected void cleanupPublicIpArtifacts(OvnProviderVO provider, Network network, String externalIp) {
+        String publicLs = getPublicLogicalSwitchName(network);
+        String routerName = getLogicalRouterName(network);
+        // ACLs: matches both per-rule and the default-drop, since both carry cloudstack_fw_ip.
+        ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                publicLs, "cloudstack_fw_ip", externalIp);
+        // dnat_and_snat NATs (StaticNat) on this IP — defensive; applyStaticNats normally clears.
+        ovnNbClient.removeNatRulesByExternalIp(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, "dnat_and_snat", externalIp);
+        // Refresh gARP announcement so this IP is no longer claimed by us.
+        applyNatAddressesAnnouncement(provider, network);
+    }
+
     @Override
     public boolean release(Network network, NicProfile nic, VirtualMachineProfile vm, ReservationContext context)
             throws ConcurrentOperationException, ResourceUnavailableException {
@@ -543,13 +575,21 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 if (externalIp == null) {
                     continue;
                 }
-                if (ip.isSourceNat() && Boolean.TRUE.equals(services.contains(Network.Service.SourceNat))) {
-                    if (ip.getState() == com.cloud.network.IpAddress.State.Releasing) {
+                // Releasing IP: drop every artifact tagged with that IP regardless of whether it
+                // is SourceNat or not. CloudStack delivers fw/PF revoke through dedicated callbacks,
+                // but the per-IP default-drop ACL we plant via ensureFirewallDefaultDeny carries
+                // no rule_id - it would otherwise stay behind, blocking traffic if the same public
+                // IP is later reassigned. Same idea for any leftover dnat_and_snat NAT row.
+                if (ip.getState() == com.cloud.network.IpAddress.State.Releasing) {
+                    cleanupPublicIpArtifacts(provider, network, externalIp);
+                    if (ip.isSourceNat()) {
                         ovnNbClient.removeNatRule(provider.getNbConnection(),
                                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                                 routerName, "snat", externalIp, guestCidr);
-                        continue;
                     }
+                    continue;
+                }
+                if (ip.isSourceNat() && Boolean.TRUE.equals(services.contains(Network.Service.SourceNat))) {
                     // Ensure public-side LS + localnet port + LR external attachment exist
                     Map<String, String> publicLsExt = new HashMap<>();
                     publicLsExt.put("cloudstack_network_id", String.valueOf(network.getId()));
@@ -588,10 +628,15 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     }
 
     /**
-     * Picks a chassis name to host the centralised gateway pipeline for this network's LR.
-     * For now we deterministically map the network to one of the registered hypervisor hosts
-     * to avoid every LR piling on the same chassis. A future iteration can rotate this when
-     * a chassis goes offline.
+     * Picks a chassis name to host the centralised gateway pipeline for this network's LR and,
+     * as a side-effect, prunes any {@code Gateway_Chassis} row on the network's public LRP that
+     * points to a chassis no longer registered in SB. This fixes a real problem we hit when a
+     * KVM host is destroyed and re-added: the host re-registers with a fresh OVS system-id, and
+     * any old Gateway_Chassis row keeps pointing to the dead system-id - ovn-northd refuses to
+     * claim the cr-lrp port and SNAT/DNAT silently break.
+     *
+     * <p>Returns the chassis system-id we want anchored, or {@code null} when SB has no live
+     * chassis at all (the LRP simply has no anchor in that case and the caller falls through).</p>
      */
     protected String pickAnchorChassis(OvnProviderVO provider, Network network) {
         if (provider == null || provider.getSbConnection() == null || provider.getSbConnection().isEmpty()) {
@@ -605,6 +650,19 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             if (chassisNames == null || chassisNames.isEmpty()) {
                 logger.warn("OVN SB reports no registered Chassis yet; deferring Gateway_Chassis anchor for network {}", network);
                 return null;
+            }
+            // Drop any stale Gateway_Chassis row on the public LRP whose chassis_name is not in
+            // the live set. This must run BEFORE we hand back a name to the caller, because
+            // setLrpGatewayChassis is idempotent on (lrp_name, chassis_name) and will not detect
+            // a name change on its own.
+            String publicLrpName = "lrp-" + getPublicLogicalSwitchName(network);
+            try {
+                ovnNbClient.pruneStaleGatewayChassis(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        publicLrpName, new java.util.HashSet<>(chassisNames));
+            } catch (CloudRuntimeException e) {
+                // LRP may not exist yet on the very first implement - that is fine, no rows to prune.
+                logger.debug("Skipping Gateway_Chassis prune for {} ({})", publicLrpName, e.getMessage());
             }
             // Deterministic pick: sort by name and rotate by network id so several LRs do not
             // all pile on the same chassis. The Chassis row is keyed by the OVS system-id that
