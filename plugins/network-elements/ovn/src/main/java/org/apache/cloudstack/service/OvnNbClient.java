@@ -63,6 +63,7 @@ public class OvnNbClient {
     private static final String GATEWAY_CHASSIS_TABLE = "Gateway_Chassis";
     private static final String DHCP_OPTIONS_TABLE = "DHCP_Options";
     private static final String NAT_TABLE = "NAT";
+    private static final String ACL_TABLE = "ACL";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -872,6 +873,155 @@ public class OvnNbClient {
             logger.info("Added OVN Static_Route [{} → {}] on Logical_Router [{}] at {}", ipPrefix, nexthop, routerName, nbConnection);
             return null;
         });
+    }
+
+    /**
+     * Idempotently installs an ACL row on the named Logical_Switch. The caller is expected to
+     * tag the ACL via {@code external_ids} so subsequent revocation can target the row by tag
+     * (e.g. {@code cloudstack_fw_rule_id=<rule_id>}). If a row with the same tag combination
+     * already exists on this switch it is replaced - this keeps applyFWRules idempotent across
+     * retries without leaking stale rows.
+     *
+     * <p>Logical_Switch.acls is a weak-ref set, so deleting the ACL row alone is enough to
+     * break the link, but we still mutate {@code acls} explicitly to keep the LS row tidy.</p>
+     */
+    public void addAclOnLs(String nbConnection, String caCertPath, String clientCertPath,
+                           String clientPrivateKeyPath,
+                           String logicalSwitchName, String name, String direction, long priority,
+                           String match, String action, Map<String, String> externalIds) {
+        if (StringUtils.isBlank(logicalSwitchName) || StringUtils.isBlank(direction)
+                || StringUtils.isBlank(match) || StringUtils.isBlank(action)) {
+            throw new CloudRuntimeException("ACL arguments are incomplete");
+        }
+        if (externalIds == null || externalIds.isEmpty()) {
+            throw new CloudRuntimeException("ACL external_ids must be set so the row can be replaced/removed by tag");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema aclTable = schema.table(ACL_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lsAclsCol = lsTable.multiValuedColumn("acls", UUID.class);
+
+            ColumnSchema<GenericTableSchema, String> aclDirCol = aclTable.column("direction", String.class);
+            ColumnSchema<GenericTableSchema, Long> aclPrioCol = aclTable.column("priority", Long.class);
+            ColumnSchema<GenericTableSchema, String> aclMatchCol = aclTable.column("match", String.class);
+            ColumnSchema<GenericTableSchema, String> aclActionCol = aclTable.column("action", String.class);
+            @SuppressWarnings("rawtypes")
+            ColumnSchema<GenericTableSchema, Map> aclExtCol = aclTable.column("external_ids", Map.class);
+
+            // First, remove any existing ACL on this LS that already carries the same external_ids
+            // tag. We do this in the same transaction to keep the operation atomic.
+            List<UUID> staleAclUuids = findAclUuidsByExternalIds(client, schema, aclTable, externalIds);
+            List<Operation> ops = new ArrayList<>();
+            ColumnSchema<GenericTableSchema, UUID> aclUuidCol = aclTable.column("_uuid", UUID.class);
+            for (UUID stale : staleAclUuids) {
+                ops.add(OVSDB_OPS.delete(aclTable).where(aclUuidCol.opEqual(stale)).build());
+                ops.add(OVSDB_OPS.mutate(lsTable)
+                        .addMutation(lsAclsCol, Mutator.DELETE, Collections.singleton(stale))
+                        .where(lsNameCol.opEqual(logicalSwitchName)).build());
+            }
+
+            String namedUuid = "newacl";
+            Insert<GenericTableSchema> insertAcl = OVSDB_OPS.insert(aclTable)
+                    .withId(namedUuid)
+                    .value(aclDirCol, direction)
+                    .value(aclPrioCol, priority)
+                    .value(aclMatchCol, match)
+                    .value(aclActionCol, action)
+                    .value(aclExtCol, new HashMap<>(externalIds));
+            if (StringUtils.isNotBlank(name)) {
+                ColumnSchema<GenericTableSchema, String> aclNameCol = aclTable.column("name", String.class);
+                insertAcl = insertAcl.value(aclNameCol, name);
+            }
+            ops.add(insertAcl);
+            ops.add(OVSDB_OPS.mutate(lsTable)
+                    .addMutation(lsAclsCol, Mutator.INSERT, Collections.singleton(new UUID(namedUuid)))
+                    .where(lsNameCol.opEqual(logicalSwitchName)).build());
+
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("install ACL on Logical_Switch %s (priority=%d, action=%s)",
+                    logicalSwitchName, priority, action));
+            logger.info("Installed OVN ACL on Logical_Switch [{}] dir=[{}] prio=[{}] action=[{}] match=[{}] tags=[{}]",
+                    logicalSwitchName, direction, priority, action, match, externalIds);
+            return null;
+        });
+    }
+
+    /**
+     * Removes every ACL row whose {@code external_ids} contains the supplied (key, value) pair
+     * and detaches it from the named Logical_Switch. Used to revoke individual firewall rules
+     * (by {@code cloudstack_fw_rule_id}) or to wipe per-IP scopes (by {@code cloudstack_fw_ip}).
+     */
+    public int removeAclsOnLsByExternalId(String nbConnection, String caCertPath, String clientCertPath,
+                                           String clientPrivateKeyPath,
+                                           String logicalSwitchName, String externalIdKey, String externalIdValue) {
+        if (StringUtils.isBlank(logicalSwitchName) || StringUtils.isBlank(externalIdKey) || StringUtils.isBlank(externalIdValue)) {
+            throw new CloudRuntimeException("ACL removal arguments are incomplete");
+        }
+        return runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema aclTable = schema.table(ACL_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lsAclsCol = lsTable.multiValuedColumn("acls", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> aclUuidCol = aclTable.column("_uuid", UUID.class);
+
+            Map<String, String> filter = new HashMap<>();
+            filter.put(externalIdKey, externalIdValue);
+            List<UUID> uuids = findAclUuidsByExternalIds(client, schema, aclTable, filter);
+            if (uuids.isEmpty()) {
+                return 0;
+            }
+            List<Operation> ops = new ArrayList<>();
+            for (UUID u : uuids) {
+                ops.add(OVSDB_OPS.delete(aclTable).where(aclUuidCol.opEqual(u)).build());
+                ops.add(OVSDB_OPS.mutate(lsTable)
+                        .addMutation(lsAclsCol, Mutator.DELETE, Collections.singleton(u))
+                        .where(lsNameCol.opEqual(logicalSwitchName)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("remove ACLs on %s by %s=%s", logicalSwitchName, externalIdKey, externalIdValue));
+            logger.info("Removed {} OVN ACL row(s) on Logical_Switch [{}] tagged [{}={}]",
+                    uuids.size(), logicalSwitchName, externalIdKey, externalIdValue);
+            return uuids.size();
+        });
+    }
+
+    /**
+     * Returns the UUIDs of every ACL row whose {@code external_ids} map contains every entry
+     * present in {@code wantedExternalIds}. We pull the column server-side and filter in the
+     * client because OVSDB select with where-clause cannot match into a map column.
+     */
+    @SuppressWarnings("unchecked")
+    private List<UUID> findAclUuidsByExternalIds(OvsdbClient client, DatabaseSchema schema,
+                                                  GenericTableSchema aclTable,
+                                                  Map<String, String> wantedExternalIds) throws Exception {
+        ColumnSchema<GenericTableSchema, UUID> uuidCol = aclTable.column("_uuid", UUID.class);
+        @SuppressWarnings("rawtypes")
+        ColumnSchema<GenericTableSchema, Map> extIdsCol = aclTable.column("external_ids", Map.class);
+        Operation<GenericTableSchema> selectAll = OVSDB_OPS.select(aclTable).column(uuidCol).column(extIdsCol);
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(selectAll))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        List<UUID> matches = new ArrayList<>();
+        if (results == null || results.isEmpty() || results.get(0).getRows() == null) {
+            return matches;
+        }
+        for (Row<GenericTableSchema> row : results.get(0).getRows()) {
+            Map<String, String> ext = (Map<String, String>) row.getColumn(extIdsCol).getData();
+            if (ext == null) continue;
+            boolean ok = true;
+            for (Map.Entry<String, String> e : wantedExternalIds.entrySet()) {
+                if (!e.getValue().equals(ext.get(e.getKey()))) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) {
+                matches.add(row.getColumn(uuidCol).getData());
+            }
+        }
+        return matches;
     }
 
     private boolean natRuleExists(OvsdbClient client, DatabaseSchema schema, GenericTableSchema natTable,

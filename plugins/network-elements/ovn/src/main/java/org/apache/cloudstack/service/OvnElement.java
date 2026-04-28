@@ -643,7 +643,142 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyFWRules(Network network, List<? extends FirewallRule> rules) throws ResourceUnavailableException {
+        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(network);
+        String publicLs = getPublicLogicalSwitchName(network);
+        String publicLrpLsp = "lsp-lrp-" + publicLs;
+        try {
+            for (FirewallRule rule : rules) {
+                programFirewallRule(provider, network, publicLs, publicLrpLsp, rule);
+            }
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+        }
         return true;
+    }
+
+    /**
+     * Translates a single {@link FirewallRule} into an OVN ACL row attached to the network's
+     * public Logical_Switch. The default-deny scoped to the public IP is kept fresh on every
+     * call so newly-allocated IPs only become reachable through explicit allow rules. Revoke
+     * state simply deletes the per-rule row by external_ids tag.
+     */
+    protected void programFirewallRule(OvnProviderVO provider, Network network, String publicLs,
+                                        String publicLrpLsp, FirewallRule rule) {
+        IPAddressVO ipVo = ipAddressDao.findById(rule.getSourceIpAddressId());
+        if (ipVo == null || ipVo.getAddress() == null) {
+            return;
+        }
+        String publicIp = ipVo.getAddress().addr();
+        // Make sure the per-IP default-drop is in place before we layer allow rules on top.
+        ensureFirewallDefaultDeny(provider, network, publicLs, publicLrpLsp, publicIp);
+
+        String ruleTag = "fw-" + rule.getId();
+        if (rule.getState() == FirewallRule.State.Revoke) {
+            ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    publicLs, "cloudstack_fw_rule_id", String.valueOf(rule.getId()));
+            return;
+        }
+
+        String matchExpr = buildFirewallMatch(publicLrpLsp, publicIp, rule);
+        if (matchExpr == null) {
+            // Unsupported protocol or empty rule - skip silently.
+            return;
+        }
+        Map<String, String> ext = new HashMap<>();
+        ext.put("cloudstack_fw_rule_id", String.valueOf(rule.getId()));
+        ext.put("cloudstack_fw_ip", publicIp);
+        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                publicLs, ruleTag, "to-lport", 1000L, matchExpr, "allow-related", ext);
+    }
+
+    /**
+     * Builds the OVN match expression for a single firewall rule. ACLs on the public LS are
+     * evaluated in the {@code to-lport} direction toward the router patch port, so we match
+     * before DNAT happens - {@code ip4.dst} is still the public IP, {@code tcp/udp.dst} is
+     * still the public-side port the user typed in CloudStack.
+     */
+    protected String buildFirewallMatch(String publicLrpLsp, String publicIp, FirewallRule rule) {
+        String proto = rule.getProtocol() == null ? "" : rule.getProtocol().toLowerCase();
+        StringBuilder sb = new StringBuilder();
+        sb.append("outport == \"").append(publicLrpLsp).append("\" && ip4");
+        sb.append(" && ip4.dst == ").append(publicIp);
+        // Scope to source CIDRs if the user provided any, otherwise leave the rule open to 0.0.0.0/0.
+        List<String> sourceCidrs = rule.getSourceCidrList();
+        if (sourceCidrs != null && !sourceCidrs.isEmpty()) {
+            StringBuilder cidrs = new StringBuilder();
+            boolean first = true;
+            for (String cidr : sourceCidrs) {
+                if (cidr == null || cidr.isEmpty() || "0.0.0.0/0".equals(cidr)) {
+                    cidrs.setLength(0);
+                    break;
+                }
+                if (!first) cidrs.append(", ");
+                cidrs.append(cidr);
+                first = false;
+            }
+            if (cidrs.length() > 0) {
+                sb.append(" && ip4.src == {").append(cidrs).append("}");
+            }
+        }
+        switch (proto) {
+            case "tcp":
+            case "udp": {
+                sb.append(" && ").append(proto);
+                Integer s = rule.getSourcePortStart();
+                Integer e = rule.getSourcePortEnd();
+                if (s != null && e != null) {
+                    if (s.equals(e)) {
+                        sb.append(" && ").append(proto).append(".dst == ").append(s);
+                    } else {
+                        sb.append(" && ").append(proto).append(".dst >= ").append(s)
+                                .append(" && ").append(proto).append(".dst <= ").append(e);
+                    }
+                }
+                break;
+            }
+            case "icmp": {
+                sb.append(" && icmp4");
+                if (rule.getIcmpType() != null && rule.getIcmpType() != -1) {
+                    sb.append(" && icmp4.type == ").append(rule.getIcmpType());
+                }
+                if (rule.getIcmpCode() != null && rule.getIcmpCode() != -1) {
+                    sb.append(" && icmp4.code == ").append(rule.getIcmpCode());
+                }
+                break;
+            }
+            case "all":
+            case "":
+                // No protocol filter - any IPv4 traffic to the public IP.
+                break;
+            default:
+                logger.warn("Skipping firewall rule {} with unsupported protocol [{}]", rule.getId(), proto);
+                return null;
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Installs (or refreshes) the per-public-IP default-drop ACL. Without this, the public LS
+     * would forward every DNAT'd packet because OVN ACLs default-allow when none of the rules
+     * match - that is the opposite of CloudStack's expectation that an unprotected public IP
+     * is unreachable.
+     */
+    protected void ensureFirewallDefaultDeny(OvnProviderVO provider, Network network, String publicLs,
+                                              String publicLrpLsp, String publicIp) {
+        Map<String, String> ext = new HashMap<>();
+        ext.put("cloudstack_fw_default", "true");
+        ext.put("cloudstack_fw_ip", publicIp);
+        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        String match = "outport == \"" + publicLrpLsp + "\" && ip4 && ip4.dst == " + publicIp;
+        ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                publicLs, "fw-default-" + publicIp, "to-lport", 100L, match, "drop", ext);
     }
 
     @Override
