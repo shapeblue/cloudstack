@@ -56,6 +56,7 @@ public class OvnNbClient {
     private static final String NORTHBOUND_DB = "OVN_Northbound";
     private static final String LOGICAL_SWITCH_TABLE = "Logical_Switch";
     private static final String LOGICAL_SWITCH_PORT_TABLE = "Logical_Switch_Port";
+    private static final String DHCP_OPTIONS_TABLE = "DHCP_Options";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -306,6 +307,139 @@ public class OvnNbClient {
             return null;
         }
         return rows.get(0).getColumn(uuidCol).getData();
+    }
+
+    /**
+     * Creates (or returns the UUID of an existing) DHCP_Options row identified by
+     * {@code external_ids:cloudstack_network_id}. Idempotent: if a row already matches the
+     * external_ids tag for this network, no new row is created and the existing UUID is returned.
+     */
+    public String createDhcpOptions(String nbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath,
+                                    String cidr, Map<String, String> options, Map<String, String> externalIds) {
+        if (StringUtils.isBlank(cidr)) {
+            throw new CloudRuntimeException("DHCP_Options cidr is blank");
+        }
+        if (externalIds == null || !externalIds.containsKey("cloudstack_network_id")) {
+            throw new CloudRuntimeException("DHCP_Options external_ids must include cloudstack_network_id");
+        }
+        final String networkId = externalIds.get("cloudstack_network_id");
+        return runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema dhcpTable = schema.table(DHCP_OPTIONS_TABLE, GenericTableSchema.class);
+
+            UUID existing = findDhcpOptionsByNetworkId(client, schema, dhcpTable, networkId);
+            if (existing != null) {
+                logger.debug("DHCP_Options for network [{}] already exists ({}) on {} - skipping create",
+                        networkId, existing, nbConnection);
+                return existing.toString();
+            }
+
+            ColumnSchema<GenericTableSchema, String> cidrCol = dhcpTable.column("cidr", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> optionsCol = dhcpTable.column("options", Map.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> extIdsCol = dhcpTable.column("external_ids", Map.class);
+
+            String namedUuid = "newdhcp";
+            Insert<GenericTableSchema> insert = OVSDB_OPS.insert(dhcpTable)
+                    .withId(namedUuid)
+                    .value(cidrCol, cidr)
+                    .value(extIdsCol, new HashMap<>(externalIds));
+            if (options != null && !options.isEmpty()) {
+                insert = insert.value(optionsCol, new HashMap<>(options));
+            }
+            List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(insert))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("create DHCP_Options for network %s", networkId));
+            UUID created = results.get(0).getUuid();
+            logger.info("Created OVN DHCP_Options [{}] for network [{}] cidr=[{}] at {}",
+                    created, networkId, cidr, nbConnection);
+            return created != null ? created.toString() : null;
+        });
+    }
+
+    /**
+     * Removes the DHCP_Options row tagged with {@code external_ids:cloudstack_network_id=networkId}.
+     * Idempotent: missing row is a no-op.
+     */
+    public void deleteDhcpOptions(String nbConnection, String caCertPath, String clientCertPath,
+                                  String clientPrivateKeyPath, String networkId) {
+        if (StringUtils.isBlank(networkId)) {
+            throw new CloudRuntimeException("Network id is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema dhcpTable = schema.table(DHCP_OPTIONS_TABLE, GenericTableSchema.class);
+            UUID existing = findDhcpOptionsByNetworkId(client, schema, dhcpTable, networkId);
+            if (existing == null) {
+                logger.debug("DHCP_Options for network [{}] not present on {} - nothing to delete",
+                        networkId, nbConnection);
+                return null;
+            }
+            ColumnSchema<GenericTableSchema, UUID> uuidCol = dhcpTable.column("_uuid", UUID.class);
+            Operation<GenericTableSchema> delete = OVSDB_OPS.delete(dhcpTable)
+                    .where(uuidCol.opEqual(existing)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(delete))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("delete DHCP_Options for network %s", networkId));
+            logger.info("Deleted OVN DHCP_Options [{}] for network [{}] at {}", existing, networkId, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Sets the {@code dhcpv4_options} reference of a Logical_Switch_Port to the given DHCP_Options UUID,
+     * causing ovn-controller to answer DHCPv4 requests on that port from the DHCP_Options row.
+     */
+    public void setLspDhcpv4Options(String nbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath, String lspName, String dhcpOptionsUuid) {
+        if (StringUtils.isBlank(lspName) || StringUtils.isBlank(dhcpOptionsUuid)) {
+            throw new CloudRuntimeException("LSP name or DHCP_Options uuid is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> dhcpCol = lspTable.multiValuedColumn("dhcpv4_options", UUID.class);
+
+            UUID dhcpRef = new UUID(dhcpOptionsUuid);
+            Operation<GenericTableSchema> update = OVSDB_OPS.update(lspTable)
+                    .set(dhcpCol, Collections.singleton(dhcpRef))
+                    .where(lspNameCol.opEqual(lspName)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(update))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("set dhcpv4_options=%s on LSP %s", dhcpOptionsUuid, lspName));
+            logger.debug("Set dhcpv4_options=[{}] on Logical_Switch_Port [{}] at {}", dhcpOptionsUuid, lspName, nbConnection);
+            return null;
+        });
+    }
+
+    private UUID findDhcpOptionsByNetworkId(OvsdbClient client, DatabaseSchema schema,
+                                            GenericTableSchema dhcpTable, String networkId) throws Exception {
+        ColumnSchema<GenericTableSchema, UUID> uuidCol = dhcpTable.column("_uuid", UUID.class);
+        // Native OVSDB conditions on map values are awkward via the ODL operations API, so we
+        // pull every DHCP_Options row's external_ids and filter client-side. The DHCP_Options
+        // table is small enough that this is acceptable.
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        ColumnSchema<GenericTableSchema, Map> extIdsCol = dhcpTable.column("external_ids", Map.class);
+        Operation<GenericTableSchema> selectAll = OVSDB_OPS.select(dhcpTable).column(uuidCol).column(extIdsCol);
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(selectAll))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (results == null || results.isEmpty()) return null;
+        OperationResult r = results.get(0);
+        if (r.getError() != null) {
+            throw new CloudRuntimeException("OVSDB select on DHCP_Options failed: " + r.getError());
+        }
+        if (r.getRows() == null) return null;
+        for (Row<GenericTableSchema> row : r.getRows()) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> ext = (Map<String, String>) row.getColumn(extIdsCol).getData();
+            if (ext != null && networkId.equals(ext.get("cloudstack_network_id"))) {
+                return row.getColumn(uuidCol).getData();
+            }
+        }
+        return null;
     }
 
     private boolean logicalSwitchExists(OvsdbClient client, DatabaseSchema schema,

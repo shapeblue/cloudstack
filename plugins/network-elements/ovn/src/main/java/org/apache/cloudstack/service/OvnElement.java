@@ -130,6 +130,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             try {
                 ovnNbClient.createLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), logicalSwitchName, externalIds);
+                createDhcpOptionsForNetwork(provider, network);
             } catch (CloudRuntimeException e) {
                 throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
             }
@@ -153,11 +154,63 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 ovnNbClient.createLogicalSwitchPort(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                         lsName, lspName, nic.getMacAddress(), nic.getIPv4Address(), externalIds);
+                String dhcpUuid = createDhcpOptionsForNetwork(provider, network);
+                if (dhcpUuid != null && nic.getIPv4Address() != null) {
+                    ovnNbClient.setLspDhcpv4Options(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            lspName, dhcpUuid);
+                }
             } catch (CloudRuntimeException e) {
                 throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
             }
         }
         return true;
+    }
+
+    /**
+     * Idempotently creates the DHCP_Options row for an OVN-backed Network. Returns the UUID, or null
+     * when the network has no IPv4 CIDR (in which case there is nothing to serve via OVN DHCP).
+     */
+    protected String createDhcpOptionsForNetwork(OvnProviderVO provider, Network network) {
+        String cidr = network.getCidr();
+        if (cidr == null || cidr.isEmpty()) {
+            return null;
+        }
+        String gateway = network.getGateway();
+        Map<String, String> options = new HashMap<>();
+        if (gateway != null && !gateway.isEmpty()) {
+            options.put("server_id", gateway);
+            options.put("router", gateway);
+        }
+        // server_mac just needs to be a stable, locally administered MAC unique within this LS.
+        options.put("server_mac", buildServerMac(network.getId()));
+        options.put("lease_time", "86400");
+        options.put("mtu", "1442");
+        StringBuilder dns = new StringBuilder("{");
+        if (network.getDns1() != null && !network.getDns1().isEmpty()) {
+            dns.append(network.getDns1());
+        }
+        if (network.getDns2() != null && !network.getDns2().isEmpty()) {
+            if (dns.length() > 1) dns.append(",");
+            dns.append(network.getDns2());
+        }
+        dns.append("}");
+        if (dns.length() > 2) {
+            options.put("dns_server", dns.toString());
+        }
+        Map<String, String> externalIds = new HashMap<>();
+        externalIds.put("cloudstack_network_id", String.valueOf(network.getId()));
+        externalIds.put("cloudstack_network_uuid", network.getUuid());
+        return ovnNbClient.createDhcpOptions(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                cidr, options, externalIds);
+    }
+
+    private static String buildServerMac(long networkId) {
+        return String.format("fa:16:3e:%02x:%02x:%02x",
+                (int) ((networkId >> 16) & 0xff),
+                (int) ((networkId >> 8) & 0xff),
+                (int) (networkId & 0xff));
     }
 
     @Override
@@ -200,6 +253,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
             OvnProviderVO provider = getProviderForNetwork(network);
             try {
+                ovnNbClient.deleteDhcpOptions(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
+                        provider.getClientPrivateKeyPath(), String.valueOf(network.getId()));
                 ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), getLogicalSwitchName(network));
             } catch (CloudRuntimeException e) {
