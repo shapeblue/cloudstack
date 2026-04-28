@@ -65,6 +65,7 @@ public class OvnNbClient {
     private static final String NAT_TABLE = "NAT";
     private static final String ACL_TABLE = "ACL";
     private static final String LOAD_BALANCER_TABLE = "Load_Balancer";
+    private static final String LOAD_BALANCER_HEALTH_CHECK_TABLE = "Load_Balancer_Health_Check";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -1227,6 +1228,18 @@ public class OvnNbClient {
                                             String clientPrivateKeyPath,
                                             String name, String protocol, Map<String, String> vips,
                                             Map<String, String> externalIds, Map<String, String> options) {
+        // Backward-compat wrapper for callers (PortForwarding) that don't need selection_fields
+        // or ip_port_mappings (which are LB-rule-specific concerns: hashing fields and HC source
+        // attribution respectively).
+        createOrReplaceLoadBalancer(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                name, protocol, vips, externalIds, options, null, null);
+    }
+
+    public void createOrReplaceLoadBalancer(String nbConnection, String caCertPath, String clientCertPath,
+                                            String clientPrivateKeyPath,
+                                            String name, String protocol, Map<String, String> vips,
+                                            Map<String, String> externalIds, Map<String, String> options,
+                                            Set<String> selectionFields, Map<String, String> ipPortMappings) {
         if (StringUtils.isBlank(name)) {
             throw new CloudRuntimeException("Load_Balancer name is blank");
         }
@@ -1241,6 +1254,9 @@ public class OvnNbClient {
             @SuppressWarnings({"rawtypes", "unchecked"})
             ColumnSchema<GenericTableSchema, Map> vipsCol = lbTable.column("vips", Map.class);
             ColumnSchema<GenericTableSchema, Set<String>> protoCol = lbTable.multiValuedColumn("protocol", String.class);
+            ColumnSchema<GenericTableSchema, Set<String>> selFieldsCol = lbTable.multiValuedColumn("selection_fields", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> ippmCol = lbTable.column("ip_port_mappings", Map.class);
             @SuppressWarnings({"rawtypes", "unchecked"})
             ColumnSchema<GenericTableSchema, Map> optsCol = lbTable.column("options", Map.class);
             @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1271,6 +1287,12 @@ public class OvnNbClient {
                 if (externalIds != null && !externalIds.isEmpty()) {
                     insert = insert.value(extIdsCol, new HashMap<>(externalIds));
                 }
+                if (selectionFields != null && !selectionFields.isEmpty()) {
+                    insert = insert.value(selFieldsCol, new java.util.HashSet<>(selectionFields));
+                }
+                if (ipPortMappings != null && !ipPortMappings.isEmpty()) {
+                    insert = insert.value(ippmCol, new HashMap<>(ipPortMappings));
+                }
                 ops.add(insert);
             } else {
                 // Replace contents in-place. Mutate explicit columns even if empty so stale entries
@@ -1280,14 +1302,149 @@ public class OvnNbClient {
                         .set(protoCol, StringUtils.isNotBlank(protocol)
                                 ? Collections.singleton(protocol)
                                 : Collections.<String>emptySet())
+                        .set(selFieldsCol, selectionFields != null
+                                ? new java.util.HashSet<>(selectionFields)
+                                : Collections.<String>emptySet())
+                        .set(ippmCol, ipPortMappings != null ? new HashMap<>(ipPortMappings) : new HashMap<>())
                         .set(optsCol, options != null ? new HashMap<>(options) : new HashMap<>())
                         .set(extIdsCol, externalIds != null ? new HashMap<>(externalIds) : new HashMap<>())
                         .where(uuidCol.opEqual(existing)).build());
             }
             List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
             assertNoError(results, String.format("createOrReplace Load_Balancer %s", name));
-            logger.info("Wrote Load_Balancer [{}] vips={} protocol={} options={} at {}",
-                    name, vips, protocol, options, nbConnection);
+            logger.info("Wrote Load_Balancer [{}] vips={} protocol={} options={} selection_fields={} at {}",
+                    name, vips, protocol, options, selectionFields, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Sets {@code Load_Balancer.health_check} to a single fresh Load_Balancer_Health_Check row
+     * with the given vip+options. Existing HC rows (referenced or orphaned with our external_ids
+     * tag) are deleted before insert so we never accumulate dead HC rows. OVN's health check is
+     * L4 TCP-only - the {@code options} map carries {@code interval}, {@code timeout},
+     * {@code success_count}, {@code failure_count}.
+     *
+     * <p>{@code ipPortMappings} populates {@code Load_Balancer.ip_port_mappings} so the SB
+     * Service_Monitor knows from which logical port to source HC probes to each backend
+     * (Format: {@code "<backend_ip>"} → {@code "<lsp_name>:<source_ip>"}).</p>
+     */
+    public void setLoadBalancerHealthCheck(String nbConnection, String caCertPath, String clientCertPath,
+                                            String clientPrivateKeyPath,
+                                            String lbName, String hcVip,
+                                            Map<String, String> hcOptions,
+                                            Map<String, String> ipPortMappings,
+                                            Map<String, String> hcExternalIds) {
+        if (StringUtils.isBlank(lbName) || StringUtils.isBlank(hcVip)) {
+            throw new CloudRuntimeException("setLoadBalancerHealthCheck: arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lbTable = schema.table(LOAD_BALANCER_TABLE, GenericTableSchema.class);
+            GenericTableSchema hcTable = schema.table(LOAD_BALANCER_HEALTH_CHECK_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lbNameCol = lbTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> lbUuidCol = lbTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lbHcCol = lbTable.multiValuedColumn("health_check", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> lbIppmCol = lbTable.column("ip_port_mappings", Map.class);
+            ColumnSchema<GenericTableSchema, UUID> hcUuidCol = hcTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, String> hcVipCol = hcTable.column("vip", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> hcOptsCol = hcTable.column("options", Map.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> hcExtCol = hcTable.column("external_ids", Map.class);
+
+            // Lookup LB; pull current health_check refs so we can delete them.
+            Operation<GenericTableSchema> selLb = OVSDB_OPS.select(lbTable).column(lbUuidCol).column(lbHcCol)
+                    .where(lbNameCol.opEqual(lbName)).build();
+            List<OperationResult> lbResult = client.transact(schema, Collections.<Operation>singletonList(selLb))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lbResult == null || lbResult.isEmpty() || lbResult.get(0).getRows() == null
+                    || lbResult.get(0).getRows().isEmpty()) {
+                throw new CloudRuntimeException("Load_Balancer " + lbName + " not found while setting health check");
+            }
+            UUID lbUuid = lbResult.get(0).getRows().get(0).getColumn(lbUuidCol).getData();
+            @SuppressWarnings("unchecked")
+            Set<UUID> oldHc = (Set<UUID>) lbResult.get(0).getRows().get(0).getColumn(lbHcCol).getData();
+
+            String namedUuid = "newhc";
+            Insert<GenericTableSchema> insertHc = OVSDB_OPS.insert(hcTable)
+                    .withId(namedUuid)
+                    .value(hcVipCol, hcVip)
+                    .value(hcOptsCol, hcOptions != null ? new HashMap<>(hcOptions) : new HashMap<>());
+            if (hcExternalIds != null && !hcExternalIds.isEmpty()) {
+                insertHc = insertHc.value(hcExtCol, new HashMap<>(hcExternalIds));
+            }
+
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertHc);
+            // Replace the LB.health_check set and refresh ip_port_mappings in the same txn.
+            ops.add(OVSDB_OPS.update(lbTable)
+                    .set(lbHcCol, Collections.singleton(new UUID(namedUuid)))
+                    .set(lbIppmCol, ipPortMappings != null ? new HashMap<>(ipPortMappings) : new HashMap<>())
+                    .where(lbUuidCol.opEqual(lbUuid)).build());
+            // Delete the old HC rows now that no LB references them (strong ref).
+            if (oldHc != null) {
+                for (UUID stale : oldHc) {
+                    ops.add(OVSDB_OPS.delete(hcTable).where(hcUuidCol.opEqual(stale)).build());
+                }
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("set health check on Load_Balancer %s", lbName));
+            logger.info("Set Load_Balancer_Health_Check on [{}] vip={} options={} ipPortMappings={} at {}",
+                    lbName, hcVip, hcOptions, ipPortMappings, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes any {@code Load_Balancer_Health_Check} row attached to {@code lbName} and clears
+     * the LB's {@code ip_port_mappings}. Used when a CloudStack LB rule's HealthCheckPolicy is
+     * revoked or absent. Idempotent: a no-op when the LB has no HC.
+     */
+    public void clearLoadBalancerHealthCheck(String nbConnection, String caCertPath, String clientCertPath,
+                                              String clientPrivateKeyPath,
+                                              String lbName) {
+        if (StringUtils.isBlank(lbName)) {
+            throw new CloudRuntimeException("clearLoadBalancerHealthCheck: name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lbTable = schema.table(LOAD_BALANCER_TABLE, GenericTableSchema.class);
+            GenericTableSchema hcTable = schema.table(LOAD_BALANCER_HEALTH_CHECK_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lbNameCol = lbTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> lbUuidCol = lbTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lbHcCol = lbTable.multiValuedColumn("health_check", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> lbIppmCol = lbTable.column("ip_port_mappings", Map.class);
+            ColumnSchema<GenericTableSchema, UUID> hcUuidCol = hcTable.column("_uuid", UUID.class);
+
+            Operation<GenericTableSchema> selLb = OVSDB_OPS.select(lbTable).column(lbUuidCol).column(lbHcCol)
+                    .where(lbNameCol.opEqual(lbName)).build();
+            List<OperationResult> lbResult = client.transact(schema, Collections.<Operation>singletonList(selLb))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lbResult == null || lbResult.isEmpty() || lbResult.get(0).getRows() == null
+                    || lbResult.get(0).getRows().isEmpty()) {
+                return null;
+            }
+            UUID lbUuid = lbResult.get(0).getRows().get(0).getColumn(lbUuidCol).getData();
+            @SuppressWarnings("unchecked")
+            Set<UUID> oldHc = (Set<UUID>) lbResult.get(0).getRows().get(0).getColumn(lbHcCol).getData();
+            if (oldHc == null || oldHc.isEmpty()) {
+                return null;
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.update(lbTable)
+                    .set(lbHcCol, Collections.<UUID>emptySet())
+                    .set(lbIppmCol, new HashMap<>())
+                    .where(lbUuidCol.opEqual(lbUuid)).build());
+            for (UUID stale : oldHc) {
+                ops.add(OVSDB_OPS.delete(hcTable).where(hcUuidCol.opEqual(stale)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("clear health check on Load_Balancer %s", lbName));
+            logger.info("Cleared {} Load_Balancer_Health_Check row(s) from [{}] at {}",
+                    oldHc.size(), lbName, nbConnection);
             return null;
         });
     }

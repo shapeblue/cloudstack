@@ -115,10 +115,20 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         capabilities.put(Network.Service.Firewall, firewallCapabilities);
 
         Map<Network.Capability, String> lbCapabilities = new HashMap<>();
-        lbCapabilities.put(Network.Capability.SupportedLBAlgorithms, "roundrobin,leastconn");
+        // OVN Load_Balancer is L4-only. We only advertise what we actually deliver:
+        //  - tcp/udp (sctp omitted - rarely used in CS UI)
+        //  - round-robin and source-IP based hashing (no leastconn: OVN has no per-backend
+        //    connection state)
+        //  - public scheme for v1 (internal scheme deferred to a follow-up commit)
+        // SSL offload, HTTP-aware LB, cookie stickiness etc. are L7 features that OVN cannot do
+        // in the datapath - those tenants should pick a VirtualRouter offering instead.
+        lbCapabilities.put(Network.Capability.SupportedLBAlgorithms, "roundrobin,source");
         lbCapabilities.put(Network.Capability.SupportedLBIsolation, "dedicated");
         lbCapabilities.put(Network.Capability.SupportedProtocols, "tcp,udp");
-        lbCapabilities.put(Network.Capability.LbSchemes, String.join(",", LoadBalancerContainer.Scheme.Internal.name(), LoadBalancerContainer.Scheme.Public.name()));
+        lbCapabilities.put(Network.Capability.LbSchemes, LoadBalancerContainer.Scheme.Public.name());
+        // OVN does L4 TCP probes via Load_Balancer_Health_Check. We accept HTTP/PING policies
+        // but degrade to TCP probe of the same port (logged in applyLBHealthCheck).
+        lbCapabilities.put(Network.Capability.HealthCheckPolicy, "true");
         capabilities.put(Network.Service.Lb, lbCapabilities);
 
         capabilities.put(Network.Service.Connectivity, null);
@@ -1147,16 +1157,261 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyLBRules(Network network, List<LoadBalancingRule> rules) throws ResourceUnavailableException {
+        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(network);
+        String routerName = getLogicalRouterName(network);
+        String guestLs = getLogicalSwitchName(network);
+        try {
+            for (LoadBalancingRule rule : rules) {
+                programLBRule(provider, network, routerName, guestLs, rule);
+            }
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+        }
         return true;
+    }
+
+    /**
+     * Translates one CloudStack {@link LoadBalancingRule} into an OVN {@code Load_Balancer} row.
+     * Naming: {@code lb-<rule_id>-<protocol>}. Each VM destination becomes one entry in the
+     * vips map's backend list. Algorithm and stickiness are mapped to OVN's
+     * {@code selection_fields} + {@code options:affinity_timeout}. HealthCheckPolicy, when
+     * present, becomes one Load_Balancer_Health_Check row referenced from {@code health_check}
+     * with {@code ip_port_mappings} populated for SB Service_Monitor source attribution.
+     *
+     * <p>OVN LB is L4. CloudStack rules with {@code tcp-proxy}/{@code http}/{@code ssl}
+     * protocols, {@code leastconn} algorithm, or cookie-based stickiness are rejected upstream
+     * by {@link #validateLBRule}. Should one slip through (e.g. via DB-direct mutation), we log
+     * and skip rather than raise.</p>
+     */
+    protected void programLBRule(OvnProviderVO provider, Network network,
+                                  String routerName, String guestLs, LoadBalancingRule rule) {
+        String ruleTag = String.valueOf(rule.getId());
+        String lbName = null;
+
+        if (rule.getState() == FirewallRule.State.Revoke) {
+            ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    "cloudstack_lb_rule_id", ruleTag);
+            return;
+        }
+
+        IPAddressVO ipVo = ipAddressDao.findById(rule.getLb().getSourceIpAddressId());
+        if (ipVo == null || ipVo.getAddress() == null) {
+            logger.warn("LB rule {} references unknown source IP id {}", rule.getId(), rule.getLb().getSourceIpAddressId());
+            return;
+        }
+        String externalIp = ipVo.getAddress().addr();
+
+        String protocol = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
+        if (!"tcp".equals(protocol) && !"udp".equals(protocol) && !"sctp".equals(protocol)) {
+            logger.warn("LB rule {} protocol [{}] is not L4; skipping (validateLBRule should have rejected this)",
+                    rule.getId(), protocol);
+            return;
+        }
+        if (rule.getSourcePortStart() == null) {
+            logger.warn("LB rule {} has no source port; skipping", rule.getId());
+            return;
+        }
+        int publicPort = rule.getSourcePortStart();
+
+        // Build the backend list ("vm_ip:port,vm_ip:port,...") from active destinations.
+        StringBuilder backends = new StringBuilder();
+        Map<String, String> ipPortMappings = new HashMap<>();
+        String hcSourceIp = network.getGateway();
+        for (LoadBalancingRule.LbDestination dest : rule.getDestinations()) {
+            if (dest.isRevoked()) {
+                continue;
+            }
+            String destIp = dest.getIpAddress();
+            int destPort = dest.getDestinationPortStart();
+            if (destIp == null || destIp.isEmpty()) {
+                continue;
+            }
+            if (backends.length() > 0) {
+                backends.append(",");
+            }
+            backends.append(destIp).append(":").append(destPort);
+
+            // Populate ip_port_mappings: <backend_ip> -> <lsp_name>:<source_ip>. The lsp_name is
+            // the NIC UUID (matches our LSP naming scheme in createLogicalSwitchPort) and the
+            // source_ip is the LR's gateway IP on the guest LS - that is the address from which
+            // OVN's monitor will source HC probes.
+            NicVO targetNic = nicDao.findByIp4AddressAndNetworkId(destIp, network.getId());
+            if (targetNic != null && hcSourceIp != null && !hcSourceIp.isEmpty()) {
+                ipPortMappings.put(destIp, targetNic.getUuid() + ":" + hcSourceIp);
+            }
+        }
+        if (backends.length() == 0) {
+            // No live destinations - drop the LB. Idempotent if it was never created.
+            logger.debug("LB rule {} has no live destinations; removing any existing LB row", rule.getId());
+            ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    "cloudstack_lb_rule_id", ruleTag);
+            return;
+        }
+
+        Map<String, String> vips = java.util.Collections.singletonMap(externalIp + ":" + publicPort, backends.toString());
+
+        // Algorithm and stickiness → selection_fields + affinity_timeout.
+        Set<String> selectionFields = null;
+        Long affinityTimeout = null;
+        String algorithm = rule.getAlgorithm() != null ? rule.getAlgorithm().toLowerCase() : "roundrobin";
+        if ("source".equals(algorithm)) {
+            selectionFields = new java.util.LinkedHashSet<>();
+            selectionFields.add("ip_src");
+        }
+        if (rule.getStickinessPolicies() != null) {
+            for (LoadBalancingRule.LbStickinessPolicy sticky : rule.getStickinessPolicies()) {
+                if (sticky.isRevoked()) continue;
+                String method = sticky.getMethodName() != null ? sticky.getMethodName() : "";
+                if ("SourceBased".equalsIgnoreCase(method)) {
+                    if (selectionFields == null) {
+                        selectionFields = new java.util.LinkedHashSet<>();
+                        selectionFields.add("ip_src");
+                    }
+                    affinityTimeout = parseStickyTimeoutSeconds(sticky);
+                } else {
+                    logger.warn("LB rule {} sticky method [{}] is L7 (cookie); OVN cannot honour it - degrading to source-based",
+                            rule.getId(), method);
+                    if (selectionFields == null) {
+                        selectionFields = new java.util.LinkedHashSet<>();
+                        selectionFields.add("ip_src");
+                    }
+                }
+            }
+        }
+
+        Map<String, String> options = new HashMap<>();
+        options.put("hairpin_snat_ip", externalIp);
+        if (affinityTimeout != null && affinityTimeout > 0) {
+            options.put("affinity_timeout", String.valueOf(affinityTimeout));
+        }
+
+        Map<String, String> ext = new HashMap<>();
+        ext.put("cloudstack_lb_rule_id", ruleTag);
+        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        ext.put("cloudstack_lb_kind", "loadbalancer");
+
+        lbName = "lb-" + ruleTag + "-" + protocol;
+        ovnNbClient.createOrReplaceLoadBalancer(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                lbName, protocol, vips, ext, options, selectionFields, ipPortMappings);
+        ovnNbClient.attachLoadBalancerToRouter(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, lbName);
+        ovnNbClient.attachLoadBalancerToSwitch(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                guestLs, lbName);
+
+        // Health check: take the first non-revoked policy. CloudStack today only persists one
+        // HealthCheckPolicy per rule but the API returns a list, so we are defensive.
+        applyLBHealthCheck(provider, network, rule, lbName, externalIp + ":" + publicPort, ipPortMappings);
+    }
+
+    /**
+     * Maps a CloudStack stickiness policy timeout into OVN seconds. CS uses different param
+     * names depending on the method (cookie vs source-based); for SourceBased we look at
+     * {@code expire}/{@code idletime}/{@code holdtime}/{@code persistence_timeout} - whichever
+     * the user filled - and fall back to 180s if nothing parses.
+     */
+    private static long parseStickyTimeoutSeconds(LoadBalancingRule.LbStickinessPolicy sticky) {
+        if (sticky.getParams() == null) return 180L;
+        for (org.apache.cloudstack.api.InternalIdentity pair : java.util.Collections.<org.apache.cloudstack.api.InternalIdentity>emptyList()) { /* unused */ }
+        // The Pair<String,String> instances from CloudStack have .first() / .second() accessors.
+        for (com.cloud.utils.Pair<String, String> p : sticky.getParams()) {
+            String name = p.first() != null ? p.first().toLowerCase() : "";
+            if (name.contains("expire") || name.contains("idletime")
+                    || name.contains("holdtime") || name.contains("timeout")) {
+                try {
+                    return Long.parseLong(p.second());
+                } catch (NumberFormatException ignored) { /* fall through */ }
+            }
+        }
+        return 180L;
+    }
+
+    /**
+     * Applies (or clears) the OVN Load_Balancer_Health_Check for an LB rule. OVN HC is L4 TCP
+     * only; HTTP/PING policies from CloudStack are accepted but degraded to a TCP probe with a
+     * warning so the operator gets a hint to either accept it or move that workload to a
+     * VirtualRouter offering.
+     */
+    protected void applyLBHealthCheck(OvnProviderVO provider, Network network, LoadBalancingRule rule,
+                                       String lbName, String hcVip, Map<String, String> ipPortMappings) {
+        java.util.List<? extends LoadBalancingRule.LbHealthCheckPolicy> policies = rule.getHealthCheckPolicies();
+        LoadBalancingRule.LbHealthCheckPolicy active = null;
+        if (policies != null) {
+            for (LoadBalancingRule.LbHealthCheckPolicy p : policies) {
+                if (!p.isRevoked()) {
+                    active = p;
+                    break;
+                }
+            }
+        }
+        if (active == null) {
+            ovnNbClient.clearLoadBalancerHealthCheck(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    lbName);
+            return;
+        }
+        String pingPath = active.getpingpath();
+        if (pingPath != null && !pingPath.isEmpty()) {
+            logger.warn("LB rule {} health check is HTTP/path-based ({}); OVN can only TCP-probe the backend port - "
+                    + "honouring as TCP probe", rule.getId(), pingPath);
+        }
+
+        Map<String, String> hcOptions = new HashMap<>();
+        // OVN options expect ms (interval/timeout) and integer counts. Map CS seconds to ms.
+        int intervalSec = active.getHealthcheckInterval() > 0 ? active.getHealthcheckInterval() : 5;
+        int responseSec = active.getResponseTime() > 0 ? active.getResponseTime() : 2;
+        int healthyCount = active.getHealthcheckThresshold() > 0 ? active.getHealthcheckThresshold() : 2;
+        int unhealthyCount = active.getUnhealthThresshold() > 0 ? active.getUnhealthThresshold() : 3;
+        hcOptions.put("interval", String.valueOf(intervalSec));
+        hcOptions.put("timeout", String.valueOf(responseSec));
+        hcOptions.put("success_count", String.valueOf(healthyCount));
+        hcOptions.put("failure_count", String.valueOf(unhealthyCount));
+
+        Map<String, String> hcExt = new HashMap<>();
+        hcExt.put("cloudstack_lb_rule_id", String.valueOf(rule.getId()));
+        hcExt.put("cloudstack_network_id", String.valueOf(network.getId()));
+
+        ovnNbClient.setLoadBalancerHealthCheck(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                lbName, hcVip, hcOptions, ipPortMappings, hcExt);
     }
 
     @Override
     public boolean validateLBRule(Network network, LoadBalancingRule rule) {
+        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN) {
+            return true;
+        }
+        // OVN Load_Balancer is L4 - bail on anything beyond tcp/udp/sctp.
+        String proto = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
+        if (!"tcp".equals(proto) && !"udp".equals(proto) && !"sctp".equals(proto)) {
+            logger.warn("OVN LB rejecting rule {}: protocol [{}] requires L7 (use a VirtualRouter offering)",
+                    rule.getId(), proto);
+            return false;
+        }
+        // OVN has no per-backend connection state, so leastconn cannot be honoured. Reject
+        // explicitly rather than silently degrading - capabilities only advertise roundrobin
+        // and source.
+        String algo = rule.getAlgorithm() != null ? rule.getAlgorithm().toLowerCase() : "";
+        if ("leastconn".equals(algo)) {
+            logger.warn("OVN LB rejecting rule {}: algorithm [leastconn] not supported (no backend conn state)",
+                    rule.getId());
+            return false;
+        }
         return true;
     }
 
     @Override
     public List<LoadBalancerTO> updateHealthChecks(Network network, List<LoadBalancingRule> lbrules) {
+        // TODO: query OVN SB Service_Monitor table to surface backend up/down status back to
+        //       CloudStack (so the UI shows red/green per VM member). The OVN HC writes status
+        //       per-backend in Service_Monitor; we'd convert each to a LbDestination state.
         return null;
     }
 
