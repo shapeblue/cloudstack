@@ -33,6 +33,10 @@ import com.cloud.network.element.FirewallServiceProvider;
 import com.cloud.network.element.IpDeployer;
 import com.cloud.network.element.LoadBalancingServiceProvider;
 import com.cloud.network.element.NetworkACLServiceProvider;
+import com.cloud.dc.VlanVO;
+import com.cloud.dc.dao.VlanDao;
+import com.cloud.network.dao.IPAddressDao;
+import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.OvnProviderDao;
 import com.cloud.network.element.OvnProviderVO;
 import com.cloud.network.element.PortForwardingServiceProvider;
@@ -69,6 +73,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Inject
     OvnProviderDao ovnProviderDao;
+
+    @Inject
+    IPAddressDao ipAddressDao;
+
+    @Inject
+    VlanDao vlanDao;
 
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
@@ -131,6 +141,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 ovnNbClient.createLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), logicalSwitchName, externalIds);
                 createDhcpOptionsForNetwork(provider, network);
+                createRouterAndAttachToGuest(provider, network);
+                applySourceNatForNetwork(provider, network);
             } catch (CloudRuntimeException e) {
                 throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
             }
@@ -213,6 +225,114 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 (int) (networkId & 0xff));
     }
 
+    /** Returns the OVN Logical_Router name owning the network's tenant routing. */
+    protected String getLogicalRouterName(Network network) {
+        return String.format("cs-router-%d", network.getId());
+    }
+
+    /** Returns the auxiliary public-side Logical_Switch that fronts the LR's external port. */
+    protected String getPublicLogicalSwitchName(Network network) {
+        return String.format("cs-pub-%d", network.getId());
+    }
+
+    /**
+     * Creates the LR for the network and wires it to the guest Logical_Switch with an internal-only
+     * router port whose IP is the network gateway. External attachment / NAT rules are added later
+     * in {@link #applyIps(Network, java.util.List, java.util.Set)} when CloudStack provisions a
+     * source NAT IP for the network.
+     */
+    protected void createRouterAndAttachToGuest(OvnProviderVO provider, Network network) {
+        if (network.getCidr() == null || network.getGateway() == null) {
+            return;
+        }
+        String routerName = getLogicalRouterName(network);
+        Map<String, String> lrExternalIds = new HashMap<>();
+        lrExternalIds.put("cloudstack_network_id", String.valueOf(network.getId()));
+        lrExternalIds.put("cloudstack_network_uuid", network.getUuid());
+        lrExternalIds.put("cloudstack_zone_id", String.valueOf(network.getDataCenterId()));
+        ovnNbClient.createLogicalRouter(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, lrExternalIds);
+        String prefix = network.getCidr().contains("/")
+                ? network.getCidr().substring(network.getCidr().indexOf('/'))
+                : "/24";
+        String lrpNetwork = network.getGateway() + prefix;
+        ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, getLogicalSwitchName(network),
+                "lrp-" + getLogicalSwitchName(network), buildRouterMac(network.getId(), false),
+                java.util.Collections.singletonList(lrpNetwork));
+    }
+
+    private static String buildRouterMac(long networkId, boolean external) {
+        return String.format("fa:16:3e:%02x:%02x:%02x",
+                external ? 0xfe : 0xfd,
+                (int) ((networkId >> 8) & 0xff),
+                (int) (networkId & 0xff));
+    }
+
+    /**
+     * Looks up CloudStack-allocated source NAT public IPs for the network and provisions the
+     * full external attachment (public LS + localnet port + LR external port + snat rule) for
+     * each. Idempotent: re-running on an already-provisioned LR is a no-op.
+     */
+    protected void applySourceNatForNetwork(OvnProviderVO provider, Network network) {
+        if (network.getCidr() == null) {
+            return;
+        }
+        List<IPAddressVO> ips = ipAddressDao.listByAssociatedNetwork(network.getId(), true);
+        if (ips == null || ips.isEmpty()) {
+            return;
+        }
+        String routerName = getLogicalRouterName(network);
+        String publicLs = getPublicLogicalSwitchName(network);
+        String localnet = provider.getLocalnetName();
+        String externalBridge = provider.getExternalBridge();
+        String guestCidr = network.getCidr();
+        for (IPAddressVO ipVo : ips) {
+            if (!ipVo.isSourceNat() || ipVo.getAddress() == null) {
+                continue;
+            }
+            String externalIp = ipVo.getAddress().addr();
+            VlanVO vlan = vlanDao.findById(ipVo.getVlanId());
+            String netmask = vlan != null && vlan.getVlanNetmask() != null ? vlan.getVlanNetmask() : "255.255.240.0";
+            String externalGateway = vlan != null ? vlan.getVlanGateway() : null;
+            Integer vlanTag = null;
+            if (vlan != null && vlan.getVlanTag() != null && !"untagged".equalsIgnoreCase(vlan.getVlanTag())) {
+                String tagPart = vlan.getVlanTag().replaceAll("^vlan://", "");
+                try { vlanTag = Integer.parseInt(tagPart); } catch (NumberFormatException ignored) { }
+            }
+            // VlanVO is fetched lazily in DAO; for now we let CloudStack stamp the localnet port
+            // without a vlan (admin can override via the localnet on br-ex if needed).
+            Map<String, String> publicLsExt = new HashMap<>();
+            publicLsExt.put("cloudstack_network_id", String.valueOf(network.getId()));
+            publicLsExt.put("cloudstack_role", "public");
+            ovnNbClient.createLogicalSwitch(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    publicLs, publicLsExt);
+            ovnNbClient.addLocalnetPort(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    publicLs, "ln-" + publicLs, localnet != null ? localnet : externalBridge, vlanTag);
+            String prefix = "/" + maskToPrefix(netmask != null ? netmask : "255.255.240.0");
+            ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, publicLs,
+                    "lrp-" + publicLs, buildRouterMac(network.getId(), true),
+                    java.util.Collections.singletonList(externalIp + prefix));
+            Map<String, String> natExt = new HashMap<>();
+            natExt.put("cloudstack_network_id", String.valueOf(network.getId()));
+            natExt.put("cloudstack_nat_kind", "source");
+            ovnNbClient.addNatRule(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, "snat", externalIp, guestCidr, natExt);
+            if (externalGateway != null && !externalGateway.isEmpty()) {
+                ovnNbClient.addStaticRoute(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, "0.0.0.0/0", externalGateway);
+            }
+        }
+    }
+
     @Override
     public boolean release(Network network, NicProfile nic, VirtualMachineProfile vm, ReservationContext context)
             throws ConcurrentOperationException, ResourceUnavailableException {
@@ -253,6 +373,10 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
             OvnProviderVO provider = getProviderForNetwork(network);
             try {
+                ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
+                        provider.getClientPrivateKeyPath(), getPublicLogicalSwitchName(network));
+                ovnNbClient.deleteLogicalRouter(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
+                        provider.getClientPrivateKeyPath(), getLogicalRouterName(network));
                 ovnNbClient.deleteDhcpOptions(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), String.valueOf(network.getId()));
                 ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
@@ -344,7 +468,74 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyIps(Network network, List<? extends PublicIpAddress> ipAddress, Set<Network.Service> services) throws ResourceUnavailableException {
+        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN
+                || ipAddress == null || ipAddress.isEmpty()) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(network);
+        String routerName = getLogicalRouterName(network);
+        String publicLs = getPublicLogicalSwitchName(network);
+        String localnet = provider.getLocalnetName();
+        String guestCidr = network.getCidr();
+        String externalBridge = provider.getExternalBridge();
+        try {
+            for (PublicIpAddress ip : ipAddress) {
+                String externalIp = ip.getAddress() != null ? ip.getAddress().addr() : null;
+                if (externalIp == null) {
+                    continue;
+                }
+                if (ip.isSourceNat() && Boolean.TRUE.equals(services.contains(Network.Service.SourceNat))) {
+                    if (ip.getState() == com.cloud.network.IpAddress.State.Releasing) {
+                        ovnNbClient.removeNatRule(provider.getNbConnection(),
+                                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                                routerName, "snat", externalIp, guestCidr);
+                        continue;
+                    }
+                    // Ensure public-side LS + localnet port + LR external attachment exist
+                    Map<String, String> publicLsExt = new HashMap<>();
+                    publicLsExt.put("cloudstack_network_id", String.valueOf(network.getId()));
+                    publicLsExt.put("cloudstack_role", "public");
+                    ovnNbClient.createLogicalSwitch(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            publicLs, publicLsExt);
+                    Integer vlanTag = null;
+                    try {
+                        if (ip.getVlanTag() != null) vlanTag = Integer.valueOf(ip.getVlanTag());
+                    } catch (NumberFormatException ignored) { /* vlan may be 'untagged' */ }
+                    ovnNbClient.addLocalnetPort(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            publicLs, "ln-" + publicLs, localnet != null ? localnet : externalBridge, vlanTag);
+                    String prefix = ip.getNetmask() != null ? "/" + maskToPrefix(ip.getNetmask()) : "/20";
+                    ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, publicLs,
+                            "lrp-" + publicLs, buildRouterMac(network.getId(), true),
+                            java.util.Collections.singletonList(externalIp + prefix));
+                    Map<String, String> natExt = new HashMap<>();
+                    natExt.put("cloudstack_network_id", String.valueOf(network.getId()));
+                    natExt.put("cloudstack_nat_kind", "source");
+                    ovnNbClient.addNatRule(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, "snat", externalIp, guestCidr, natExt);
+                }
+            }
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
+        }
         return true;
+    }
+
+    private static int maskToPrefix(String netmask) {
+        try {
+            String[] parts = netmask.split("\\.");
+            int bits = 0;
+            for (String p : parts) {
+                bits += Integer.bitCount(Integer.parseInt(p) & 0xff);
+            }
+            return bits;
+        } catch (Exception e) {
+            return 24;
+        }
     }
 
     @Override

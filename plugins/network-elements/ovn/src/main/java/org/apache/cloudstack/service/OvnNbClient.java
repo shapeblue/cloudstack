@@ -56,7 +56,11 @@ public class OvnNbClient {
     private static final String NORTHBOUND_DB = "OVN_Northbound";
     private static final String LOGICAL_SWITCH_TABLE = "Logical_Switch";
     private static final String LOGICAL_SWITCH_PORT_TABLE = "Logical_Switch_Port";
+    private static final String LOGICAL_ROUTER_TABLE = "Logical_Router";
+    private static final String LOGICAL_ROUTER_PORT_TABLE = "Logical_Router_Port";
+    private static final String LOGICAL_ROUTER_STATIC_ROUTE_TABLE = "Logical_Router_Static_Route";
     private static final String DHCP_OPTIONS_TABLE = "DHCP_Options";
+    private static final String NAT_TABLE = "NAT";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -440,6 +444,345 @@ public class OvnNbClient {
             }
         }
         return null;
+    }
+
+    /**
+     * Idempotently creates a Logical_Router with the given name and external_ids.
+     */
+    public void createLogicalRouter(String nbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath, String routerName, Map<String, String> externalIds) {
+        if (StringUtils.isBlank(routerName)) {
+            throw new CloudRuntimeException("Logical_Router name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lr = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = lr.column("name", String.class);
+            if (rowExistsByName(client, schema, lr, nameCol, routerName)) {
+                logger.debug("Logical_Router [{}] already exists on {} - skipping create", routerName, nbConnection);
+                return null;
+            }
+            Insert<GenericTableSchema> insert = OVSDB_OPS.insert(lr).value(nameCol, routerName);
+            if (externalIds != null && !externalIds.isEmpty()) {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                ColumnSchema<GenericTableSchema, Map> extIdsCol = lr.column("external_ids", Map.class);
+                insert = insert.value(extIdsCol, new HashMap<>(externalIds));
+            }
+            List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(insert))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("create Logical_Router %s", routerName));
+            logger.info("Created OVN Logical_Router [{}] at {}", routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes a Logical_Router by name. Idempotent. Caller is responsible for first detaching any
+     * router ports the LR owns and for clearing nat rules.
+     */
+    public void deleteLogicalRouter(String nbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath, String routerName) {
+        if (StringUtils.isBlank(routerName)) {
+            throw new CloudRuntimeException("Logical_Router name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lr = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = lr.column("name", String.class);
+            if (!rowExistsByName(client, schema, lr, nameCol, routerName)) {
+                logger.debug("Logical_Router [{}] not present on {} - nothing to delete", routerName, nbConnection);
+                return null;
+            }
+            Operation<GenericTableSchema> delete = OVSDB_OPS.delete(lr).where(nameCol.opEqual(routerName)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(delete))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("delete Logical_Router %s", routerName));
+            logger.info("Deleted OVN Logical_Router [{}] at {}", routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently attaches a routed segment to a Logical_Router: creates a Logical_Router_Port
+     * with the given mac/networks and a peer Logical_Switch_Port of type=router on the Logical_Switch
+     * pointing back at it. Used to wire the LR to either the guest tier or the public/localnet tier.
+     */
+    public void attachRouterToSwitch(String nbConnection, String caCertPath, String clientCertPath,
+                                     String clientPrivateKeyPath,
+                                     String routerName, String switchName,
+                                     String lrpName, String lrpMac, List<String> lrpNetworks) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(switchName) || StringUtils.isBlank(lrpName)) {
+            throw new CloudRuntimeException("Logical_Router/Switch/Port name is blank");
+        }
+        if (StringUtils.isBlank(lrpMac) || lrpNetworks == null || lrpNetworks.isEmpty()) {
+            throw new CloudRuntimeException("Logical_Router_Port mac/networks are required");
+        }
+        final String lspName = "lsp-" + lrpName;
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lrpNameCol = lrpTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+
+            boolean lrpExists = rowExistsByName(client, schema, lrpTable, lrpNameCol, lrpName);
+            boolean lspExists = rowExistsByName(client, schema, lspTable, lspNameCol, lspName);
+            if (lrpExists && lspExists) {
+                logger.debug("Router attachment {} ↔ {} already in place - skipping", lrpName, lspName);
+                return null;
+            }
+
+            List<Operation> ops = new ArrayList<>();
+            UUID lrpRef = null;
+            if (!lrpExists) {
+                ColumnSchema<GenericTableSchema, String> lrpMacCol = lrpTable.column("mac", String.class);
+                ColumnSchema<GenericTableSchema, Set<String>> lrpNetCol = lrpTable.multiValuedColumn("networks", String.class);
+                Insert<GenericTableSchema> insertLrp = OVSDB_OPS.insert(lrpTable)
+                        .withId("newlrp")
+                        .value(lrpNameCol, lrpName)
+                        .value(lrpMacCol, lrpMac)
+                        .value(lrpNetCol, new java.util.HashSet<>(lrpNetworks));
+                ops.add(insertLrp);
+                ColumnSchema<GenericTableSchema, Set<UUID>> lrPortsCol = lrTable.multiValuedColumn("ports", UUID.class);
+                lrpRef = new UUID("newlrp");
+                ops.add(OVSDB_OPS.mutate(lrTable)
+                        .addMutation(lrPortsCol, Mutator.INSERT, Collections.singleton(lrpRef))
+                        .where(lrNameCol.opEqual(routerName)).build());
+            }
+            if (!lspExists) {
+                ColumnSchema<GenericTableSchema, String> lspTypeCol = lspTable.column("type", String.class);
+                ColumnSchema<GenericTableSchema, Set<String>> lspAddrCol = lspTable.multiValuedColumn("addresses", String.class);
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                ColumnSchema<GenericTableSchema, Map> lspOptsCol = lspTable.column("options", Map.class);
+                Map<String, String> opts = new HashMap<>();
+                opts.put("router-port", lrpName);
+                Insert<GenericTableSchema> insertLsp = OVSDB_OPS.insert(lspTable)
+                        .withId("newlsp")
+                        .value(lspNameCol, lspName)
+                        .value(lspTypeCol, "router")
+                        .value(lspAddrCol, Collections.singleton("router"))
+                        .value(lspOptsCol, opts);
+                ops.add(insertLsp);
+                ColumnSchema<GenericTableSchema, Set<UUID>> lsPortsCol = lsTable.multiValuedColumn("ports", UUID.class);
+                ops.add(OVSDB_OPS.mutate(lsTable)
+                        .addMutation(lsPortsCol, Mutator.INSERT, Collections.singleton(new UUID("newlsp")))
+                        .where(lsNameCol.opEqual(switchName)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("attach Logical_Router %s to Logical_Switch %s via %s", routerName, switchName, lrpName));
+            logger.info("Attached OVN Logical_Router [{}] to Logical_Switch [{}] via LRP [{}] at {}",
+                    routerName, switchName, lrpName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently adds a localnet Logical_Switch_Port to a Logical_Switch so traffic can egress
+     * the OVN integration bridge through ovn-bridge-mappings to the named physical network.
+     */
+    public void addLocalnetPort(String nbConnection, String caCertPath, String clientCertPath,
+                                String clientPrivateKeyPath,
+                                String switchName, String lspName, String physicalNetworkName, Integer vlanTag) {
+        if (StringUtils.isBlank(switchName) || StringUtils.isBlank(lspName) || StringUtils.isBlank(physicalNetworkName)) {
+            throw new CloudRuntimeException("Localnet port arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+            if (rowExistsByName(client, schema, lspTable, lspNameCol, lspName)) {
+                logger.debug("Localnet LSP [{}] already exists - skipping", lspName);
+                return null;
+            }
+            ColumnSchema<GenericTableSchema, String> typeCol = lspTable.column("type", String.class);
+            ColumnSchema<GenericTableSchema, Set<String>> addrCol = lspTable.multiValuedColumn("addresses", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> optsCol = lspTable.column("options", Map.class);
+            Map<String, String> opts = new HashMap<>();
+            opts.put("network_name", physicalNetworkName);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lsPortsCol = lsTable.multiValuedColumn("ports", UUID.class);
+            Insert<GenericTableSchema> insertLsp = OVSDB_OPS.insert(lspTable)
+                    .withId("newln")
+                    .value(lspNameCol, lspName)
+                    .value(typeCol, "localnet")
+                    .value(addrCol, Collections.singleton("unknown"))
+                    .value(optsCol, opts);
+            if (vlanTag != null) {
+                ColumnSchema<GenericTableSchema, Set<Long>> tagCol = lspTable.multiValuedColumn("tag", Long.class);
+                insertLsp = insertLsp.value(tagCol, Collections.singleton((long) vlanTag));
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertLsp);
+            ops.add(OVSDB_OPS.mutate(lsTable)
+                    .addMutation(lsPortsCol, Mutator.INSERT, Collections.singleton(new UUID("newln")))
+                    .where(lsNameCol.opEqual(switchName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("add localnet LSP %s on %s", lspName, switchName));
+            logger.info("Added OVN localnet Logical_Switch_Port [{}] on Logical_Switch [{}] (network_name={}, vlan={}) at {}",
+                    lspName, switchName, physicalNetworkName, vlanTag, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently adds a NAT rule to a Logical_Router. {@code natType} should be {@code snat},
+     * {@code dnat} or {@code dnat_and_snat}.
+     */
+    public void addNatRule(String nbConnection, String caCertPath, String clientCertPath,
+                           String clientPrivateKeyPath,
+                           String routerName, String natType, String externalIp, String logicalIp,
+                           Map<String, String> externalIds) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(natType)
+                || StringUtils.isBlank(externalIp) || StringUtils.isBlank(logicalIp)) {
+            throw new CloudRuntimeException("NAT rule arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+            ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+            ColumnSchema<GenericTableSchema, String> natLogCol = natTable.column("logical_ip", String.class);
+
+            if (natRuleExists(client, schema, natTable, natType, externalIp, logicalIp)) {
+                logger.debug("NAT [{} {}→{}] on {} already exists - skipping", natType, logicalIp, externalIp, routerName);
+                return null;
+            }
+
+            Insert<GenericTableSchema> insertNat = OVSDB_OPS.insert(natTable)
+                    .withId("newnat")
+                    .value(natTypeCol, natType)
+                    .value(natExtCol, externalIp)
+                    .value(natLogCol, logicalIp);
+            if (externalIds != null && !externalIds.isEmpty()) {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                ColumnSchema<GenericTableSchema, Map> extIdsCol = natTable.column("external_ids", Map.class);
+                insertNat = insertNat.value(extIdsCol, new HashMap<>(externalIds));
+            }
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertNat);
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrNatCol, Mutator.INSERT, Collections.singleton(new UUID("newnat")))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("add NAT %s %s→%s on %s", natType, logicalIp, externalIp, routerName));
+            logger.info("Added OVN NAT [{} {} → {}] on Logical_Router [{}] at {}", natType, logicalIp, externalIp, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes a NAT rule matching type/external_ip/logical_ip from a Logical_Router. Idempotent.
+     */
+    public void removeNatRule(String nbConnection, String caCertPath, String clientCertPath,
+                              String clientPrivateKeyPath,
+                              String routerName, String natType, String externalIp, String logicalIp) {
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema natTable = schema.table(NAT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+            ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+            ColumnSchema<GenericTableSchema, String> natLogCol = natTable.column("logical_ip", String.class);
+            if (!natRuleExists(client, schema, natTable, natType, externalIp, logicalIp)) {
+                return null;
+            }
+            Operation<GenericTableSchema> delete = OVSDB_OPS.delete(natTable)
+                    .where(natTypeCol.opEqual(natType))
+                    .and(natExtCol.opEqual(externalIp))
+                    .and(natLogCol.opEqual(logicalIp)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(delete))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("delete NAT %s %s→%s on %s", natType, logicalIp, externalIp, routerName));
+            logger.info("Deleted OVN NAT [{} {} → {}] on Logical_Router [{}] at {}", natType, logicalIp, externalIp, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently adds a static route on a Logical_Router.
+     */
+    public void addStaticRoute(String nbConnection, String caCertPath, String clientCertPath,
+                               String clientPrivateKeyPath,
+                               String routerName, String ipPrefix, String nexthop) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(ipPrefix) || StringUtils.isBlank(nexthop)) {
+            throw new CloudRuntimeException("Static route arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema srTable = schema.table(LOGICAL_ROUTER_STATIC_ROUTE_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> srPrefixCol = srTable.column("ip_prefix", String.class);
+            ColumnSchema<GenericTableSchema, String> srNexthopCol = srTable.column("nexthop", String.class);
+
+            Operation<GenericTableSchema> selExisting = OVSDB_OPS.select(srTable).column(srPrefixCol)
+                    .where(srPrefixCol.opEqual(ipPrefix)).and(srNexthopCol.opEqual(nexthop)).build();
+            List<OperationResult> existing = client.transact(schema, Collections.<Operation>singletonList(selExisting))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (existing != null && !existing.isEmpty()
+                    && existing.get(0).getRows() != null && !existing.get(0).getRows().isEmpty()) {
+                logger.debug("Static_Route {}→{} already exists - skipping", ipPrefix, nexthop);
+                return null;
+            }
+
+            Insert<GenericTableSchema> insertSr = OVSDB_OPS.insert(srTable)
+                    .withId("newsr")
+                    .value(srPrefixCol, ipPrefix)
+                    .value(srNexthopCol, nexthop);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrRoutesCol = lrTable.multiValuedColumn("static_routes", UUID.class);
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertSr);
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrRoutesCol, Mutator.INSERT, Collections.singleton(new UUID("newsr")))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("add Static_Route %s→%s on %s", ipPrefix, nexthop, routerName));
+            logger.info("Added OVN Static_Route [{} → {}] on Logical_Router [{}] at {}", ipPrefix, nexthop, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    private boolean natRuleExists(OvsdbClient client, DatabaseSchema schema, GenericTableSchema natTable,
+                                   String natType, String externalIp, String logicalIp) throws Exception {
+        ColumnSchema<GenericTableSchema, String> natTypeCol = natTable.column("type", String.class);
+        ColumnSchema<GenericTableSchema, String> natExtCol = natTable.column("external_ip", String.class);
+        ColumnSchema<GenericTableSchema, String> natLogCol = natTable.column("logical_ip", String.class);
+        Operation<GenericTableSchema> select = OVSDB_OPS.select(natTable).column(natTypeCol)
+                .where(natTypeCol.opEqual(natType))
+                .and(natExtCol.opEqual(externalIp))
+                .and(natLogCol.opEqual(logicalIp)).build();
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(select))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (results == null || results.isEmpty()) return false;
+        OperationResult r = results.get(0);
+        if (r.getError() != null) {
+            throw new CloudRuntimeException("OVSDB select on NAT failed: " + r.getError());
+        }
+        List<Row<GenericTableSchema>> rows = r.getRows();
+        return rows != null && !rows.isEmpty();
+    }
+
+    private boolean rowExistsByName(OvsdbClient client, DatabaseSchema schema,
+                                     GenericTableSchema table, ColumnSchema<GenericTableSchema, String> nameCol,
+                                     String name) throws Exception {
+        Operation<GenericTableSchema> select = OVSDB_OPS.select(table).column(nameCol).where(nameCol.opEqual(name)).build();
+        List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(select))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (results == null || results.isEmpty()) return false;
+        OperationResult r = results.get(0);
+        if (r.getError() != null) {
+            throw new CloudRuntimeException("OVSDB select failed: " + r.getError());
+        }
+        List<Row<GenericTableSchema>> rows = r.getRows();
+        return rows != null && !rows.isEmpty();
     }
 
     private boolean logicalSwitchExists(OvsdbClient client, DatabaseSchema schema,
