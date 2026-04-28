@@ -190,9 +190,11 @@ public class CreateVPCOfferingCmd extends BaseAsyncCreateCmd {
             supportedServices = new ArrayList<>(List.of(
                     Dhcp.getName(),
                     Dns.getName(),
-                    NetworkACL.getName(),
-                    UserData.getName()
+                    NetworkACL.getName()
                     ));
+            if (!isOvnProvider(getProvider())) {
+                supportedServices.add(UserData.getName());
+            }
             if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode())) {
                 supportedServices.addAll(Arrays.asList(
                         StaticNat.getName(),
@@ -253,13 +255,16 @@ public class CreateVPCOfferingCmd extends BaseAsyncCreateCmd {
         if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode())) {
             unsupportedServices.add("Gateway");
         }
-        List<String> routerSupported = List.of("Dhcp", "Dns", "UserData");
+        List<String> routerSupported = isOvnProvider(provider) ? List.of() : List.of("Dhcp", "Dns", "UserData");
         List<String> allServices = Network.Service.listAllServices().stream().map(Network.Service::getName).collect(Collectors.toList());
         for (String service : allServices) {
             if (unsupportedServices.contains(service))
                 continue;
             if (routerSupported.contains(service))
                 serviceProviderMap.put(service, List.of(VirtualRouterProvider.Type.VPCVirtualRouter.name()));
+            else if (isOvnProvider(provider) && (Dhcp.getName().equalsIgnoreCase(service) || Dns.getName().equalsIgnoreCase(service))) {
+                serviceProviderMap.put(service, List.of(provider));
+            }
             else if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode()) ||
                     Stream.of(NetworkACL.getName(), Gateway.getName()).anyMatch(s -> s.equalsIgnoreCase(service))) {
                 serviceProviderMap.put(service, List.of(provider));

@@ -626,7 +626,49 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
                             true, null, true, false, null, false, null, true, false, false, false, false, null, null, null, true, null, null, false);
                 }
 
-                //#8 - network offering with internal lb service
+                //#8 - OVN isolated offering with source nat enabled and no Virtual Router dependency
+                if (_networkOfferingDao.findByUniqueName(NetworkOffering.DEFAULT_NAT_OVN_OFFERING) == null) {
+                    final Map<Network.Service, Set<Network.Provider>> defaultOvnIsolatedOfferingProviders = new HashMap<>();
+                    final Set<Network.Provider> ovnProvider = new HashSet<>();
+                    ovnProvider.add(Network.Provider.Ovn);
+                    defaultOvnIsolatedOfferingProviders.put(Service.Dhcp, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.Dns, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.Firewall, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.Gateway, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.Lb, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.SourceNat, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.StaticNat, ovnProvider);
+                    defaultOvnIsolatedOfferingProviders.put(Service.PortForwarding, ovnProvider);
+                    offering = _configMgr.createNetworkOffering(NetworkOffering.DEFAULT_NAT_OVN_OFFERING,
+                            "Offering for OVN enabled networks - NAT mode", TrafficType.Guest, null, false, Availability.Optional, null,
+                            defaultOvnIsolatedOfferingProviders, true, Network.GuestType.Isolated, false, null, true, null, false, false, null, false, null,
+                            true, false, false, false, false, null, null, null, true, null, null, false);
+                    offering.setPublicLb(true);
+                    _networkOfferingDao.update(offering.getId(), offering);
+                }
+
+                //#9 - OVN VPC offering with source nat enabled and no Virtual Router dependency
+                if (_networkOfferingDao.findByUniqueName(NetworkOffering.DEFAULT_NAT_OVN_OFFERING_FOR_VPC) == null) {
+                    final Map<Network.Service, Set<Network.Provider>> defaultOvnVpcOfferingProviders = new HashMap<>();
+                    final Set<Network.Provider> ovnProvider = new HashSet<>();
+                    ovnProvider.add(Network.Provider.Ovn);
+                    defaultOvnVpcOfferingProviders.put(Service.Dhcp, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.Dns, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.NetworkACL, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.Gateway, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.Lb, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.SourceNat, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.StaticNat, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.PortForwarding, ovnProvider);
+                    offering = _configMgr.createNetworkOffering(NetworkOffering.DEFAULT_NAT_OVN_OFFERING_FOR_VPC,
+                            "Offering for OVN enabled networks on VPCs - NAT mode", TrafficType.Guest, null, false, Availability.Optional, null,
+                            defaultOvnVpcOfferingProviders, true, Network.GuestType.Isolated, false, null, true, null, false, false, null, false, null,
+                            true, true, false, false, false, null, null, null, true, null, null, false);
+                    offering.setPublicLb(true);
+                    _networkOfferingDao.update(offering.getId(), offering);
+                }
+
+                //#10 - network offering with internal lb service
                 final Map<Network.Service, Set<Network.Provider>> internalLbOffProviders = new HashMap<>();
                 final Set<Network.Provider> defaultVpcProvider = new HashSet<>();
                 defaultVpcProvider.add(Network.Provider.VPCVirtualRouter);
@@ -4939,7 +4981,7 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
         return new ConfigKey<?>[]{NetworkGcWait, NetworkGcInterval, NetworkLockTimeout, DeniedRoutes,
                 GuestDomainSuffix, NetworkThrottlingRate, MinVRVersion,
                 PromiscuousMode, MacAddressChanges, ForgedTransmits, MacLearning, RollingRestartEnabled,
-                TUNGSTEN_ENABLED, NSX_ENABLED, NETRIS_ENABLED, OVN_ENABLED, NETWORK_LB_HAPROXY_MAX_CONN,
+                TUNGSTEN_ENABLED, NSX_ENABLED, NETRIS_ENABLED, NETWORK_LB_HAPROXY_MAX_CONN,
                 NETWORK_LB_HAPROXY_IDLE_TIMEOUT};
     }
 }

@@ -272,9 +272,11 @@ public abstract class NetworkOfferingBaseCmd extends BaseCmd {
         } else {
             List<String> services = new ArrayList<>(List.of(
                     Dhcp.getName(),
-                    Dns.getName(),
-                    UserData.getName()
+                    Dns.getName()
             ));
+            if (!isOvnProvider(getProvider())) {
+                services.add(UserData.getName());
+            }
             if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode())) {
                 services.addAll(Arrays.asList(
                         StaticNat.getName(),
@@ -375,7 +377,7 @@ public abstract class NetworkOfferingBaseCmd extends BaseCmd {
         String routerProvider = Boolean.TRUE.equals(getForVpc()) ? VirtualRouterProvider.Type.VPCVirtualRouter.name() :
                 VirtualRouterProvider.Type.VirtualRouter.name();
         List<String> unsupportedServices = new ArrayList<>(List.of("Vpn", "Gateway", "SecurityGroup", "Connectivity", "BaremetalPxeService"));
-        List<String> routerSupported = List.of("Dhcp", "Dns", "UserData");
+        List<String> routerSupported = isOvnProvider(provider) ? List.of() : List.of("Dhcp", "Dns", "UserData");
         List<String> allServices = Network.Service.listAllServices().stream().map(Network.Service::getName).collect(Collectors.toList());
         if (routerProvider.equals(VirtualRouterProvider.Type.VPCVirtualRouter.name())) {
             unsupportedServices.add("Firewall");
@@ -387,6 +389,9 @@ public abstract class NetworkOfferingBaseCmd extends BaseCmd {
                 continue;
             if (routerSupported.contains(service))
                 serviceProviderMap.put(service, List.of(routerProvider));
+            else if (isOvnProvider(provider) && (Dhcp.getName().equalsIgnoreCase(service) || Dns.getName().equalsIgnoreCase(service))) {
+                serviceProviderMap.put(service, List.of(provider));
+            }
             else if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode()) || NetworkACL.getName().equalsIgnoreCase(service)) {
                 serviceProviderMap.put(service, List.of(provider));
             }
