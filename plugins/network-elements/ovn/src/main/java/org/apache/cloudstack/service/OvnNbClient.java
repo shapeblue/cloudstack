@@ -64,6 +64,7 @@ public class OvnNbClient {
     private static final String DHCP_OPTIONS_TABLE = "DHCP_Options";
     private static final String NAT_TABLE = "NAT";
     private static final String ACL_TABLE = "ACL";
+    private static final String LOAD_BALANCER_TABLE = "Load_Balancer";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -1136,6 +1137,258 @@ public class OvnNbClient {
             logger.info("Added OVN Static_Route [{} → {}] on Logical_Router [{}] at {}", ipPrefix, nexthop, routerName, nbConnection);
             return null;
         });
+    }
+
+    /**
+     * Idempotently creates or updates a Load_Balancer row keyed by name. {@code vips} is a map of
+     * {@code "<vip_ip>:<vip_port>"} → {@code "<backend_ip>:<backend_port>[,...]"}. {@code protocol}
+     * must be {@code tcp}, {@code udp} or {@code sctp}. Existing row is reset to the supplied
+     * vips/protocol/options/external_ids - the row name is the stable identifier.
+     *
+     * <p>The OVN NB schema for Load_Balancer.vips is a {@code map<string,string>}; OVN
+     * north interprets each entry as one DNAT mapping and may rewrite both IP and port (which is
+     * exactly what we need for CloudStack PortForwarding rules where source and destination ports
+     * can differ).</p>
+     */
+    public void createOrReplaceLoadBalancer(String nbConnection, String caCertPath, String clientCertPath,
+                                            String clientPrivateKeyPath,
+                                            String name, String protocol, Map<String, String> vips,
+                                            Map<String, String> externalIds, Map<String, String> options) {
+        if (StringUtils.isBlank(name)) {
+            throw new CloudRuntimeException("Load_Balancer name is blank");
+        }
+        if (vips == null || vips.isEmpty()) {
+            throw new CloudRuntimeException("Load_Balancer vips must be non-empty");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lbTable = schema.table(LOAD_BALANCER_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = lbTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> uuidCol = lbTable.column("_uuid", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> vipsCol = lbTable.column("vips", Map.class);
+            ColumnSchema<GenericTableSchema, Set<String>> protoCol = lbTable.multiValuedColumn("protocol", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> optsCol = lbTable.column("options", Map.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> extIdsCol = lbTable.column("external_ids", Map.class);
+
+            // Look up existing row by name.
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(lbTable).column(uuidCol)
+                    .where(nameCol.opEqual(name)).build();
+            List<OperationResult> selResult = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            UUID existing = null;
+            if (selResult != null && !selResult.isEmpty() && selResult.get(0).getRows() != null
+                    && !selResult.get(0).getRows().isEmpty()) {
+                existing = selResult.get(0).getRows().get(0).getColumn(uuidCol).getData();
+            }
+
+            List<Operation> ops = new ArrayList<>();
+            if (existing == null) {
+                Insert<GenericTableSchema> insert = OVSDB_OPS.insert(lbTable)
+                        .value(nameCol, name)
+                        .value(vipsCol, new HashMap<>(vips));
+                if (StringUtils.isNotBlank(protocol)) {
+                    insert = insert.value(protoCol, Collections.singleton(protocol));
+                }
+                if (options != null && !options.isEmpty()) {
+                    insert = insert.value(optsCol, new HashMap<>(options));
+                }
+                if (externalIds != null && !externalIds.isEmpty()) {
+                    insert = insert.value(extIdsCol, new HashMap<>(externalIds));
+                }
+                ops.add(insert);
+            } else {
+                // Replace contents in-place. Mutate explicit columns even if empty so stale entries
+                // from a prior revision do not leak through.
+                ops.add(OVSDB_OPS.update(lbTable)
+                        .set(vipsCol, new HashMap<>(vips))
+                        .set(protoCol, StringUtils.isNotBlank(protocol)
+                                ? Collections.singleton(protocol)
+                                : Collections.<String>emptySet())
+                        .set(optsCol, options != null ? new HashMap<>(options) : new HashMap<>())
+                        .set(extIdsCol, externalIds != null ? new HashMap<>(externalIds) : new HashMap<>())
+                        .where(uuidCol.opEqual(existing)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("createOrReplace Load_Balancer %s", name));
+            logger.info("Wrote Load_Balancer [{}] vips={} protocol={} options={} at {}",
+                    name, vips, protocol, options, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently links a Load_Balancer (by name) into a Logical_Router's {@code load_balancer}
+     * set. Used to make ovn-northd evaluate the LB DNAT pipeline on traffic arriving at this LR.
+     */
+    public void attachLoadBalancerToRouter(String nbConnection, String caCertPath, String clientCertPath,
+                                            String clientPrivateKeyPath,
+                                            String routerName, String lbName) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(lbName)) {
+            throw new CloudRuntimeException("Logical_Router/Load_Balancer name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema lbTable = schema.table(LOAD_BALANCER_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lbNameCol = lbTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> lbUuidCol = lbTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrLbCol = lrTable.multiValuedColumn("load_balancer", UUID.class);
+
+            UUID lbUuid = lookupUuidByName(client, schema, lbTable, lbNameCol, lbUuidCol, lbName);
+            if (lbUuid == null) {
+                throw new CloudRuntimeException("Load_Balancer " + lbName + " not found while attaching to LR " + routerName);
+            }
+            Operation<GenericTableSchema> mutate = OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrLbCol, Mutator.INSERT, Collections.singleton(lbUuid))
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(mutate))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("attach LB %s to LR %s", lbName, routerName));
+            logger.debug("Attached Load_Balancer [{}] to Logical_Router [{}] at {}", lbName, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently links a Load_Balancer (by name) into a Logical_Switch's {@code load_balancer}
+     * set. Required for return-traffic visibility (RHBZ#2043543) when a VM on this switch is the
+     * backend of a port-forwarding rule attached to the upstream router.
+     */
+    public void attachLoadBalancerToSwitch(String nbConnection, String caCertPath, String clientCertPath,
+                                            String clientPrivateKeyPath,
+                                            String switchName, String lbName) {
+        if (StringUtils.isBlank(switchName) || StringUtils.isBlank(lbName)) {
+            throw new CloudRuntimeException("Logical_Switch/Load_Balancer name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema lbTable = schema.table(LOAD_BALANCER_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lbNameCol = lbTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> lbUuidCol = lbTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lsLbCol = lsTable.multiValuedColumn("load_balancer", UUID.class);
+
+            UUID lbUuid = lookupUuidByName(client, schema, lbTable, lbNameCol, lbUuidCol, lbName);
+            if (lbUuid == null) {
+                throw new CloudRuntimeException("Load_Balancer " + lbName + " not found while attaching to LS " + switchName);
+            }
+            Operation<GenericTableSchema> mutate = OVSDB_OPS.mutate(lsTable)
+                    .addMutation(lsLbCol, Mutator.INSERT, Collections.singleton(lbUuid))
+                    .where(lsNameCol.opEqual(switchName)).build();
+            List<OperationResult> results = client.transact(schema, Collections.singletonList(mutate))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("attach LB %s to LS %s", lbName, switchName));
+            logger.debug("Attached Load_Balancer [{}] to Logical_Switch [{}] at {}", lbName, switchName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Removes every Load_Balancer row whose {@code external_ids} contains {@code key=value}. First
+     * walks every Logical_Router and Logical_Switch, mutates their {@code load_balancer} sets to
+     * detach the matching LBs, then deletes the LB rows themselves. Detach is required because
+     * {@code load_balancer} is a strong reference set in the OVN NB schema.
+     */
+    public int removeLoadBalancersByExternalId(String nbConnection, String caCertPath, String clientCertPath,
+                                                 String clientPrivateKeyPath,
+                                                 String externalIdKey, String externalIdValue) {
+        if (StringUtils.isBlank(externalIdKey) || StringUtils.isBlank(externalIdValue)) {
+            throw new CloudRuntimeException("removeLoadBalancersByExternalId arguments are incomplete");
+        }
+        return runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lbTable = schema.table(LOAD_BALANCER_TABLE, GenericTableSchema.class);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, UUID> lbUuidCol = lbTable.column("_uuid", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> lbExtCol = lbTable.column("external_ids", Map.class);
+            ColumnSchema<GenericTableSchema, UUID> lrUuidCol = lrTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrLbCol = lrTable.multiValuedColumn("load_balancer", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> lsUuidCol = lsTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lsLbCol = lsTable.multiValuedColumn("load_balancer", UUID.class);
+
+            // Step 1: collect LB UUIDs whose external_ids match.
+            Operation<GenericTableSchema> selLb = OVSDB_OPS.select(lbTable).column(lbUuidCol).column(lbExtCol);
+            List<OperationResult> lbResult = client.transact(schema, Collections.<Operation>singletonList(selLb))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            Set<UUID> matchedLbs = new java.util.HashSet<>();
+            if (lbResult != null && !lbResult.isEmpty() && lbResult.get(0).getRows() != null) {
+                for (Row<GenericTableSchema> row : lbResult.get(0).getRows()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> ext = (Map<String, String>) row.getColumn(lbExtCol).getData();
+                    if (ext != null && externalIdValue.equals(ext.get(externalIdKey))) {
+                        matchedLbs.add(row.getColumn(lbUuidCol).getData());
+                    }
+                }
+            }
+            if (matchedLbs.isEmpty()) {
+                return 0;
+            }
+
+            // Step 2: walk LRs/LSes and detach. We pull the full set then mutate per row that
+            // actually contains one of our UUIDs - keeps the transaction small.
+            List<Operation> ops = new ArrayList<>();
+            collectDetachOps(client, schema, lrTable, lrUuidCol, lrLbCol, matchedLbs, ops);
+            collectDetachOps(client, schema, lsTable, lsUuidCol, lsLbCol, matchedLbs, ops);
+
+            // Step 3: delete the LB rows themselves.
+            for (UUID u : matchedLbs) {
+                ops.add(OVSDB_OPS.delete(lbTable).where(lbUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("remove LBs by %s=%s", externalIdKey, externalIdValue));
+            logger.info("Removed {} Load_Balancer row(s) tagged [{}={}] at {}",
+                    matchedLbs.size(), externalIdKey, externalIdValue, nbConnection);
+            return matchedLbs.size();
+        });
+    }
+
+    private void collectDetachOps(OvsdbClient client, DatabaseSchema schema,
+                                   GenericTableSchema parentTable,
+                                   ColumnSchema<GenericTableSchema, UUID> parentUuidCol,
+                                   ColumnSchema<GenericTableSchema, Set<UUID>> lbRefCol,
+                                   Set<UUID> targetLbUuids,
+                                   List<Operation> ops) throws Exception {
+        Operation<GenericTableSchema> sel = OVSDB_OPS.select(parentTable).column(parentUuidCol).column(lbRefCol);
+        List<OperationResult> result = client.transact(schema, Collections.<Operation>singletonList(sel))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (result == null || result.isEmpty() || result.get(0).getRows() == null) {
+            return;
+        }
+        for (Row<GenericTableSchema> row : result.get(0).getRows()) {
+            @SuppressWarnings("unchecked")
+            Set<UUID> refs = (Set<UUID>) row.getColumn(lbRefCol).getData();
+            if (refs == null || refs.isEmpty()) continue;
+            Set<UUID> overlap = new java.util.HashSet<>(refs);
+            overlap.retainAll(targetLbUuids);
+            if (overlap.isEmpty()) continue;
+            UUID parentUuid = row.getColumn(parentUuidCol).getData();
+            ops.add(OVSDB_OPS.mutate(parentTable)
+                    .addMutation(lbRefCol, Mutator.DELETE, overlap)
+                    .where(parentUuidCol.opEqual(parentUuid)).build());
+        }
+    }
+
+    private UUID lookupUuidByName(OvsdbClient client, DatabaseSchema schema,
+                                   GenericTableSchema table,
+                                   ColumnSchema<GenericTableSchema, String> nameCol,
+                                   ColumnSchema<GenericTableSchema, UUID> uuidCol,
+                                   String name) throws Exception {
+        Operation<GenericTableSchema> sel = OVSDB_OPS.select(table).column(uuidCol)
+                .where(nameCol.opEqual(name)).build();
+        List<OperationResult> result = client.transact(schema, Collections.<Operation>singletonList(sel))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (result == null || result.isEmpty() || result.get(0).getRows() == null
+                || result.get(0).getRows().isEmpty()) {
+            return null;
+        }
+        return result.get(0).getRows().get(0).getColumn(uuidCol).getData();
     }
 
     /**

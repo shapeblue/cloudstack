@@ -682,21 +682,126 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         return true;
     }
 
+    /**
+     * Cap on the size of a single PortForwarding rule's port range. CloudStack lets the user
+     * declare arbitrarily large ranges; we expand each rule into one Load_Balancer.vips entry
+     * per port, so very large ranges would balloon the NB row. 256 is enough for the common
+     * case (small service ranges) without risking an unbounded transaction.
+     */
+    private static final int MAX_PF_RANGE = 256;
+
     @Override
     public boolean applyPFRules(Network network, List<PortForwardingRule> rules) throws ResourceUnavailableException {
-        // OVN NB schema 24.03 dropped NAT.external_port / NAT.protocol in favour of port-based
-        // forwarding via Load_Balancer rows (vips: "<fip>:<ext>" -> "<int_ip>:<int>"). The
-        // previous NAT-based path crashed at runtime because those columns no longer exist.
-        // TODO: re-implement applyPFRules on top of OvnNbClient.{add,remove}LoadBalancer once
-        // the LB primitives land - see ovn_octavia driver in the Neutron tree for the pattern.
-        if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN
-                && rules != null && !rules.isEmpty()) {
-            logger.warn("OVN plugin: PortForwarding requested for network {} but NAT-based PF was"
-                    + " removed from OVN NB 24.03 (no external_port column). Skipping {} rule(s);"
-                    + " Load_Balancer-backed PF is on the roadmap.",
-                    network.getUuid(), rules.size());
+        if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
+            return true;
+        }
+        OvnProviderVO provider = getProviderForNetwork(network);
+        String routerName = getLogicalRouterName(network);
+        String guestLs = getLogicalSwitchName(network);
+        try {
+            for (PortForwardingRule rule : rules) {
+                programPortForwardingRule(provider, network, routerName, guestLs, rule);
+            }
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
         }
         return true;
+    }
+
+    /**
+     * Translates one CloudStack {@link PortForwardingRule} into an OVN {@code Load_Balancer} row.
+     * Naming: {@code pf-<rule_id>-<protocol>}. The LB carries one VIP entry per port in the
+     * source range mapped to the corresponding destination port. Backed by {@link
+     * OvnNbClient#createOrReplaceLoadBalancer}, then attached to the network's Logical_Router and
+     * its guest Logical_Switch (the LS attachment is the Neutron-recommended workaround for
+     * RHBZ#2043543 — VMs talking to their own FIP need the LB visible on the LS too).
+     *
+     * <p>NAT-based PortForwarding was removed from OVN NB 24.03 (the {@code external_port} and
+     * {@code protocol} columns are gone), and even where it existed it could not remap a public
+     * port to a different internal port — which CloudStack semantics require. Load_Balancer
+     * gives us both the port translation and the per-rule revoke story (delete the LB by
+     * external_ids tag).</p>
+     */
+    protected void programPortForwardingRule(OvnProviderVO provider, Network network,
+                                              String routerName, String guestLs, PortForwardingRule rule) {
+        String ruleTag = String.valueOf(rule.getId());
+        if (rule.getState() == FirewallRule.State.Revoke) {
+            ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    "cloudstack_pf_rule_id", ruleTag);
+            return;
+        }
+
+        IPAddressVO ipVo = ipAddressDao.findById(rule.getSourceIpAddressId());
+        if (ipVo == null || ipVo.getAddress() == null) {
+            logger.warn("PF rule {} references unknown source IP id {} - skipping", rule.getId(), rule.getSourceIpAddressId());
+            return;
+        }
+        String externalIp = ipVo.getAddress().addr();
+        String logicalIp = rule.getDestinationIpAddress() != null ? rule.getDestinationIpAddress().addr() : null;
+        if (logicalIp == null || logicalIp.isEmpty()) {
+            logger.warn("PF rule {} has no destination IP - skipping", rule.getId());
+            return;
+        }
+        String protocol = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
+        if (!"tcp".equals(protocol) && !"udp".equals(protocol) && !"sctp".equals(protocol)) {
+            logger.warn("PF rule {} protocol [{}] is not supported by OVN Load_Balancer - skipping", rule.getId(), protocol);
+            return;
+        }
+
+        int extStart = rule.getSourcePortStart() != null ? rule.getSourcePortStart() : 0;
+        int extEnd = rule.getSourcePortEnd() != null ? rule.getSourcePortEnd() : extStart;
+        int destStart = rule.getDestinationPortStart();
+        int destEnd = rule.getDestinationPortEnd();
+        int extRange = extEnd - extStart + 1;
+        int destRange = destEnd - destStart + 1;
+        if (extRange <= 0) {
+            logger.warn("PF rule {} has invalid source port range [{}, {}]", rule.getId(), extStart, extEnd);
+            return;
+        }
+        if (extRange > MAX_PF_RANGE) {
+            logger.warn("PF rule {} source range size [{}] exceeds MAX_PF_RANGE [{}] - rejecting",
+                    rule.getId(), extRange, MAX_PF_RANGE);
+            return;
+        }
+        // CloudStack allows the destination range to be either equal in length to the source
+        // range (1:1 mapping with a possible offset) or a single port (all source ports map to
+        // the same internal port). Anything else is ambiguous.
+        boolean destSinglePort = destRange == 1;
+        if (destRange != extRange && !destSinglePort) {
+            logger.warn("PF rule {} dest range [{}-{}] mismatches source range [{}-{}] - skipping",
+                    rule.getId(), destStart, destEnd, extStart, extEnd);
+            return;
+        }
+
+        Map<String, String> vips = new HashMap<>();
+        for (int i = 0; i < extRange; i++) {
+            int extPort = extStart + i;
+            int destPort = destSinglePort ? destStart : destStart + i;
+            vips.put(externalIp + ":" + extPort, logicalIp + ":" + destPort);
+        }
+
+        Map<String, String> ext = new HashMap<>();
+        ext.put("cloudstack_pf_rule_id", ruleTag);
+        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        ext.put("cloudstack_nat_kind", "portforward");
+
+        // hairpin_snat_ip lets a VM behind the FIP talk to its own public IP without ovn-northd
+        // mis-routing the reply. Cost: a tiny extra rewrite. Neutron sets it unconditionally for
+        // FIP-style LBs.
+        Map<String, String> options = new HashMap<>();
+        options.put("hairpin_snat_ip", externalIp);
+
+        String lbName = "pf-" + ruleTag + "-" + protocol;
+        ovnNbClient.createOrReplaceLoadBalancer(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                lbName, protocol, vips, ext, options);
+        ovnNbClient.attachLoadBalancerToRouter(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, lbName);
+        ovnNbClient.attachLoadBalancerToSwitch(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                guestLs, lbName);
     }
 
     @Override
