@@ -1108,29 +1108,50 @@ export default {
      */
     fetchLbCapabilities () {
       const networkId = this.resource?.associatednetworkid || this.resource?.networkid
-      if (!networkId) {
+      if (networkId) {
+        this.fetchLbCapabilitiesByNetworkId(networkId)
         return
       }
+      // VPC public IP that has not been associated to a specific tier yet (no rule yet).
+      // Pick any Lb-enabled tier of the VPC and read the capability from there - every tier
+      // of the same VPC uses the same Lb provider, so the answer is provider-uniform.
+      if (this.resource?.vpcid) {
+        getAPI('listNetworks', { vpcid: this.resource.vpcid, supportedservices: 'Lb', listall: true }).then(json => {
+          const tier = json?.listnetworksresponse?.network?.[0]
+          if (tier?.id) {
+            this.applyLbAlgorithmCapability(tier)
+          }
+        }).catch(error => {
+          console.warn('Failed to enumerate VPC tiers for LB capabilities; using defaults', error)
+        })
+      }
+    },
+    fetchLbCapabilitiesByNetworkId (networkId) {
       getAPI('listNetworks', { id: networkId, listall: true }).then(json => {
         const network = json?.listnetworksresponse?.network?.[0]
-        const lbService = network?.service?.find(s => s.name === 'Lb')
-        const algoCap = lbService?.capability?.find(c => c.name === 'SupportedLbAlgorithms')
-        if (algoCap && algoCap.value) {
-          const algos = algoCap.value.split(',').map(s => s.trim()).filter(s => s)
-          if (algos.length > 0) {
-            this.supportedAlgorithms = algos
-            // If the default algorithm is not in the supported set, switch to the
-            // first one so the dropdown shows a valid selection from the start.
-            if (!algos.includes(this.newRule.algorithm)) {
-              this.newRule.algorithm = algos[0]
-            }
-          }
+        if (network) {
+          this.applyLbAlgorithmCapability(network)
         }
       }).catch(error => {
         // Swallow - we just keep the default list. Don't pop a notification
         // because this is non-fatal background data.
         console.warn('Failed to load LB algorithm capabilities; using defaults', error)
       })
+    },
+    applyLbAlgorithmCapability (network) {
+      const lbService = network?.service?.find(s => s.name === 'Lb')
+      const algoCap = lbService?.capability?.find(c => c.name === 'SupportedLbAlgorithms')
+      if (algoCap && algoCap.value) {
+        const algos = algoCap.value.split(',').map(s => s.trim()).filter(s => s)
+        if (algos.length > 0) {
+          this.supportedAlgorithms = algos
+          // If the default algorithm is not in the supported set, switch to the first one
+          // so the dropdown shows a valid selection from the start.
+          if (!algos.includes(this.newRule.algorithm)) {
+            this.newRule.algorithm = algos[0]
+          }
+        }
+      }
     },
     fetchVpc () {
       if (!this.resource.vpcid) {
