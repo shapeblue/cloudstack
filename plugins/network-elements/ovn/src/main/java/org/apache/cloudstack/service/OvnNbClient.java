@@ -1249,13 +1249,24 @@ public class OvnNbClient {
                 }
             }
             if (!existingRouteUuids.isEmpty()) {
+                // Explicit column selection — without listing _uuid, the result Row does not
+                // populate it and getColumn returns null, causing a NPE later. Same reason we
+                // declare a single ColumnSchema instance and pass it to both .column() and
+                // .getColumn() instead of recreating the schema inline (recreated schemas are
+                // not equal by reference and may also fail the Row lookup).
+                ColumnSchema<GenericTableSchema, UUID> srUuidCol = srTable.column("_uuid", UUID.class);
                 Operation<GenericTableSchema> selRoutes = OVSDB_OPS.select(srTable)
+                        .column(srUuidCol).column(srPrefixCol).column(srNexthopCol)
                         .where(srPrefixCol.opEqual(ipPrefix)).and(srNexthopCol.opEqual(nexthop)).build();
                 List<OperationResult> routesSel = client.transact(schema, Collections.<Operation>singletonList(selRoutes))
                         .get(timeoutMs, TimeUnit.MILLISECONDS);
                 if (routesSel != null && !routesSel.isEmpty() && routesSel.get(0).getRows() != null) {
                     for (Row<GenericTableSchema> row : routesSel.get(0).getRows()) {
-                        UUID rowUuid = row.getColumn(srTable.column("_uuid", UUID.class)).getData();
+                        org.opendaylight.ovsdb.lib.notation.Column<GenericTableSchema, UUID> col = row.getColumn(srUuidCol);
+                        if (col == null) {
+                            continue;
+                        }
+                        UUID rowUuid = col.getData();
                         if (rowUuid != null && existingRouteUuids.contains(rowUuid)) {
                             logger.debug("Static_Route {}→{} already attached to {} - skipping",
                                     ipPrefix, nexthop, routerName);
