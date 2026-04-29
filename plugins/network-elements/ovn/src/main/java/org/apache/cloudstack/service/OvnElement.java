@@ -122,13 +122,16 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         //  - tcp/udp (sctp omitted - rarely used in CS UI)
         //  - round-robin and source-IP based hashing (no leastconn: OVN has no per-backend
         //    connection state)
-        //  - public scheme for v1 (internal scheme deferred to a follow-up commit)
+        //  - Public + Internal schemes. Internal LB is delivered natively by attaching the
+        //    same Load_Balancer row to the VPC LR + the tier LS that owns the VIP, with
+        //    options:hairpin_snat_ip pointing at the tier gateway. No appliance VM needed.
         // SSL offload, HTTP-aware LB, cookie stickiness etc. are L7 features that OVN cannot do
         // in the datapath - those tenants should pick a VirtualRouter offering instead.
         lbCapabilities.put(Network.Capability.SupportedLBAlgorithms, "roundrobin,source");
         lbCapabilities.put(Network.Capability.SupportedLBIsolation, "dedicated");
         lbCapabilities.put(Network.Capability.SupportedProtocols, "tcp,udp");
-        lbCapabilities.put(Network.Capability.LbSchemes, LoadBalancerContainer.Scheme.Public.name());
+        lbCapabilities.put(Network.Capability.LbSchemes,
+                LoadBalancerContainer.Scheme.Public.name() + "," + LoadBalancerContainer.Scheme.Internal.name());
         // OVN does L4 TCP probes via Load_Balancer_Health_Check. We accept HTTP/PING policies
         // but degrade to TCP probe of the same port (logged in applyLBHealthCheck).
         lbCapabilities.put(Network.Capability.HealthCheckPolicy, "true");
@@ -1494,12 +1497,16 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return;
         }
 
-        IPAddressVO ipVo = ipAddressDao.findById(rule.getLb().getSourceIpAddressId());
-        if (ipVo == null || ipVo.getAddress() == null) {
-            logger.warn("LB rule {} references unknown source IP id {}", rule.getId(), rule.getLb().getSourceIpAddressId());
+        boolean isInternal = rule.getScheme() == LoadBalancerContainer.Scheme.Internal;
+        // For Public LB the VIP is sourced from the public IP allocation; for Internal LB it
+        // is a private VIP carried directly on the rule (tier CIDR, no user_ip_address row).
+        // rule.getSourceIp() works for both schemes uniformly — use it as the canonical VIP.
+        com.cloud.utils.net.Ip vipIp = rule.getSourceIp();
+        String externalIp = vipIp != null ? vipIp.addr() : null;
+        if (externalIp == null || externalIp.isEmpty()) {
+            logger.warn("LB rule {} has no source IP; skipping", rule.getId());
             return;
         }
-        String externalIp = ipVo.getAddress().addr();
 
         String protocol = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
         // Capability advertises only tcp/udp; keep validateLBRule and the datapath programmer in
@@ -1584,7 +1591,13 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         }
 
         Map<String, String> options = new HashMap<>();
-        options.put("hairpin_snat_ip", externalIp);
+        // Hairpin SNAT lets a VM behind the VIP reach its own VIP without ovn-northd
+        // mis-routing the reply. For a Public LB we use the VIP itself (the public IP); for an
+        // Internal LB whose VIP lives in a tier CIDR the public IP doesn't exist on this LR, so
+        // we anchor the hairpin on the tier's gateway IP — that LRP is reachable on the same
+        // LR, satisfies OVN's "must be an IP we own" check, and produces the right SNAT
+        // when a VM in the tier hits its own VIP.
+        options.put("hairpin_snat_ip", isInternal ? network.getGateway() : externalIp);
         if (affinityTimeout != null && affinityTimeout > 0) {
             options.put("affinity_timeout", String.valueOf(affinityTimeout));
         }
@@ -1592,13 +1605,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         Map<String, String> ext = new HashMap<>();
         ext.put("cloudstack_lb_rule_id", ruleTag);
         ext.put("cloudstack_network_id", String.valueOf(network.getId()));
-        // Tag with the public IP so cleanupPublicIpArtifacts can wipe LB rows when the IP is
-        // released out-of-order (without going through the LB revoke callback first).
+        // Tag with the VIP so the per-IP-release sweep (cleanupPublicIpArtifacts) can wipe
+        // Public LB rows out-of-order. Internal LBs carry a tier IP here (not a public IP),
+        // so the same sweep will not touch them when a public IP is released.
         ext.put("cloudstack_lb_ip", externalIp);
         ext.put("cloudstack_lb_kind", "loadbalancer");
-        // Public LB only in PR-5a; Internal LB (with a tier-CIDR VIP) lands in PR-5b and will
-        // override this tag when rule.getScheme() == Internal.
-        ext.put("cloudstack_lb_scheme", "Public");
+        ext.put("cloudstack_lb_scheme", isInternal ? "Internal" : "Public");
         if (network.getVpcId() != null) {
             ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
         }
@@ -1714,18 +1726,45 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     rule.getId());
             return false;
         }
-        // Reject LB rules that target the network's SourceNat IP. The same external IP would carry
-        // both an LR-level snat NAT row (logical_ip=guest_cidr -> external_ip) and the LB's vips
-        // map; replies from a backend are SNATed back to the SourceNat IP before the LB un-DNAT
-        // can run, so the client sees a reply from an IP that doesn't match the connection it
-        // opened and TCP resets. Lab-confirmed: traffic enters the LR but no SYN+ACK ever reaches
-        // the upstream when LB and SourceNat share an external IP. Force the user to allocate a
-        // dedicated public IP for LB.
+        boolean isInternal = rule.getScheme() == LoadBalancerContainer.Scheme.Internal;
+        com.cloud.utils.net.Ip vipIp = rule.getSourceIp();
+        String vip = vipIp != null ? vipIp.addr() : null;
+
+        if (isInternal) {
+            // Internal LB: VIP must be a private IP that lives inside the tier hosting the rule
+            // (or another tier of the same VPC, which OVN handles transparently because the LB
+            // is attached to the shared VPC LR). We accept any IP within the network's CIDR
+            // here; for cross-tier VIPs CloudStack already validates against the VPC supernet.
+            // Reject obvious mistakes: an empty VIP, or a VIP that maps to a real public-IP
+            // allocation (in which case the user wanted a Public LB).
+            if (vip == null || vip.isEmpty()) {
+                logger.warn("OVN LB rejecting Internal rule {}: no source IP", rule.getId());
+                return false;
+            }
+            if (rule.getLb() != null && rule.getLb().getSourceIpAddressId() != null) {
+                IPAddressVO ipVo = ipAddressDao.findById(rule.getLb().getSourceIpAddressId());
+                if (ipVo != null) {
+                    logger.warn("OVN LB rejecting Internal rule {}: VIP {} resolves to a public IP "
+                                    + "allocation - use scheme=Public instead",
+                            rule.getId(), vip);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Public LB: reject rules that target the network's SourceNat IP. The same external IP
+        // would carry both an LR-level snat NAT row (logical_ip=guest_cidr -> external_ip) and
+        // the LB's vips map; replies from a backend are SNATed back to the SourceNat IP before
+        // the LB un-DNAT can run, so the client sees a reply from an IP that doesn't match the
+        // connection it opened and TCP resets. Lab-confirmed: traffic enters the LR but no
+        // SYN+ACK ever reaches the upstream when LB and SourceNat share an external IP. Force
+        // the user to allocate a dedicated public IP for LB.
         if (rule.getLb() != null && rule.getLb().getSourceIpAddressId() != null) {
             IPAddressVO ipVo = ipAddressDao.findById(rule.getLb().getSourceIpAddressId());
             if (ipVo != null && ipVo.isSourceNat()) {
-                logger.warn("OVN LB rejecting rule {}: external IP {} is the network's SourceNat IP "
-                        + "- allocate a separate public IP for the LB",
+                logger.warn("OVN LB rejecting Public rule {}: external IP {} is the network's SourceNat IP "
+                                + "- allocate a separate public IP for the LB",
                         rule.getId(), ipVo.getAddress() != null ? ipVo.getAddress().addr() : "<null>");
                 return false;
             }
