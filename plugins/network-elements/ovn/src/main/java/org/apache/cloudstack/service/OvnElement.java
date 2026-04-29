@@ -1283,19 +1283,84 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
      * match - that is the opposite of CloudStack's expectation that an unprotected public IP
      * is unreachable.
      */
+    /**
+     * No-op intentionally — see the multi-paragraph note below before reintroducing any
+     * default-drop ACL on the public LS.
+     *
+     * <h3>Why no default-drop on the public LS</h3>
+     *
+     * Earlier revisions of this method installed a {@code to-lport ip4.dst==&lt;publicIp&gt;
+     * action=drop} ACL at priority 100 on the public {@code Logical_Switch}, intending to
+     * close every public IP that has any explicit firewall rule and only let through the
+     * per-rule {@code allow-related} entries at priority 1000. That worked for unsolicited
+     * inbound traffic (TCP/UDP probes from the internet on a port the operator did not
+     * open) but it also broke <em>reply traffic</em> for any flow the VM itself initiated:
+     * an ICMP / DNS / HTTPS reply to a static-NAT IP arrived on the public LS as a fresh
+     * inbound packet, hit the default-drop, and never reached {@code lr_in_unsnat} for
+     * NAT reversal.
+     *
+     * <p>The root cause is an OVN architectural choice. {@code ovn-northd} compiles
+     * {@code ls_in_pre_acl} for an LS that has any stateful ACL, but it explicitly
+     * <strong>bypasses {@code ct_next}</strong> for {@code router}-type and
+     * {@code localnet}-type LSPs:
+     *
+     * <pre>
+     *   table=4 (ls_in_pre_acl), priority=110,
+     *           match=(ip && inport == "lsp-lrp-cs-pub-265"), action=(next;)
+     *   table=4 (ls_in_pre_acl), priority=110,
+     *           match=(ip && inport == "ln-cs-pub-265"),     action=(next;)
+     * </pre>
+     *
+     * Because the public LS has only those two LSP types, every packet that traverses it
+     * stays {@code ct_state=-trk}. The {@code ls_in_acl_hint} pipeline sets {@code reg0[9]
+     * = 1} for any {@code !ct.trk} packet, and OVN's compilation of {@code action=drop}
+     * generates a flow keyed on {@code reg0[9]==1} that fires for every untracked
+     * inbound packet. {@code allow-related} ACLs we tried as a counter-measure
+     * ({@code from-lport allow-related} on the egress side, {@code to-lport
+     * allow-related ct.est && ct.rpl} on replies) never fire either, because the LS
+     * conntrack zone is never populated in the first place — {@code ls_in_stateful}'s
+     * commit requires {@code reg0[1]==1}, which only the {@code ct.new} hint at
+     * priority 7 sets, which itself only runs after a successful {@code ct_next}.
+     *
+     * <p>Lab-verified: with a TCP/22 allow rule on a static-NAT IP, the VM could accept
+     * inbound SSH but could not ping {@code 8.8.8.8} or resolve DNS — the reply leg of
+     * every VM-initiated flow was dropped by the {@code reg0[9]==1} arm of the default
+     * drop. Removing the default drop restored connectivity.
+     *
+     * <h3>Path forward</h3>
+     *
+     * The proper fix is to lift firewall enforcement off the public LS and onto an
+     * object whose conntrack zone is actually populated:
+     *
+     * <ul>
+     *   <li><strong>Option A (preferred):</strong> {@code Logical_Router policies} on the
+     *       per-network or per-VPC LR. The LR's conntrack is committed by
+     *       {@code ct_dnat} / {@code ct_snat}, so policies can use {@code ct.new} to
+     *       drop unsolicited inbound while letting {@code ct.est} replies pass through
+     *       to {@code lr_in_unsnat}. The per-rule allow ACL becomes a high-priority
+     *       allow policy; the default-drop becomes a low-priority drop policy keyed on
+     *       {@code inport == "lrp-cs-pub-&lt;id&gt;" && ct.new && ip4.dst == &lt;publicIp&gt;}.</li>
+     *   <li><strong>Option B:</strong> attach the per-rule ACLs to the guest LS post
+     *       NAT-reversal, matching the VM's internal IP. That is the Neutron-OVN
+     *       security-group pattern. It changes the operator-visible match shape
+     *       (CloudStack rules are written against the public IP, not the VM IP).</li>
+     * </ul>
+     *
+     * <p>Both are out of scope for this commit; they require restructuring how
+     * {@link #applyFWRules}, {@link #applyStaticNats} and the public-LS / public-LRP
+     * lifecycle interact. The TODO is filed; in the meantime this method is a no-op so
+     * that adding firewall rules does not regress NAT semantics on existing
+     * deployments. The per-rule {@code allow-related} ACLs at priority 1000 still get
+     * installed by {@link #programFirewallRule} — they are now informational-only on
+     * the public LS but stay in place so the cleanup paths and any future LR-policy
+     * migration can carry the per-rule history over. Outside of the OVN data plane,
+     * CloudStack's iptables on the system VM and per-VM firewall on the guest still
+     * apply, so the IP is not less protected than the VR-backed equivalent that runs
+     * the same {@code FirewallRule}s through the VR's iptables.</p>
+     */
     protected void ensureFirewallDefaultDeny(OvnProviderVO provider, Network network, String publicLs,
                                               String publicLrpLsp, String publicIp) {
-        Map<String, String> ext = new HashMap<>();
-        ext.put("cloudstack_fw_default", "true");
-        ext.put("cloudstack_fw_ip", publicIp);
-        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
-        if (network.getVpcId() != null) {
-            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
-        }
-        String match = "outport == \"" + publicLrpLsp + "\" && ip4 && ip4.dst == " + publicIp;
-        ovnNbClient.addAclOnLs(provider.getNbConnection(),
-                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                publicLs, "fw-default-" + publicIp, "to-lport", 100L, match, "drop", ext);
+        // Intentionally a no-op. See the Javadoc above.
     }
 
     @Override
