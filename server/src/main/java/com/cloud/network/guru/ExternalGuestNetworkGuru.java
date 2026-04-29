@@ -93,18 +93,50 @@ public class ExternalGuestNetworkGuru extends GuestNetworkGuru {
         _isolationMethods = new IsolationMethod[] {new IsolationMethod("GRE"), new IsolationMethod("L3"), new IsolationMethod("VLAN")};
     }
 
+    /**
+     * Network providers that ship their own {@link com.cloud.network.guru.NetworkGuru}. When an
+     * offering binds any of its services to one of these providers we must let that provider's
+     * guru claim the network exclusively. Otherwise this generic guru also matches (because the
+     * physical network usually still carries a VLAN/GRE/L3 isolation method as a fallback) and
+     * persists a duplicate, never-implemented row alongside the real one — breaking idempotency
+     * and confusing both the UI and the cleanup paths.
+     *
+     * <p>Looked up by name (rather than referencing the {@link Provider} constants directly) so
+     * this list keeps compiling against branches where one of the optional providers is not yet
+     * present in the API module — e.g. {@code Provider.Ovn} only landed in 4.23.</p>
+     */
+    private static final java.util.Set<String> SPECIALIZED_GUEST_GURU_PROVIDER_NAMES =
+            java.util.Collections.unmodifiableSet(new java.util.HashSet<>(java.util.Arrays.asList(
+                    "Ovn", "Netris", "Nsx", "Tungsten", "BigSwitchBcf",
+                    "NiciraNvp", "Opendaylight", "BrocadeVcs", "Ovs")));
+
     @Override
     protected boolean canHandle(NetworkOffering offering, final NetworkType networkType, final PhysicalNetwork physicalNetwork) {
         // This guru handles only Guest Isolated network that supports Source
         // nat service
-        if (networkType == NetworkType.Advanced && isMyTrafficType(offering.getTrafficType())
+        if (!(networkType == NetworkType.Advanced && isMyTrafficType(offering.getTrafficType())
                 && (offering.getGuestType() == Network.GuestType.Isolated || offering.getGuestType() == GuestType.L2)
-                && isMyIsolationMethod(physicalNetwork) && !offering.isSystemOnly()) {
-            return true;
-        } else {
+                && isMyIsolationMethod(physicalNetwork) && !offering.isSystemOnly())) {
             logger.trace("We only take care of Guest networks of type   " + GuestType.Isolated + " in zone of type " + NetworkType.Advanced);
             return false;
         }
+        // If any service in the offering is bound to a provider that owns its own NetworkGuru,
+        // bail. Otherwise both this guru and the specialized one would match the same offering
+        // (the physical network carries VLAN as a fallback isolation method alongside OVN/etc.),
+        // and setupNetwork would persist two NetworkVO rows — the specialized guru implements
+        // its row, this guru's row stays Allocated forever and clutters listNetworks.
+        java.util.List<String> offeringProviders = networkOfferingServiceMapDao.getDistinctProviders(offering.getId());
+        if (offeringProviders != null) {
+            for (String providerName : offeringProviders) {
+                if (providerName != null && SPECIALIZED_GUEST_GURU_PROVIDER_NAMES.contains(providerName)) {
+                    logger.debug("Offering {} declares provider {} which owns a dedicated NetworkGuru; "
+                                    + "ExternalGuestNetworkGuru declines to handle.",
+                            offering.getId(), providerName);
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     @Override
