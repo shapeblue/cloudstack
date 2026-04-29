@@ -280,6 +280,27 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     }
 
     /**
+     * VPC-flavoured naming. The same scheme as the network helpers but keyed off a {@link Vpc}
+     * directly, so {@link #implementVpc} / {@link #shutdownVpc} / {@link #updateVpcSourceNatIp}
+     * can resolve OVN object names without manufacturing a {@link Network}.
+     */
+    protected String getVpcRouterName(Vpc vpc) {
+        return String.format("cs-vpc-%d", vpc.getId());
+    }
+
+    protected String getVpcPublicLogicalSwitchName(Vpc vpc) {
+        return String.format("cs-vpc-pub-%d", vpc.getId());
+    }
+
+    protected String getVpcPublicRouterPortName(Vpc vpc) {
+        return "lrp-" + getVpcPublicLogicalSwitchName(vpc);
+    }
+
+    protected String getVpcPublicRouterSwitchPortName(Vpc vpc) {
+        return "lsp-" + getVpcPublicRouterPortName(vpc);
+    }
+
+    /**
      * Creates the LR for the network and wires it to the guest Logical_Switch with an internal-only
      * router port whose IP is the network gateway. External attachment / NAT rules are added later
      * in {@link #applyIps(Network, java.util.List, java.util.Set)} when CloudStack provisions a
@@ -313,6 +334,19 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 external ? 0xfe : 0xfd,
                 (int) ((networkId >> 8) & 0xff),
                 (int) (networkId & 0xff));
+    }
+
+    /**
+     * MAC for a VPC-level router port. We pick a different leading octet ({@code 0xfc} external,
+     * {@code 0xfb} internal) than {@link #buildRouterMac}'s isolated-network scheme so that an
+     * isolated network and a VPC sharing the same numeric id never produce a colliding MAC on
+     * the same OVN deployment.
+     */
+    private static String buildVpcRouterMac(long vpcId, boolean external) {
+        return String.format("fa:16:3e:%02x:%02x:%02x",
+                external ? 0xfc : 0xfb,
+                (int) ((vpcId >> 8) & 0xff),
+                (int) (vpcId & 0xff));
     }
 
     /**
@@ -422,6 +456,37 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         options.put("nat-addresses", addresses.toString());
         // Without this, ovn-controller would also gARP every Load_Balancer VIP on the LR; we have
         // no LBs yet, but this stays consistent with the Neutron OVN driver default.
+        options.put("exclude-lb-vips-from-garp", "true");
+        ovnNbClient.setLspOptions(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                externalLrpLsp, options);
+    }
+
+    /**
+     * VPC counterpart of {@link #applyNatAddressesAnnouncement(OvnProviderVO, Network)}. The set
+     * of advertised IPs is the {@code SourceNat} flag pool for the whole VPC (looked up by VPC
+     * id), not per tier — every tier in a VPC shares the same external IP.
+     */
+    protected void applyVpcNatAddressesAnnouncement(OvnProviderVO provider, Vpc vpc) {
+        String externalLrpLsp = getVpcPublicRouterSwitchPortName(vpc);
+        String routerMac = buildVpcRouterMac(vpc.getId(), true);
+        StringBuilder addresses = new StringBuilder(routerMac);
+        boolean any = false;
+        List<IPAddressVO> ips = ipAddressDao.listByAssociatedVpc(vpc.getId(), true);
+        if (ips != null) {
+            for (IPAddressVO ipVo : ips) {
+                if (ipVo.getAddress() == null || !ipVo.isSourceNat()) {
+                    continue;
+                }
+                addresses.append(' ').append(ipVo.getAddress().addr());
+                any = true;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        Map<String, String> options = new HashMap<>();
+        options.put("nat-addresses", addresses.toString());
         options.put("exclude-lb-vips-from-garp", "true");
         ovnNbClient.setLspOptions(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -718,6 +783,40 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return chassisNames.get((int) (Math.abs(network.getId()) % chassisNames.size()));
         } catch (Exception e) {
             logger.warn("Failed to query OVN SB for Chassis names while anchoring network {}: {}", network, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * VPC variant of {@link #pickAnchorChassis(OvnProviderVO, Network)}: deterministic chassis
+     * pick keyed off the VPC id, with the same stale-{@code Gateway_Chassis} prune applied to
+     * the VPC's public LRP before we hand the name back to the caller.
+     */
+    protected String pickAnchorChassisForVpc(OvnProviderVO provider, Vpc vpc) {
+        if (provider == null || provider.getSbConnection() == null || provider.getSbConnection().isEmpty()) {
+            logger.warn("No OVN SB connection configured; cannot pick a Gateway_Chassis anchor for VPC {}", vpc);
+            return null;
+        }
+        try {
+            java.util.List<String> chassisNames = ovnNbClient.listSouthboundChassisNames(
+                    provider.getSbConnection(), provider.getCaCertPath(),
+                    provider.getClientCertPath(), provider.getClientPrivateKeyPath());
+            if (chassisNames == null || chassisNames.isEmpty()) {
+                logger.warn("OVN SB reports no registered Chassis yet; deferring Gateway_Chassis anchor for VPC {}", vpc);
+                return null;
+            }
+            String publicLrpName = getVpcPublicRouterPortName(vpc);
+            try {
+                ovnNbClient.pruneStaleGatewayChassis(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        publicLrpName, new java.util.HashSet<>(chassisNames));
+            } catch (CloudRuntimeException e) {
+                logger.debug("Skipping Gateway_Chassis prune for {} ({})", publicLrpName, e.getMessage());
+            }
+            java.util.Collections.sort(chassisNames);
+            return chassisNames.get((int) (Math.abs(vpc.getId()) % chassisNames.size()));
+        } catch (Exception e) {
+            logger.warn("Failed to query OVN SB for Chassis names while anchoring VPC {}: {}", vpc, e.getMessage());
             return null;
         }
     }
@@ -1489,36 +1588,179 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     @Override
     public boolean implementVpc(Vpc vpc, DeployDestination dest, ReservationContext context)
             throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException {
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(vpc.getZoneId());
+        if (provider == null) {
+            throw new ResourceUnavailableException(
+                    String.format("No OVN provider configured for zone %s", vpc.getZoneId()),
+                    DataCenter.class, vpc.getZoneId());
+        }
+        String routerName = getVpcRouterName(vpc);
+        Map<String, String> lrExt = new HashMap<>();
+        lrExt.put("cloudstack_vpc_id", String.valueOf(vpc.getId()));
+        lrExt.put("cloudstack_vpc_uuid", vpc.getUuid());
+        lrExt.put("cloudstack_zone_id", String.valueOf(vpc.getZoneId()));
+        lrExt.put("cloudstack_role", "vpc-router");
+        try {
+            ovnNbClient.createLogicalRouter(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, lrExt);
+            // Wire up the public side now if CloudStack has already allocated the SourceNat IP
+            // for this VPC. This is the common case (VpcManagerImpl allocates the IP during VPC
+            // creation, before calling implementVpc). When the IP is changed later we re-run the
+            // same idempotent helper from updateVpcSourceNatIp.
+            applyVpcSourceNatPublicSide(provider, vpc);
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, vpc.getZoneId());
+        }
         return true;
+    }
+
+    /**
+     * Provisions or refreshes the public-side OVN artifacts for a VPC: the public Logical_Switch
+     * (cs-vpc-pub-{id}), its localnet port wired to the provider's external bridge / VLAN, the
+     * Logical_Router_Port that anchors the VPC LR on the public LS using the VPC's SourceNat IP,
+     * the Gateway_Chassis row, the default route to the upstream gateway, and the gARP
+     * announcement.
+     *
+     * <p>Idempotent on every component (skips inserts when the row already exists). Per-tier SNAT
+     * rows ({@code logical_ip = tier_cidr}) are added separately by PR-2b's tier
+     * {@code implement(network)} path.</p>
+     *
+     * <p>If the VPC has no SourceNat IP allocated yet this is a no-op; the public side will come
+     * up on the next call (typically {@link #updateVpcSourceNatIp}).</p>
+     */
+    protected void applyVpcSourceNatPublicSide(OvnProviderVO provider, Vpc vpc) {
+        List<IPAddressVO> ips = ipAddressDao.listByAssociatedVpc(vpc.getId(), true);
+        if (ips == null || ips.isEmpty()) {
+            logger.debug("VPC {} has no SourceNat IP yet; deferring public-side provisioning", vpc.getId());
+            return;
+        }
+        String routerName = getVpcRouterName(vpc);
+        String publicLs = getVpcPublicLogicalSwitchName(vpc);
+        String publicLrpName = getVpcPublicRouterPortName(vpc);
+        String localnet = provider.getLocalnetName();
+        String externalBridge = provider.getExternalBridge();
+        for (IPAddressVO ipVo : ips) {
+            if (!ipVo.isSourceNat() || ipVo.getAddress() == null) {
+                continue;
+            }
+            String externalIp = ipVo.getAddress().addr();
+            VlanVO vlan = vlanDao.findById(ipVo.getVlanId());
+            String netmask = vlan != null && vlan.getVlanNetmask() != null ? vlan.getVlanNetmask() : "255.255.240.0";
+            String externalGateway = vlan != null ? vlan.getVlanGateway() : null;
+            Integer vlanTag = null;
+            if (vlan != null && vlan.getVlanTag() != null && !"untagged".equalsIgnoreCase(vlan.getVlanTag())) {
+                String tagPart = vlan.getVlanTag().replaceAll("^vlan://", "");
+                try { vlanTag = Integer.parseInt(tagPart); } catch (NumberFormatException ignored) { }
+            }
+            Map<String, String> publicLsExt = new HashMap<>();
+            publicLsExt.put("cloudstack_vpc_id", String.valueOf(vpc.getId()));
+            publicLsExt.put("cloudstack_role", "vpc-public");
+            ovnNbClient.createLogicalSwitch(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    publicLs, publicLsExt);
+            ovnNbClient.addLocalnetPort(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    publicLs, "ln-" + publicLs, localnet != null ? localnet : externalBridge, vlanTag);
+            String prefix = "/" + maskToPrefix(netmask != null ? netmask : "255.255.240.0");
+            ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, publicLs,
+                    publicLrpName, buildVpcRouterMac(vpc.getId(), true),
+                    java.util.Collections.singletonList(externalIp + prefix));
+            String anchorChassis = pickAnchorChassisForVpc(provider, vpc);
+            if (anchorChassis != null) {
+                ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        publicLrpName, anchorChassis, 10);
+            }
+            if (externalGateway != null && !externalGateway.isEmpty()) {
+                ovnNbClient.addStaticRoute(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, "0.0.0.0/0", externalGateway);
+            }
+            applyVpcNatAddressesAnnouncement(provider, vpc);
+        }
     }
 
     @Override
     public boolean shutdownVpc(Vpc vpc, ReservationContext context) throws ConcurrentOperationException, ResourceUnavailableException {
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(vpc.getZoneId());
+        if (provider == null) {
+            // Provider already gone — nothing to clean up. Treat as success so VPC removal can proceed.
+            return true;
+        }
+        String routerName = getVpcRouterName(vpc);
+        String publicLs = getVpcPublicLogicalSwitchName(vpc);
+        try {
+            // Wipe Load_Balancer rows tagged with this VPC. LB rows live in the global
+            // Load_Balancer table and are referenced from LR/LS via the load_balancer column,
+            // so deleting the LR/LS does not necessarily garbage-collect them when other refs
+            // remain. By the time shutdownVpc runs CloudStack has already destroyed every tier,
+            // but a defensive sweep keeps state clean for re-creates.
+            ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    "cloudstack_vpc_id", String.valueOf(vpc.getId()));
+            // Public LS first — its router-type LSP pairs with the public LRP on the LR; deleting
+            // the LS removes the LSP and any localnet/firewall ACLs sitting on it.
+            ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    publicLs);
+            // The LR may still have its public LRP and any tier LRPs / NAT rows referenced from
+            // the strong-typed columns; OVSDB GCs those rows when the LR is removed. Tier LSes
+            // were already deleted by destroy(network) calls preceding shutdownVpc.
+            ovnNbClient.deleteLogicalRouter(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName);
+        } catch (CloudRuntimeException e) {
+            throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, vpc.getZoneId());
+        }
         return true;
     }
 
     @Override
     public boolean createPrivateGateway(PrivateGateway gateway) throws ConcurrentOperationException, ResourceUnavailableException {
+        // PrivateGateway is out of scope for the OVN VPC v1.
         return true;
     }
 
     @Override
     public boolean deletePrivateGateway(PrivateGateway privateGateway) throws ConcurrentOperationException, ResourceUnavailableException {
+        // PrivateGateway is out of scope for the OVN VPC v1.
         return true;
     }
 
     @Override
     public boolean applyStaticRoutes(Vpc vpc, List<StaticRouteProfile> routes) throws ResourceUnavailableException {
+        // Tenant-managed static routes are out of scope for the OVN VPC v1; the only route we
+        // program ourselves is the upstream default in applyVpcSourceNatPublicSide.
         return true;
     }
 
     @Override
     public boolean applyACLItemsToPrivateGw(PrivateGateway gateway, List<? extends NetworkACLItem> rules) throws ResourceUnavailableException {
+        // Coupled to PrivateGateway support; out of scope for v1.
         return true;
     }
 
     @Override
     public boolean updateVpcSourceNatIp(Vpc vpc, IpAddress address) {
+        // Re-run the public-side provisioning. applyVpcSourceNatPublicSide is idempotent and
+        // attaches the new SourceNat IP via attachRouterToSwitch / addStaticRoute, then refreshes
+        // the gARP announcement. Note: when the VPC's SourceNat IP is *changed* (rather than
+        // first allocated), the previous LRP IP/NAT/route rows are not torn down here — the
+        // OVN-only SourceNat-IP swap remains a TODO. v1 supports first-time allocation cleanly.
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(vpc.getZoneId());
+        if (provider == null) {
+            logger.warn("updateVpcSourceNatIp: no OVN provider for zone {}", vpc.getZoneId());
+            return false;
+        }
+        try {
+            applyVpcSourceNatPublicSide(provider, vpc);
+        } catch (CloudRuntimeException e) {
+            logger.warn("updateVpcSourceNatIp failed for VPC {}: {}", vpc.getId(), e.getMessage());
+            return false;
+        }
         return true;
     }
 }
