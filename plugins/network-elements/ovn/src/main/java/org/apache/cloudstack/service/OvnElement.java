@@ -86,6 +86,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     NicDao nicDao;
 
     @Inject
+    com.cloud.network.vpc.dao.VpcDao vpcDao;
+
+    @Inject
     com.cloud.host.dao.HostDao hostDao;
 
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
@@ -155,17 +158,89 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             externalIds.put("cloudstack_network_id", String.valueOf(network.getId()));
             externalIds.put("cloudstack_network_uuid", network.getUuid());
             externalIds.put("cloudstack_zone_id", String.valueOf(network.getDataCenterId()));
+            if (network.getVpcId() != null) {
+                externalIds.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+                externalIds.put("cloudstack_role", "tier");
+            }
             try {
                 ovnNbClient.createLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), logicalSwitchName, externalIds);
                 createDhcpOptionsForNetwork(provider, network);
-                createRouterAndAttachToGuest(provider, network);
-                applySourceNatForNetwork(provider, network);
+                if (network.getVpcId() != null) {
+                    // VPC tier: the LR (cs-vpc-{vpcId}) and the public side were already provisioned
+                    // by implementVpc; here we only need to attach this tier to the shared LR and
+                    // add a per-tier SNAT row so traffic from this CIDR egresses with the VPC's
+                    // SourceNat IP. No per-network LR, no per-network public LS.
+                    attachVpcTierToRouter(provider, network);
+                    addVpcTierSnatRule(provider, network);
+                } else {
+                    createRouterAndAttachToGuest(provider, network);
+                    applySourceNatForNetwork(provider, network);
+                }
             } catch (CloudRuntimeException e) {
                 throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
             }
         }
         return true;
+    }
+
+    /**
+     * Attaches a VPC tier's Logical_Switch to the shared VPC Logical_Router via a tier-LRP at
+     * the tier's gateway IP. Mirrors {@link #createRouterAndAttachToGuest} but skips the LR
+     * creation (the VPC LR is owned by {@link #implementVpc}). Idempotent.
+     */
+    protected void attachVpcTierToRouter(OvnProviderVO provider, Network network) {
+        if (network.getCidr() == null || network.getGateway() == null) {
+            return;
+        }
+        String routerName = getRouterNameForNetwork(network);
+        String prefix = network.getCidr().contains("/")
+                ? network.getCidr().substring(network.getCidr().indexOf('/'))
+                : "/24";
+        String lrpNetwork = network.getGateway() + prefix;
+        ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, getLogicalSwitchName(network),
+                "lrp-" + getLogicalSwitchName(network), buildRouterMac(network.getId(), false),
+                java.util.Collections.singletonList(lrpNetwork));
+    }
+
+    /**
+     * Programs (or refreshes) the per-tier SNAT row on the VPC LR so traffic from this tier's
+     * CIDR is masqueraded behind the VPC's SourceNat IP. Skipped when the VPC has not yet been
+     * assigned a SourceNat IP (the SNAT row will be added on the next implement / IP update).
+     */
+    protected void addVpcTierSnatRule(OvnProviderVO provider, Network network) {
+        if (network.getCidr() == null) {
+            return;
+        }
+        Vpc vpc = vpcDao.findById(network.getVpcId());
+        if (vpc == null) {
+            return;
+        }
+        List<IPAddressVO> ips = ipAddressDao.listByAssociatedVpc(vpc.getId(), true);
+        if (ips == null) {
+            return;
+        }
+        String routerName = getRouterNameForNetwork(network);
+        for (IPAddressVO ipVo : ips) {
+            if (!ipVo.isSourceNat() || ipVo.getAddress() == null) {
+                continue;
+            }
+            String externalIp = ipVo.getAddress().addr();
+            Map<String, String> ext = new HashMap<>();
+            ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+            ext.put("cloudstack_vpc_id", String.valueOf(vpc.getId()));
+            ext.put("cloudstack_nat_kind", "source-tier");
+            ovnNbClient.addNatRule(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, "snat", externalIp, network.getCidr(), ext);
+            // Refresh the gARP announcement on the VPC LRP so newly-attached tiers do not have
+            // to wait for the next public-IP event for ovn-controller to gARP for the shared
+            // SourceNat IP.
+            applyVpcNatAddressesAnnouncement(provider, vpc);
+            break;
+        }
     }
 
     @Override
@@ -576,6 +651,41 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                         "cloudstack_network_id", String.valueOf(network.getId()));
+                if (network.getVpcId() != null) {
+                    // VPC tier: do not touch cs-vpc-{vpcId} or cs-vpc-pub-{vpcId}. Drop only the
+                    // tier-specific SNAT row, the tier LRP on the shared VPC LR, the per-tier
+                    // DHCP options, and the tier LS.
+                    String vpcRouterName = getRouterNameForNetwork(network);
+                    if (network.getCidr() != null) {
+                        // Identify the tier SNAT row by (router, type, external_ip, logical_ip).
+                        // We have to look up the VPC SourceNat IP now since the network's own
+                        // associations don't carry it.
+                        Vpc vpc = vpcDao.findById(network.getVpcId());
+                        if (vpc != null) {
+                            List<IPAddressVO> vpcIps = ipAddressDao.listByAssociatedVpc(vpc.getId(), true);
+                            if (vpcIps != null) {
+                                for (IPAddressVO ipVo : vpcIps) {
+                                    if (ipVo.isSourceNat() && ipVo.getAddress() != null) {
+                                        ovnNbClient.removeNatRule(provider.getNbConnection(),
+                                                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                                                vpcRouterName, "snat", ipVo.getAddress().addr(), network.getCidr());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    String tierLrp = "lrp-" + getLogicalSwitchName(network);
+                    ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            vpcRouterName, tierLrp);
+                    ovnNbClient.deleteDhcpOptions(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            String.valueOf(network.getId()));
+                    ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            getLogicalSwitchName(network));
+                    return true;
+                }
                 ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), getPublicLogicalSwitchNameForNetwork(network));
                 ovnNbClient.deleteLogicalRouter(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
@@ -701,8 +811,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     }
                     continue;
                 }
-                if (ip.isSourceNat() && Boolean.TRUE.equals(services.contains(Network.Service.SourceNat))) {
-                    // Ensure public-side LS + localnet port + LR external attachment exist
+                if (ip.isSourceNat() && Boolean.TRUE.equals(services.contains(Network.Service.SourceNat))
+                        && network.getVpcId() == null) {
+                    // Isolated networks only: implementVpc already provisioned the VPC's public
+                    // side, and CloudStack does not reuse this hook to push the VPC SourceNat IP
+                    // through tier networks. Running this block for a VPC tier would create a
+                    // duplicate LRP with the wrong MAC scheme.
                     Map<String, String> publicLsExt = new HashMap<>();
                     publicLsExt.put("cloudstack_network_id", String.valueOf(network.getId()));
                     publicLsExt.put("cloudstack_role", "public");
@@ -730,9 +844,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                             routerName, "snat", externalIp, guestCidr, natExt);
                 }
             }
-            // Refresh nat-addresses on the gateway-side LSP so ovn-controller emits gARPs for
-            // every current SourceNat IP. Idempotent and skipped when nothing changed.
-            applyNatAddressesAnnouncement(provider, network);
+            // Refresh nat-addresses on the gateway-side LSP. For a VPC tier the announcement is
+            // VPC-scoped (one set of SourceNat IPs shared by every tier), so route through the
+            // VPC-flavoured helper; isolated networks keep the per-network refresh.
+            if (network.getVpcId() != null) {
+                Vpc vpc = vpcDao.findById(network.getVpcId());
+                if (vpc != null) {
+                    applyVpcNatAddressesAnnouncement(provider, vpc);
+                }
+            } else {
+                applyNatAddressesAnnouncement(provider, network);
+            }
         } catch (CloudRuntimeException e) {
             throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
         }

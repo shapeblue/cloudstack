@@ -640,6 +640,48 @@ public class OvnNbClient {
     }
 
     /**
+     * Idempotently removes a Logical_Router_Port from a Logical_Router. Used when tearing down a
+     * VPC tier so its tier-LRP is detached from the shared VPC LR without touching the LR itself
+     * (the paired router-type LSP on the tier LS is GC'd by OVSDB when the tier LS is deleted).
+     */
+    public void removeLogicalRouterPort(String nbConnection, String caCertPath, String clientCertPath,
+                                        String clientPrivateKeyPath,
+                                        String routerName, String lrpName) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(lrpName)) {
+            throw new CloudRuntimeException("removeLogicalRouterPort arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lrpNameCol = lrpTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> lrpUuidCol = lrpTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrPortsCol = lrTable.multiValuedColumn("ports", UUID.class);
+
+            Operation<GenericTableSchema> selectLrp = OVSDB_OPS.select(lrpTable).column(lrpUuidCol)
+                    .where(lrpNameCol.opEqual(lrpName)).build();
+            List<OperationResult> selectResult = client.transact(schema, Collections.<Operation>singletonList(selectLrp))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selectResult == null || selectResult.isEmpty() || selectResult.get(0).getRows() == null
+                    || selectResult.get(0).getRows().isEmpty()) {
+                logger.debug("Logical_Router_Port [{}] not present on {} - nothing to detach", lrpName, nbConnection);
+                return null;
+            }
+            UUID lrpUuid = selectResult.get(0).getRows().get(0).getColumn(lrpUuidCol).getData();
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrPortsCol, Mutator.DELETE, Collections.singleton(lrpUuid))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            ops.add(OVSDB_OPS.delete(lrpTable).where(lrpUuidCol.opEqual(lrpUuid)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("detach Logical_Router_Port %s from %s", lrpName, routerName));
+            logger.info("Detached OVN Logical_Router_Port [{}] from Logical_Router [{}] at {}", lrpName, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
      * Idempotently adds a localnet Logical_Switch_Port to a Logical_Switch so traffic can egress
      * the OVN integration bridge through ovn-bridge-mappings to the named physical network.
      */
