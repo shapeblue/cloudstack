@@ -1783,16 +1783,38 @@ public class OvnNbClient {
 
             Map<String, String> filter = new HashMap<>();
             filter.put(externalIdKey, externalIdValue);
-            List<UUID> uuids = findAclUuidsByExternalIds(client, schema, aclTable, filter);
+            List<UUID> candidateUuids = findAclUuidsByExternalIds(client, schema, aclTable, filter);
+            if (candidateUuids.isEmpty()) {
+                return 0;
+            }
+            // Scope to ACLs actually referenced from THIS LS. The same external_ids tag (e.g.
+            // cloudstack_network_id=<tierId>) can legitimately appear on ACLs sitting on a
+            // different LS — public-IP firewall ACLs live on the VPC public LS, but they tag
+            // the tier's network_id because the public IP is associated with that tier.
+            // Without this filter we would try to free-delete an ACL still referenced from
+            // another LS and OVSDB would refuse: "cannot delete ACL row because of N remaining
+            // reference(s)".
+            Set<UUID> lsAclSet = lsAclSet(client, schema, lsTable, lsNameCol, lsAclsCol, logicalSwitchName);
+            List<UUID> uuids = new ArrayList<>();
+            for (UUID u : candidateUuids) {
+                if (lsAclSet.contains(u)) {
+                    uuids.add(u);
+                }
+            }
             if (uuids.isEmpty()) {
                 return 0;
             }
+            // Operation order matters: detach the ACL UUID from the LS.acls set first, then
+            // delete the row. The reverse order trips OVSDB's strong-ref guard with
+            // "referential integrity violation: cannot delete ACL row because of N remaining
+            // reference(s)". Bundle every detach into a single mutate per LS to keep the
+            // transaction tight.
             List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lsTable)
+                    .addMutation(lsAclsCol, Mutator.DELETE, new java.util.HashSet<>(uuids))
+                    .where(lsNameCol.opEqual(logicalSwitchName)).build());
             for (UUID u : uuids) {
                 ops.add(OVSDB_OPS.delete(aclTable).where(aclUuidCol.opEqual(u)).build());
-                ops.add(OVSDB_OPS.mutate(lsTable)
-                        .addMutation(lsAclsCol, Mutator.DELETE, Collections.singleton(u))
-                        .where(lsNameCol.opEqual(logicalSwitchName)).build());
             }
             List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
             assertNoError(results, String.format("remove ACLs on %s by %s=%s", logicalSwitchName, externalIdKey, externalIdValue));
@@ -1800,6 +1822,26 @@ public class OvnNbClient {
                     uuids.size(), logicalSwitchName, externalIdKey, externalIdValue);
             return uuids.size();
         });
+    }
+
+    /**
+     * Reads {@code Logical_Switch.acls} as a Set of UUIDs. Empty when the LS does not exist.
+     */
+    @SuppressWarnings("unchecked")
+    private Set<UUID> lsAclSet(OvsdbClient client, DatabaseSchema schema,
+                                GenericTableSchema lsTable,
+                                ColumnSchema<GenericTableSchema, String> lsNameCol,
+                                ColumnSchema<GenericTableSchema, Set<UUID>> lsAclsCol,
+                                String logicalSwitchName) throws Exception {
+        Operation<GenericTableSchema> sel = OVSDB_OPS.select(lsTable).column(lsAclsCol)
+                .where(lsNameCol.opEqual(logicalSwitchName)).build();
+        List<OperationResult> r = client.transact(schema, Collections.<Operation>singletonList(sel))
+                .get(timeoutMs, TimeUnit.MILLISECONDS);
+        if (r == null || r.isEmpty() || r.get(0).getRows() == null || r.get(0).getRows().isEmpty()) {
+            return Collections.emptySet();
+        }
+        Object data = r.get(0).getRows().get(0).getColumn(lsAclsCol).getData();
+        return data instanceof Set ? (Set<UUID>) data : Collections.<UUID>emptySet();
     }
 
     /**

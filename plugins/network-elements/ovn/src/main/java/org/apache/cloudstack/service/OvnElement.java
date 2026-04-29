@@ -1349,6 +1349,11 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         ext.put("cloudstack_acl_rule_id", String.valueOf(rule.getId()));
         ext.put("cloudstack_network_id", String.valueOf(network.getId()));
         ext.put("cloudstack_acl_direction", direction);
+        ext.put("cloudstack_acl_id", String.valueOf(rule.getAclId()));
+        ext.put("cloudstack_acl_number", String.valueOf(rule.getNumber()));
+        if (network.getVpcId() != null) {
+            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
         ovnNbClient.addAclOnLs(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                 guestLs, "nacl-" + rule.getId(), direction, ovnPriority, matchExpr, aclAction, ext);
@@ -1427,6 +1432,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             ext.put("cloudstack_acl_default", "true");
             ext.put("cloudstack_network_id", networkId);
             ext.put("cloudstack_acl_direction", dir);
+            if (network.getVpcId() != null) {
+                ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+            }
             ovnNbClient.addAclOnLs(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     guestLs, "nacl-default-" + dir, dir, 1L, "ip4", "drop", ext);
