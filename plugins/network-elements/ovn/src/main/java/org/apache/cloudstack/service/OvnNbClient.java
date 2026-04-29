@@ -1185,22 +1185,48 @@ public class OvnNbClient {
             ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
             ColumnSchema<GenericTableSchema, String> srPrefixCol = srTable.column("ip_prefix", String.class);
             ColumnSchema<GenericTableSchema, String> srNexthopCol = srTable.column("nexthop", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrRoutesCol = lrTable.multiValuedColumn("static_routes", UUID.class);
 
-            Operation<GenericTableSchema> selExisting = OVSDB_OPS.select(srTable).column(srPrefixCol)
-                    .where(srPrefixCol.opEqual(ipPrefix)).and(srNexthopCol.opEqual(nexthop)).build();
-            List<OperationResult> existing = client.transact(schema, Collections.<Operation>singletonList(selExisting))
+            // Idempotency must be scoped to the target LR. Two LRs needing the same default
+            // route both store their own Static_Route row; skipping based on the global
+            // Static_Route table would leave the second LR without the route. We resolve the
+            // LR's existing static_routes set, look up each referenced row, and only skip when
+            // one of them already matches (ip_prefix, nexthop).
+            Operation<GenericTableSchema> selLr = OVSDB_OPS.select(lrTable).column(lrRoutesCol)
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> lrSel = client.transact(schema, Collections.<Operation>singletonList(selLr))
                     .get(timeoutMs, TimeUnit.MILLISECONDS);
-            if (existing != null && !existing.isEmpty()
-                    && existing.get(0).getRows() != null && !existing.get(0).getRows().isEmpty()) {
-                logger.debug("Static_Route {}→{} already exists - skipping", ipPrefix, nexthop);
-                return null;
+            Set<UUID> existingRouteUuids = Collections.emptySet();
+            if (lrSel != null && !lrSel.isEmpty()
+                    && lrSel.get(0).getRows() != null && !lrSel.get(0).getRows().isEmpty()) {
+                Object raw = lrSel.get(0).getRows().get(0).getColumn(lrRoutesCol).getData();
+                if (raw instanceof Set) {
+                    @SuppressWarnings("unchecked")
+                    Set<UUID> casted = (Set<UUID>) raw;
+                    existingRouteUuids = casted;
+                }
+            }
+            if (!existingRouteUuids.isEmpty()) {
+                Operation<GenericTableSchema> selRoutes = OVSDB_OPS.select(srTable)
+                        .where(srPrefixCol.opEqual(ipPrefix)).and(srNexthopCol.opEqual(nexthop)).build();
+                List<OperationResult> routesSel = client.transact(schema, Collections.<Operation>singletonList(selRoutes))
+                        .get(timeoutMs, TimeUnit.MILLISECONDS);
+                if (routesSel != null && !routesSel.isEmpty() && routesSel.get(0).getRows() != null) {
+                    for (Row<GenericTableSchema> row : routesSel.get(0).getRows()) {
+                        UUID rowUuid = row.getColumn(srTable.column("_uuid", UUID.class)).getData();
+                        if (rowUuid != null && existingRouteUuids.contains(rowUuid)) {
+                            logger.debug("Static_Route {}→{} already attached to {} - skipping",
+                                    ipPrefix, nexthop, routerName);
+                            return null;
+                        }
+                    }
+                }
             }
 
             Insert<GenericTableSchema> insertSr = OVSDB_OPS.insert(srTable)
                     .withId("newsr")
                     .value(srPrefixCol, ipPrefix)
                     .value(srNexthopCol, nexthop);
-            ColumnSchema<GenericTableSchema, Set<UUID>> lrRoutesCol = lrTable.multiValuedColumn("static_routes", UUID.class);
             List<Operation> ops = new ArrayList<>();
             ops.add(insertSr);
             ops.add(OVSDB_OPS.mutate(lrTable)
