@@ -430,6 +430,11 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         ovnNbClient.removeNatRulesByExternalIp(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                 routerName, "dnat_and_snat", externalIp);
+        // Load_Balancer rows pinned to this IP — defensive; applyLBRules revoke normally clears.
+        // We tag every LB row with cloudstack_lb_ip in programLBRule for exactly this lookup.
+        ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                "cloudstack_lb_ip", externalIp);
         // Refresh gARP announcement so this IP is no longer claimed by us.
         applyNatAddressesAnnouncement(provider, network);
     }
@@ -474,6 +479,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (network.getBroadcastDomainType() == Networks.BroadcastDomainType.OVN) {
             OvnProviderVO provider = getProviderForNetwork(network);
             try {
+                // Wipe any Load_Balancer rows owned by this network before tearing down the LR/LS
+                // they were attached to. If the network is destroyed without an explicit LB revoke
+                // (e.g. force-delete path) the LB row would otherwise remain orphaned in NB DB.
+                ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        "cloudstack_network_id", String.valueOf(network.getId()));
                 ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), getPublicLogicalSwitchName(network));
                 ovnNbClient.deleteLogicalRouter(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
@@ -1157,6 +1168,11 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean applyLBRules(Network network, List<LoadBalancingRule> rules) throws ResourceUnavailableException {
+        // CloudStack's LB manager invokes this with the rules currently in transition, not the
+        // full active set on the network - so an empty list means "nothing to apply right now",
+        // not "wipe all LBs". Removal is driven by individual rules in Revoke state (handled in
+        // programLBRule) and, as a safety net, by destroy() / cleanupPublicIpArtifacts which
+        // sweep by external_ids when a network or public IP is being torn down.
         if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN || rules == null || rules.isEmpty()) {
             return true;
         }
@@ -1206,9 +1222,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         String externalIp = ipVo.getAddress().addr();
 
         String protocol = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
-        if (!"tcp".equals(protocol) && !"udp".equals(protocol) && !"sctp".equals(protocol)) {
-            logger.warn("LB rule {} protocol [{}] is not L4; skipping (validateLBRule should have rejected this)",
-                    rule.getId(), protocol);
+        // Capability advertises only tcp/udp; keep validateLBRule and the datapath programmer in
+        // sync so an invalid protocol bubbling through (e.g. via direct DB mutation) is logged
+        // and skipped instead of silently creating a malformed Load_Balancer row.
+        if (!"tcp".equals(protocol) && !"udp".equals(protocol)) {
+            logger.warn("LB rule {} protocol [{}] is not supported by the OVN provider (tcp/udp only); skipping "
+                    + "(validateLBRule should have rejected this)", rule.getId(), protocol);
             return;
         }
         if (rule.getSourcePortStart() == null) {
@@ -1293,6 +1312,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         Map<String, String> ext = new HashMap<>();
         ext.put("cloudstack_lb_rule_id", ruleTag);
         ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        // Tag with the public IP so cleanupPublicIpArtifacts can wipe LB rows when the IP is
+        // released out-of-order (without going through the LB revoke callback first).
+        ext.put("cloudstack_lb_ip", externalIp);
         ext.put("cloudstack_lb_kind", "loadbalancer");
 
         lbName = "lb-" + ruleTag + "-" + protocol;
@@ -1388,10 +1410,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (network.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN) {
             return true;
         }
-        // OVN Load_Balancer is L4 - bail on anything beyond tcp/udp/sctp.
+        // OVN Load_Balancer is L4 and we only advertise tcp/udp in the capabilities map; keep
+        // this in sync with initCapabilities() so an offering that lists only tcp/udp does not
+        // accept a rule we cannot program.
         String proto = rule.getProtocol() != null ? rule.getProtocol().toLowerCase() : "tcp";
-        if (!"tcp".equals(proto) && !"udp".equals(proto) && !"sctp".equals(proto)) {
-            logger.warn("OVN LB rejecting rule {}: protocol [{}] requires L7 (use a VirtualRouter offering)",
+        if (!"tcp".equals(proto) && !"udp".equals(proto)) {
+            logger.warn("OVN LB rejecting rule {}: protocol [{}] not supported (tcp/udp only)",
                     rule.getId(), proto);
             return false;
         }
