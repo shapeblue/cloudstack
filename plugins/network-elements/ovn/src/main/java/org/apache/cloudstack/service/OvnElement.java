@@ -243,14 +243,40 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 (int) (networkId & 0xff));
     }
 
-    /** Returns the OVN Logical_Router name owning the network's tenant routing. */
-    protected String getLogicalRouterName(Network network) {
-        return String.format("cs-router-%d", network.getId());
+    /**
+     * Returns the OVN Logical_Router name owning the network's tenant routing. For an isolated
+     * network this is per-network ({@code cs-router-<networkId>}); for a VPC tier all networks
+     * share the VPC's LR ({@code cs-vpc-<vpcId>}). PR-1 introduced this helper as the single
+     * resolver for both cases — call sites should never branch on {@code network.getVpcId()}
+     * themselves.
+     */
+    protected String getRouterNameForNetwork(Network network) {
+        Long vpcId = network.getVpcId();
+        return vpcId != null ? String.format("cs-vpc-%d", vpcId) : String.format("cs-router-%d", network.getId());
     }
 
-    /** Returns the auxiliary public-side Logical_Switch that fronts the LR's external port. */
-    protected String getPublicLogicalSwitchName(Network network) {
-        return String.format("cs-pub-%d", network.getId());
+    /**
+     * Returns the public-side Logical_Switch that fronts the LR's external port. Per-network for
+     * isolated ({@code cs-pub-<networkId>}), shared across all tiers of a VPC for VPC tiers
+     * ({@code cs-vpc-pub-<vpcId>}).
+     */
+    protected String getPublicLogicalSwitchNameForNetwork(Network network) {
+        Long vpcId = network.getVpcId();
+        return vpcId != null ? String.format("cs-vpc-pub-%d", vpcId) : String.format("cs-pub-%d", network.getId());
+    }
+
+    /** Name of the LR-side router port attached to the public Logical_Switch. */
+    protected String getPublicRouterPortNameForNetwork(Network network) {
+        return "lrp-" + getPublicLogicalSwitchNameForNetwork(network);
+    }
+
+    /**
+     * Name of the LSP on the public LS that pairs with the public LRP. OVN names router-type
+     * Logical_Switch_Ports as {@code lsp-<lrp_name>}; firewall ACL matches and gARP announcements
+     * target this LSP.
+     */
+    protected String getPublicRouterSwitchPortNameForNetwork(Network network) {
+        return "lsp-" + getPublicRouterPortNameForNetwork(network);
     }
 
     /**
@@ -263,7 +289,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (network.getCidr() == null || network.getGateway() == null) {
             return;
         }
-        String routerName = getLogicalRouterName(network);
+        String routerName = getRouterNameForNetwork(network);
         Map<String, String> lrExternalIds = new HashMap<>();
         lrExternalIds.put("cloudstack_network_id", String.valueOf(network.getId()));
         lrExternalIds.put("cloudstack_network_uuid", network.getUuid());
@@ -302,8 +328,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (ips == null || ips.isEmpty()) {
             return;
         }
-        String routerName = getLogicalRouterName(network);
-        String publicLs = getPublicLogicalSwitchName(network);
+        String routerName = getRouterNameForNetwork(network);
+        String publicLs = getPublicLogicalSwitchNameForNetwork(network);
         String localnet = provider.getLocalnetName();
         String externalBridge = provider.getExternalBridge();
         String guestCidr = network.getCidr();
@@ -332,10 +358,11 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     publicLs, "ln-" + publicLs, localnet != null ? localnet : externalBridge, vlanTag);
             String prefix = "/" + maskToPrefix(netmask != null ? netmask : "255.255.240.0");
+            String publicLrpName = getPublicRouterPortNameForNetwork(network);
             ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     routerName, publicLs,
-                    "lrp-" + publicLs, buildRouterMac(network.getId(), true),
+                    publicLrpName, buildRouterMac(network.getId(), true),
                     java.util.Collections.singletonList(externalIp + prefix));
             // Anchor the external LRP to a chassis so ovn-northd materialises lr_in_dnat /
             // lr_in_unsnat / lr_out_snat for the NAT rules attached to this router.
@@ -343,7 +370,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             if (anchorChassis != null) {
                 ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        "lrp-" + publicLs, anchorChassis, 10);
+                        publicLrpName, anchorChassis, 10);
             }
             Map<String, String> natExt = new HashMap<>();
             natExt.put("cloudstack_network_id", String.valueOf(network.getId()));
@@ -374,8 +401,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
      * explicit form here.</p>
      */
     protected void applyNatAddressesAnnouncement(OvnProviderVO provider, Network network) {
-        String publicLs = getPublicLogicalSwitchName(network);
-        String externalLrpLsp = "lsp-lrp-" + publicLs;
+        String externalLrpLsp = getPublicRouterSwitchPortNameForNetwork(network);
         String routerMac = buildRouterMac(network.getId(), true);
         StringBuilder addresses = new StringBuilder(routerMac);
         boolean any = false;
@@ -420,8 +446,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
      * </ul>
      */
     protected void cleanupPublicIpArtifacts(OvnProviderVO provider, Network network, String externalIp) {
-        String publicLs = getPublicLogicalSwitchName(network);
-        String routerName = getLogicalRouterName(network);
+        String publicLs = getPublicLogicalSwitchNameForNetwork(network);
+        String routerName = getRouterNameForNetwork(network);
         // ACLs: matches both per-rule and the default-drop, since both carry cloudstack_fw_ip.
         ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -486,9 +512,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                         "cloudstack_network_id", String.valueOf(network.getId()));
                 ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
-                        provider.getClientPrivateKeyPath(), getPublicLogicalSwitchName(network));
+                        provider.getClientPrivateKeyPath(), getPublicLogicalSwitchNameForNetwork(network));
                 ovnNbClient.deleteLogicalRouter(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
-                        provider.getClientPrivateKeyPath(), getLogicalRouterName(network));
+                        provider.getClientPrivateKeyPath(), getRouterNameForNetwork(network));
                 ovnNbClient.deleteDhcpOptions(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
                         provider.getClientPrivateKeyPath(), String.valueOf(network.getId()));
                 ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(), provider.getCaCertPath(), provider.getClientCertPath(),
@@ -585,8 +611,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return true;
         }
         OvnProviderVO provider = getProviderForNetwork(network);
-        String routerName = getLogicalRouterName(network);
-        String publicLs = getPublicLogicalSwitchName(network);
+        String routerName = getRouterNameForNetwork(network);
+        String publicLs = getPublicLogicalSwitchNameForNetwork(network);
         String localnet = provider.getLocalnetName();
         String guestCidr = network.getCidr();
         String externalBridge = provider.getExternalBridge();
@@ -629,7 +655,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                             routerName, publicLs,
-                            "lrp-" + publicLs, buildRouterMac(network.getId(), true),
+                            getPublicRouterPortNameForNetwork(network), buildRouterMac(network.getId(), true),
                             java.util.Collections.singletonList(externalIp + prefix));
                     Map<String, String> natExt = new HashMap<>();
                     natExt.put("cloudstack_network_id", String.valueOf(network.getId()));
@@ -676,7 +702,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             // the live set. This must run BEFORE we hand back a name to the caller, because
             // setLrpGatewayChassis is idempotent on (lrp_name, chassis_name) and will not detect
             // a name change on its own.
-            String publicLrpName = "lrp-" + getPublicLogicalSwitchName(network);
+            String publicLrpName = getPublicRouterPortNameForNetwork(network);
             try {
                 ovnNbClient.pruneStaleGatewayChassis(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -720,7 +746,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return true;
         }
         OvnProviderVO provider = getProviderForNetwork(config);
-        String routerName = getLogicalRouterName(config);
+        String routerName = getRouterNameForNetwork(config);
         try {
             // Anchor the public LRP to a chassis so ovn-northd materialises the lr_in_dnat
             // pipeline. Without Gateway_Chassis, dnat_and_snat NAT rows are silently ignored
@@ -729,7 +755,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             if (anchorChassis != null) {
                 ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        "lrp-" + getPublicLogicalSwitchName(config), anchorChassis, 10);
+                        getPublicRouterPortNameForNetwork(config), anchorChassis, 10);
             }
             for (StaticNat rule : rules) {
                 IPAddressVO ipVo = ipAddressDao.findById(rule.getSourceIpAddressId());
@@ -775,7 +801,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return true;
         }
         OvnProviderVO provider = getProviderForNetwork(network);
-        String routerName = getLogicalRouterName(network);
+        String routerName = getRouterNameForNetwork(network);
         String guestLs = getLogicalSwitchName(network);
         try {
             for (PortForwardingRule rule : rules) {
@@ -889,8 +915,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return true;
         }
         OvnProviderVO provider = getProviderForNetwork(network);
-        String publicLs = getPublicLogicalSwitchName(network);
-        String publicLrpLsp = "lsp-lrp-" + publicLs;
+        String publicLs = getPublicLogicalSwitchNameForNetwork(network);
+        String publicLrpLsp = getPublicRouterSwitchPortNameForNetwork(network);
         try {
             for (FirewallRule rule : rules) {
                 programFirewallRule(provider, network, publicLs, publicLrpLsp, rule);
@@ -1177,7 +1203,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return true;
         }
         OvnProviderVO provider = getProviderForNetwork(network);
-        String routerName = getLogicalRouterName(network);
+        String routerName = getRouterNameForNetwork(network);
         String guestLs = getLogicalSwitchName(network);
         try {
             for (LoadBalancingRule rule : rules) {
