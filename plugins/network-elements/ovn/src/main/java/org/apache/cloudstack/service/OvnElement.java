@@ -1404,6 +1404,22 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     rule.getId());
             return false;
         }
+        // Reject LB rules that target the network's SourceNat IP. The same external IP would carry
+        // both an LR-level snat NAT row (logical_ip=guest_cidr -> external_ip) and the LB's vips
+        // map; replies from a backend are SNATed back to the SourceNat IP before the LB un-DNAT
+        // can run, so the client sees a reply from an IP that doesn't match the connection it
+        // opened and TCP resets. Lab-confirmed: traffic enters the LR but no SYN+ACK ever reaches
+        // the upstream when LB and SourceNat share an external IP. Force the user to allocate a
+        // dedicated public IP for LB.
+        if (rule.getLb() != null && rule.getLb().getSourceIpAddressId() != null) {
+            IPAddressVO ipVo = ipAddressDao.findById(rule.getLb().getSourceIpAddressId());
+            if (ipVo != null && ipVo.isSourceNat()) {
+                logger.warn("OVN LB rejecting rule {}: external IP {} is the network's SourceNat IP "
+                        + "- allocate a separate public IP for the LB",
+                        rule.getId(), ipVo.getAddress() != null ? ipVo.getAddress().addr() : "<null>");
+                return false;
+            }
+        }
         return true;
     }
 
