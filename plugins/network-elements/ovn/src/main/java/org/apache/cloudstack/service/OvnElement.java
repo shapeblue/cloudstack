@@ -968,11 +968,16 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         }
         OvnProviderVO provider = getProviderForNetwork(config);
         String routerName = getRouterNameForNetwork(config);
+        boolean isVpcTier = config.getVpcId() != null;
+        Vpc vpc = isVpcTier ? vpcDao.findById(config.getVpcId()) : null;
         try {
             // Anchor the public LRP to a chassis so ovn-northd materialises the lr_in_dnat
             // pipeline. Without Gateway_Chassis, dnat_and_snat NAT rows are silently ignored
-            // by lr_in_dnat. setLrpGatewayChassis is idempotent.
-            String anchorChassis = pickAnchorChassis(provider, config);
+            // by lr_in_dnat. setLrpGatewayChassis is idempotent. For VPC tiers we route through
+            // the VPC-flavoured helper so every tier converges on the same chassis the VPC LR
+            // already anchored at implementVpc time.
+            String anchorChassis = (isVpcTier && vpc != null) ? pickAnchorChassisForVpc(provider, vpc)
+                    : pickAnchorChassis(provider, config);
             if (anchorChassis != null) {
                 ovnNbClient.setLrpGatewayChassis(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -994,9 +999,19 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 Map<String, String> ext = new HashMap<>();
                 ext.put("cloudstack_network_id", String.valueOf(config.getId()));
                 ext.put("cloudstack_nat_kind", "static");
+                ext.put("cloudstack_public_ip", externalIp);
+                if (isVpcTier) {
+                    ext.put("cloudstack_vpc_id", String.valueOf(config.getVpcId()));
+                }
                 NicVO targetNic = nicDao.findByIp4AddressAndNetworkId(logicalIp, config.getId());
                 String distributedLogicalPort = targetNic != null ? targetNic.getUuid() : null;
-                String distributedMac = buildRouterMac(config.getId(), true);
+                // For distributed dnat_and_snat the external_mac must match the LR's external
+                // LRP MAC so ovn-northd applies the rewrite locally on the chassis hosting the
+                // backend VM. VPC LRPs use a different MAC scheme (buildVpcRouterMac, octet
+                // 0xfc) than the per-network isolated LRPs (0xfe).
+                String distributedMac = isVpcTier
+                        ? buildVpcRouterMac(config.getVpcId(), true)
+                        : buildRouterMac(config.getId(), true);
                 ovnNbClient.addNatRule(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                         routerName, "dnat_and_snat", externalIp, logicalIp, ext,
@@ -1111,6 +1126,10 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         ext.put("cloudstack_pf_rule_id", ruleTag);
         ext.put("cloudstack_network_id", String.valueOf(network.getId()));
         ext.put("cloudstack_nat_kind", "portforward");
+        ext.put("cloudstack_public_ip", externalIp);
+        if (network.getVpcId() != null) {
+            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
 
         // hairpin_snat_ip lets a VM behind the FIP talk to its own public IP without ovn-northd
         // mis-routing the reply. Cost: a tiny extra rewrite. Neutron sets it unconditionally for
@@ -1181,6 +1200,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         ext.put("cloudstack_fw_rule_id", String.valueOf(rule.getId()));
         ext.put("cloudstack_fw_ip", publicIp);
         ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        if (network.getVpcId() != null) {
+            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
         ovnNbClient.addAclOnLs(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                 publicLs, ruleTag, "to-lport", 1000L, matchExpr, "allow-related", ext);
@@ -1264,6 +1286,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         ext.put("cloudstack_fw_default", "true");
         ext.put("cloudstack_fw_ip", publicIp);
         ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        if (network.getVpcId() != null) {
+            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
         String match = "outport == \"" + publicLrpLsp + "\" && ip4 && ip4.dst == " + publicIp;
         ovnNbClient.addAclOnLs(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
