@@ -510,6 +510,32 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
                             State.Enabled, null, false, false, false, NetworkOffering.NetworkMode.NATTED, null, false, false);
 
                 }
+
+                // Default OVN-backed VPC offering (NAT mode). Mirrors the Netris NAT entry
+                // above but binds every service the OVN provider can satisfy natively (Vpc,
+                // SourceNat, StaticNat, PortForwarding, Lb, NetworkACL, Firewall, Dhcp, Dns,
+                // Gateway) to the Ovn provider; UserData is delivered via ConfigDrive (the
+                // OVN data-plane has no metadata service of its own). The offering pairs with
+                // DefaultNATOVNNetworkOfferingForVpc on the tier side.
+                if (_vpcOffDao.findByUniqueName(VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME) == null) {
+                    logger.debug(String.format("Creating default VPC offering for OVN network service provider %s in NAT mode",
+                            VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME));
+                    final Map<Service, Set<Provider>> svcProviderMap = new HashMap<>();
+                    final Set<Provider> ovnProvider = Set.of(Provider.Ovn);
+                    final Set<Provider> configDriveProvider = Set.of(Provider.ConfigDrive);
+                    for (final Service svc : getSupportedServices()) {
+                        if (svc == Service.UserData) {
+                            svcProviderMap.put(svc, configDriveProvider);
+                        } else if (svc == Service.Vpn) {
+                            // Out of scope for OVN VPC v1 - no VPN provider in the offering.
+                            continue;
+                        } else {
+                            svcProviderMap.put(svc, ovnProvider);
+                        }
+                    }
+                    createVpcOffering(VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME, VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME, svcProviderMap, false,
+                            State.Enabled, null, false, false, false, NetworkOffering.NetworkMode.NATTED, null, false, false);
+                }
             }
         });
 

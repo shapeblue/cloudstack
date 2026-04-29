@@ -631,6 +631,8 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
                     final Map<Network.Service, Set<Network.Provider>> defaultOvnIsolatedOfferingProviders = new HashMap<>();
                     final Set<Network.Provider> ovnProvider = new HashSet<>();
                     ovnProvider.add(Network.Provider.Ovn);
+                    final Set<Network.Provider> configDriveProvider = new HashSet<>();
+                    configDriveProvider.add(Network.Provider.ConfigDrive);
                     defaultOvnIsolatedOfferingProviders.put(Service.Dhcp, ovnProvider);
                     defaultOvnIsolatedOfferingProviders.put(Service.Dns, ovnProvider);
                     defaultOvnIsolatedOfferingProviders.put(Service.Firewall, ovnProvider);
@@ -639,6 +641,11 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
                     defaultOvnIsolatedOfferingProviders.put(Service.SourceNat, ovnProvider);
                     defaultOvnIsolatedOfferingProviders.put(Service.StaticNat, ovnProvider);
                     defaultOvnIsolatedOfferingProviders.put(Service.PortForwarding, ovnProvider);
+                    // OVN data-plane has no metadata service of its own; UserData rides on
+                    // ConfigDrive (ISO9660 attached to the VM at boot). The OVN provider
+                    // does not advertise UserData in initCapabilities() so we have to bind
+                    // it here explicitly.
+                    defaultOvnIsolatedOfferingProviders.put(Service.UserData, configDriveProvider);
                     offering = _configMgr.createNetworkOffering(NetworkOffering.DEFAULT_NAT_OVN_OFFERING,
                             "Offering for OVN enabled networks - NAT mode", TrafficType.Guest, null, false, Availability.Optional, null,
                             defaultOvnIsolatedOfferingProviders, true, Network.GuestType.Isolated, false, null, true, null, false, false, null, false, null,
@@ -647,24 +654,37 @@ public class NetworkOrchestrator extends ManagerBase implements NetworkOrchestra
                     _networkOfferingDao.update(offering.getId(), offering);
                 }
 
-                //#9 - OVN VPC offering with source nat enabled and no Virtual Router dependency
+                //#9 - OVN VPC tier offering with source nat enabled and no Virtual Router dependency
                 if (_networkOfferingDao.findByUniqueName(NetworkOffering.DEFAULT_NAT_OVN_OFFERING_FOR_VPC) == null) {
                     final Map<Network.Service, Set<Network.Provider>> defaultOvnVpcOfferingProviders = new HashMap<>();
                     final Set<Network.Provider> ovnProvider = new HashSet<>();
                     ovnProvider.add(Network.Provider.Ovn);
+                    final Set<Network.Provider> configDriveProvider = new HashSet<>();
+                    configDriveProvider.add(Network.Provider.ConfigDrive);
                     defaultOvnVpcOfferingProviders.put(Service.Dhcp, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.Dns, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.NetworkACL, ovnProvider);
+                    // CloudStack #8863: VPC tiers must support firewall rules on Public IPs in
+                    // addition to NetworkACL on the tier subnet. Bind Firewall to the OVN
+                    // provider so applyFWRules is wired and the offering can host public-IP
+                    // firewall rules without falling back to a VR.
+                    defaultOvnVpcOfferingProviders.put(Service.Firewall, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.Gateway, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.Lb, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.SourceNat, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.StaticNat, ovnProvider);
                     defaultOvnVpcOfferingProviders.put(Service.PortForwarding, ovnProvider);
+                    defaultOvnVpcOfferingProviders.put(Service.UserData, configDriveProvider);
                     offering = _configMgr.createNetworkOffering(NetworkOffering.DEFAULT_NAT_OVN_OFFERING_FOR_VPC,
                             "Offering for OVN enabled networks on VPCs - NAT mode", TrafficType.Guest, null, false, Availability.Optional, null,
                             defaultOvnVpcOfferingProviders, true, Network.GuestType.Isolated, false, null, true, null, false, false, null, false, null,
                             true, true, false, false, false, null, null, null, true, null, null, false);
                     offering.setPublicLb(true);
+                    // Internal LB is now delivered natively by OVN (PR-5b: tier-CIDR VIP attached
+                    // to the VPC LR + tier LS, hairpin_snat_ip on the tier gateway). Without
+                    // this flag CloudStack's createLoadBalancer scheme=Internal API rejects the
+                    // request with "Scheme Internal is not supported by the network offering".
+                    offering.setInternalLb(true);
                     _networkOfferingDao.update(offering.getId(), offering);
                 }
 
