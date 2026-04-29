@@ -1596,6 +1596,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         // released out-of-order (without going through the LB revoke callback first).
         ext.put("cloudstack_lb_ip", externalIp);
         ext.put("cloudstack_lb_kind", "loadbalancer");
+        // Public LB only in PR-5a; Internal LB (with a tier-CIDR VIP) lands in PR-5b and will
+        // override this tag when rule.getScheme() == Internal.
+        ext.put("cloudstack_lb_scheme", "Public");
+        if (network.getVpcId() != null) {
+            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
 
         lbName = "lb-" + ruleTag + "-" + protocol;
         ovnNbClient.createOrReplaceLoadBalancer(provider.getNbConnection(),
