@@ -1360,7 +1360,36 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
      */
     protected void ensureFirewallDefaultDeny(OvnProviderVO provider, Network network, String publicLs,
                                               String publicLrpLsp, String publicIp) {
-        // Intentionally a no-op. See the Javadoc above.
+        // Targeted ICMP echo-request drop. This is the slice of the original default-deny
+        // that we *can* enforce statelessly without breaking VM-initiated outbound: the
+        // match below pins the drop to icmp4.type == 8 (echo request) inbound on the
+        // public IP. ICMP echo replies coming back from the internet for a VM that pinged
+        // out have type == 0 (echo reply), so they do not match this drop; TCP/UDP replies
+        // are unaffected entirely because the match clauses out non-ICMP traffic.
+        //
+        // What this does NOT cover: unsolicited TCP/UDP inbound to the public IP. The LS
+        // pipeline cannot do stateful ACL there (see Javadoc above for the ct_next bypass
+        // on router/localnet LSPs), and a stateless to-lport drop on TCP/UDP would re-
+        // introduce the reply-traffic regression. Closing TCP/UDP requires moving firewall
+        // enforcement to Logical_Router policies (LR conntrack tracks ct.new vs ct.est
+        // correctly because ct_dnat / ct_snat populate the LR's ct zone), which is the
+        // separate refactor tracked elsewhere.
+        //
+        // The per-rule ACLs from programFirewallRule (priority 1000, allow-related) still
+        // override this drop when an operator opens ICMP via a CloudStack FirewallRule.
+        Map<String, String> ext = new HashMap<>();
+        ext.put("cloudstack_fw_default", "true");
+        ext.put("cloudstack_fw_default_icmp", "true");
+        ext.put("cloudstack_fw_ip", publicIp);
+        ext.put("cloudstack_network_id", String.valueOf(network.getId()));
+        if (network.getVpcId() != null) {
+            ext.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
+        String match = "outport == \"" + publicLrpLsp + "\" && ip4 && ip4.dst == " + publicIp
+                + " && icmp4 && icmp4.type == 8";
+        ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                publicLs, "fw-default-icmp-" + publicIp, "to-lport", 100L, match, "drop", ext);
     }
 
     @Override
