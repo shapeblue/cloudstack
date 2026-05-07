@@ -252,6 +252,102 @@
           </a-spin>
         </a-modal>
       </a-tab-pane>
+      <a-tab-pane :tab="$t('label.vpc.peering')" key="peering" v-if="'listVpcPeerings' in $store.getters.apis">
+        <a-button
+          type="dashed"
+          style="width: 100%"
+          :disabled="!('createVpcPeering' in $store.getters.apis)"
+          @click="() => handleOpenModals('peering')">
+          <template #icon><plus-circle-outlined /></template>
+          {{ $t('label.add.vpc.peering') }}
+        </a-button>
+        <a-table
+          class="table"
+          size="small"
+          :columns="vpcPeeringsColumns"
+          :dataSource="vpcPeerings"
+          :rowKey="item => item.id"
+          :pagination="false"
+        >
+          <template #bodyCell="{ column, text, record }">
+            <template v-if="column.key === 'peervpcname'">
+              {{ text }}
+            </template>
+            <template v-if="column.key === 'state'">
+              <status :text="record.state" displayText></status>
+            </template>
+            <template v-if="column.key === 'actions'">
+              <a-popconfirm
+                :title="$t('message.confirm.delete.vpc.peering')"
+                @confirm="handleDeleteVpcPeering(record)"
+                :okText="$t('label.yes')"
+                :cancelText="$t('label.no')"
+              >
+                <tooltip-button
+                  tooltipPlacement="bottom"
+                  :tooltip="$t('label.remove')"
+                  type="primary"
+                  :danger="true"
+                  icon="delete-outlined"
+                  size="small" />
+              </a-popconfirm>
+            </template>
+          </template>
+        </a-table>
+        <a-pagination
+          class="row-element pagination"
+          size="small"
+          :current="page"
+          :pageSize="pageSize"
+          :total="itemCounts.vpcPeerings"
+          :showTotal="total => `${$t('label.total')} ${total} ${$t('label.items')}`"
+          :pageSizeOptions="['10', '20', '40', '80', '100']"
+          @change="changePage"
+          @showSizeChange="changePageSize"
+          showSizeChanger>
+          <template #buildOptionText="props">
+            <span>{{ props.value }} / {{ $t('label.page') }}</span>
+          </template>
+        </a-pagination>
+
+        <a-modal
+          :visible="modals.peering"
+          :title="$t('label.add.vpc.peering')"
+          :maskClosable="false"
+          :closable="true"
+          :footer="null"
+          @cancel="modals.peering = false">
+          <a-spin :spinning="modals.peeringLoading" v-ctrl-enter="handleCreateVpcPeering">
+            <a-form
+              layout="vertical"
+              @finish="handleCreateVpcPeering"
+              :ref="formRef"
+              :model="form"
+              :rules="rules"
+            >
+              <a-form-item :label="$t('label.peer.vpc')" ref="peervpcid" name="peervpcid">
+                <a-select
+                  v-model:value="form.peervpcid"
+                  v-focus="true"
+                  showSearch
+                  optionFilterProp="label"
+                  :filterOption="(input, option) => {
+                    return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }" >
+                  <a-select-option v-for="item in peerableVpcs" :key="item.id" :value="item.id" :label="`${item.name} (${item.cidr}) - ${item.zonename}`">
+                    {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
+              <div :span="24" class="action-button">
+                <a-button @click="modals.peering = false">{{ $t('label.cancel') }}</a-button>
+                <a-button type="primary" @click="handleCreateVpcPeering">{{ $t('label.ok') }}</a-button>
+              </div>
+            </a-form>
+          </a-spin>
+        </a-modal>
+      </a-tab-pane>
       <a-tab-pane :tab="$t('label.vpn.gateway')" key="vpngw" v-if="'listVpnGateways' in $store.getters.apis">
         <a-button
           v-if="vpnGateways.length === 0"
@@ -433,6 +529,7 @@ import AnnotationsTab from '@/components/view/AnnotationsTab'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import BgpPeersTab from '@/views/infra/zone/BgpPeersTab.vue'
 import StaticRoutesTab from './StaticRoutesTab'
+import TooltipButton from '@/components/widgets/TooltipButton'
 
 export default {
   name: 'VpcTab',
@@ -445,6 +542,7 @@ export default {
     VpcTiersTab,
     VnfAppliancesTab,
     StaticRoutesTab,
+    TooltipButton,
     EventsTab,
     AnnotationsTab,
     ResourceIcon
@@ -465,6 +563,8 @@ export default {
       fetchLoading: false,
       privateGateways: [],
       associatedNetworks: [],
+      vpcPeerings: [],
+      peerableVpcs: [],
       vpnGateways: [],
       publicIps: [],
       vpnConnections: [],
@@ -476,7 +576,9 @@ export default {
         vpnGatewayLoading: false,
         vpnConnection: false,
         vpnConnectionLoading: false,
-        networkAcl: false
+        networkAcl: false,
+        peering: false,
+        peeringLoading: false
       },
       placeholders: {
         vlan: null,
@@ -541,10 +643,41 @@ export default {
           dataIndex: 'description'
         }
       ],
+      vpcPeeringsColumns: [
+        {
+          key: 'peervpcname',
+          title: this.$t('label.peer.vpc'),
+          dataIndex: 'peervpcname'
+        },
+        {
+          title: 'CIDR',
+          dataIndex: 'peervpccidr'
+        },
+        {
+          title: this.$t('label.zone'),
+          dataIndex: 'zonename'
+        },
+        {
+          title: this.$t('label.link.local.ip'),
+          dataIndex: 'linklocalip'
+        },
+        {
+          key: 'state',
+          title: this.$t('label.state'),
+          dataIndex: 'state'
+        },
+        {
+          key: 'actions',
+          title: '',
+          dataIndex: 'actions',
+          width: 60
+        }
+      ],
       itemCounts: {
         privateGateways: 0,
         vpnConnections: 0,
-        networkAcls: 0
+        networkAcls: 0,
+        vpcPeerings: 0
       },
       page: 1,
       pageSize: 10,
@@ -614,6 +747,9 @@ export default {
           break
         case 'acl':
           this.fetchAclList()
+          break
+        case 'peering':
+          this.fetchVpcPeerings()
           break
         case 'comments':
           this.fetchComments()
@@ -807,6 +943,13 @@ export default {
           }
           this.modals.networkAcl = true
           break
+        case 'peering':
+          this.rules = {
+            peervpcid: [{ required: true, message: this.$t('label.required') }]
+          }
+          this.modals.peering = true
+          this.fetchPeerableVpcs()
+          break
       }
     },
     handleGatewayFormSubmit () {
@@ -986,6 +1129,94 @@ export default {
         })
       }).catch(error => {
         this.formRef.value.scrollToField(error.errorFields[0].name)
+        this.fetchLoading = false
+      })
+    },
+    fetchVpcPeerings () {
+      this.fetchLoading = true
+      getAPI('listVpcPeerings', {
+        vpcid: this.resource.id,
+        page: this.page,
+        pagesize: this.pageSize
+      }).then(json => {
+        this.vpcPeerings = json.listvpcpeeringsresponse?.vpcpeering || []
+        this.itemCounts.vpcPeerings = json.listvpcpeeringsresponse?.count || 0
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.fetchLoading = false
+      })
+    },
+    fetchPeerableVpcs () {
+      this.modals.peeringLoading = true
+      this.peerableVpcs = []
+      // First get OVN-enabled zones
+      var ovnZoneIds = new Set()
+      var fetchVpcsAfterZones = () => {
+        getAPI('listVPCs', {
+          account: this.resource.account,
+          domainid: this.resource.domainid,
+          listAll: true
+        }).then(json => {
+          var vpcs = json.listvpcsresponse?.vpc || []
+          this.peerableVpcs = vpcs.filter(v =>
+            v.id !== this.resource.id && (ovnZoneIds.size === 0 || ovnZoneIds.has(v.zoneid))
+          )
+          if (this.peerableVpcs.length > 0) {
+            this.form.peervpcid = this.peerableVpcs[0].id
+          }
+        }).catch(error => {
+          this.$notifyError(error)
+        }).finally(() => {
+          this.modals.peeringLoading = false
+        })
+      }
+      if ('listOvnProviders' in this.$store.getters.apis) {
+        getAPI('listOvnProviders', {}).then(json => {
+          var providers = json.listovnprovidersresponse?.ovnprovider || []
+          providers.forEach(p => ovnZoneIds.add(p.zoneid))
+        }).catch(() => {
+          // If listOvnProviders fails, show all VPCs
+        }).finally(() => {
+          fetchVpcsAfterZones()
+        })
+      } else {
+        fetchVpcsAfterZones()
+      }
+    },
+    handleCreateVpcPeering () {
+      if (this.modals.peeringLoading) return
+      this.modals.peeringLoading = true
+
+      this.formRef.value.validate().then(() => {
+        const data = toRaw(this.form)
+        postAPI('createVpcPeering', {
+          vpcid: this.resource.id,
+          peervpcid: data.peervpcid
+        }).then(response => {
+          this.$message.success(this.$t('message.success.add.vpc.peering'))
+          this.modals.peering = false
+          this.fetchVpcPeerings()
+        }).catch(error => {
+          this.$notifyError(error)
+        }).finally(() => {
+          this.modals.peeringLoading = false
+        })
+      }).catch(error => {
+        this.formRef.value.scrollToField(error.errorFields[0].name)
+        this.modals.peeringLoading = false
+      })
+    },
+    handleDeleteVpcPeering (record) {
+      this.fetchLoading = true
+      postAPI('deleteVpcPeering', {
+        id: record.id
+      }).then(() => {
+        this.$message.success(this.$t('label.action.delete.succeeded'))
+        this.fetchVpcPeerings()
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
         this.fetchLoading = false
       })
     },

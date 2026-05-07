@@ -64,6 +64,7 @@ public class OvnNbClient {
     private static final String DHCP_OPTIONS_TABLE = "DHCP_Options";
     private static final String NAT_TABLE = "NAT";
     private static final String ACL_TABLE = "ACL";
+    private static final String LOGICAL_ROUTER_POLICY_TABLE = "Logical_Router_Policy";
     private static final String LOAD_BALANCER_TABLE = "Load_Balancer";
     private static final String LOAD_BALANCER_HEALTH_CHECK_TABLE = "Load_Balancer_Health_Check";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
@@ -1289,6 +1290,336 @@ public class OvnNbClient {
             assertNoError(results, String.format("add Static_Route %s→%s on %s", ipPrefix, nexthop, routerName));
             logger.info("Added OVN Static_Route [{} → {}] on Logical_Router [{}] at {}", ipPrefix, nexthop, routerName, nbConnection);
             return null;
+        });
+    }
+
+    public void addStaticRoute(String nbConnection, String caCertPath, String clientCertPath,
+                               String clientPrivateKeyPath,
+                               String routerName, String ipPrefix, String nexthop,
+                               Map<String, String> externalIds) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(ipPrefix) || StringUtils.isBlank(nexthop)) {
+            throw new CloudRuntimeException("Static route arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema srTable = schema.table(LOGICAL_ROUTER_STATIC_ROUTE_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> srPrefixCol = srTable.column("ip_prefix", String.class);
+            ColumnSchema<GenericTableSchema, String> srNexthopCol = srTable.column("nexthop", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrRoutesCol = lrTable.multiValuedColumn("static_routes", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> srExtCol = srTable.column("external_ids", Map.class);
+
+            Operation<GenericTableSchema> selLr = OVSDB_OPS.select(lrTable).column(lrRoutesCol)
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> lrSel = client.transact(schema, Collections.<Operation>singletonList(selLr))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            Set<UUID> existingRouteUuids = Collections.emptySet();
+            if (lrSel != null && !lrSel.isEmpty()
+                    && lrSel.get(0).getRows() != null && !lrSel.get(0).getRows().isEmpty()) {
+                Object raw = lrSel.get(0).getRows().get(0).getColumn(lrRoutesCol).getData();
+                if (raw instanceof Set) {
+                    @SuppressWarnings("unchecked")
+                    Set<UUID> casted = (Set<UUID>) raw;
+                    existingRouteUuids = casted;
+                }
+            }
+            if (!existingRouteUuids.isEmpty()) {
+                ColumnSchema<GenericTableSchema, UUID> srUuidCol = srTable.column("_uuid", UUID.class);
+                Operation<GenericTableSchema> selRoutes = OVSDB_OPS.select(srTable)
+                        .column(srUuidCol).column(srPrefixCol).column(srNexthopCol)
+                        .where(srPrefixCol.opEqual(ipPrefix)).and(srNexthopCol.opEqual(nexthop)).build();
+                List<OperationResult> routesSel = client.transact(schema, Collections.<Operation>singletonList(selRoutes))
+                        .get(timeoutMs, TimeUnit.MILLISECONDS);
+                if (routesSel != null && !routesSel.isEmpty() && routesSel.get(0).getRows() != null) {
+                    for (Row<GenericTableSchema> row : routesSel.get(0).getRows()) {
+                        org.opendaylight.ovsdb.lib.notation.Column<GenericTableSchema, UUID> col = row.getColumn(srUuidCol);
+                        if (col == null) continue;
+                        UUID rowUuid = col.getData();
+                        if (rowUuid != null && existingRouteUuids.contains(rowUuid)) {
+                            return null;
+                        }
+                    }
+                }
+            }
+
+            Insert<GenericTableSchema> insertSr = OVSDB_OPS.insert(srTable)
+                    .withId("newsr")
+                    .value(srPrefixCol, ipPrefix)
+                    .value(srNexthopCol, nexthop);
+            if (externalIds != null && !externalIds.isEmpty()) {
+                insertSr.value(srExtCol, externalIds);
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertSr);
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrRoutesCol, Mutator.INSERT, Collections.singleton(new UUID("newsr")))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("add Static_Route %s→%s on %s", ipPrefix, nexthop, routerName));
+            logger.info("Added OVN Static_Route [{} → {}] on Logical_Router [{}] at {}", ipPrefix, nexthop, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    public void removeStaticRoute(String nbConnection, String caCertPath, String clientCertPath,
+                                  String clientPrivateKeyPath,
+                                  String routerName, String ipPrefix, String nexthop) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(ipPrefix)) {
+            throw new CloudRuntimeException("removeStaticRoute arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema srTable = schema.table(LOGICAL_ROUTER_STATIC_ROUTE_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrRoutesCol = lrTable.multiValuedColumn("static_routes", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> srUuidCol = srTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, String> srPrefixCol = srTable.column("ip_prefix", String.class);
+            ColumnSchema<GenericTableSchema, String> srNexthopCol = srTable.column("nexthop", String.class);
+
+            Operation<GenericTableSchema> selLr = OVSDB_OPS.select(lrTable).column(lrRoutesCol)
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> lrSel = client.transact(schema, Collections.<Operation>singletonList(selLr))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lrSel == null || lrSel.isEmpty() || lrSel.get(0).getRows() == null || lrSel.get(0).getRows().isEmpty()) {
+                return null;
+            }
+            @SuppressWarnings("unchecked")
+            Set<UUID> routeRefs = (Set<UUID>) lrSel.get(0).getRows().get(0).getColumn(lrRoutesCol).getData();
+            if (routeRefs == null || routeRefs.isEmpty()) return null;
+
+            var selectBuilder = OVSDB_OPS.select(srTable).column(srUuidCol).column(srPrefixCol).column(srNexthopCol)
+                    .where(srPrefixCol.opEqual(ipPrefix));
+            if (StringUtils.isNotBlank(nexthop)) {
+                selectBuilder = selectBuilder.and(srNexthopCol.opEqual(nexthop));
+            }
+            Operation<GenericTableSchema> selRoutes = selectBuilder.build();
+            List<OperationResult> routeResult = client.transact(schema, Collections.<Operation>singletonList(selRoutes))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (routeResult == null || routeResult.isEmpty() || routeResult.get(0).getRows() == null) {
+                return null;
+            }
+
+            Set<UUID> toRemove = new java.util.HashSet<>();
+            for (Row<GenericTableSchema> row : routeResult.get(0).getRows()) {
+                UUID u = row.getColumn(srUuidCol).getData();
+                if (u != null && routeRefs.contains(u)) {
+                    toRemove.add(u);
+                }
+            }
+            if (toRemove.isEmpty()) return null;
+
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrRoutesCol, Mutator.DELETE, toRemove)
+                    .where(lrNameCol.opEqual(routerName)).build());
+            for (UUID u : toRemove) {
+                ops.add(OVSDB_OPS.delete(srTable).where(srUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("remove Static_Route %s→%s on %s", ipPrefix, nexthop, routerName));
+            logger.info("Removed OVN Static_Route [{} → {}] on Logical_Router [{}] at {}", ipPrefix, nexthop, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    public int removeStaticRoutesByExternalId(String nbConnection, String caCertPath, String clientCertPath,
+                                              String clientPrivateKeyPath,
+                                              String routerName, String externalIdKey, String externalIdValue) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(externalIdKey)) {
+            throw new CloudRuntimeException("removeStaticRoutesByExternalId arguments are incomplete");
+        }
+        return runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema srTable = schema.table(LOGICAL_ROUTER_STATIC_ROUTE_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrRoutesCol = lrTable.multiValuedColumn("static_routes", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> srUuidCol = srTable.column("_uuid", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> srExtCol = srTable.column("external_ids", Map.class);
+
+            Operation<GenericTableSchema> selLr = OVSDB_OPS.select(lrTable).column(lrRoutesCol)
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> lrSel = client.transact(schema, Collections.<Operation>singletonList(selLr))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lrSel == null || lrSel.isEmpty() || lrSel.get(0).getRows() == null || lrSel.get(0).getRows().isEmpty()) {
+                return 0;
+            }
+            @SuppressWarnings("unchecked")
+            Set<UUID> routeRefs = (Set<UUID>) lrSel.get(0).getRows().get(0).getColumn(lrRoutesCol).getData();
+            if (routeRefs == null || routeRefs.isEmpty()) return 0;
+
+            Operation<GenericTableSchema> selRoutes = OVSDB_OPS.select(srTable).column(srUuidCol).column(srExtCol);
+            List<OperationResult> routeResult = client.transact(schema, Collections.<Operation>singletonList(selRoutes))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (routeResult == null || routeResult.isEmpty() || routeResult.get(0).getRows() == null) {
+                return 0;
+            }
+
+            Set<UUID> toRemove = new java.util.HashSet<>();
+            for (Row<GenericTableSchema> row : routeResult.get(0).getRows()) {
+                UUID u = row.getColumn(srUuidCol).getData();
+                if (u == null || !routeRefs.contains(u)) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, String> ext = (Map<String, String>) row.getColumn(srExtCol).getData();
+                if (ext != null && externalIdValue.equals(ext.get(externalIdKey))) {
+                    toRemove.add(u);
+                }
+            }
+            if (toRemove.isEmpty()) return 0;
+
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrRoutesCol, Mutator.DELETE, toRemove)
+                    .where(lrNameCol.opEqual(routerName)).build());
+            for (UUID u : toRemove) {
+                ops.add(OVSDB_OPS.delete(srTable).where(srUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("remove Static_Routes by %s=%s on %s", externalIdKey, externalIdValue, routerName));
+            logger.info("Removed {} Static_Route(s) tagged [{}={}] on Logical_Router [{}] at {}",
+                    toRemove.size(), externalIdKey, externalIdValue, routerName, nbConnection);
+            return toRemove.size();
+        });
+    }
+
+    public void addLogicalRouterPolicy(String nbConnection, String caCertPath, String clientCertPath,
+                                       String clientPrivateKeyPath,
+                                       String routerName, int priority, String match, String action,
+                                       String nexthop, Map<String, String> externalIds) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(match) || StringUtils.isBlank(action)) {
+            throw new CloudRuntimeException("addLogicalRouterPolicy arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema polTable = schema.table(LOGICAL_ROUTER_POLICY_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrPolCol = lrTable.multiValuedColumn("policies", UUID.class);
+            ColumnSchema<GenericTableSchema, Long> polPrioCol = polTable.column("priority", Long.class);
+            ColumnSchema<GenericTableSchema, String> polMatchCol = polTable.column("match", String.class);
+            ColumnSchema<GenericTableSchema, String> polActionCol = polTable.column("action", String.class);
+            ColumnSchema<GenericTableSchema, Set<String>> polNexthopCol = polTable.multiValuedColumn("nexthops", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> polExtCol = polTable.column("external_ids", Map.class);
+            ColumnSchema<GenericTableSchema, UUID> polUuidCol = polTable.column("_uuid", UUID.class);
+
+            // Idempotency: check if policy with same priority+match already exists on this LR
+            Operation<GenericTableSchema> selLr = OVSDB_OPS.select(lrTable).column(lrPolCol)
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> lrSel = client.transact(schema, Collections.<Operation>singletonList(selLr))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            Set<UUID> existingPolUuids = Collections.emptySet();
+            if (lrSel != null && !lrSel.isEmpty()
+                    && lrSel.get(0).getRows() != null && !lrSel.get(0).getRows().isEmpty()) {
+                Object raw = lrSel.get(0).getRows().get(0).getColumn(lrPolCol).getData();
+                if (raw instanceof Set) {
+                    @SuppressWarnings("unchecked")
+                    Set<UUID> casted = (Set<UUID>) raw;
+                    existingPolUuids = casted;
+                }
+            }
+            if (!existingPolUuids.isEmpty()) {
+                Operation<GenericTableSchema> selPol = OVSDB_OPS.select(polTable)
+                        .column(polUuidCol).column(polPrioCol).column(polMatchCol)
+                        .where(polPrioCol.opEqual((long) priority)).and(polMatchCol.opEqual(match)).build();
+                List<OperationResult> polSel = client.transact(schema, Collections.<Operation>singletonList(selPol))
+                        .get(timeoutMs, TimeUnit.MILLISECONDS);
+                if (polSel != null && !polSel.isEmpty() && polSel.get(0).getRows() != null) {
+                    for (Row<GenericTableSchema> row : polSel.get(0).getRows()) {
+                        UUID u = row.getColumn(polUuidCol).getData();
+                        if (u != null && existingPolUuids.contains(u)) {
+                            return null;
+                        }
+                    }
+                }
+            }
+
+            Insert<GenericTableSchema> insertPol = OVSDB_OPS.insert(polTable)
+                    .withId("newpol")
+                    .value(polPrioCol, (long) priority)
+                    .value(polMatchCol, match)
+                    .value(polActionCol, action);
+            if (StringUtils.isNotBlank(nexthop)) {
+                insertPol.value(polNexthopCol, Collections.singleton(nexthop));
+            }
+            if (externalIds != null && !externalIds.isEmpty()) {
+                insertPol.value(polExtCol, externalIds);
+            }
+            List<Operation> ops = new ArrayList<>();
+            ops.add(insertPol);
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrPolCol, Mutator.INSERT, Collections.singleton(new UUID("newpol")))
+                    .where(lrNameCol.opEqual(routerName)).build());
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("add LR Policy prio=%d match=%s on %s", priority, match, routerName));
+            logger.info("Added OVN LR_Policy [prio={} match={} action={} nexthop={}] on [{}] at {}",
+                    priority, match, action, nexthop, routerName, nbConnection);
+            return null;
+        });
+    }
+
+    public int removeLogicalRouterPoliciesByExternalId(String nbConnection, String caCertPath, String clientCertPath,
+                                                       String clientPrivateKeyPath,
+                                                       String routerName, String externalIdKey, String externalIdValue) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(externalIdKey)) {
+            throw new CloudRuntimeException("removeLogicalRouterPoliciesByExternalId arguments are incomplete");
+        }
+        return runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrTable = schema.table(LOGICAL_ROUTER_TABLE, GenericTableSchema.class);
+            GenericTableSchema polTable = schema.table(LOGICAL_ROUTER_POLICY_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrNameCol = lrTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrPolCol = lrTable.multiValuedColumn("policies", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> polUuidCol = polTable.column("_uuid", UUID.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> polExtCol = polTable.column("external_ids", Map.class);
+
+            Operation<GenericTableSchema> selLr = OVSDB_OPS.select(lrTable).column(lrPolCol)
+                    .where(lrNameCol.opEqual(routerName)).build();
+            List<OperationResult> lrSel = client.transact(schema, Collections.<Operation>singletonList(selLr))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lrSel == null || lrSel.isEmpty() || lrSel.get(0).getRows() == null || lrSel.get(0).getRows().isEmpty()) {
+                return 0;
+            }
+            @SuppressWarnings("unchecked")
+            Set<UUID> polRefs = (Set<UUID>) lrSel.get(0).getRows().get(0).getColumn(lrPolCol).getData();
+            if (polRefs == null || polRefs.isEmpty()) return 0;
+
+            Operation<GenericTableSchema> selPol = OVSDB_OPS.select(polTable).column(polUuidCol).column(polExtCol);
+            List<OperationResult> polResult = client.transact(schema, Collections.<Operation>singletonList(selPol))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (polResult == null || polResult.isEmpty() || polResult.get(0).getRows() == null) {
+                return 0;
+            }
+
+            Set<UUID> toRemove = new java.util.HashSet<>();
+            for (Row<GenericTableSchema> row : polResult.get(0).getRows()) {
+                UUID u = row.getColumn(polUuidCol).getData();
+                if (u == null || !polRefs.contains(u)) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, String> ext = (Map<String, String>) row.getColumn(polExtCol).getData();
+                if (ext != null && externalIdValue.equals(ext.get(externalIdKey))) {
+                    toRemove.add(u);
+                }
+            }
+            if (toRemove.isEmpty()) return 0;
+
+            List<Operation> ops = new ArrayList<>();
+            ops.add(OVSDB_OPS.mutate(lrTable)
+                    .addMutation(lrPolCol, Mutator.DELETE, toRemove)
+                    .where(lrNameCol.opEqual(routerName)).build());
+            for (UUID u : toRemove) {
+                ops.add(OVSDB_OPS.delete(polTable).where(polUuidCol.opEqual(u)).build());
+            }
+            List<OperationResult> results = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(results, String.format("remove LR Policies by %s=%s on %s", externalIdKey, externalIdValue, routerName));
+            logger.info("Removed {} LR_Policy(ies) tagged [{}={}] on Logical_Router [{}] at {}",
+                    toRemove.size(), externalIdKey, externalIdValue, routerName, nbConnection);
+            return toRemove.size();
         });
     }
 

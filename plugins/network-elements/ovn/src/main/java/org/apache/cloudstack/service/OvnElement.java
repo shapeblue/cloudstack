@@ -38,7 +38,11 @@ import com.cloud.dc.dao.VlanDao;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.IPAddressVO;
 import com.cloud.network.dao.OvnProviderDao;
+import com.cloud.network.dao.OvnVpcPeeringDao;
 import com.cloud.network.element.OvnProviderVO;
+import com.cloud.network.element.OvnVpcPeeringVO;
+import com.cloud.network.vpc.VpcVO;
+import com.cloud.user.AccountManager;
 import com.cloud.vm.NicVO;
 import com.cloud.vm.dao.NicDao;
 import com.cloud.network.element.PortForwardingServiceProvider;
@@ -60,15 +64,29 @@ import com.cloud.vm.NicProfile;
 import com.cloud.vm.ReservationContext;
 import com.cloud.vm.VirtualMachineProfile;
 
+import org.apache.cloudstack.api.command.CreateVpcPeeringCmd;
+import org.apache.cloudstack.api.command.DeleteVpcPeeringCmd;
+import org.apache.cloudstack.api.command.ListVpcPeeringsCmd;
+import org.apache.cloudstack.api.response.VpcPeeringResponse;
+import org.apache.cloudstack.context.CallContext;
+import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.PermissionDeniedException;
+import com.cloud.dc.DataCenterVO;
+import com.cloud.dc.dao.DataCenterDao;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import javax.inject.Inject;
 
 public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsServiceProvider, VpcProvider,
         StaticNatServiceProvider, IpDeployer, PortForwardingServiceProvider, FirewallServiceProvider,
-        NetworkACLServiceProvider, LoadBalancingServiceProvider {
+        NetworkACLServiceProvider, LoadBalancingServiceProvider, OvnPeeringService {
 
     private final Map<Network.Service, Map<Network.Capability, String>> capabilities = initCapabilities();
     private final OvnNbClient ovnNbClient = new OvnNbClient();
@@ -90,6 +108,15 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Inject
     com.cloud.host.dao.HostDao hostDao;
+
+    @Inject
+    OvnVpcPeeringDao ovnVpcPeeringDao;
+
+    @Inject
+    AccountManager accountMgr;
+
+    @Inject
+    DataCenterDao dataCenterDao;
 
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
@@ -1995,6 +2022,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     "cloudstack_vpc_id", String.valueOf(vpc.getId()));
+            // Remove all peering memberships for this VPC before destroying the router.
+            removePeeringsForVpc(vpc, provider);
+
             // Public LS first — its router-type LSP pairs with the public LRP on the LR; deleting
             // the LS removes the LSP and any localnet/firewall ACLs sitting on it.
             ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
@@ -2056,5 +2086,373 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             return false;
         }
         return true;
+    }
+
+    // ── VPC Peering (OvnPeeringService) ──────────────────────────────────────
+
+    private static final String PEERING_EXT_KEY = "cloudstack_peering_group";
+    private static final int NAT_BYPASS_PRIORITY = 1000;
+
+    @Override
+    public OvnVpcPeeringVO createVpcPeering(CreateVpcPeeringCmd cmd) {
+        long callerId = CallContext.current().getCallingAccount().getId();
+        VpcVO vpc = vpcDao.findById(cmd.getVpcId());
+        VpcVO peerVpc = vpcDao.findById(cmd.getPeerVpcId());
+        if (vpc == null) {
+            throw new InvalidParameterValueException("VPC not found: " + cmd.getVpcId());
+        }
+        if (peerVpc == null) {
+            throw new InvalidParameterValueException("Peer VPC not found: " + cmd.getPeerVpcId());
+        }
+        if (vpc.getId() == peerVpc.getId()) {
+            throw new InvalidParameterValueException("Cannot peer a VPC with itself");
+        }
+        if (vpc.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+            throw new PermissionDeniedException("Caller does not own VPC " + vpc.getUuid());
+        }
+        if (peerVpc.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+            throw new PermissionDeniedException("Caller does not own peer VPC " + peerVpc.getUuid());
+        }
+
+        OvnProviderVO providerA = ovnProviderDao.findByZoneId(vpc.getZoneId());
+        OvnProviderVO providerB = ovnProviderDao.findByZoneId(peerVpc.getZoneId());
+        if (providerA == null) {
+            throw new InvalidParameterValueException("VPC zone " + vpc.getZoneId() + " has no OVN provider");
+        }
+        if (providerB == null) {
+            throw new InvalidParameterValueException("Peer VPC zone " + peerVpc.getZoneId() + " has no OVN provider");
+        }
+
+        // Determine group: if peer VPC already belongs to a group, join it; otherwise check if our VPC
+        // already belongs to one. If neither, create a new group.
+        String groupUuid = null;
+        List<OvnVpcPeeringVO> peerExisting = ovnVpcPeeringDao.listByVpcId(peerVpc.getId());
+        if (!peerExisting.isEmpty()) {
+            groupUuid = peerExisting.get(0).getGroupUuid();
+        }
+        if (groupUuid == null) {
+            List<OvnVpcPeeringVO> myExisting = ovnVpcPeeringDao.listByVpcId(vpc.getId());
+            if (!myExisting.isEmpty()) {
+                groupUuid = myExisting.get(0).getGroupUuid();
+            }
+        }
+        if (groupUuid == null) {
+            groupUuid = UUID.randomUUID().toString();
+        }
+
+        // Ensure both VPCs aren't already in the same group
+        if (ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, vpc.getId()) != null
+                && ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, peerVpc.getId()) != null) {
+            throw new InvalidParameterValueException("Both VPCs are already in the same peering group");
+        }
+
+        // Allocate link-local IPs for new members
+        List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+        Set<String> usedIps = new HashSet<>();
+        for (OvnVpcPeeringVO m : groupMembers) {
+            usedIps.add(m.getLinkLocalIp());
+        }
+
+        OvnVpcPeeringVO peeringA = null;
+        OvnVpcPeeringVO peeringB = null;
+
+        if (ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, vpc.getId()) == null) {
+            String ipA = allocateLinkLocalIp(usedIps);
+            usedIps.add(ipA);
+            peeringA = new OvnVpcPeeringVO(groupUuid, vpc.getId(), vpc.getZoneId(),
+                    vpc.getAccountId(), vpc.getDomainId(), ipA);
+            peeringA = ovnVpcPeeringDao.persist(peeringA);
+        } else {
+            peeringA = ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, vpc.getId());
+        }
+
+        if (ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, peerVpc.getId()) == null) {
+            String ipB = allocateLinkLocalIp(usedIps);
+            usedIps.add(ipB);
+            peeringB = new OvnVpcPeeringVO(groupUuid, peerVpc.getId(), peerVpc.getZoneId(),
+                    peerVpc.getAccountId(), peerVpc.getDomainId(), ipB);
+            peeringB = ovnVpcPeeringDao.persist(peeringB);
+        }
+
+        // Provision OVN fabric for the entire group
+        provisionPeeringGroup(groupUuid);
+
+        return peeringA;
+    }
+
+    @Override
+    public boolean deleteVpcPeering(DeleteVpcPeeringCmd cmd) {
+        OvnVpcPeeringVO peering = ovnVpcPeeringDao.findById(cmd.getId());
+        if (peering == null || !"Active".equals(peering.getState())) {
+            throw new InvalidParameterValueException("VPC peering not found or already removed: " + cmd.getId());
+        }
+        long callerId = CallContext.current().getCallingAccount().getId();
+        if (peering.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+            throw new PermissionDeniedException("Caller does not own this peering");
+        }
+
+        String groupUuid = peering.getGroupUuid();
+        long vpcId = peering.getVpcId();
+        VpcVO vpc = vpcDao.findById(vpcId);
+
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(peering.getZoneId());
+        if (provider != null && vpc != null) {
+            String routerName = String.format("cs-vpc-%d", vpcId);
+            // Remove routes and policies on all OTHER members pointing to this VPC
+            List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+            for (OvnVpcPeeringVO member : groupMembers) {
+                if (member.getVpcId() == vpcId) continue;
+                OvnProviderVO memberProvider = ovnProviderDao.findByZoneId(member.getZoneId());
+                if (memberProvider == null) continue;
+                String memberRouter = String.format("cs-vpc-%d", member.getVpcId());
+                VpcVO memberVpc = vpcDao.findById(member.getVpcId());
+                if (memberVpc == null) continue;
+                // Remove route on member pointing to this VPC
+                ovnNbClient.removeStaticRoute(memberProvider.getNbConnection(),
+                        memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
+                        memberRouter, vpc.getCidr(), peering.getLinkLocalIp());
+                // Remove NAT bypass policy on member for this VPC's CIDR
+                ovnNbClient.removeLogicalRouterPoliciesByExternalId(memberProvider.getNbConnection(),
+                        memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
+                        memberRouter, PEERING_EXT_KEY + "_target", String.valueOf(vpcId));
+            }
+
+            // Remove routes and policies on THIS VPC pointing to all other members
+            ovnNbClient.removeStaticRoutesByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, PEERING_EXT_KEY, groupUuid);
+            ovnNbClient.removeLogicalRouterPoliciesByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, PEERING_EXT_KEY, groupUuid);
+
+            // Remove LRP+LSP for this VPC on the peering switch
+            String peerLs = getPeeringLsName(groupUuid);
+            String lrpName = getPeeringLrpName(groupUuid, vpcId);
+            ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, lrpName);
+            ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    peerLs, getPeeringLspName(groupUuid, vpcId));
+
+            // If no other members, delete the peering LS
+            List<OvnVpcPeeringVO> remaining = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+            long activeCount = remaining.stream().filter(m -> m.getVpcId() != vpcId).count();
+            if (activeCount == 0) {
+                ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        peerLs);
+            }
+        }
+
+        peering.setState("Removed");
+        peering.setRemoved(new java.util.Date());
+        ovnVpcPeeringDao.update(peering.getId(), peering);
+        return true;
+    }
+
+    @Override
+    public List<VpcPeeringResponse> listVpcPeerings(ListVpcPeeringsCmd cmd) {
+        long callerId = CallContext.current().getCallingAccount().getId();
+        List<OvnVpcPeeringVO> peerings;
+        if (cmd.getVpcId() != null) {
+            peerings = ovnVpcPeeringDao.listByVpcId(cmd.getVpcId());
+        } else if (cmd.getGroupUuid() != null) {
+            peerings = ovnVpcPeeringDao.listByGroupUuid(cmd.getGroupUuid());
+        } else if (accountMgr.isRootAdmin(callerId)) {
+            peerings = ovnVpcPeeringDao.listByAccountId(callerId);
+        } else {
+            peerings = ovnVpcPeeringDao.listByAccountId(callerId);
+        }
+
+        List<VpcPeeringResponse> responses = new ArrayList<>();
+        for (OvnVpcPeeringVO p : peerings) {
+            responses.add(createVpcPeeringResponse(p));
+        }
+        return responses;
+    }
+
+    @Override
+    public VpcPeeringResponse createVpcPeeringResponse(OvnVpcPeeringVO peering) {
+        VpcPeeringResponse response = new VpcPeeringResponse();
+        response.setObjectName("vpcpeering");
+        response.setId(peering.getUuid());
+        response.setGroupUuid(peering.getGroupUuid());
+        response.setLinkLocalIp(peering.getLinkLocalIp());
+        response.setState(peering.getState());
+        response.setCreated(peering.getCreated());
+
+        VpcVO vpc = vpcDao.findById(peering.getVpcId());
+        if (vpc != null) {
+            response.setVpcId(vpc.getUuid());
+            response.setVpcName(vpc.getName());
+            response.setVpcCidr(vpc.getCidr());
+        }
+
+        DataCenterVO zone = dataCenterDao.findById(peering.getZoneId());
+        if (zone != null) {
+            response.setZoneId(zone.getUuid());
+            response.setZoneName(zone.getName());
+        }
+
+        // Find the "other" VPCs in this group for richer response
+        List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(peering.getGroupUuid());
+        for (OvnVpcPeeringVO m : groupMembers) {
+            if (m.getVpcId() != peering.getVpcId()) {
+                VpcVO peerVpc = vpcDao.findById(m.getVpcId());
+                if (peerVpc != null) {
+                    response.setPeerVpcId(peerVpc.getUuid());
+                    response.setPeerVpcName(peerVpc.getName());
+                    response.setPeerVpcCidr(peerVpc.getCidr());
+                }
+                break;
+            }
+        }
+
+        return response;
+    }
+
+    protected void provisionPeeringGroup(String groupUuid) {
+        List<OvnVpcPeeringVO> members = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+        if (members.isEmpty()) return;
+
+        // Use the first member's provider to create the shared peering LS.
+        // For cross-zone peering, the LS exists on the OVN interconnection fabric which is
+        // accessible from both zones via the same NB connection.
+        OvnProviderVO firstProvider = ovnProviderDao.findByZoneId(members.get(0).getZoneId());
+        if (firstProvider == null) return;
+
+        String peerLs = getPeeringLsName(groupUuid);
+        Map<String, String> lsExt = new HashMap<>();
+        lsExt.put(PEERING_EXT_KEY, groupUuid);
+        lsExt.put("cloudstack_role", "vpc-peering");
+        ovnNbClient.createLogicalSwitch(firstProvider.getNbConnection(),
+                firstProvider.getCaCertPath(), firstProvider.getClientCertPath(), firstProvider.getClientPrivateKeyPath(),
+                peerLs, lsExt);
+
+        // Ensure each member is attached and has routes to every other member
+        for (OvnVpcPeeringVO member : members) {
+            OvnProviderVO provider = ovnProviderDao.findByZoneId(member.getZoneId());
+            if (provider == null) continue;
+            VpcVO vpc = vpcDao.findById(member.getVpcId());
+            if (vpc == null) continue;
+
+            String routerName = String.format("cs-vpc-%d", member.getVpcId());
+            String lrpName = getPeeringLrpName(groupUuid, member.getVpcId());
+            String mac = buildPeeringMac(member.getVpcId());
+
+            // Attach router to peering switch
+            ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    routerName, peerLs, lrpName, mac,
+                    Collections.singletonList(member.getLinkLocalIp() + "/24"));
+
+            // Add routes and NAT bypass policies for every OTHER member
+            for (OvnVpcPeeringVO other : members) {
+                if (other.getVpcId() == member.getVpcId()) continue;
+                VpcVO otherVpc = vpcDao.findById(other.getVpcId());
+                if (otherVpc == null || otherVpc.getCidr() == null) continue;
+
+                Map<String, String> routeExt = new HashMap<>();
+                routeExt.put(PEERING_EXT_KEY, groupUuid);
+                routeExt.put(PEERING_EXT_KEY + "_target", String.valueOf(other.getVpcId()));
+                ovnNbClient.addStaticRoute(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, otherVpc.getCidr(), other.getLinkLocalIp(), routeExt);
+
+                // NAT bypass: skip SNAT for traffic destined to peered VPC
+                String match = String.format("ip4.dst == %s", otherVpc.getCidr());
+                Map<String, String> polExt = new HashMap<>();
+                polExt.put(PEERING_EXT_KEY, groupUuid);
+                polExt.put(PEERING_EXT_KEY + "_target", String.valueOf(other.getVpcId()));
+                ovnNbClient.addLogicalRouterPolicy(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, NAT_BYPASS_PRIORITY, match, "allow", null, polExt);
+            }
+        }
+    }
+
+    protected void removePeeringsForVpc(Vpc vpc, OvnProviderVO provider) {
+        List<OvnVpcPeeringVO> peerings = ovnVpcPeeringDao.listByVpcId(vpc.getId());
+        for (OvnVpcPeeringVO peering : peerings) {
+            try {
+                String groupUuid = peering.getGroupUuid();
+                String routerName = String.format("cs-vpc-%d", vpc.getId());
+
+                // Clean up routes/policies on other members
+                List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+                for (OvnVpcPeeringVO member : groupMembers) {
+                    if (member.getVpcId() == vpc.getId()) continue;
+                    OvnProviderVO memberProvider = ovnProviderDao.findByZoneId(member.getZoneId());
+                    if (memberProvider == null) continue;
+                    String memberRouter = String.format("cs-vpc-%d", member.getVpcId());
+                    ovnNbClient.removeStaticRoute(memberProvider.getNbConnection(),
+                            memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
+                            memberRouter, vpc.getCidr(), peering.getLinkLocalIp());
+                    ovnNbClient.removeLogicalRouterPoliciesByExternalId(memberProvider.getNbConnection(),
+                            memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
+                            memberRouter, PEERING_EXT_KEY + "_target", String.valueOf(vpc.getId()));
+                }
+
+                // Remove our own routes/policies
+                ovnNbClient.removeStaticRoutesByExternalId(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, PEERING_EXT_KEY, groupUuid);
+                ovnNbClient.removeLogicalRouterPoliciesByExternalId(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, PEERING_EXT_KEY, groupUuid);
+
+                // Remove LRP+LSP
+                ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, getPeeringLrpName(groupUuid, vpc.getId()));
+                ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        getPeeringLsName(groupUuid), getPeeringLspName(groupUuid, vpc.getId()));
+
+                // Delete peering LS if last member
+                long activeCount = groupMembers.stream().filter(m -> m.getVpcId() != vpc.getId()).count();
+                if (activeCount == 0) {
+                    ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            getPeeringLsName(groupUuid));
+                }
+
+                peering.setState("Removed");
+                peering.setRemoved(new java.util.Date());
+                ovnVpcPeeringDao.update(peering.getId(), peering);
+            } catch (CloudRuntimeException e) {
+                logger.warn("Failed to clean up peering {} for VPC {}: {}", peering.getUuid(), vpc.getId(), e.getMessage());
+            }
+        }
+    }
+
+    private static String getPeeringLsName(String groupUuid) {
+        return "cs-peer-" + groupUuid;
+    }
+
+    private static String getPeeringLrpName(String groupUuid, long vpcId) {
+        return String.format("lrp-peer-%s-vpc-%d", groupUuid, vpcId);
+    }
+
+    private static String getPeeringLspName(String groupUuid, long vpcId) {
+        return String.format("lsp-peer-%s-vpc-%d", groupUuid, vpcId);
+    }
+
+    private static String buildPeeringMac(long vpcId) {
+        return String.format("fa:16:3e:fa:%02x:%02x",
+                (int) ((vpcId >> 8) & 0xff),
+                (int) (vpcId & 0xff));
+    }
+
+    private static String allocateLinkLocalIp(Set<String> usedIps) {
+        // Pool: 169.254.100.1 through 169.254.100.253 (skip .0 and .255)
+        for (int i = 1; i <= 253; i++) {
+            String ip = "169.254.100." + i;
+            if (!usedIps.contains(ip)) {
+                return ip;
+            }
+        }
+        throw new CloudRuntimeException("No available link-local IPs in peering pool 169.254.100.0/24");
     }
 }

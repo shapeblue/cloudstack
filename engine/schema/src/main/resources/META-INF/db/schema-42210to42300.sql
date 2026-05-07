@@ -140,3 +140,25 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_providers` (
     UNIQUE KEY `uk_ovn_providers__zone_id` (`zone_id`),
     INDEX `i_ovn_providers__zone_id`(`zone_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- OVN VPC Peering
+CREATE TABLE IF NOT EXISTS `cloud`.`ovn_vpc_peerings` (
+    `id` bigint unsigned NOT NULL auto_increment,
+    `uuid` varchar(40) NOT NULL,
+    `group_uuid` varchar(40) NOT NULL COMMENT 'Peering mesh group identifier',
+    `vpc_id` bigint unsigned NOT NULL,
+    `zone_id` bigint unsigned NOT NULL,
+    `account_id` bigint unsigned NOT NULL,
+    `domain_id` bigint unsigned NOT NULL,
+    `link_local_ip` varchar(15) NOT NULL COMMENT 'Link-local IP on the peering switch',
+    `state` varchar(16) NOT NULL DEFAULT 'Active',
+    `created` datetime NOT NULL,
+    `removed` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_ovn_vpc_peerings_uuid` (`uuid`),
+    INDEX `i_ovn_vpc_peerings_group` (`group_uuid`),
+    INDEX `i_ovn_vpc_peerings_vpc` (`vpc_id`),
+    CONSTRAINT `fk_ovn_vpc_peerings_vpc` FOREIGN KEY (`vpc_id`) REFERENCES `cloud`.`vpc`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_vpc_peerings_zone` FOREIGN KEY (`zone_id`) REFERENCES `cloud`.`data_center`(`id`),
+    CONSTRAINT `fk_ovn_vpc_peerings_account` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

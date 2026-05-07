@@ -34,8 +34,11 @@ import com.cloud.utils.db.TransactionCallback;
 import com.cloud.utils.exception.CloudRuntimeException;
 import org.apache.cloudstack.api.BaseResponse;
 import org.apache.cloudstack.api.command.AddOvnProviderCmd;
+import org.apache.cloudstack.api.command.CreateVpcPeeringCmd;
 import org.apache.cloudstack.api.command.DeleteOvnProviderCmd;
+import org.apache.cloudstack.api.command.DeleteVpcPeeringCmd;
 import org.apache.cloudstack.api.command.ListOvnProvidersCmd;
+import org.apache.cloudstack.api.command.ListVpcPeeringsCmd;
 import org.apache.cloudstack.api.response.OvnProviderResponse;
 import org.apache.cloudstack.engine.orchestration.service.NetworkOrchestrationService;
 import org.apache.commons.lang3.StringUtils;
@@ -177,6 +180,9 @@ public class OvnProviderServiceImpl implements OvnProviderService {
             cmdList.add(AddOvnProviderCmd.class);
             cmdList.add(ListOvnProvidersCmd.class);
             cmdList.add(DeleteOvnProviderCmd.class);
+            cmdList.add(CreateVpcPeeringCmd.class);
+            cmdList.add(DeleteVpcPeeringCmd.class);
+            cmdList.add(ListVpcPeeringsCmd.class);
         }
         return cmdList;
     }
