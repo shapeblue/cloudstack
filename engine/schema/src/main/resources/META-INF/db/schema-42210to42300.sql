@@ -131,3 +131,49 @@ CREATE TABLE IF NOT EXISTS `cloud_usage`.`quota_tariff_usage` (
 -- Add the 'keep_mac_address_on_public_nic' column to the 'cloud.networks' and 'cloud.vpc' tables
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.networks', 'keep_mac_address_on_public_nic', 'TINYINT(1) NOT NULL DEFAULT 1');
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.vpc', 'keep_mac_address_on_public_nic', 'TINYINT(1) NOT NULL DEFAULT 1');
+
+-- Generalise VM schedule tables into resource-agnostic resource_schedule / resource_scheduled_job.
+-- Step 1: rename vm_schedule → resource_schedule, rename vm_id → resource_id, add resource_type column.
+ALTER TABLE `cloud`.`vm_schedule`
+    DROP FOREIGN KEY `fk_vm_schedule__vm_id`,
+    DROP INDEX `i_vm_schedule__vm_id`,
+    DROP INDEX `i_vm_schedule__enabled_end_date`,
+    CHANGE COLUMN `vm_id` `resource_id` bigint unsigned NOT NULL COMMENT 'id of the scheduled resource',
+    ADD COLUMN `resource_type` varchar(64) NOT NULL DEFAULT 'VirtualMachine' COMMENT 'type of the scheduled resource' AFTER `uuid`;
+
+RENAME TABLE `cloud`.`vm_schedule` TO `cloud`.`resource_schedule`;
+
+ALTER TABLE `cloud`.`resource_schedule`
+    ADD INDEX `i_resource_schedule__resource` (`resource_type`, `resource_id`),
+    ADD INDEX `i_resource_schedule__enabled_end_date` (`enabled`, `end_date`);
+
+-- Step 2: rename vm_scheduled_job → resource_scheduled_job, rename columns.
+ALTER TABLE `cloud`.`vm_scheduled_job`
+    DROP FOREIGN KEY `fk_vm_scheduled_job__vm_id`,
+    DROP FOREIGN KEY `fk_vm_scheduled_job__vm_schedule_id`,
+    DROP INDEX `i_vm_scheduled_job__vm_id`,
+    DROP INDEX `i_vm_scheduled_job__scheduled_timestamp`,
+    DROP INDEX `vm_schedule_id`,
+    CHANGE COLUMN `vm_id` `resource_id` bigint unsigned NOT NULL COMMENT 'id of the scheduled resource',
+    CHANGE COLUMN `vm_schedule_id` `schedule_id` bigint unsigned NOT NULL COMMENT 'id of the resource_schedule row',
+    ADD COLUMN `resource_type` varchar(64) NOT NULL DEFAULT 'VirtualMachine' COMMENT 'type of the scheduled resource' AFTER `uuid`;
+
+RENAME TABLE `cloud`.`vm_scheduled_job` TO `cloud`.`resource_scheduled_job`;
+
+ALTER TABLE `cloud`.`resource_scheduled_job`
+    ADD UNIQUE KEY `uc_resource_scheduled_job__schedule_timestamp` (`schedule_id`, `scheduled_timestamp`),
+    ADD INDEX `i_resource_scheduled_job__resource` (`resource_type`, `resource_id`),
+    ADD INDEX `i_resource_scheduled_job__scheduled_timestamp` (`scheduled_timestamp`),
+    ADD CONSTRAINT `fk_resource_scheduled_job__schedule_id` FOREIGN KEY (`schedule_id`) REFERENCES `resource_schedule`(`id`) ON DELETE CASCADE;
+
+-- Step 3: details table for action-specific parameters (used by the generic resource schedule API in Commit 2).
+CREATE TABLE IF NOT EXISTS `cloud`.`resource_schedule_details` (
+    `id` bigint unsigned NOT NULL auto_increment,
+    `schedule_id` bigint unsigned NOT NULL COMMENT 'id of the resource_schedule row',
+    `name` varchar(255) NOT NULL,
+    `value` varchar(1024) NOT NULL,
+    `display` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'should this detail be visible to the end user',
+    PRIMARY KEY (`id`),
+    INDEX `i_resource_schedule_details__schedule_id` (`schedule_id`),
+    CONSTRAINT `fk_resource_schedule_details__schedule_id` FOREIGN KEY (`schedule_id`) REFERENCES `resource_schedule`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
