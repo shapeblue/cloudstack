@@ -40,6 +40,7 @@ public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> 
         allFieldsSearch.and("zone_id", allFieldsSearch.entity().getZoneId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("account_id", allFieldsSearch.entity().getAccountId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("state", allFieldsSearch.entity().getState(), SearchCriteria.Op.EQ);
+        allFieldsSearch.and("acl_id", allFieldsSearch.entity().getAclId(), SearchCriteria.Op.EQ);
         allFieldsSearch.done();
     }
 
@@ -74,5 +75,27 @@ public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> 
         sc.setParameters("account_id", accountId);
         sc.setParameters("state", "Active");
         return listBy(sc);
+    }
+
+    @Override
+    public List<OvnVpcPeeringVO> listByAclId(long aclId) {
+        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+        sc.setParameters("acl_id", aclId);
+        sc.setParameters("state", "Active");
+        return listBy(sc);
+    }
+
+    @Override
+    public List<OvnVpcPeeringVO> listAllActive() {
+        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+        sc.setParameters("state", "Active");
+        return listBy(sc);
+    }
+
+    @Override
+    public OvnVpcPeeringVO findByUuid(String uuid) {
+        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+        sc.setParameters("uuid", uuid);
+        return findOneBy(sc);
     }
 }

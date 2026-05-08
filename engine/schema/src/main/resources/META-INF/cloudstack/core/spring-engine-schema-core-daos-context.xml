@@ -140,6 +140,7 @@
   <bean id="nsxControllerDaoImpl" class="com.cloud.network.dao.NsxProviderDaoImpl" />
   <bean id="netrisProviderDaoImpl" class="com.cloud.network.dao.NetrisProviderDaoImpl" />
   <bean id="ovnProviderDaoImpl" class="com.cloud.network.dao.OvnProviderDaoImpl" />
+  <bean id="ovnVpcPeeringDaoImpl" class="com.cloud.network.dao.OvnVpcPeeringDaoImpl" />
   <bean id="tungstenControllerDaoImpl" class="com.cloud.network.dao.TungstenProviderDaoImpl"/>
   <bean id="physicalNetworkDaoImpl" class="com.cloud.network.dao.PhysicalNetworkDaoImpl" />
   <bean id="physicalNetworkIsolationMethodDaoImpl" class="com.cloud.network.dao.PhysicalNetworkIsolationMethodDaoImpl" />

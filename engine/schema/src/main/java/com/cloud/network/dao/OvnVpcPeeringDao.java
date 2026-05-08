@@ -26,4 +26,7 @@ public interface OvnVpcPeeringDao extends GenericDao<OvnVpcPeeringVO, Long> {
     List<OvnVpcPeeringVO> listByVpcId(long vpcId);
     OvnVpcPeeringVO findByGroupUuidAndVpcId(String groupUuid, long vpcId);
     List<OvnVpcPeeringVO> listByAccountId(long accountId);
+    List<OvnVpcPeeringVO> listAllActive();
+    List<OvnVpcPeeringVO> listByAclId(long aclId);
+    OvnVpcPeeringVO findByUuid(String uuid);
 }

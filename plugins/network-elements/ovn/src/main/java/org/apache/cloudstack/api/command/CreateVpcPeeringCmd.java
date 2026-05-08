@@ -51,12 +51,20 @@ public class CreateVpcPeeringCmd extends BaseCmd {
             required = true, description = "The ID of the peer VPC. If it already belongs to a peering group, the calling VPC joins that group.")
     private Long peerVpcId;
 
+    @Parameter(name = "aclid", type = CommandType.UUID, entityType = org.apache.cloudstack.api.response.NetworkACLResponse.class,
+            description = "The ID of a VPC Network ACL list to apply to this peering membership. Controls what traffic is allowed through the peering connection.")
+    private Long aclId;
+
     public Long getVpcId() {
         return vpcId;
     }
 
     public Long getPeerVpcId() {
         return peerVpcId;
+    }
+
+    public Long getAclId() {
+        return aclId;
     }
 
     @Override

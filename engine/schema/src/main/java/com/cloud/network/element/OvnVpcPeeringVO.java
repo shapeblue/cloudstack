@@ -57,6 +57,9 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
     @Column(name = "link_local_ip")
     private String linkLocalIp;
 
+    @Column(name = "acl_id")
+    private Long aclId;
+
     @Column(name = "state")
     private String state;
 
@@ -114,6 +117,14 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
 
     public String getLinkLocalIp() {
         return linkLocalIp;
+    }
+
+    public Long getAclId() {
+        return aclId;
+    }
+
+    public void setAclId(Long aclId) {
+        this.aclId = aclId;
     }
 
     public String getState() {

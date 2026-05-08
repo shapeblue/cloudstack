@@ -20,12 +20,14 @@ import com.cloud.network.element.OvnVpcPeeringVO;
 import org.apache.cloudstack.api.command.CreateVpcPeeringCmd;
 import org.apache.cloudstack.api.command.DeleteVpcPeeringCmd;
 import org.apache.cloudstack.api.command.ListVpcPeeringsCmd;
+import org.apache.cloudstack.api.command.UpdateVpcPeeringCmd;
 import org.apache.cloudstack.api.response.VpcPeeringResponse;
 
 import java.util.List;
 
 public interface OvnPeeringService {
     OvnVpcPeeringVO createVpcPeering(CreateVpcPeeringCmd cmd);
+    OvnVpcPeeringVO updateVpcPeering(UpdateVpcPeeringCmd cmd);
     boolean deleteVpcPeering(DeleteVpcPeeringCmd cmd);
     List<VpcPeeringResponse> listVpcPeerings(ListVpcPeeringsCmd cmd);
     VpcPeeringResponse createVpcPeeringResponse(OvnVpcPeeringVO peering);

@@ -56,6 +56,12 @@ public class VpcPeeringResponse extends BaseResponse {
     @SerializedName("linklocalip")
     private String linkLocalIp;
 
+    @SerializedName("aclid")
+    private String aclId;
+
+    @SerializedName("aclname")
+    private String aclName;
+
     @SerializedName(ApiConstants.STATE)
     private String state;
 
@@ -104,6 +110,14 @@ public class VpcPeeringResponse extends BaseResponse {
 
     public void setLinkLocalIp(String linkLocalIp) {
         this.linkLocalIp = linkLocalIp;
+    }
+
+    public void setAclId(String aclId) {
+        this.aclId = aclId;
+    }
+
+    public void setAclName(String aclName) {
+        this.aclName = aclName;
     }
 
     public void setState(String state) {

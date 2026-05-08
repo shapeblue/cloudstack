@@ -934,6 +934,16 @@ export default {
       ]
     },
     {
+      name: 'vpcpeering',
+      title: 'label.vpc.peering',
+      icon: 'swap-outlined',
+      permission: ['listVpcPeerings'],
+      component: shallowRef(defineAsyncComponent(() => import('@/views/network/VpcPeeringDashboard.vue'))),
+      show: () => {
+        return isZoneCreated()
+      }
+    },
+    {
       name: 'privategw',
       title: 'label.private.gateway',
       icon: 'gateway-outlined',

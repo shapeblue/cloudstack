@@ -54,6 +54,10 @@ import com.cloud.network.rules.LoadBalancerContainer;
 import com.cloud.network.rules.PortForwardingRule;
 import com.cloud.network.rules.StaticNat;
 import com.cloud.network.vpc.NetworkACLItem;
+import com.cloud.network.vpc.NetworkACLItemDao;
+import com.cloud.network.vpc.NetworkACLItemVO;
+import com.cloud.network.vpc.NetworkACLVO;
+import com.cloud.network.vpc.dao.NetworkACLDao;
 import com.cloud.network.vpc.PrivateGateway;
 import com.cloud.network.vpc.StaticRouteProfile;
 import com.cloud.network.vpc.Vpc;
@@ -67,6 +71,7 @@ import com.cloud.vm.VirtualMachineProfile;
 import org.apache.cloudstack.api.command.CreateVpcPeeringCmd;
 import org.apache.cloudstack.api.command.DeleteVpcPeeringCmd;
 import org.apache.cloudstack.api.command.ListVpcPeeringsCmd;
+import org.apache.cloudstack.api.command.UpdateVpcPeeringCmd;
 import org.apache.cloudstack.api.response.VpcPeeringResponse;
 import org.apache.cloudstack.context.CallContext;
 import com.cloud.exception.InvalidParameterValueException;
@@ -117,6 +122,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Inject
     DataCenterDao dataCenterDao;
+
+    @Inject
+    NetworkACLDao networkACLDao;
+
+    @Inject
+    NetworkACLItemDao networkACLItemDao;
 
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
@@ -547,7 +558,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         List<IPAddressVO> ips = ipAddressDao.listByAssociatedNetwork(network.getId(), true);
         if (ips != null) {
             for (IPAddressVO ipVo : ips) {
-                if (ipVo.getAddress() == null || !ipVo.isSourceNat()) {
+                if (ipVo.getAddress() == null || ipVo.getState() == com.cloud.network.IpAddress.State.Releasing) {
                     continue;
                 }
                 addresses.append(' ').append(ipVo.getAddress().addr());
@@ -559,9 +570,15 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         }
         Map<String, String> options = new HashMap<>();
         options.put("nat-addresses", addresses.toString());
-        // Without this, ovn-controller would also gARP every Load_Balancer VIP on the LR; we have
-        // no LBs yet, but this stays consistent with the Neutron OVN driver default.
-        options.put("exclude-lb-vips-from-garp", "true");
+        StringBuilder arpProxy = new StringBuilder();
+        for (IPAddressVO ipVo : ips) {
+            if (ipVo.getAddress() == null || ipVo.getState() == com.cloud.network.IpAddress.State.Releasing) {
+                continue;
+            }
+            if (arpProxy.length() > 0) arpProxy.append(' ');
+            arpProxy.append(ipVo.getAddress().addr());
+        }
+        options.put("arp_proxy", arpProxy.toString());
         ovnNbClient.setLspOptions(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                 externalLrpLsp, options);
@@ -580,7 +597,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         List<IPAddressVO> ips = ipAddressDao.listByAssociatedVpc(vpc.getId(), true);
         if (ips != null) {
             for (IPAddressVO ipVo : ips) {
-                if (ipVo.getAddress() == null || !ipVo.isSourceNat()) {
+                if (ipVo.getAddress() == null || ipVo.getState() == com.cloud.network.IpAddress.State.Releasing) {
                     continue;
                 }
                 addresses.append(' ').append(ipVo.getAddress().addr());
@@ -592,7 +609,18 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         }
         Map<String, String> options = new HashMap<>();
         options.put("nat-addresses", addresses.toString());
-        options.put("exclude-lb-vips-from-garp", "true");
+        // arp_proxy makes OVN generate ARP responder flows on the external LS
+        // for every IP the router owns, including port-forwarding VIPs that
+        // only exist as LB entries (no dnat_and_snat NAT row on the router).
+        StringBuilder arpProxy = new StringBuilder();
+        for (IPAddressVO ipVo : ips) {
+            if (ipVo.getAddress() == null || ipVo.getState() == com.cloud.network.IpAddress.State.Releasing) {
+                continue;
+            }
+            if (arpProxy.length() > 0) arpProxy.append(' ');
+            arpProxy.append(ipVo.getAddress().addr());
+        }
+        options.put("arp_proxy", arpProxy.toString());
         ovnNbClient.setLspOptions(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                 externalLrpLsp, options);
@@ -1446,6 +1474,15 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             // Always install a default-deny at priority 1 for both directions so that
             // unmatched traffic is dropped (OVN ACL default is allow when no rule matches).
             ensureNetworkAclDefaultDeny(provider, config, guestLs);
+
+            // If this ACL is also used by a peering membership, re-apply on the peering LS
+            if (rules != null && !rules.isEmpty()) {
+                long aclId = rules.get(0).getAclId();
+                List<OvnVpcPeeringVO> peeringsWithAcl = ovnVpcPeeringDao.listByAclId(aclId);
+                for (OvnVpcPeeringVO peering : peeringsWithAcl) {
+                    applyPeeringAcl(peering);
+                }
+            }
         } catch (CloudRuntimeException e) {
             throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, config.getDataCenterId());
         }
@@ -2113,6 +2150,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (peerVpc.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
             throw new PermissionDeniedException("Caller does not own peer VPC " + peerVpc.getUuid());
         }
+        if (vpc.getAccountId() != peerVpc.getAccountId()) {
+            throw new InvalidParameterValueException("VPC peering is only allowed between VPCs of the same account");
+        }
 
         OvnProviderVO providerA = ovnProviderDao.findByZoneId(vpc.getZoneId());
         OvnProviderVO providerB = ovnProviderDao.findByZoneId(peerVpc.getZoneId());
@@ -2153,6 +2193,18 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             usedIps.add(m.getLinkLocalIp());
         }
 
+        // Validate ACL belongs to the calling VPC if specified
+        Long aclId = cmd.getAclId();
+        if (aclId != null) {
+            NetworkACLVO acl = networkACLDao.findById(aclId);
+            if (acl == null) {
+                throw new InvalidParameterValueException("Network ACL not found: " + aclId);
+            }
+            if (acl.getVpcId() != 0 && acl.getVpcId() != vpc.getId()) {
+                throw new InvalidParameterValueException("Network ACL does not belong to VPC " + vpc.getUuid());
+            }
+        }
+
         OvnVpcPeeringVO peeringA = null;
         OvnVpcPeeringVO peeringB = null;
 
@@ -2161,6 +2213,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             usedIps.add(ipA);
             peeringA = new OvnVpcPeeringVO(groupUuid, vpc.getId(), vpc.getZoneId(),
                     vpc.getAccountId(), vpc.getDomainId(), ipA);
+            peeringA.setAclId(aclId);
             peeringA = ovnVpcPeeringDao.persist(peeringA);
         } else {
             peeringA = ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, vpc.getId());
@@ -2182,7 +2235,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean deleteVpcPeering(DeleteVpcPeeringCmd cmd) {
-        OvnVpcPeeringVO peering = ovnVpcPeeringDao.findById(cmd.getId());
+        OvnVpcPeeringVO peering = ovnVpcPeeringDao.findByUuid(cmd.getId());
         if (peering == null || !"Active".equals(peering.getState())) {
             throw new InvalidParameterValueException("VPC peering not found or already removed: " + cmd.getId());
         }
@@ -2225,8 +2278,14 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     routerName, PEERING_EXT_KEY, groupUuid);
 
-            // Remove LRP+LSP for this VPC on the peering switch
+            // Remove peering ACLs for this VPC on the peering LS
             String peerLs = getPeeringLsName(groupUuid);
+            String peeringTag = "cloudstack_peering_acl_vpc_" + vpcId;
+            ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    peerLs, peeringTag, "true");
+
+            // Remove LRP+LSP for this VPC on the peering switch
             String lrpName = getPeeringLrpName(groupUuid, vpcId);
             ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -2235,13 +2294,19 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     peerLs, getPeeringLspName(groupUuid, vpcId));
 
-            // If no other members, delete the peering LS
+            // If no other members, delete the peering LS from all zones
             List<OvnVpcPeeringVO> remaining = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
             long activeCount = remaining.stream().filter(m -> m.getVpcId() != vpcId).count();
             if (activeCount == 0) {
-                ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
-                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        peerLs);
+                Set<Long> cleanedZones = new HashSet<>();
+                for (OvnVpcPeeringVO m : remaining) {
+                    if (!cleanedZones.add(m.getZoneId())) continue;
+                    OvnProviderVO zp = ovnProviderDao.findByZoneId(m.getZoneId());
+                    if (zp == null) continue;
+                    ovnNbClient.deleteLogicalSwitch(zp.getNbConnection(),
+                            zp.getCaCertPath(), zp.getClientCertPath(), zp.getClientPrivateKeyPath(),
+                            peerLs);
+                }
             }
         }
 
@@ -2249,6 +2314,35 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         peering.setRemoved(new java.util.Date());
         ovnVpcPeeringDao.update(peering.getId(), peering);
         return true;
+    }
+
+    @Override
+    public OvnVpcPeeringVO updateVpcPeering(UpdateVpcPeeringCmd cmd) {
+        OvnVpcPeeringVO peering = ovnVpcPeeringDao.findByUuid(cmd.getId());
+        if (peering == null || !"Active".equals(peering.getState())) {
+            throw new InvalidParameterValueException("VPC peering not found or already removed: " + cmd.getId());
+        }
+        long callerId = CallContext.current().getCallingAccount().getId();
+        if (peering.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+            throw new PermissionDeniedException("Caller does not own this peering");
+        }
+
+        Long aclId = cmd.getAclId();
+        if (aclId != null) {
+            NetworkACLVO acl = networkACLDao.findById(aclId);
+            if (acl == null) {
+                throw new InvalidParameterValueException("Network ACL not found: " + aclId);
+            }
+            if (acl.getVpcId() != 0 && acl.getVpcId() != peering.getVpcId()) {
+                throw new InvalidParameterValueException("Network ACL does not belong to this peering's VPC");
+            }
+        }
+
+        peering.setAclId(aclId);
+        ovnVpcPeeringDao.update(peering.getId(), peering);
+
+        applyPeeringAcl(peering);
+        return peering;
     }
 
     @Override
@@ -2260,7 +2354,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         } else if (cmd.getGroupUuid() != null) {
             peerings = ovnVpcPeeringDao.listByGroupUuid(cmd.getGroupUuid());
         } else if (accountMgr.isRootAdmin(callerId)) {
-            peerings = ovnVpcPeeringDao.listByAccountId(callerId);
+            peerings = ovnVpcPeeringDao.listAllActive();
         } else {
             peerings = ovnVpcPeeringDao.listByAccountId(callerId);
         }
@@ -2295,6 +2389,14 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             response.setZoneName(zone.getName());
         }
 
+        if (peering.getAclId() != null) {
+            NetworkACLVO acl = networkACLDao.findById(peering.getAclId());
+            if (acl != null) {
+                response.setAclId(acl.getUuid());
+                response.setAclName(acl.getName());
+            }
+        }
+
         // Find the "other" VPCs in this group for richer response
         List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(peering.getGroupUuid());
         for (OvnVpcPeeringVO m : groupMembers) {
@@ -2316,19 +2418,22 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         List<OvnVpcPeeringVO> members = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
         if (members.isEmpty()) return;
 
-        // Use the first member's provider to create the shared peering LS.
-        // For cross-zone peering, the LS exists on the OVN interconnection fabric which is
-        // accessible from both zones via the same NB connection.
-        OvnProviderVO firstProvider = ovnProviderDao.findByZoneId(members.get(0).getZoneId());
-        if (firstProvider == null) return;
-
         String peerLs = getPeeringLsName(groupUuid);
         Map<String, String> lsExt = new HashMap<>();
         lsExt.put(PEERING_EXT_KEY, groupUuid);
         lsExt.put("cloudstack_role", "vpc-peering");
-        ovnNbClient.createLogicalSwitch(firstProvider.getNbConnection(),
-                firstProvider.getCaCertPath(), firstProvider.getClientCertPath(), firstProvider.getClientPrivateKeyPath(),
-                peerLs, lsExt);
+
+        // Create the peering LS in every distinct zone that participates.
+        // Each zone has its own OVN NB, so the LS must exist in each.
+        Set<Long> provisionedZones = new HashSet<>();
+        for (OvnVpcPeeringVO member : members) {
+            if (!provisionedZones.add(member.getZoneId())) continue;
+            OvnProviderVO zoneProvider = ovnProviderDao.findByZoneId(member.getZoneId());
+            if (zoneProvider == null) continue;
+            ovnNbClient.createLogicalSwitch(zoneProvider.getNbConnection(),
+                    zoneProvider.getCaCertPath(), zoneProvider.getClientCertPath(), zoneProvider.getClientPrivateKeyPath(),
+                    peerLs, lsExt);
+        }
 
         // Ensure each member is attached and has routes to every other member
         for (OvnVpcPeeringVO member : members) {
@@ -2370,6 +2475,88 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                         routerName, NAT_BYPASS_PRIORITY, match, "allow", null, polExt);
             }
         }
+
+        // Apply ACLs on the peering LS for members that have an ACL configured
+        for (OvnVpcPeeringVO member : members) {
+            if (member.getAclId() != null) {
+                applyPeeringAcl(member);
+            }
+        }
+    }
+
+    protected void applyPeeringAcl(OvnVpcPeeringVO peering) {
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(peering.getZoneId());
+        if (provider == null) return;
+
+        String peerLs = getPeeringLsName(peering.getGroupUuid());
+        String lspName = getPeeringLspName(peering.getGroupUuid(), peering.getVpcId());
+        String peeringTag = "cloudstack_peering_acl_vpc_" + peering.getVpcId();
+
+        // Wipe existing ACLs for this member on the peering LS
+        ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                peerLs, peeringTag, "true");
+
+        Long aclId = peering.getAclId();
+        if (aclId == null) {
+            return;
+        }
+
+        List<NetworkACLItemVO> rules = networkACLItemDao.listByACL(aclId);
+        if (rules == null || rules.isEmpty()) {
+            return;
+        }
+
+        for (NetworkACLItemVO rule : rules) {
+            if (rule.getState() == NetworkACLItem.State.Revoke) {
+                continue;
+            }
+            networkACLItemDao.loadCidrs(rule);
+            programPeeringAclRule(provider, peerLs, lspName, peering, rule);
+        }
+
+        // Default deny for both directions, scoped to this member's port
+        for (String dir : new String[]{"to-lport", "from-lport"}) {
+            String portField = "to-lport".equals(dir) ? "outport" : "inport";
+            String matchExpr = String.format("%s == \"%s\" && ip4", portField, lspName);
+            Map<String, String> ext = new HashMap<>();
+            ext.put(peeringTag, "true");
+            ext.put("cloudstack_acl_default", "true");
+            ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    peerLs, "peer-acl-default-" + dir + "-vpc-" + peering.getVpcId(),
+                    dir, 1L, matchExpr, "drop", ext);
+        }
+    }
+
+    protected void programPeeringAclRule(OvnProviderVO provider, String peerLs,
+                                          String lspName, OvnVpcPeeringVO peering,
+                                          NetworkACLItem rule) {
+        String direction = rule.getTrafficType() == NetworkACLItem.TrafficType.Ingress
+                ? "to-lport" : "from-lport";
+        String aclAction = rule.getAction() == NetworkACLItem.Action.Allow ? "allow-related" : "drop";
+        long ovnPriority = Math.max(2L, 1000L - rule.getNumber());
+
+        // Scope the match to this member's port on the peering LS
+        String portField = "to-lport".equals(direction) ? "outport" : "inport";
+        String baseMatch = buildNetworkAclMatch(direction, rule);
+        if (baseMatch == null) {
+            return;
+        }
+        String matchExpr = String.format("%s == \"%s\" && %s", portField, lspName, baseMatch);
+
+        String peeringTag = "cloudstack_peering_acl_vpc_" + peering.getVpcId();
+        Map<String, String> ext = new HashMap<>();
+        ext.put(peeringTag, "true");
+        ext.put("cloudstack_acl_rule_id", String.valueOf(rule.getId()));
+        ext.put("cloudstack_acl_id", String.valueOf(rule.getAclId()));
+        ext.put("cloudstack_acl_direction", direction);
+        ext.put(PEERING_EXT_KEY, peering.getGroupUuid());
+
+        ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                peerLs, "peer-acl-" + rule.getId() + "-vpc-" + peering.getVpcId(),
+                direction, ovnPriority, matchExpr, aclAction, ext);
     }
 
     protected void removePeeringsForVpc(Vpc vpc, OvnProviderVO provider) {

@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_vpc_peerings` (
     `account_id` bigint unsigned NOT NULL,
     `domain_id` bigint unsigned NOT NULL,
     `link_local_ip` varchar(15) NOT NULL COMMENT 'Link-local IP on the peering switch',
+    `acl_id` bigint unsigned DEFAULT NULL COMMENT 'Optional Network ACL applied to this peering membership',
     `state` varchar(16) NOT NULL DEFAULT 'Active',
     `created` datetime NOT NULL,
     `removed` datetime DEFAULT NULL,

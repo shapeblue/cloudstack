@@ -273,10 +273,22 @@
             <template v-if="column.key === 'peervpcname'">
               {{ text }}
             </template>
+            <template v-if="column.key === 'aclname'">
+              {{ text || $t('label.default.allow.all') }}
+            </template>
             <template v-if="column.key === 'state'">
               <status :text="record.state" displayText></status>
             </template>
             <template v-if="column.key === 'actions'">
+              <tooltip-button
+                tooltipPlacement="bottom"
+                :tooltip="$t('label.edit.acl')"
+                type="default"
+                icon="edit-outlined"
+                size="small"
+                style="margin-right: 4px"
+                @click="handleEditPeeringAcl(record)"
+                v-if="'updateVpcPeering' in $store.getters.apis" />
               <a-popconfirm
                 :title="$t('message.confirm.delete.vpc.peering')"
                 @confirm="handleDeleteVpcPeering(record)"
@@ -340,9 +352,64 @@
                 </a-select>
               </a-form-item>
 
+              <a-form-item :label="$t('label.aclid')" ref="peeringaclid" name="peeringaclid">
+                <a-select
+                  v-model:value="form.peeringaclid"
+                  showSearch
+                  optionFilterProp="label"
+                  allowClear
+                  :placeholder="$t('label.default.allow.all')"
+                  :filterOption="(input, option) => {
+                    return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }" >
+                  <a-select-option v-for="item in peeringAclList" :key="item.id" :value="item.id" :label="item.name">
+                    {{ item.name }} {{ item.description ? '(' + item.description + ')' : '' }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
               <div :span="24" class="action-button">
                 <a-button @click="modals.peering = false">{{ $t('label.cancel') }}</a-button>
                 <a-button type="primary" @click="handleCreateVpcPeering">{{ $t('label.ok') }}</a-button>
+              </div>
+            </a-form>
+          </a-spin>
+        </a-modal>
+
+        <a-modal
+          :visible="modals.peeringAcl"
+          :title="$t('label.edit.acl')"
+          :maskClosable="false"
+          :closable="true"
+          :footer="null"
+          @cancel="modals.peeringAcl = false">
+          <a-spin :spinning="modals.peeringAclLoading" v-ctrl-enter="handleUpdatePeeringAcl">
+            <a-form
+              layout="vertical"
+              @finish="handleUpdatePeeringAcl"
+              :ref="formRef"
+              :model="form"
+            >
+              <a-form-item :label="$t('label.aclid')">
+                <a-select
+                  v-model:value="form.peeringaclid"
+                  v-focus="true"
+                  showSearch
+                  optionFilterProp="label"
+                  allowClear
+                  :placeholder="$t('label.default.allow.all')"
+                  :filterOption="(input, option) => {
+                    return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }" >
+                  <a-select-option v-for="item in peeringAclList" :key="item.id" :value="item.id" :label="item.name">
+                    {{ item.name }} {{ item.description ? '(' + item.description + ')' : '' }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
+              <div :span="24" class="action-button">
+                <a-button @click="modals.peeringAcl = false">{{ $t('label.cancel') }}</a-button>
+                <a-button type="primary" @click="handleUpdatePeeringAcl">{{ $t('label.ok') }}</a-button>
               </div>
             </a-form>
           </a-spin>
@@ -565,6 +632,8 @@ export default {
       associatedNetworks: [],
       vpcPeerings: [],
       peerableVpcs: [],
+      peeringAclList: [],
+      editingPeeringId: null,
       vpnGateways: [],
       publicIps: [],
       vpnConnections: [],
@@ -578,7 +647,9 @@ export default {
         vpnConnectionLoading: false,
         networkAcl: false,
         peering: false,
-        peeringLoading: false
+        peeringLoading: false,
+        peeringAcl: false,
+        peeringAclLoading: false
       },
       placeholders: {
         vlan: null,
@@ -662,6 +733,11 @@ export default {
           dataIndex: 'linklocalip'
         },
         {
+          key: 'aclname',
+          title: this.$t('label.aclid'),
+          dataIndex: 'aclname'
+        },
+        {
           key: 'state',
           title: this.$t('label.state'),
           dataIndex: 'state'
@@ -670,7 +746,7 @@ export default {
           key: 'actions',
           title: '',
           dataIndex: 'actions',
-          width: 60
+          width: 100
         }
       ],
       itemCounts: {
@@ -947,8 +1023,10 @@ export default {
           this.rules = {
             peervpcid: [{ required: true, message: this.$t('label.required') }]
           }
+          this.form.peeringaclid = undefined
           this.modals.peering = true
           this.fetchPeerableVpcs()
+          this.fetchPeeringAclList()
           break
       }
     },
@@ -1190,10 +1268,14 @@ export default {
 
       this.formRef.value.validate().then(() => {
         const data = toRaw(this.form)
-        postAPI('createVpcPeering', {
+        const params = {
           vpcid: this.resource.id,
           peervpcid: data.peervpcid
-        }).then(response => {
+        }
+        if (data.peeringaclid) {
+          params.aclid = data.peeringaclid
+        }
+        postAPI('createVpcPeering', params).then(response => {
           this.$message.success(this.$t('message.success.add.vpc.peering'))
           this.modals.peering = false
           this.fetchVpcPeerings()
@@ -1218,6 +1300,42 @@ export default {
         this.$notifyError(error)
       }).finally(() => {
         this.fetchLoading = false
+      })
+    },
+    fetchPeeringAclList () {
+      getAPI('listNetworkACLLists', {
+        vpcid: this.resource.id,
+        listAll: true
+      }).then(json => {
+        this.peeringAclList = json.listnetworkacllistsresponse?.networkacllist || []
+      }).catch(error => {
+        this.$notifyError(error)
+      })
+    },
+    handleEditPeeringAcl (record) {
+      this.editingPeeringId = record.id
+      this.form.peeringaclid = record.aclid || undefined
+      this.modals.peeringAcl = true
+      this.fetchPeeringAclList()
+    },
+    handleUpdatePeeringAcl () {
+      if (this.modals.peeringAclLoading) return
+      this.modals.peeringAclLoading = true
+      const data = toRaw(this.form)
+      const params = {
+        id: this.editingPeeringId
+      }
+      if (data.peeringaclid) {
+        params.aclid = data.peeringaclid
+      }
+      postAPI('updateVpcPeering', params).then(() => {
+        this.$message.success(this.$t('message.success.update.vpc.peering'))
+        this.modals.peeringAcl = false
+        this.fetchVpcPeerings()
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.modals.peeringAclLoading = false
       })
     },
     changePage (page, pageSize) {
