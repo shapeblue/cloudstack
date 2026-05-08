@@ -1117,12 +1117,23 @@ public class OvnNbClient {
             DatabaseSchema schema = client.getSchema(SOUTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
             GenericTableSchema chassisTable = schema.table("Chassis", GenericTableSchema.class);
             ColumnSchema<GenericTableSchema, String> nameCol = chassisTable.column("name", String.class);
-            Operation<GenericTableSchema> select = OVSDB_OPS.select(chassisTable).column(nameCol);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> ocCol = chassisTable.column("other_config", Map.class);
+            Operation<GenericTableSchema> select = OVSDB_OPS.select(chassisTable).column(nameCol).column(ocCol);
             List<OperationResult> results = client.transact(schema, Collections.<Operation>singletonList(select))
                     .get(timeoutMs, TimeUnit.MILLISECONDS);
             List<String> names = new ArrayList<>();
             if (results != null && !results.isEmpty() && results.get(0).getRows() != null) {
                 for (Row<GenericTableSchema> row : results.get(0).getRows()) {
+                    // ovn-ic propagates remote-AZ chassis into the local SB with
+                    // other_config:is-remote=true. They must NOT be picked as a local
+                    // gateway-chassis anchor - the LRP would bind in the wrong zone and
+                    // upstream ARP/forwarding would fail in the local public segment.
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> oc = (Map<String, String>) row.getColumn(ocCol).getData();
+                    if (oc != null && "true".equalsIgnoreCase(oc.get("is-remote"))) {
+                        continue;
+                    }
                     String n = row.getColumn(nameCol).getData();
                     if (n != null && !n.isEmpty()) names.add(n);
                 }
@@ -2541,7 +2552,11 @@ public class OvnNbClient {
             for (Row<GenericTableSchema> row : r.get(0).getRows()) {
                 @SuppressWarnings("unchecked")
                 Map<String, String> oc = (Map<String, String>) row.getColumn(ocCol).getData();
-                if (oc != null && "true".equalsIgnoreCase(oc.get("is-interconn"))) {
+                if (oc == null) continue;
+                // Skip chassis propagated from other AZs by ovn-ic - they have
+                // is-remote=true. Local IC-eligible chassis carry is-interconn=true.
+                if ("true".equalsIgnoreCase(oc.get("is-remote"))) continue;
+                if ("true".equalsIgnoreCase(oc.get("is-interconn"))) {
                     result.add(row.getColumn(nameCol).getData());
                 }
             }
