@@ -1221,6 +1221,49 @@ public class OvnNbClient {
      * lr_in_unsnat, lr_out_snat) — without it the lr_in_dnat table only carries the default
      * priority-0 rule and DNAT silently does not happen.
      */
+    /**
+     * Idempotently overwrites a Logical_Router_Port's {@code networks} column. No-op if the
+     * existing set already matches. Used to drift-correct LRPs that were created with a
+     * stale CIDR (e.g. by a previous peering) so ovn-ic re-advertises the right nexthop.
+     */
+    public void setLrpNetworks(String nbConnection, String caCertPath, String clientCertPath,
+                               String clientPrivateKeyPath,
+                               String lrpName, List<String> networks) {
+        if (StringUtils.isBlank(lrpName) || networks == null || networks.isEmpty()) {
+            throw new CloudRuntimeException("setLrpNetworks: arguments are incomplete");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = lrpTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<String>> netCol = lrpTable.multiValuedColumn("networks", String.class);
+
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(lrpTable).column(netCol)
+                    .where(nameCol.opEqual(lrpName)).build();
+            List<OperationResult> selRes = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selRes == null || selRes.isEmpty() || selRes.get(0).getRows() == null
+                    || selRes.get(0).getRows().isEmpty()) {
+                logger.debug("setLrpNetworks: LRP [{}] not present at {} - skipping", lrpName, nbConnection);
+                return null;
+            }
+            Set<String> existing = selRes.get(0).getRows().get(0).getColumn(netCol).getData();
+            Set<String> desired = new java.util.HashSet<>(networks);
+            if (existing != null && existing.equals(desired)) {
+                logger.debug("setLrpNetworks: LRP [{}] already at {} - skipping", lrpName, networks);
+                return null;
+            }
+            Operation<GenericTableSchema> update = OVSDB_OPS.update(lrpTable)
+                    .set(netCol, desired)
+                    .where(nameCol.opEqual(lrpName)).build();
+            List<OperationResult> r = client.transact(schema, Collections.singletonList(update))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, "set LRP " + lrpName + " networks");
+            logger.info("Set LRP [{}] networks={} at {} (was {})", lrpName, desired, nbConnection, existing);
+            return null;
+        });
+    }
+
     public void setLrpGatewayChassis(String nbConnection, String caCertPath, String clientCertPath,
                                      String clientPrivateKeyPath,
                                      String lrpName, String chassisName, int priority) {
@@ -2589,6 +2632,13 @@ public class OvnNbClient {
         // create gets the standard router type/addresses, so this works.
         attachRouterToSwitch(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
                 routerName, tsLsName, lrpName, lrpMac, Collections.singletonList(lrpIpCidr));
+        // Drift-correct: if the LRP already existed (e.g. from an older peering with a
+        // different link-local subnet) attachRouterToSwitch left its networks alone for
+        // idempotency. The TS LRP IP is what ovn-ic advertises as nexthop for connected
+        // routes; a stale value silently misroutes traffic from peer VPCs to the wrong
+        // member. Force the column to match what the caller passed.
+        setLrpNetworks(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                lrpName, Collections.singletonList(lrpIpCidr));
 
         if (gatewayChassisSystemIds != null) {
             int prio = 20;
