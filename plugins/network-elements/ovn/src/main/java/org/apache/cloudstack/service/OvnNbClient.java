@@ -2603,6 +2603,12 @@ public class OvnNbClient {
                     result.add(row.getColumn(nameCol).getData());
                 }
             }
+            // Deterministic order so every LRP in the same AZ ends up with the same
+            // primary gateway-chassis. Two LRPs anchored on different primaries break
+            // intra-AZ peering: the OVN logical flow lr_in_admission carries an
+            // is_chassis_resident("cr-lrp") guard, so a packet hopping LRP A → LRP B in
+            // the same TS must traverse a chassis where both cr-lrps are resident.
+            java.util.Collections.sort(result);
             return result;
         });
     }
@@ -2640,7 +2646,14 @@ public class OvnNbClient {
         setLrpNetworks(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
                 lrpName, Collections.singletonList(lrpIpCidr));
 
-        if (gatewayChassisSystemIds != null) {
+        if (gatewayChassisSystemIds != null && !gatewayChassisSystemIds.isEmpty()) {
+            // Drop any existing gateway_chassis rows on this LRP before re-applying.
+            // Without this, repeated provisioning leaves stale rows behind - especially
+            // mixing the ovn-nbctl format (lrp-X-<chassis>) with our setLrpGatewayChassis
+            // format (lrp-X_<chassis>) ends up with conflicting priorities for the same
+            // chassis and ovn-northd silently misroutes / fails to generate flows.
+            clearLrpGatewayChassis(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                    lrpName);
             int prio = 20;
             for (String sysId : gatewayChassisSystemIds) {
                 if (StringUtils.isBlank(sysId)) continue;
@@ -2649,6 +2662,52 @@ public class OvnNbClient {
                 prio = Math.max(prio - 10, 1);
             }
         }
+    }
+
+    /**
+     * Removes every Gateway_Chassis row referenced by the LRP. Used by
+     * attachRouterToTransitSwitch to ensure a clean re-application of HA priorities
+     * without leaving duplicates from previous runs.
+     */
+    public void clearLrpGatewayChassis(String nbConnection, String caCertPath, String clientCertPath,
+                                       String clientPrivateKeyPath, String lrpName) {
+        if (StringUtils.isBlank(lrpName)) {
+            throw new CloudRuntimeException("clearLrpGatewayChassis: lrpName is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+            GenericTableSchema gcTable = schema.table(GATEWAY_CHASSIS_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lrpNameCol = lrpTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lrpGcCol = lrpTable.multiValuedColumn("gateway_chassis", UUID.class);
+            ColumnSchema<GenericTableSchema, UUID> gcUuidCol = gcTable.column("_uuid", UUID.class);
+
+            Operation<GenericTableSchema> selLrp = OVSDB_OPS.select(lrpTable).column(lrpGcCol)
+                    .where(lrpNameCol.opEqual(lrpName)).build();
+            List<OperationResult> lrpResult = client.transact(schema, Collections.<Operation>singletonList(selLrp))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (lrpResult == null || lrpResult.isEmpty() || lrpResult.get(0).getRows() == null
+                    || lrpResult.get(0).getRows().isEmpty()) {
+                return null;
+            }
+            @SuppressWarnings("unchecked")
+            Set<UUID> gcRefs = (Set<UUID>) lrpResult.get(0).getRows().get(0).getColumn(lrpGcCol).getData();
+            if (gcRefs == null || gcRefs.isEmpty()) {
+                return null;
+            }
+            List<Operation> ops = new ArrayList<>();
+            // Detach all from LRP first, then delete the rows.
+            ops.add(OVSDB_OPS.mutate(lrpTable)
+                    .addMutation(lrpGcCol, Mutator.DELETE, new java.util.HashSet<>(gcRefs))
+                    .where(lrpNameCol.opEqual(lrpName)).build());
+            for (UUID gcUuid : gcRefs) {
+                ops.add(OVSDB_OPS.delete(gcTable).where(gcUuidCol.opEqual(gcUuid)).build());
+            }
+            List<OperationResult> r = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, "clear gateway_chassis on " + lrpName);
+            logger.info("Cleared {} gateway_chassis row(s) from LRP [{}] at {}", gcRefs.size(), lrpName, nbConnection);
+            return null;
+        });
     }
 
     /**
