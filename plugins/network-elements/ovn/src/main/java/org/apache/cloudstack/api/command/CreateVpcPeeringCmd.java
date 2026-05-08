@@ -43,6 +43,14 @@ public class CreateVpcPeeringCmd extends BaseCmd {
     @Inject
     OvnPeeringService ovnPeeringService;
 
+    @Parameter(name = ApiConstants.NAME, type = CommandType.STRING,
+            required = true, description = "Name for the VPC peering group")
+    private String name;
+
+    @Parameter(name = ApiConstants.DESCRIPTION, type = CommandType.STRING,
+            description = "Description for the VPC peering group")
+    private String description;
+
     @Parameter(name = ApiConstants.VPC_ID, type = CommandType.UUID, entityType = VpcResponse.class,
             required = true, description = "The ID of the VPC to peer")
     private Long vpcId;
@@ -54,6 +62,14 @@ public class CreateVpcPeeringCmd extends BaseCmd {
     @Parameter(name = "aclid", type = CommandType.UUID, entityType = org.apache.cloudstack.api.response.NetworkACLResponse.class,
             description = "The ID of a VPC Network ACL list to apply to this peering membership. Controls what traffic is allowed through the peering connection.")
     private Long aclId;
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 
     public Long getVpcId() {
         return vpcId;

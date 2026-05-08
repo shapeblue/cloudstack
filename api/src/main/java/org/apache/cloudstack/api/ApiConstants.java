@@ -1043,6 +1043,9 @@ public class ApiConstants {
     public static final String OVN_CLIENT_PRIVATE_KEY_PATH = "ovnclientprivatekeypath";
     public static final String OVN_EXTERNAL_BRIDGE = "ovnexternalbridge";
     public static final String OVN_LOCALNET_NAME = "ovnlocalnetname";
+    public static final String OVN_IC_NB_CONNECTION = "ovnicnbconnection";
+    public static final String OVN_IC_SB_CONNECTION = "ovnicsbconnection";
+    public static final String OVN_AVAILABILITY_ZONE_NAME = "ovnavailabilityzonename";
     public static final String S3_ACCESS_KEY = "accesskey";
     public static final String SECRET_KEY = "secretkey";
     public static final String S3_END_POINT = "endpoint";

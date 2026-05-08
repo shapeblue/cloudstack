@@ -80,6 +80,9 @@ public class OvnProviderServiceImpl implements OvnProviderService {
                     .setClientPrivateKeyPath(cmd.getClientPrivateKeyPath())
                     .setExternalBridge(cmd.getExternalBridge())
                     .setLocalnetName(cmd.getLocalnetName())
+                    .setIcNbConnection(cmd.getIcNbConnection())
+                    .setIcSbConnection(cmd.getIcSbConnection())
+                    .setAvailabilityZoneName(cmd.getAvailabilityZoneName())
                     .build();
             return ovnProviderDao.persist(provider);
         });
@@ -170,6 +173,9 @@ public class OvnProviderServiceImpl implements OvnProviderService {
         response.setClientPrivateKeyPath(provider.getClientPrivateKeyPath());
         response.setExternalBridge(provider.getExternalBridge());
         response.setLocalnetName(provider.getLocalnetName());
+        response.setIcNbConnection(provider.getIcNbConnection());
+        response.setIcSbConnection(provider.getIcSbConnection());
+        response.setAvailabilityZoneName(provider.getAvailabilityZoneName());
         response.setObjectName("ovnProvider");
         return response;
     }

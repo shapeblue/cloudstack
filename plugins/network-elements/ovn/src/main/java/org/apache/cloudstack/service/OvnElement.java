@@ -88,6 +88,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.inject.Inject;
+import org.apache.commons.lang3.StringUtils;
 
 public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsServiceProvider, VpcProvider,
         StaticNatServiceProvider, IpDeployer, PortForwardingServiceProvider, FirewallServiceProvider,
@@ -1128,6 +1129,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             ovnNbClient.removeLoadBalancersByExternalId(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     "cloudstack_pf_rule_id", ruleTag);
+            // Drop the dnat_and_snat advertisement we created for this rule. We resolve
+            // the original (external_ip, logical_ip) pair from the rule's IDs - if either
+            // is missing we just skip; the IP-release path catches strays.
+            IPAddressVO ipForRevoke = ipAddressDao.findById(rule.getSourceIpAddressId());
+            if (ipForRevoke != null && ipForRevoke.getAddress() != null
+                    && rule.getDestinationIpAddress() != null) {
+                ovnNbClient.removeNatRule(provider.getNbConnection(),
+                        provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                        routerName, "dnat_and_snat",
+                        ipForRevoke.getAddress().addr(), rule.getDestinationIpAddress().addr());
+            }
             return;
         }
 
@@ -1205,6 +1217,31 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         ovnNbClient.attachLoadBalancerToSwitch(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                 guestLs, lbName);
+
+        // Publish the public IP so the upstream fabric learns the gateway-chassis MAC for
+        // this VIP. A bare Load_Balancer row by itself does not trigger gARP nor an ARP
+        // responder canonical enough for some upstream routers; an LB is purely a forwarding
+        // table from OVN's point of view. Adding a dnat_and_snat NAT row makes the LR own
+        // the IP, so ovn-controller emits gARP and answers ARP with the LR MAC.
+        // Idempotent: addNatRule no-ops if an identical (external,logical) pair already
+        // exists, so subsequent applyPFRules calls (CloudStack re-applies the full ruleset
+        // on every change) are cheap. The first PF for a given external_ip wins the
+        // mapping; further PFs to the same IP rely on the LB to fan out by port. Caveat:
+        // dnat_and_snat is all-protocols, all-ports - the per-tier ACLs are what limit
+        // exposure to only the ports declared in PF rules.
+        Map<String, String> natExt = new HashMap<>();
+        natExt.put("cloudstack_pf_rule_id", ruleTag);
+        natExt.put("cloudstack_nat_kind", "pf_advertise");
+        natExt.put("cloudstack_public_ip", externalIp);
+        natExt.put("cloudstack_network_id", String.valueOf(network.getId()));
+        if (network.getVpcId() != null) {
+            natExt.put("cloudstack_vpc_id", String.valueOf(network.getVpcId()));
+        }
+        String gatewayLrpName = getPublicRouterPortNameForNetwork(network);
+        ovnNbClient.addNatRule(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, "dnat_and_snat", externalIp, logicalIp, natExt,
+                null, null, gatewayLrpName);
     }
 
     @Override
@@ -2163,17 +2200,35 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             throw new InvalidParameterValueException("Peer VPC zone " + peerVpc.getZoneId() + " has no OVN provider");
         }
 
+        // A VPC may only belong to one peering group
+        List<OvnVpcPeeringVO> vpcExisting = ovnVpcPeeringDao.listByVpcId(vpc.getId());
+        List<OvnVpcPeeringVO> peerExisting = ovnVpcPeeringDao.listByVpcId(peerVpc.getId());
+        if (!vpcExisting.isEmpty() && !peerExisting.isEmpty()
+                && !vpcExisting.get(0).getGroupUuid().equals(peerExisting.get(0).getGroupUuid())) {
+            throw new InvalidParameterValueException("Both VPCs already belong to different peering groups. A VPC can only be in one peering group.");
+        }
+
         // Determine group: if peer VPC already belongs to a group, join it; otherwise check if our VPC
         // already belongs to one. If neither, create a new group.
         String groupUuid = null;
-        List<OvnVpcPeeringVO> peerExisting = ovnVpcPeeringDao.listByVpcId(peerVpc.getId());
+        String groupName = cmd.getName();
+        String groupDescription = cmd.getDescription();
         if (!peerExisting.isEmpty()) {
             groupUuid = peerExisting.get(0).getGroupUuid();
+            if (groupName == null) {
+                groupName = peerExisting.get(0).getName();
+            }
+            if (groupDescription == null) {
+                groupDescription = peerExisting.get(0).getDescription();
+            }
         }
-        if (groupUuid == null) {
-            List<OvnVpcPeeringVO> myExisting = ovnVpcPeeringDao.listByVpcId(vpc.getId());
-            if (!myExisting.isEmpty()) {
-                groupUuid = myExisting.get(0).getGroupUuid();
+        if (groupUuid == null && !vpcExisting.isEmpty()) {
+            groupUuid = vpcExisting.get(0).getGroupUuid();
+            if (groupName == null) {
+                groupName = vpcExisting.get(0).getName();
+            }
+            if (groupDescription == null) {
+                groupDescription = vpcExisting.get(0).getDescription();
             }
         }
         if (groupUuid == null) {
@@ -2205,13 +2260,23 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             }
         }
 
+        // Cross-zone vs same-zone: drives which link-local pool feeds the peering LRP IP.
+        // We treat the group as cross-zone if the new pair OR any existing member crosses
+        // a zone boundary - that matches the topology decision in provisionPeeringGroup().
+        boolean willBeCrossZone = vpc.getZoneId() != peerVpc.getZoneId();
+        if (!willBeCrossZone) {
+            for (OvnVpcPeeringVO m : groupMembers) {
+                if (m.getZoneId() != vpc.getZoneId()) { willBeCrossZone = true; break; }
+            }
+        }
+
         OvnVpcPeeringVO peeringA = null;
         OvnVpcPeeringVO peeringB = null;
 
         if (ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, vpc.getId()) == null) {
-            String ipA = allocateLinkLocalIp(usedIps);
+            String ipA = willBeCrossZone ? allocateCrossZoneLinkLocalIp(usedIps) : allocateLinkLocalIp(usedIps);
             usedIps.add(ipA);
-            peeringA = new OvnVpcPeeringVO(groupUuid, vpc.getId(), vpc.getZoneId(),
+            peeringA = new OvnVpcPeeringVO(groupUuid, groupName, groupDescription, vpc.getId(), vpc.getZoneId(),
                     vpc.getAccountId(), vpc.getDomainId(), ipA);
             peeringA.setAclId(aclId);
             peeringA = ovnVpcPeeringDao.persist(peeringA);
@@ -2220,9 +2285,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         }
 
         if (ovnVpcPeeringDao.findByGroupUuidAndVpcId(groupUuid, peerVpc.getId()) == null) {
-            String ipB = allocateLinkLocalIp(usedIps);
+            String ipB = willBeCrossZone ? allocateCrossZoneLinkLocalIp(usedIps) : allocateLinkLocalIp(usedIps);
             usedIps.add(ipB);
-            peeringB = new OvnVpcPeeringVO(groupUuid, peerVpc.getId(), peerVpc.getZoneId(),
+            peeringB = new OvnVpcPeeringVO(groupUuid, groupName, groupDescription, peerVpc.getId(), peerVpc.getZoneId(),
                     peerVpc.getAccountId(), peerVpc.getDomainId(), ipB);
             peeringB = ovnVpcPeeringDao.persist(peeringB);
         }
@@ -2249,6 +2314,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         VpcVO vpc = vpcDao.findById(vpcId);
 
         OvnProviderVO provider = ovnProviderDao.findByZoneId(peering.getZoneId());
+        // Cross-zone path: OVN-IC propagates route removal automatically (since ic-route-adv
+        // re-runs whenever the LRP set on the TS changes), so we just need to detach this
+        // member's LRP+LSP from the TS and let ovn-ic do the rest.
+        List<OvnVpcPeeringVO> groupMembersForBranch = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+        if (provider != null && vpc != null && isCrossZonePeeringGroup(groupMembersForBranch)) {
+            removeCrossZonePeeringMember(peering, provider, groupUuid);
+            peering.setState("Removed");
+            peering.setRemoved(new java.util.Date());
+            ovnVpcPeeringDao.update(peering.getId(), peering);
+            return true;
+        }
         if (provider != null && vpc != null) {
             String routerName = String.format("cs-vpc-%d", vpcId);
             // Remove routes and policies on all OTHER members pointing to this VPC
@@ -2372,6 +2448,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         response.setObjectName("vpcpeering");
         response.setId(peering.getUuid());
         response.setGroupUuid(peering.getGroupUuid());
+        response.setName(peering.getName());
+        response.setDescription(peering.getDescription());
         response.setLinkLocalIp(peering.getLinkLocalIp());
         response.setState(peering.getState());
         response.setCreated(peering.getCreated());
@@ -2417,6 +2495,11 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     protected void provisionPeeringGroup(String groupUuid) {
         List<OvnVpcPeeringVO> members = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
         if (members.isEmpty()) return;
+
+        if (isCrossZonePeeringGroup(members)) {
+            provisionCrossZonePeering(groupUuid, members);
+            return;
+        }
 
         String peerLs = getPeeringLsName(groupUuid);
         Map<String, String> lsExt = new HashMap<>();
@@ -2564,10 +2647,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         for (OvnVpcPeeringVO peering : peerings) {
             try {
                 String groupUuid = peering.getGroupUuid();
+                List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+                if (isCrossZonePeeringGroup(groupMembers)) {
+                    removeCrossZonePeeringMember(peering, provider, groupUuid);
+                    peering.setState("Removed");
+                    peering.setRemoved(new java.util.Date());
+                    ovnVpcPeeringDao.update(peering.getId(), peering);
+                    continue;
+                }
                 String routerName = String.format("cs-vpc-%d", vpc.getId());
 
                 // Clean up routes/policies on other members
-                List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
                 for (OvnVpcPeeringVO member : groupMembers) {
                     if (member.getVpcId() == vpc.getId()) continue;
                     OvnProviderVO memberProvider = ovnProviderDao.findByZoneId(member.getZoneId());
@@ -2641,5 +2731,243 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             }
         }
         throw new CloudRuntimeException("No available link-local IPs in peering pool 169.254.100.0/24");
+    }
+
+    // ── Cross-zone peering via OVN-IC Transit Switch ─────────────────────────
+
+    // Pool used for the TS-facing LRP IPs - separate from same-zone peering pool
+    // (169.254.100.0/24) so the two paths cannot overlap if the same VO is reused.
+    private static final String CROSS_ZONE_LL_PREFIX = "169.254.200.";
+    // Don't bleed CIDRs that are local-fabric concerns across IC. Pub net (10/8) and
+    // any other link-local must never get learned in a peer AZ.
+    private static final String IC_ROUTE_BLACKLIST = "10.0.0.0/8,169.254.0.0/16";
+
+    protected boolean isCrossZonePeeringGroup(List<OvnVpcPeeringVO> members) {
+        if (members == null || members.size() < 2) return false;
+        Set<Long> zones = new HashSet<>();
+        for (OvnVpcPeeringVO m : members) zones.add(m.getZoneId());
+        return zones.size() > 1;
+    }
+
+    private static String getTransitSwitchName(String groupUuid) {
+        return "ts-peer-" + groupUuid;
+    }
+
+    private static String getCrossZoneLrpName(long vpcId) {
+        return String.format("lrp-cs-vpc-%d-ts", vpcId);
+    }
+
+    private static String getCrossZoneLspName(long vpcId) {
+        return String.format("lsp-ts-vpc-%d", vpcId);
+    }
+
+    private static String allocateCrossZoneLinkLocalIp(Set<String> usedIps) {
+        for (int i = 1; i <= 253; i++) {
+            String ip = CROSS_ZONE_LL_PREFIX + i;
+            if (!usedIps.contains(ip)) {
+                return ip;
+            }
+        }
+        throw new CloudRuntimeException("No available link-local IPs in cross-zone peering pool 169.254.200.0/24");
+    }
+
+    /**
+     * Provisions cross-zone peering via OVN-IC. Each AZ NB gets its name, the IC NB gets the
+     * Transit_Switch, and each VPC's LR gets a TS-facing LRP with HA gateway-chassis pinning.
+     * Routes are propagated via {@code ic-route-adv}/{@code ic-route-learn} - we do NOT add
+     * static peer-CIDR routes manually.
+     *
+     * Pre-requisites (operator-managed, not configured by this method):
+     * - Each gateway-chassis hypervisor has {@code external_ids:ovn-is-interconn=true}
+     * - Underlay reachability between chassis encap-IPs across AZs
+     * - All providers in the group have {@code icNbConnection} and {@code availabilityZoneName}
+     *   set on their OvnProviderVO row.
+     */
+    protected void provisionCrossZonePeering(String groupUuid, List<OvnVpcPeeringVO> members) {
+        // Index providers per zone, validate IC config
+        Map<Long, OvnProviderVO> providersByZone = new HashMap<>();
+        for (OvnVpcPeeringVO m : members) {
+            providersByZone.computeIfAbsent(m.getZoneId(), z -> ovnProviderDao.findByZoneId(z));
+        }
+        OvnProviderVO icProvider = null;
+        for (OvnProviderVO p : providersByZone.values()) {
+            if (p == null) {
+                throw new CloudRuntimeException("Cross-zone peering requires every zone in the group to have an OVN provider");
+            }
+            if (StringUtils.isBlank(p.getIcNbConnection())) {
+                throw new CloudRuntimeException(String.format(
+                        "Cross-zone peering requires icNbConnection on provider for zone %d. Set it via addOvnProvider/updateOvnProvider.",
+                        p.getZoneId()));
+            }
+            if (StringUtils.isBlank(p.getAvailabilityZoneName())) {
+                throw new CloudRuntimeException(String.format(
+                        "Cross-zone peering requires availabilityZoneName on provider for zone %d. Set it via addOvnProvider/updateOvnProvider.",
+                        p.getZoneId()));
+            }
+            icProvider = p;
+        }
+
+        String tsName = getTransitSwitchName(groupUuid);
+
+        // Set NB_Global.name and IC route options on each AZ NB. ovn-ic uses these to
+        // register the AZ in IC SB and decide what to advertise/learn.
+        Map<String, String> icOpts = new HashMap<>();
+        icOpts.put("ic-route-adv", "true");
+        icOpts.put("ic-route-learn", "true");
+        icOpts.put("ic-route-adv-default-route", "false");
+        icOpts.put("ic-route-blacklist", IC_ROUTE_BLACKLIST);
+        for (OvnProviderVO p : providersByZone.values()) {
+            ovnNbClient.setNbGlobalAvailabilityZoneName(p.getNbConnection(),
+                    p.getCaCertPath(), p.getClientCertPath(), p.getClientPrivateKeyPath(),
+                    p.getAvailabilityZoneName());
+            ovnNbClient.setNbGlobalIcOptions(p.getNbConnection(),
+                    p.getCaCertPath(), p.getClientCertPath(), p.getClientPrivateKeyPath(),
+                    icOpts);
+        }
+
+        // Create the Transit_Switch in the IC NB. ovn-ic propagates it to every AZ NB
+        // shortly after; the per-AZ LSP attachments below depend on that propagation,
+        // but the OVSDB transactions are eventually consistent so we just retry on miss
+        // via the idempotent attach helper.
+        Map<String, String> tsExt = new HashMap<>();
+        tsExt.put(PEERING_EXT_KEY, groupUuid);
+        tsExt.put("cloudstack_role", "vpc-peering-ic");
+        ovnNbClient.createTransitSwitch(icProvider.getIcNbConnection(),
+                icProvider.getCaCertPath(), icProvider.getClientCertPath(), icProvider.getClientPrivateKeyPath(),
+                tsName, tsExt);
+
+        // Attach each member's VPC router to the TS. ovn-ic picks up these LRPs and
+        // exposes them as remote ports in the other AZs' NBs - no manual cross-AZ
+        // sync needed.
+        for (OvnVpcPeeringVO member : members) {
+            OvnProviderVO p = providersByZone.get(member.getZoneId());
+            VpcVO vpc = vpcDao.findById(member.getVpcId());
+            if (vpc == null) continue;
+
+            String routerName = String.format("cs-vpc-%d", member.getVpcId());
+            String lrpName = getCrossZoneLrpName(member.getVpcId());
+            String lspName = getCrossZoneLspName(member.getVpcId());
+            String mac = buildPeeringMac(member.getVpcId());
+            // /24 over the link-local pool keeps every member in the same broadcast
+            // domain on the TS, which is what OVN-IC expects.
+            String lrpIpCidr = member.getLinkLocalIp() + "/24";
+
+            List<String> gatewayChassis = ovnNbClient.listInterconnectionChassisSystemIds(
+                    p.getSbConnection(),
+                    p.getCaCertPath(), p.getClientCertPath(), p.getClientPrivateKeyPath());
+            if (gatewayChassis == null || gatewayChassis.isEmpty()) {
+                throw new CloudRuntimeException(String.format(
+                        "No interconnection-enabled chassis found in zone %d. Mark at least one chassis with `ovs-vsctl set Open_vSwitch . external_ids:ovn-is-interconn=true` before provisioning cross-zone peering.",
+                        p.getZoneId()));
+            }
+
+            ovnNbClient.attachRouterToTransitSwitch(p.getNbConnection(),
+                    p.getCaCertPath(), p.getClientCertPath(), p.getClientPrivateKeyPath(),
+                    routerName, tsName, lrpName, lspName, mac, lrpIpCidr, gatewayChassis);
+        }
+
+        // ACLs: cross-zone members can still carry Network_ACL constraints. Reuse the
+        // same per-member apply path - it scopes ACLs to the LRP/LSP that we just
+        // attached. (Same-zone branch had already done this.)
+        for (OvnVpcPeeringVO member : members) {
+            if (member.getAclId() != null) {
+                applyCrossZonePeeringAcl(member, tsName);
+            }
+        }
+    }
+
+    /**
+     * Per-member ACL application for cross-zone path. The peering LS in the same-zone
+     * variant is replaced here by the TS LS in this AZ NB; the LSP we scope to is the
+     * router-port LSP we created in {@link #provisionCrossZonePeering}.
+     */
+    protected void applyCrossZonePeeringAcl(OvnVpcPeeringVO peering, String tsLsName) {
+        OvnProviderVO provider = ovnProviderDao.findByZoneId(peering.getZoneId());
+        if (provider == null) return;
+        String lspName = getCrossZoneLspName(peering.getVpcId());
+        String peeringTag = "cloudstack_peering_acl_vpc_" + peering.getVpcId();
+
+        ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                tsLsName, peeringTag, "true");
+
+        Long aclId = peering.getAclId();
+        if (aclId == null) return;
+        List<NetworkACLItemVO> rules = networkACLItemDao.listByACL(aclId);
+        if (rules == null || rules.isEmpty()) return;
+
+        for (NetworkACLItemVO rule : rules) {
+            if (rule.getState() == NetworkACLItem.State.Revoke) continue;
+            networkACLItemDao.loadCidrs(rule);
+            programCrossZonePeeringAclRule(provider, tsLsName, lspName, peering, rule);
+        }
+        for (String dir : new String[]{"to-lport", "from-lport"}) {
+            String portField = "to-lport".equals(dir) ? "outport" : "inport";
+            String matchExpr = String.format("%s == \"%s\" && ip4", portField, lspName);
+            Map<String, String> ext = new HashMap<>();
+            ext.put(peeringTag, "true");
+            ext.put("cloudstack_acl_default", "true");
+            ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    tsLsName, "ts-acl-default-" + dir + "-vpc-" + peering.getVpcId(),
+                    dir, 1L, matchExpr, "drop", ext);
+        }
+    }
+
+    protected void programCrossZonePeeringAclRule(OvnProviderVO provider, String tsLsName,
+                                                  String lspName, OvnVpcPeeringVO peering,
+                                                  NetworkACLItem rule) {
+        String direction = rule.getTrafficType() == NetworkACLItem.TrafficType.Ingress
+                ? "to-lport" : "from-lport";
+        String aclAction = rule.getAction() == NetworkACLItem.Action.Allow ? "allow-related" : "drop";
+        long ovnPriority = Math.max(2L, 1000L - rule.getNumber());
+        String portField = "to-lport".equals(direction) ? "outport" : "inport";
+        String baseMatch = buildNetworkAclMatch(direction, rule);
+        if (baseMatch == null) return;
+        String matchExpr = String.format("%s == \"%s\" && %s", portField, lspName, baseMatch);
+
+        String peeringTag = "cloudstack_peering_acl_vpc_" + peering.getVpcId();
+        Map<String, String> ext = new HashMap<>();
+        ext.put(peeringTag, "true");
+        ext.put("cloudstack_acl_rule_id", String.valueOf(rule.getId()));
+        ext.put("cloudstack_acl_id", String.valueOf(rule.getAclId()));
+        ext.put("cloudstack_acl_direction", direction);
+        ext.put(PEERING_EXT_KEY, peering.getGroupUuid());
+
+        ovnNbClient.addAclOnLs(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                tsLsName, "ts-acl-" + rule.getId() + "-vpc-" + peering.getVpcId(),
+                direction, ovnPriority, matchExpr, aclAction, ext);
+    }
+
+    /**
+     * Removes a single VPC's TS attachment in its AZ NB. If the group has no remaining
+     * members at all, also drops the Transit_Switch from the IC NB.
+     */
+    protected void removeCrossZonePeeringMember(OvnVpcPeeringVO peering, OvnProviderVO provider, String groupUuid) {
+        String tsName = getTransitSwitchName(groupUuid);
+        String routerName = String.format("cs-vpc-%d", peering.getVpcId());
+        String lrpName = getCrossZoneLrpName(peering.getVpcId());
+        String lspName = getCrossZoneLspName(peering.getVpcId());
+        String peeringTag = "cloudstack_peering_acl_vpc_" + peering.getVpcId();
+
+        // Wipe ACLs scoped to this member on the TS LS first
+        ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                tsName, peeringTag, "true");
+
+        ovnNbClient.detachRouterFromTransitSwitch(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                routerName, tsName, lrpName, lspName);
+
+        // If group has no other live members, drop the TS in IC NB. ovn-ic propagates
+        // the removal to every AZ NB.
+        List<OvnVpcPeeringVO> remaining = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
+        long active = remaining.stream().filter(m -> m.getVpcId() != peering.getVpcId()).count();
+        if (active == 0 && StringUtils.isNotBlank(provider.getIcNbConnection())) {
+            ovnNbClient.deleteTransitSwitch(provider.getIcNbConnection(),
+                    provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                    tsName);
+        }
     }
 }

@@ -42,6 +42,12 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
     @Column(name = "group_uuid")
     private String groupUuid;
 
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "description")
+    private String description;
+
     @Column(name = "vpc_id")
     private long vpcId;
 
@@ -73,9 +79,11 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
         uuid = UUID.randomUUID().toString();
     }
 
-    public OvnVpcPeeringVO(String groupUuid, long vpcId, long zoneId, long accountId, long domainId, String linkLocalIp) {
+    public OvnVpcPeeringVO(String groupUuid, String name, String description, long vpcId, long zoneId, long accountId, long domainId, String linkLocalIp) {
         this.uuid = UUID.randomUUID().toString();
         this.groupUuid = groupUuid;
+        this.name = name;
+        this.description = description;
         this.vpcId = vpcId;
         this.zoneId = zoneId;
         this.accountId = accountId;
@@ -97,6 +105,22 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
 
     public String getGroupUuid() {
         return groupUuid;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public long getVpcId() {

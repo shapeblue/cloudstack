@@ -69,6 +69,18 @@ public class OvnProviderResponse extends BaseResponse {
     @Param(description = "OVN localnet name used for provider network mapping")
     private String localnetName;
 
+    @SerializedName(ApiConstants.OVN_IC_NB_CONNECTION)
+    @Param(description = "OVN-IC Northbound database connection string")
+    private String icNbConnection;
+
+    @SerializedName(ApiConstants.OVN_IC_SB_CONNECTION)
+    @Param(description = "OVN-IC Southbound database connection string")
+    private String icSbConnection;
+
+    @SerializedName(ApiConstants.OVN_AVAILABILITY_ZONE_NAME)
+    @Param(description = "Availability zone name used by OVN-IC for this provider")
+    private String availabilityZoneName;
+
     public String getName() {
         return name;
     }
@@ -155,5 +167,29 @@ public class OvnProviderResponse extends BaseResponse {
 
     public void setLocalnetName(String localnetName) {
         this.localnetName = localnetName;
+    }
+
+    public String getIcNbConnection() {
+        return icNbConnection;
+    }
+
+    public void setIcNbConnection(String icNbConnection) {
+        this.icNbConnection = icNbConnection;
+    }
+
+    public String getIcSbConnection() {
+        return icSbConnection;
+    }
+
+    public void setIcSbConnection(String icSbConnection) {
+        this.icSbConnection = icSbConnection;
+    }
+
+    public String getAvailabilityZoneName() {
+        return availabilityZoneName;
+    }
+
+    public void setAvailabilityZoneName(String availabilityZoneName) {
+        this.availabilityZoneName = availabilityZoneName;
     }
 }

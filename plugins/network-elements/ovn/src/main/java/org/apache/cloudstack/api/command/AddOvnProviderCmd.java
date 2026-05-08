@@ -71,6 +71,18 @@ public class AddOvnProviderCmd extends BaseCmd {
     @Parameter(name = ApiConstants.OVN_LOCALNET_NAME, type = CommandType.STRING, description = "OVN localnet name used for provider network mapping")
     private String localnetName;
 
+    @Parameter(name = ApiConstants.OVN_IC_NB_CONNECTION, type = CommandType.STRING,
+            description = "OVN-IC Northbound database connection string (e.g. tcp:host:6645). Required to enable cross-zone VPC peering via OVN Interconnection.")
+    private String icNbConnection;
+
+    @Parameter(name = ApiConstants.OVN_IC_SB_CONNECTION, type = CommandType.STRING,
+            description = "OVN-IC Southbound database connection string (e.g. tcp:host:6646) for diagnostics")
+    private String icSbConnection;
+
+    @Parameter(name = ApiConstants.OVN_AVAILABILITY_ZONE_NAME, type = CommandType.STRING,
+            description = "Availability zone name registered in NB_Global for OVN-IC. Must be unique across all peered zones.")
+    private String availabilityZoneName;
+
     public Long getZoneId() {
         return zoneId;
     }
@@ -105,6 +117,18 @@ public class AddOvnProviderCmd extends BaseCmd {
 
     public String getLocalnetName() {
         return localnetName;
+    }
+
+    public String getIcNbConnection() {
+        return icNbConnection;
+    }
+
+    public String getIcSbConnection() {
+        return icSbConnection;
+    }
+
+    public String getAvailabilityZoneName() {
+        return availabilityZoneName;
     }
 
     @Override

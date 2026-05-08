@@ -67,6 +67,10 @@ public class OvnNbClient {
     private static final String LOGICAL_ROUTER_POLICY_TABLE = "Logical_Router_Policy";
     private static final String LOAD_BALANCER_TABLE = "Load_Balancer";
     private static final String LOAD_BALANCER_HEALTH_CHECK_TABLE = "Load_Balancer_Health_Check";
+    private static final String NB_GLOBAL_TABLE = "NB_Global";
+    private static final String CHASSIS_TABLE = "Chassis";
+    private static final String IC_NORTHBOUND_DB = "OVN_IC_Northbound";
+    private static final String TRANSIT_SWITCH_TABLE = "Transit_Switch";
     private static final long DEFAULT_TIMEOUT_MS = 5_000L;
     private static final Pattern CONN_PATTERN = Pattern.compile("^(tcp|ssl):([^:]+):([0-9]+)$");
     private static final ICertificateManager NOOP_CERT_MANAGER = new NoopCertificateManager();
@@ -743,7 +747,7 @@ public class OvnNbClient {
                            String routerName, String natType, String externalIp, String logicalIp,
                            Map<String, String> externalIds) {
         addNatRule(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
-                routerName, natType, externalIp, logicalIp, externalIds, null, null);
+                routerName, natType, externalIp, logicalIp, externalIds, null, null, null);
     }
 
     public void addNatRule(String nbConnection, String caCertPath, String clientCertPath,
@@ -751,6 +755,23 @@ public class OvnNbClient {
                            String routerName, String natType, String externalIp, String logicalIp,
                            Map<String, String> externalIds,
                            String distributedMac, String distributedLogicalPort) {
+        addNatRule(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                routerName, natType, externalIp, logicalIp, externalIds,
+                distributedMac, distributedLogicalPort, null);
+    }
+
+    /**
+     * NAT row insertion with optional {@code gateway_port} reference. The reference is required
+     * when the LR has more than one gateway-eligible LRP (e.g. our VPCs now have both
+     * {@code lrp-cs-vpc-pub-X} and {@code lrp-cs-vpc-X-ts}); without it ovn-northd cannot pick
+     * which gateway-chassis owns the NAT and the rule is silently inert.
+     */
+    public void addNatRule(String nbConnection, String caCertPath, String clientCertPath,
+                           String clientPrivateKeyPath,
+                           String routerName, String natType, String externalIp, String logicalIp,
+                           Map<String, String> externalIds,
+                           String distributedMac, String distributedLogicalPort,
+                           String gatewayLrpName) {
         if (StringUtils.isBlank(routerName) || StringUtils.isBlank(natType)
                 || StringUtils.isBlank(externalIp) || StringUtils.isBlank(logicalIp)) {
             throw new CloudRuntimeException("NAT rule arguments are incomplete");
@@ -786,6 +807,28 @@ public class OvnNbClient {
             if (StringUtils.isNotBlank(distributedLogicalPort)) {
                 ColumnSchema<GenericTableSchema, String> logPortCol = natTable.column("logical_port", String.class);
                 insertNat = insertNat.value(logPortCol, distributedLogicalPort);
+            }
+            // gateway_port column is an optional weak reference to a Logical_Router_Port row.
+            // We resolve the LRP UUID by name first, then attach. If the LRP isn't found we
+            // fall back to leaving gateway_port empty - ovn-northd will use the default
+            // selection, which only fails on multi-gw routers (the case we actually need to
+            // handle).
+            if (StringUtils.isNotBlank(gatewayLrpName)) {
+                GenericTableSchema lrpTable = schema.table(LOGICAL_ROUTER_PORT_TABLE, GenericTableSchema.class);
+                ColumnSchema<GenericTableSchema, String> lrpNameCol = lrpTable.column("name", String.class);
+                ColumnSchema<GenericTableSchema, UUID> lrpUuidCol = lrpTable.column("_uuid", UUID.class);
+                Operation<GenericTableSchema> selLrp = OVSDB_OPS.select(lrpTable).column(lrpUuidCol)
+                        .where(lrpNameCol.opEqual(gatewayLrpName)).build();
+                List<OperationResult> selRes = client.transact(schema, Collections.<Operation>singletonList(selLrp))
+                        .get(timeoutMs, TimeUnit.MILLISECONDS);
+                if (selRes != null && !selRes.isEmpty() && selRes.get(0).getRows() != null
+                        && !selRes.get(0).getRows().isEmpty()) {
+                    UUID lrpUuid = selRes.get(0).getRows().get(0).getColumn(lrpUuidCol).getData();
+                    ColumnSchema<GenericTableSchema, UUID> gwPortCol = natTable.column("gateway_port", UUID.class);
+                    insertNat = insertNat.value(gwPortCol, lrpUuid);
+                } else {
+                    logger.warn("addNatRule: gateway LRP [{}] not found - inserting NAT without gateway_port", gatewayLrpName);
+                }
             }
             ColumnSchema<GenericTableSchema, Set<UUID>> lrNatCol = lrTable.multiValuedColumn("nat", UUID.class);
             List<Operation> ops = new ArrayList<>();
@@ -2289,6 +2332,328 @@ public class OvnNbClient {
         if (!errors.isEmpty()) {
             throw new CloudRuntimeException(String.format("OVSDB %s failed: %s", description, String.join("; ", errors)));
         }
+    }
+
+    // ── OVN-IC (Interconnection) primitives ──────────────────────────────────
+    //
+    // These talk to either the per-AZ NB (NB_Global, Chassis) or the global IC NB
+    // (Transit_Switch). They are used by OvnElement to provision cross-zone VPC
+    // peering on top of OVN's Interconnection feature instead of per-zone local
+    // peering switches. See https://docs.ovn.org/en/latest/tutorials/ovn-interconnection.html
+    // for the protocol.
+
+    /**
+     * Sets {@code NB_Global.name} on a per-AZ Northbound DB. The NB_Global table is a
+     * singleton, so the row is identified by absence of WHERE — we set on the only row.
+     * No-op if the name is already set to the desired value. Required before {@code ovn-ic}
+     * registers the AZ in the IC SB Availability_Zone table.
+     */
+    public void setNbGlobalAvailabilityZoneName(String nbConnection, String caCertPath, String clientCertPath,
+                                                String clientPrivateKeyPath, String azName) {
+        if (StringUtils.isBlank(azName)) {
+            throw new CloudRuntimeException("Availability zone name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema nbGlobal = schema.table(NB_GLOBAL_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = nbGlobal.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> uuidCol = nbGlobal.column("_uuid", UUID.class);
+
+            // Singleton table - read the only row's _uuid + name in one shot.
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(nbGlobal).column(uuidCol).column(nameCol);
+            List<OperationResult> selRes = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selRes == null || selRes.isEmpty() || selRes.get(0).getRows() == null
+                    || selRes.get(0).getRows().isEmpty()) {
+                throw new CloudRuntimeException("NB_Global has no row at " + nbConnection);
+            }
+            Row<GenericTableSchema> row = selRes.get(0).getRows().get(0);
+            String existing = row.getColumn(nameCol).getData();
+            if (azName.equals(existing)) {
+                logger.debug("NB_Global.name already [{}] at {} - skipping", azName, nbConnection);
+                return null;
+            }
+            UUID rowUuid = row.getColumn(uuidCol).getData();
+            Operation<GenericTableSchema> update = OVSDB_OPS.update(nbGlobal)
+                    .set(nameCol, azName)
+                    .where(uuidCol.opEqual(rowUuid)).build();
+            List<OperationResult> r = client.transact(schema, Collections.singletonList(update))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, "set NB_Global.name=" + azName);
+            logger.info("Set NB_Global.name=[{}] at {}", azName, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Merges entries into {@code NB_Global.options} on a per-AZ NB. Does not remove keys
+     * that are absent in the supplied map. No-op if the merged map equals the existing one.
+     * Used to enable {@code ic-route-adv} / {@code ic-route-learn} / {@code ic-route-blacklist}.
+     */
+    public void setNbGlobalIcOptions(String nbConnection, String caCertPath, String clientCertPath,
+                                     String clientPrivateKeyPath, Map<String, String> optionsToSet) {
+        if (optionsToSet == null || optionsToSet.isEmpty()) {
+            return;
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema nbGlobal = schema.table(NB_GLOBAL_TABLE, GenericTableSchema.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> optsCol = nbGlobal.column("options", Map.class);
+            ColumnSchema<GenericTableSchema, UUID> uuidCol = nbGlobal.column("_uuid", UUID.class);
+
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(nbGlobal).column(uuidCol).column(optsCol);
+            List<OperationResult> selRes = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selRes == null || selRes.isEmpty() || selRes.get(0).getRows() == null
+                    || selRes.get(0).getRows().isEmpty()) {
+                throw new CloudRuntimeException("NB_Global has no row at " + nbConnection);
+            }
+            Row<GenericTableSchema> row = selRes.get(0).getRows().get(0);
+            UUID rowUuid = row.getColumn(uuidCol).getData();
+            @SuppressWarnings("unchecked")
+            Map<String, String> existing = (Map<String, String>) row.getColumn(optsCol).getData();
+            Map<String, String> merged = new HashMap<>();
+            if (existing != null) merged.putAll(existing);
+            merged.putAll(optionsToSet);
+            if (existing != null && existing.equals(merged)) {
+                logger.debug("NB_Global.options already at desired state at {} - skipping", nbConnection);
+                return null;
+            }
+            Operation<GenericTableSchema> update = OVSDB_OPS.update(nbGlobal)
+                    .set(optsCol, merged)
+                    .where(uuidCol.opEqual(rowUuid)).build();
+            List<OperationResult> r = client.transact(schema, Collections.singletonList(update))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, "merge NB_Global.options");
+            logger.info("Merged NB_Global.options {} at {}", optionsToSet, nbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently creates a Transit_Switch in the IC NB DB. The {@code icNbConnection}
+     * must point at the central OVN-IC NB (typically port 6645). The TS is propagated by
+     * the {@code ovn-ic} daemon to every AZ NB as a Logical_Switch with type=remote ports
+     * for cross-AZ LRPs.
+     */
+    public void createTransitSwitch(String icNbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath, String tsName, Map<String, String> externalIds) {
+        if (StringUtils.isBlank(tsName)) {
+            throw new CloudRuntimeException("Transit_Switch name is blank");
+        }
+        runOnDb(icNbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, IC_NORTHBOUND_DB, client -> {
+            DatabaseSchema schema = client.getSchema(IC_NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema ts = schema.table(TRANSIT_SWITCH_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = ts.column("name", String.class);
+
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(ts).column(nameCol).where(nameCol.opEqual(tsName)).build();
+            List<OperationResult> selRes = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (selRes != null && !selRes.isEmpty() && selRes.get(0).getRows() != null
+                    && !selRes.get(0).getRows().isEmpty()) {
+                logger.debug("Transit_Switch [{}] already exists at {} - skipping", tsName, icNbConnection);
+                return null;
+            }
+            Insert<GenericTableSchema> insert = OVSDB_OPS.insert(ts).value(nameCol, tsName);
+            if (externalIds != null && !externalIds.isEmpty()) {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                ColumnSchema<GenericTableSchema, Map> extCol = ts.column("external_ids", Map.class);
+                insert = insert.value(extCol, new HashMap<>(externalIds));
+            }
+            List<OperationResult> r = client.transact(schema, Collections.<Operation>singletonList(insert))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, "create Transit_Switch " + tsName);
+            logger.info("Created OVN Transit_Switch [{}] at IC NB {}", tsName, icNbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Idempotently deletes a Transit_Switch from the IC NB DB. Should be called when the
+     * last peering group member is removed; ovn-ic will then propagate the removal to all
+     * AZ NBs and tear down remote ports.
+     */
+    public void deleteTransitSwitch(String icNbConnection, String caCertPath, String clientCertPath,
+                                    String clientPrivateKeyPath, String tsName) {
+        if (StringUtils.isBlank(tsName)) {
+            throw new CloudRuntimeException("Transit_Switch name is blank");
+        }
+        runOnDb(icNbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, IC_NORTHBOUND_DB, client -> {
+            DatabaseSchema schema = client.getSchema(IC_NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema ts = schema.table(TRANSIT_SWITCH_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = ts.column("name", String.class);
+            Operation<GenericTableSchema> del = OVSDB_OPS.delete(ts).where(nameCol.opEqual(tsName)).build();
+            List<OperationResult> r = client.transact(schema, Collections.singletonList(del))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, "delete Transit_Switch " + tsName);
+            logger.info("Deleted OVN Transit_Switch [{}] at IC NB {}", tsName, icNbConnection);
+            return null;
+        });
+    }
+
+    /**
+     * Returns the system-id (Chassis.name) of the Chassis row whose hostname matches.
+     * Querying SB by hostname is the only reliable way to obtain the system-id we then
+     * pass to {@link #setLrpGatewayChassis} - the row {@code _uuid} is NOT what
+     * gateway_chassis.chassis_name expects (we hit this bug on the first manual lab run).
+     * Returns null if no chassis matches.
+     */
+    public String lookupChassisSystemIdByHostname(String sbConnection, String caCertPath, String clientCertPath,
+                                                  String clientPrivateKeyPath, String hostname) {
+        if (StringUtils.isBlank(hostname)) {
+            return null;
+        }
+        return runOnDb(sbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, SOUTHBOUND_DB, client -> {
+            DatabaseSchema schema = client.getSchema(SOUTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema chassisTable = schema.table(CHASSIS_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = chassisTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> hostCol = chassisTable.column("hostname", String.class);
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(chassisTable).column(nameCol)
+                    .where(hostCol.opEqual(hostname)).build();
+            List<OperationResult> r = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (r == null || r.isEmpty() || r.get(0).getRows() == null || r.get(0).getRows().isEmpty()) {
+                return null;
+            }
+            return r.get(0).getRows().get(0).getColumn(nameCol).getData();
+        });
+    }
+
+    /**
+     * Returns Chassis.name (system-id) for every Chassis in the SB whose
+     * {@code other_config:is-interconn} is "true". Used to pick HA gateway chassis for
+     * a TS-facing LRP. Order is unspecified; the caller assigns priorities.
+     */
+    public List<String> listInterconnectionChassisSystemIds(String sbConnection, String caCertPath,
+                                                            String clientCertPath, String clientPrivateKeyPath) {
+        return runOnDb(sbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, SOUTHBOUND_DB, client -> {
+            DatabaseSchema schema = client.getSchema(SOUTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema chassisTable = schema.table(CHASSIS_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> nameCol = chassisTable.column("name", String.class);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ColumnSchema<GenericTableSchema, Map> ocCol = chassisTable.column("other_config", Map.class);
+            Operation<GenericTableSchema> sel = OVSDB_OPS.select(chassisTable).column(nameCol).column(ocCol);
+            List<OperationResult> r = client.transact(schema, Collections.<Operation>singletonList(sel))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            List<String> result = new ArrayList<>();
+            if (r == null || r.isEmpty() || r.get(0).getRows() == null) return result;
+            for (Row<GenericTableSchema> row : r.get(0).getRows()) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> oc = (Map<String, String>) row.getColumn(ocCol).getData();
+                if (oc != null && "true".equalsIgnoreCase(oc.get("is-interconn"))) {
+                    result.add(row.getColumn(nameCol).getData());
+                }
+            }
+            return result;
+        });
+    }
+
+    /**
+     * Idempotently attaches a Logical_Router to a Transit_Switch in this AZ's NB. The TS LS
+     * itself is propagated by ovn-ic from the IC NB; we only add the local-side LRP+LSP
+     * (the LSP must be type=router, addresses=[router], options:router-port=<lrp>) and pin
+     * gateway-chassis HA. {@code gatewayChassisSystemIds} must contain Chassis.name values
+     * (system-ids) - NOT row UUIDs - in priority order (highest first).
+     */
+    public void attachRouterToTransitSwitch(String nbConnection, String caCertPath, String clientCertPath,
+                                            String clientPrivateKeyPath,
+                                            String routerName, String tsLsName,
+                                            String lrpName, String lspName,
+                                            String lrpMac, String lrpIpCidr,
+                                            List<String> gatewayChassisSystemIds) {
+        if (StringUtils.isBlank(routerName) || StringUtils.isBlank(tsLsName)
+                || StringUtils.isBlank(lrpName) || StringUtils.isBlank(lspName)) {
+            throw new CloudRuntimeException("attachRouterToTransitSwitch arguments are incomplete");
+        }
+        if (StringUtils.isBlank(lrpMac) || StringUtils.isBlank(lrpIpCidr)) {
+            throw new CloudRuntimeException("LRP mac/ip required for TS attachment");
+        }
+        // Reuse the regular LR↔LS attach helper - the propagated TS appears as a regular LS
+        // in this AZ NB (with type=remote ports for the other AZs). The router-port LSP we
+        // create gets the standard router type/addresses, so this works.
+        attachRouterToSwitch(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                routerName, tsLsName, lrpName, lrpMac, Collections.singletonList(lrpIpCidr));
+
+        if (gatewayChassisSystemIds != null) {
+            int prio = 20;
+            for (String sysId : gatewayChassisSystemIds) {
+                if (StringUtils.isBlank(sysId)) continue;
+                setLrpGatewayChassis(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                        lrpName, sysId, prio);
+                prio = Math.max(prio - 10, 1);
+            }
+        }
+    }
+
+    /**
+     * Removes the LRP+LSP that connect a Logical_Router to a Transit_Switch in this AZ's NB.
+     * Does not touch the TS itself (its lifecycle is governed by IC NB).
+     */
+    public void detachRouterFromTransitSwitch(String nbConnection, String caCertPath, String clientCertPath,
+                                              String clientPrivateKeyPath,
+                                              String routerName, String tsLsName,
+                                              String lrpName, String lspName) {
+        // Remove LRP first (its gateway_chassis rows are GC'd by OVSDB when the LRP row goes
+        // away).
+        removeLogicalRouterPort(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
+                routerName, lrpName);
+        // Then remove the LSP from whatever LS still references it. The TS LS in this AZ NB
+        // is propagated by ovn-ic and may not match {@code tsLsName} exactly (e.g., manually
+        // created TS used a different name). We scan every LS that has this LSP in its
+        // ports, drop the reference, then delete the LSP row. This avoids referential
+        // integrity violations when the caller doesn't know the LS name.
+        deleteLogicalSwitchPortAnyLs(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, lspName);
+    }
+
+    /**
+     * Best-effort delete of a Logical_Switch_Port that scans every Logical_Switch for the
+     * port reference, drops it, then deletes the LSP row. Used when the caller doesn't
+     * know which LS owns the port, e.g. for ovn-ic-propagated Transit Switches whose name
+     * may not match what the caller expected.
+     */
+    public void deleteLogicalSwitchPortAnyLs(String nbConnection, String caCertPath, String clientCertPath,
+                                             String clientPrivateKeyPath, String lspName) {
+        if (StringUtils.isBlank(lspName)) {
+            throw new CloudRuntimeException("Logical_Switch_Port name is blank");
+        }
+        runOn(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath, client -> {
+            DatabaseSchema schema = client.getSchema(NORTHBOUND_DB).get(timeoutMs, TimeUnit.MILLISECONDS);
+            GenericTableSchema lsTable = schema.table(LOGICAL_SWITCH_TABLE, GenericTableSchema.class);
+            GenericTableSchema lspTable = schema.table(LOGICAL_SWITCH_PORT_TABLE, GenericTableSchema.class);
+            ColumnSchema<GenericTableSchema, String> lsNameCol = lsTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, String> lspNameCol = lspTable.column("name", String.class);
+            ColumnSchema<GenericTableSchema, UUID> lsUuidCol = lsTable.column("_uuid", UUID.class);
+            ColumnSchema<GenericTableSchema, Set<UUID>> lsPortsCol = lsTable.multiValuedColumn("ports", UUID.class);
+
+            UUID lspUuid = findLspUuid(client, schema, lspTable, lspNameCol, lspName);
+            if (lspUuid == null) {
+                logger.debug("Logical_Switch_Port [{}] not present on {} - nothing to delete", lspName, nbConnection);
+                return null;
+            }
+            // Find every LS that still references this LSP
+            Operation<GenericTableSchema> selLs = OVSDB_OPS.select(lsTable)
+                    .column(lsUuidCol).column(lsNameCol).column(lsPortsCol);
+            List<OperationResult> selRes = client.transact(schema, Collections.<Operation>singletonList(selLs))
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            List<Operation> ops = new ArrayList<>();
+            if (selRes != null && !selRes.isEmpty() && selRes.get(0).getRows() != null) {
+                for (Row<GenericTableSchema> row : selRes.get(0).getRows()) {
+                    Set<UUID> ports = row.getColumn(lsPortsCol).getData();
+                    if (ports != null && ports.contains(lspUuid)) {
+                        String lsName = row.getColumn(lsNameCol).getData();
+                        ops.add(OVSDB_OPS.mutate(lsTable)
+                                .addMutation(lsPortsCol, Mutator.DELETE, Collections.singleton(lspUuid))
+                                .where(lsNameCol.opEqual(lsName)).build());
+                    }
+                }
+            }
+            ops.add(OVSDB_OPS.delete(lspTable).where(lspNameCol.opEqual(lspName)).build());
+            List<OperationResult> r = client.transact(schema, ops).get(timeoutMs, TimeUnit.MILLISECONDS);
+            assertNoError(r, String.format("delete-anywhere Logical_Switch_Port %s", lspName));
+            logger.info("Deleted Logical_Switch_Port [{}] (LS-agnostic) at {}", lspName, nbConnection);
+            return null;
+        });
     }
 
     @PreDestroy

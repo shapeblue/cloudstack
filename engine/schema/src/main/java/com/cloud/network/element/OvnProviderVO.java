@@ -68,6 +68,15 @@ public class OvnProviderVO implements OvnProvider {
     @Column(name = "localnet_name")
     private String localnetName;
 
+    @Column(name = "ic_nb_connection")
+    private String icNbConnection;
+
+    @Column(name = "ic_sb_connection")
+    private String icSbConnection;
+
+    @Column(name = "availability_zone_name")
+    private String availabilityZoneName;
+
     @Column(name = "created")
     private Date created;
 
@@ -186,6 +195,33 @@ public class OvnProviderVO implements OvnProvider {
         this.localnetName = localnetName;
     }
 
+    @Override
+    public String getIcNbConnection() {
+        return icNbConnection;
+    }
+
+    public void setIcNbConnection(String icNbConnection) {
+        this.icNbConnection = icNbConnection;
+    }
+
+    @Override
+    public String getIcSbConnection() {
+        return icSbConnection;
+    }
+
+    public void setIcSbConnection(String icSbConnection) {
+        this.icSbConnection = icSbConnection;
+    }
+
+    @Override
+    public String getAvailabilityZoneName() {
+        return availabilityZoneName;
+    }
+
+    public void setAvailabilityZoneName(String availabilityZoneName) {
+        this.availabilityZoneName = availabilityZoneName;
+    }
+
     public Date getCreated() {
         return created;
     }
@@ -213,6 +249,9 @@ public class OvnProviderVO implements OvnProvider {
         private String clientPrivateKeyPath;
         private String externalBridge;
         private String localnetName;
+        private String icNbConnection;
+        private String icSbConnection;
+        private String availabilityZoneName;
 
         public Builder setZoneId(long zoneId) {
             this.zoneId = zoneId;
@@ -264,6 +303,21 @@ public class OvnProviderVO implements OvnProvider {
             return this;
         }
 
+        public Builder setIcNbConnection(String icNbConnection) {
+            this.icNbConnection = icNbConnection;
+            return this;
+        }
+
+        public Builder setIcSbConnection(String icSbConnection) {
+            this.icSbConnection = icSbConnection;
+            return this;
+        }
+
+        public Builder setAvailabilityZoneName(String availabilityZoneName) {
+            this.availabilityZoneName = availabilityZoneName;
+            return this;
+        }
+
         public OvnProviderVO build() {
             OvnProviderVO provider = new OvnProviderVO();
             provider.setZoneId(zoneId);
@@ -276,6 +330,9 @@ public class OvnProviderVO implements OvnProvider {
             provider.setClientPrivateKeyPath(clientPrivateKeyPath);
             provider.setExternalBridge(externalBridge);
             provider.setLocalnetName(localnetName);
+            provider.setIcNbConnection(icNbConnection);
+            provider.setIcSbConnection(icSbConnection);
+            provider.setAvailabilityZoneName(availabilityZoneName);
             return provider;
         }
     }

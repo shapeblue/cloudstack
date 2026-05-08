@@ -16,171 +16,262 @@
 // under the License.
 
 <template>
-  <a-spin :spinning="loading">
-    <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-      <a-button
-        type="primary"
-        @click="openCreateModal"
-        :disabled="!('createVpcPeering' in $store.getters.apis)">
-        <template #icon><plus-outlined /></template>
-        {{ $t('label.add.vpc.peering') }}
-      </a-button>
-      <a-button @click="fetchData" :loading="loading">
-        <template #icon><reload-outlined /></template>
-      </a-button>
-    </div>
-
-    <a-collapse v-model:activeKey="activeGroups" v-if="peeringGroups.length > 0">
-      <a-collapse-panel
-        v-for="group in peeringGroups"
-        :key="group.groupuuid"
-        :header="groupHeader(group)">
-        <template #extra>
-          <a-popconfirm
-            :title="$t('message.confirm.delete.vpc.peering.group')"
-            @confirm.stop="handleDeleteGroup(group)"
-            :okText="$t('label.yes')"
-            :cancelText="$t('label.no')">
+  <div>
+    <!-- ==================== LIST VIEW ==================== -->
+    <div v-if="!detailId">
+      <a-card :bordered="true">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <a-breadcrumb style="font-size: 14px;">
+            <a-breadcrumb-item>
+              <router-link to="/"><home-outlined /></router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>{{ $t('label.vpc.peering') }}</a-breadcrumb-item>
+          </a-breadcrumb>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <a-input-search
+              v-model:value="searchQuery"
+              :placeholder="$t('label.search')"
+              style="width: 200px;"
+              @search="fetchData" />
             <a-button
-              type="link"
-              danger
-              size="small"
-              @click.stop>
-              <template #icon><delete-outlined /></template>
-              {{ $t('label.delete') }}
+              @click="fetchData"
+              :loading="loading">
+              <template #icon><reload-outlined /></template>
             </a-button>
-          </a-popconfirm>
-        </template>
+            <a-button
+              type="primary"
+              @click="openCreateModal"
+              :disabled="!('createVpcPeering' in $store.getters.apis)">
+              <template #icon><plus-outlined /></template>
+              {{ $t('label.add.vpc.peering') }}
+            </a-button>
+          </div>
+        </div>
 
         <a-table
-          size="small"
-          :columns="memberColumns"
-          :dataSource="group.members"
-          :rowKey="item => item.id"
-          :pagination="false">
-          <template #bodyCell="{ column, text, record }">
-            <template v-if="column.key === 'vpcname'">
-              <router-link :to="{ path: '/vpc/' + record.vpcid }">
-                {{ text }}
+          size="middle"
+          :loading="loading"
+          :columns="listColumns"
+          :dataSource="filteredGroups"
+          :rowKey="item => item.groupuuid"
+          :pagination="{ showSizeChanger: true, pageSizeOptions: ['10', '20', '50'] }"
+          :customRow="(record) => ({ onClick: () => navigateToDetail(record) })"
+          class="peering-list-table">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'name'">
+              <swap-outlined style="margin-right: 8px; color: #1890ff;" />
+              <router-link :to="'/vpcpeering/' + record.groupuuid">
+                {{ record.name || record.groupuuid.substring(0, 8) + '...' }}
               </router-link>
             </template>
-            <template v-if="column.key === 'aclname'">
-              <span>{{ text || $t('label.default.allow.all') }}</span>
-              <a-button
-                type="link"
-                size="small"
-                @click="openEditAclModal(record)"
-                v-if="'updateVpcPeering' in $store.getters.apis">
-                <template #icon><edit-outlined /></template>
-              </a-button>
+            <template v-if="column.key === 'description'">
+              {{ record.description || '—' }}
             </template>
-            <template v-if="column.key === 'actions'">
-              <a-popconfirm
-                :title="$t('message.confirm.delete.vpc.peering')"
-                @confirm="handleDeletePeering(record)"
-                :okText="$t('label.yes')"
-                :cancelText="$t('label.no')">
-                <tooltip-button
-                  tooltipPlacement="bottom"
-                  :tooltip="$t('label.remove')"
-                  type="primary"
-                  :danger="true"
-                  icon="delete-outlined"
-                  size="small" />
-              </a-popconfirm>
+            <template v-if="column.key === 'membercount'">
+              {{ record.members.length }}
+            </template>
+            <template v-if="column.key === 'state'">
+              <status :text="record.state" displayText />
+            </template>
+            <template v-if="column.key === 'zonename'">
+              {{ record.zonename }}
             </template>
           </template>
         </a-table>
+      </a-card>
+    </div>
 
-        <div style="margin-top: 12px;">
-          <a-button
-            size="small"
-            @click="openAddVpcToGroupModal(group)">
-            <template #icon><plus-outlined /></template>
-            {{ $t('label.add.vpc.to.peering') }}
-          </a-button>
+    <!-- ==================== DETAIL VIEW ==================== -->
+    <div v-else>
+      <a-spin :spinning="detailLoading">
+        <!-- Breadcrumb bar -->
+        <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <a-breadcrumb style="font-size: 14px;">
+            <a-breadcrumb-item>
+              <router-link to="/"><home-outlined /></router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/vpcpeering">{{ $t('label.vpc.peering') }}</router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>{{ currentGroup.name || detailId.substring(0, 8) + '...' }}</a-breadcrumb-item>
+          </a-breadcrumb>
+          <div style="display: flex; gap: 8px;">
+            <a-button @click="fetchGroupDetail">
+              <template #icon><reload-outlined /></template>
+            </a-button>
+            <a-popconfirm
+              :title="$t('message.confirm.delete.vpc.peering.group')"
+              @confirm="handleDeleteGroup(currentGroup)"
+              :okText="$t('label.yes')"
+              :cancelText="$t('label.no')">
+              <a-button danger>
+                <template #icon><delete-outlined /></template>
+                {{ $t('label.delete') }}
+              </a-button>
+            </a-popconfirm>
+          </div>
         </div>
-      </a-collapse-panel>
-    </a-collapse>
 
-    <a-empty v-else :description="$t('label.no.data')" />
+        <!-- Info Card (like InfoCard.vue) -->
+        <a-card :bordered="true" style="margin-bottom: 16px;">
+          <div style="display: flex; align-items: center;">
+            <div style="margin-right: 20px;">
+              <a-avatar :size="48" style="background-color: #1890ff;">
+                <template #icon><swap-outlined /></template>
+              </a-avatar>
+            </div>
+            <div style="flex: 1;">
+              <h4 style="margin: 0 0 4px 0; font-size: 18px;">{{ currentGroup.name }}</h4>
+              <div v-if="currentGroup.description" style="color: rgba(0,0,0,0.45); margin-bottom: 4px;">
+                {{ currentGroup.description }}
+              </div>
+              <status :text="currentGroup.state || 'Active'" displayText />
+            </div>
+          </div>
+        </a-card>
 
-    <!-- Create Peering Modal -->
+        <!-- Tabs: Details / VPC Peers -->
+        <a-card :bordered="true" :bodyStyle="{ padding: 0 }">
+          <a-tabs v-model:activeKey="activeTab" style="padding: 0 16px;">
+            <!-- ===== Details Tab ===== -->
+            <a-tab-pane key="details" :tab="$t('label.details')">
+              <a-list size="small" :split="true" style="padding: 0 8px 16px 8px;">
+                <a-list-item v-for="field in detailFields" :key="field.key">
+                  <div style="width: 100%;">
+                    <strong>{{ field.label }}</strong>
+                    <br/>
+                    <div>{{ field.value || '—' }}</div>
+                  </div>
+                </a-list-item>
+              </a-list>
+            </a-tab-pane>
+
+            <!-- ===== VPC Peers Tab ===== -->
+            <a-tab-pane key="peers" :tab="$t('label.vpc.peers')">
+              <div style="padding: 16px 8px;">
+                <a-button
+                  type="dashed"
+                  style="width: 100%; margin-bottom: 16px;"
+                  :disabled="!('createVpcPeering' in $store.getters.apis)"
+                  @click="openAddVpcModal(currentGroup)">
+                  <template #icon><plus-outlined /></template>
+                  {{ $t('label.add.vpc.to.peering') }}
+                </a-button>
+
+                <a-table
+                  size="small"
+                  :columns="memberColumns"
+                  :dataSource="currentGroup.members"
+                  :rowKey="item => item.id"
+                  :pagination="false">
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'vpcname'">
+                      <router-link :to="'/vpc/' + record.vpcid">{{ record.vpcname }}</router-link>
+                    </template>
+                    <template v-if="column.key === 'vpccidr'">
+                      {{ record.vpccidr }}
+                    </template>
+                    <template v-if="column.key === 'linklocalip'">
+                      <code>{{ record.linklocalip }}</code>
+                    </template>
+                    <template v-if="column.key === 'zonename'">
+                      {{ record.zonename }}
+                    </template>
+                    <template v-if="column.key === 'state'">
+                      <status :text="record.state" displayText />
+                    </template>
+                    <template v-if="column.key === 'actions'">
+                      <a-popconfirm
+                        :title="$t('message.confirm.remove.vpc.from.peering')"
+                        @confirm="handleRemoveMember(record)"
+                        :okText="$t('label.yes')"
+                        :cancelText="$t('label.no')">
+                        <a-tooltip :title="$t('label.remove')">
+                          <a-button
+                            type="link"
+                            danger
+                            size="small"
+                            :disabled="currentGroup.members.length <= 2">
+                            <template #icon><delete-outlined /></template>
+                          </a-button>
+                        </a-tooltip>
+                      </a-popconfirm>
+                    </template>
+                  </template>
+                </a-table>
+              </div>
+            </a-tab-pane>
+          </a-tabs>
+        </a-card>
+      </a-spin>
+    </div>
+
+    <!-- ==================== Create VPC Peering Modal ==================== -->
     <a-modal
-      :visible="modals.create"
+      v-model:visible="modals.create"
       :title="$t('label.add.vpc.peering')"
       :maskClosable="false"
       :closable="true"
       :footer="null"
-      @cancel="modals.create = false">
+      @cancel="modals.create = false"
+      width="520px">
       <a-spin :spinning="modals.createLoading">
-        <a-form layout="vertical" :model="form" :rules="rules" ref="createFormRef">
-          <a-form-item :label="$t('label.vpc')" name="vpcid">
-            <a-select
-              v-model:value="form.vpcid"
+        <a-form layout="vertical" :model="form" :rules="createRules" ref="createFormRef">
+          <a-form-item :label="$t('label.name')" name="name">
+            <a-input
+              v-model:value="form.name"
               v-focus="true"
-              showSearch
-              optionFilterProp="label"
-              :placeholder="$t('label.select')"
-              :filterOption="filterOption">
-              <a-select-option
-                v-for="item in allVpcs"
-                :key="item.id"
-                :value="item.id"
-                :label="`${item.name} (${item.cidr}) - ${item.zonename}`">
-                {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
-              </a-select-option>
-            </a-select>
+              :placeholder="$t('label.name')" />
           </a-form-item>
-          <a-form-item :label="$t('label.peer.vpc')" name="peervpcid">
-            <a-select
-              v-model:value="form.peervpcid"
-              showSearch
-              optionFilterProp="label"
-              :placeholder="$t('label.select')"
-              :filterOption="filterOption">
-              <a-select-option
-                v-for="item in filteredPeerVpcs"
-                :key="item.id"
-                :value="item.id"
-                :label="`${item.name} (${item.cidr}) - ${item.zonename}`">
-                {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
-              </a-select-option>
-            </a-select>
+          <a-form-item :label="$t('label.description')">
+            <a-input
+              v-model:value="form.description"
+              :placeholder="$t('label.description')" />
           </a-form-item>
-          <a-form-item :label="$t('label.aclid')">
+          <a-form-item :label="$t('label.vpc.peering.members')" name="vpcids">
             <a-select
-              v-model:value="form.aclid"
+              v-model:value="form.vpcids"
+              mode="multiple"
               showSearch
               optionFilterProp="label"
-              allowClear
-              :placeholder="$t('label.default.allow.all')"
+              :placeholder="$t('label.vpc.peering.select.vpcs')"
               :filterOption="filterOption">
               <a-select-option
-                v-for="item in aclListForVpc"
+                v-for="item in availableVpcs"
                 :key="item.id"
                 :value="item.id"
-                :label="item.name">
-                {{ item.name }} {{ item.description ? '(' + item.description + ')' : '' }}
+                :label="`${item.name} (${item.cidr}) - ${item.zonename}`"
+                :disabled="isVpcInPeering(item.id)">
+                {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
+                <a-tag v-if="isVpcInPeering(item.id)" color="orange" style="margin-left: 8px;">{{ $t('label.vpc.peering.already.peered') }}</a-tag>
               </a-select-option>
             </a-select>
+            <div v-if="form.vpcids && form.vpcids.length < 2" style="color: #faad14; margin-top: 4px; font-size: 12px;">
+              {{ $t('label.vpc.peering.select.min') }}
+            </div>
           </a-form-item>
           <div class="action-button">
             <a-button @click="modals.create = false">{{ $t('label.cancel') }}</a-button>
-            <a-button type="primary" @click="handleCreatePeering">{{ $t('label.ok') }}</a-button>
+            <a-button
+              type="primary"
+              @click="handleCreatePeering"
+              :disabled="!form.name || !form.vpcids || form.vpcids.length < 2">
+              {{ $t('label.ok') }}
+            </a-button>
           </div>
         </a-form>
       </a-spin>
     </a-modal>
 
-    <!-- Add VPC to Group Modal -->
+    <!-- ==================== Add VPC to Group Modal ==================== -->
     <a-modal
-      :visible="modals.addToGroup"
+      v-model:visible="modals.addToGroup"
       :title="$t('label.add.vpc.to.peering')"
       :maskClosable="false"
       :closable="true"
       :footer="null"
-      @cancel="modals.addToGroup = false">
+      @cancel="modals.addToGroup = false"
+      width="480px">
       <a-spin :spinning="modals.addToGroupLoading">
         <a-form layout="vertical" :model="form">
           <a-form-item :label="$t('label.vpc')">
@@ -192,7 +283,7 @@
               :placeholder="$t('label.select')"
               :filterOption="filterOption">
               <a-select-option
-                v-for="item in vpcsNotInGroup"
+                v-for="item in vpcsNotInAnyGroup"
                 :key="item.id"
                 :value="item.id"
                 :label="`${item.name} (${item.cidr}) - ${item.zonename}`">
@@ -200,106 +291,85 @@
               </a-select-option>
             </a-select>
           </a-form-item>
-          <a-form-item :label="$t('label.aclid')">
-            <a-select
-              v-model:value="form.aclid"
-              showSearch
-              optionFilterProp="label"
-              allowClear
-              :placeholder="$t('label.default.allow.all')"
-              :filterOption="filterOption">
-              <a-select-option
-                v-for="item in aclListForNewVpc"
-                :key="item.id"
-                :value="item.id"
-                :label="item.name">
-                {{ item.name }} {{ item.description ? '(' + item.description + ')' : '' }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
           <div class="action-button">
             <a-button @click="modals.addToGroup = false">{{ $t('label.cancel') }}</a-button>
-            <a-button type="primary" @click="handleAddVpcToGroup">{{ $t('label.ok') }}</a-button>
+            <a-button type="primary" @click="handleAddVpcToGroup" :disabled="!form.newvpcid">{{ $t('label.ok') }}</a-button>
           </div>
         </a-form>
       </a-spin>
     </a-modal>
-
-    <!-- Edit ACL Modal -->
-    <a-modal
-      :visible="modals.editAcl"
-      :title="$t('label.edit.acl')"
-      :maskClosable="false"
-      :closable="true"
-      :footer="null"
-      @cancel="modals.editAcl = false">
-      <a-spin :spinning="modals.editAclLoading">
-        <a-form layout="vertical" :model="form">
-          <a-form-item :label="$t('label.aclid')">
-            <a-select
-              v-model:value="form.aclid"
-              v-focus="true"
-              showSearch
-              optionFilterProp="label"
-              allowClear
-              :placeholder="$t('label.default.allow.all')"
-              :filterOption="filterOption">
-              <a-select-option
-                v-for="item in aclListForEdit"
-                :key="item.id"
-                :value="item.id"
-                :label="item.name">
-                {{ item.name }} {{ item.description ? '(' + item.description + ')' : '' }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <div class="action-button">
-            <a-button @click="modals.editAcl = false">{{ $t('label.cancel') }}</a-button>
-            <a-button type="primary" @click="handleUpdateAcl">{{ $t('label.ok') }}</a-button>
-          </div>
-        </a-form>
-      </a-spin>
-    </a-modal>
-  </a-spin>
+  </div>
 </template>
 
 <script>
 import { reactive } from 'vue'
 import { getAPI, postAPI } from '@/api'
-import TooltipButton from '@/components/widgets/TooltipButton'
+import Status from '@/components/widgets/Status'
 
 export default {
   name: 'VpcPeeringDashboard',
   components: {
-    TooltipButton
+    Status
   },
   data () {
     return {
       loading: false,
+      detailLoading: false,
+      searchQuery: '',
+      activeTab: 'details',
       peeringGroups: [],
       allVpcs: [],
-      activeGroups: [],
-      aclLists: {},
+      peeredVpcIds: new Set(),
+      currentGroup: { members: [] },
       selectedGroup: null,
-      editingPeering: null,
       modals: {
         create: false,
         createLoading: false,
         addToGroup: false,
-        addToGroupLoading: false,
-        editAcl: false,
-        editAclLoading: false
+        addToGroupLoading: false
       },
       form: reactive({
-        vpcid: undefined,
-        peervpcid: undefined,
-        aclid: undefined,
+        name: '',
+        description: '',
+        vpcids: [],
         newvpcid: undefined
       }),
-      rules: {
-        vpcid: [{ required: true, message: this.$t('label.required') }],
-        peervpcid: [{ required: true, message: this.$t('label.required') }]
+      createRules: {
+        name: [{ required: true, message: this.$t('label.required') }],
+        vpcids: [{ required: true, type: 'array', min: 2, message: this.$t('label.vpc.peering.select.min') }]
       },
+      listColumns: [
+        {
+          key: 'name',
+          title: this.$t('label.name'),
+          dataIndex: 'name'
+        },
+        {
+          key: 'description',
+          title: this.$t('label.description'),
+          dataIndex: 'description',
+          ellipsis: true
+        },
+        {
+          key: 'membercount',
+          title: this.$t('label.vpc.peering.count'),
+          dataIndex: 'membercount',
+          width: 100,
+          align: 'center'
+        },
+        {
+          key: 'state',
+          title: this.$t('label.state'),
+          dataIndex: 'state',
+          width: 100
+        },
+        {
+          key: 'zonename',
+          title: this.$t('label.zone'),
+          dataIndex: 'zonename',
+          width: 160
+        }
+      ],
       memberColumns: [
         {
           key: 'vpcname',
@@ -307,94 +377,156 @@ export default {
           dataIndex: 'vpcname'
         },
         {
-          title: 'CIDR',
-          dataIndex: 'vpccidr'
+          key: 'vpccidr',
+          title: this.$t('label.cidr'),
+          dataIndex: 'vpccidr',
+          width: 160
         },
         {
-          title: this.$t('label.zone'),
-          dataIndex: 'zonename'
-        },
-        {
+          key: 'linklocalip',
           title: this.$t('label.link.local.ip'),
-          dataIndex: 'linklocalip'
+          dataIndex: 'linklocalip',
+          width: 160
         },
         {
-          key: 'aclname',
-          title: this.$t('label.aclid'),
-          dataIndex: 'aclname'
+          key: 'zonename',
+          title: this.$t('label.zone'),
+          dataIndex: 'zonename',
+          width: 160
+        },
+        {
+          key: 'state',
+          title: this.$t('label.state'),
+          dataIndex: 'state',
+          width: 100
         },
         {
           key: 'actions',
           title: '',
           dataIndex: 'actions',
-          width: 60
+          width: 60,
+          align: 'center'
         }
       ]
     }
   },
   computed: {
-    filteredPeerVpcs () {
-      return this.allVpcs.filter(v => v.id !== this.form.vpcid)
+    detailId () {
+      return this.$route.params.id || null
     },
-    vpcsNotInGroup () {
-      if (!this.selectedGroup) return this.allVpcs
-      const memberVpcIds = new Set(this.selectedGroup.members.map(m => m.vpcid))
-      return this.allVpcs.filter(v => !memberVpcIds.has(v.id))
+    filteredGroups () {
+      if (!this.searchQuery) return this.peeringGroups
+      const q = this.searchQuery.toLowerCase()
+      return this.peeringGroups.filter(g => {
+        return (g.name && g.name.toLowerCase().includes(q)) ||
+          (g.description && g.description.toLowerCase().includes(q)) ||
+          g.members.some(m => m.vpcname && m.vpcname.toLowerCase().includes(q))
+      })
     },
-    aclListForVpc () {
-      if (!this.form.vpcid) return []
-      return this.aclLists[this.form.vpcid] || []
+    detailFields () {
+      const g = this.currentGroup
+      return [
+        { key: 'name', label: this.$t('label.name'), value: g.name },
+        { key: 'id', label: this.$t('label.id'), value: g.groupuuid },
+        { key: 'description', label: this.$t('label.description'), value: g.description },
+        { key: 'state', label: this.$t('label.state'), value: g.state },
+        { key: 'zonename', label: this.$t('label.zone'), value: g.zonename },
+        { key: 'membercount', label: this.$t('label.vpc.peering.count'), value: g.members ? String(g.members.length) : '0' },
+        { key: 'created', label: this.$t('label.created'), value: g.created }
+      ]
     },
-    aclListForNewVpc () {
-      if (!this.form.newvpcid) return []
-      return this.aclLists[this.form.newvpcid] || []
+    availableVpcs () {
+      return this.allVpcs
     },
-    aclListForEdit () {
-      if (!this.editingPeering) return []
-      return this.aclLists[this.editingPeering.vpcid] || []
+    vpcsNotInAnyGroup () {
+      return this.allVpcs.filter(v => !this.peeredVpcIds.has(v.id))
     }
   },
   watch: {
-    'form.vpcid' (val) {
-      if (val) this.fetchAclListForVpc(val)
-    },
-    'form.newvpcid' (val) {
-      if (val) this.fetchAclListForVpc(val)
+    '$route.params.id': {
+      handler (newId) {
+        if (newId) {
+          this.fetchGroupDetail()
+        } else {
+          this.fetchData()
+        }
+      },
+      immediate: false
     }
   },
   created () {
-    this.fetchData()
+    if (this.detailId) {
+      this.fetchGroupDetail()
+    } else {
+      this.fetchData()
+    }
   },
   methods: {
     filterOption (input, option) {
       return option.label && option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
     },
-    groupHeader (group) {
-      const names = group.members.map(m => m.vpcname).join(', ')
-      return `${names} (${group.members.length} VPCs)`
+    isVpcInPeering (vpcId) {
+      return this.peeredVpcIds.has(vpcId)
+    },
+    navigateToDetail (record) {
+      this.$router.push('/vpcpeering/' + record.groupuuid)
+    },
+    buildGroupMap (peerings) {
+      const groups = {}
+      const peeredIds = new Set()
+      for (const p of peerings) {
+        peeredIds.add(p.vpcid)
+        if (!groups[p.groupuuid]) {
+          groups[p.groupuuid] = {
+            groupuuid: p.groupuuid,
+            name: p.name,
+            description: p.description,
+            state: p.state,
+            zonename: p.zonename,
+            created: p.created,
+            members: []
+          }
+        }
+        groups[p.groupuuid].members.push(p)
+        if (p.name && !groups[p.groupuuid].name) {
+          groups[p.groupuuid].name = p.name
+        }
+        if (p.description && !groups[p.groupuuid].description) {
+          groups[p.groupuuid].description = p.description
+        }
+      }
+      return { groups, peeredIds }
     },
     fetchData () {
       this.loading = true
       getAPI('listVpcPeerings', {}).then(json => {
         const peerings = json.listvpcpeeringsresponse?.vpcpeering || []
-        const groups = {}
-        for (const p of peerings) {
-          if (!groups[p.groupuuid]) {
-            groups[p.groupuuid] = {
-              groupuuid: p.groupuuid,
-              members: []
-            }
-          }
-          groups[p.groupuuid].members.push(p)
-        }
+        const { groups, peeredIds } = this.buildGroupMap(peerings)
         this.peeringGroups = Object.values(groups)
-        if (this.activeGroups.length === 0 && this.peeringGroups.length > 0) {
-          this.activeGroups = this.peeringGroups.map(g => g.groupuuid)
-        }
+        this.peeredVpcIds = peeredIds
       }).catch(error => {
         this.$notifyError(error)
       }).finally(() => {
         this.loading = false
+      })
+    },
+    fetchGroupDetail () {
+      if (!this.detailId) return
+      this.detailLoading = true
+      getAPI('listVpcPeerings', { groupuuid: this.detailId }).then(json => {
+        const peerings = json.listvpcpeeringsresponse?.vpcpeering || []
+        if (peerings.length === 0) {
+          this.$message.warning(this.$t('label.not.found'))
+          this.$router.push('/vpcpeering')
+          return
+        }
+        const { groups, peeredIds } = this.buildGroupMap(peerings)
+        this.currentGroup = Object.values(groups)[0]
+        this.peeredVpcIds = peeredIds
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.detailLoading = false
       })
     },
     fetchAllVpcs () {
@@ -404,113 +536,103 @@ export default {
         this.$notifyError(error)
       })
     },
-    fetchAclListForVpc (vpcid) {
-      getAPI('listNetworkACLLists', { vpcid: vpcid, listAll: true }).then(json => {
-        this.aclLists[vpcid] = json.listnetworkacllistsresponse?.networkacllist || []
-      }).catch(() => {})
-    },
     openCreateModal () {
-      this.form.vpcid = undefined
-      this.form.peervpcid = undefined
-      this.form.aclid = undefined
+      this.form.name = ''
+      this.form.description = ''
+      this.form.vpcids = []
       this.modals.create = true
       this.fetchAllVpcs()
+      this.fetchData()
     },
-    openAddVpcToGroupModal (group) {
+    openAddVpcModal (group) {
       this.selectedGroup = group
       this.form.newvpcid = undefined
-      this.form.aclid = undefined
       this.modals.addToGroup = true
       this.fetchAllVpcs()
+      this.fetchData()
     },
-    openEditAclModal (record) {
-      this.editingPeering = record
-      this.form.aclid = record.aclid || undefined
-      this.fetchAclListForVpc(record.vpcid)
-      this.modals.editAcl = true
-    },
-    handleCreatePeering () {
+    async handleCreatePeering () {
       if (this.modals.createLoading) return
+      if (!this.form.vpcids || this.form.vpcids.length < 2) return
       this.modals.createLoading = true
-      const params = {
-        vpcid: this.form.vpcid,
-        peervpcid: this.form.peervpcid
-      }
-      if (this.form.aclid) {
-        params.aclid = this.form.aclid
-      }
-      postAPI('createVpcPeering', params).then(() => {
+      try {
+        const vpcids = this.form.vpcids
+        const params = {
+          name: this.form.name,
+          vpcid: vpcids[0],
+          peervpcid: vpcids[1]
+        }
+        if (this.form.description) {
+          params.description = this.form.description
+        }
+        await postAPI('createVpcPeering', params)
+        for (let i = 2; i < vpcids.length; i++) {
+          await postAPI('createVpcPeering', {
+            name: this.form.name,
+            vpcid: vpcids[i],
+            peervpcid: vpcids[0]
+          })
+        }
         this.$message.success(this.$t('message.success.add.vpc.peering'))
         this.modals.create = false
         this.fetchData()
-      }).catch(error => {
+      } catch (error) {
         this.$notifyError(error)
-      }).finally(() => {
+      } finally {
         this.modals.createLoading = false
-      })
+      }
     },
-    handleAddVpcToGroup (group) {
-      if (this.modals.addToGroupLoading) return
+    async handleAddVpcToGroup () {
+      if (this.modals.addToGroupLoading || !this.form.newvpcid) return
       this.modals.addToGroupLoading = true
-      const existingMember = this.selectedGroup.members[0]
-      const params = {
-        vpcid: this.form.newvpcid,
-        peervpcid: existingMember.vpcid
-      }
-      if (this.form.aclid) {
-        params.aclid = this.form.aclid
-      }
-      postAPI('createVpcPeering', params).then(() => {
+      try {
+        const existingMember = this.selectedGroup.members[0]
+        await postAPI('createVpcPeering', {
+          name: this.selectedGroup.name,
+          vpcid: this.form.newvpcid,
+          peervpcid: existingMember.vpcid
+        })
         this.$message.success(this.$t('message.success.add.vpc.peering'))
         this.modals.addToGroup = false
-        this.fetchData()
-      }).catch(error => {
+        if (this.detailId) {
+          this.fetchGroupDetail()
+        } else {
+          this.fetchData()
+        }
+      } catch (error) {
         this.$notifyError(error)
-      }).finally(() => {
+      } finally {
         this.modals.addToGroupLoading = false
-      })
-    },
-    handleUpdateAcl () {
-      if (this.modals.editAclLoading) return
-      this.modals.editAclLoading = true
-      const params = { id: this.editingPeering.id }
-      if (this.form.aclid) {
-        params.aclid = this.form.aclid
       }
-      postAPI('updateVpcPeering', params).then(() => {
-        this.$message.success(this.$t('message.success.update.vpc.peering'))
-        this.modals.editAcl = false
-        this.fetchData()
-      }).catch(error => {
-        this.$notifyError(error)
-      }).finally(() => {
-        this.modals.editAclLoading = false
-      })
     },
-    handleDeletePeering (record) {
-      this.loading = true
-      postAPI('deleteVpcPeering', { id: record.id }).then(() => {
-        this.$message.success(this.$t('label.action.delete.succeeded'))
-        this.fetchData()
-      }).catch(error => {
+    async handleRemoveMember (record) {
+      this.detailLoading = true
+      try {
+        await postAPI('deleteVpcPeering', { id: record.id })
+        this.$message.success(this.$t('message.success.remove.vpc.from.peering'))
+        this.fetchGroupDetail()
+      } catch (error) {
         this.$notifyError(error)
-      }).finally(() => {
-        this.loading = false
-      })
+      } finally {
+        this.detailLoading = false
+      }
     },
-    handleDeleteGroup (group) {
+    async handleDeleteGroup (group) {
       this.loading = true
-      const promises = group.members.map(m =>
-        postAPI('deleteVpcPeering', { id: m.id })
-      )
-      Promise.all(promises).then(() => {
+      this.detailLoading = true
+      try {
+        for (const m of group.members) {
+          await postAPI('deleteVpcPeering', { id: m.id })
+        }
         this.$message.success(this.$t('label.action.delete.succeeded'))
+        this.$router.push('/vpcpeering')
         this.fetchData()
-      }).catch(error => {
+      } catch (error) {
         this.$notifyError(error)
-      }).finally(() => {
+      } finally {
         this.loading = false
-      })
+        this.detailLoading = false
+      }
     }
   }
 }
@@ -523,5 +645,8 @@ export default {
 }
 .action-button button {
   margin-left: 8px;
+}
+.peering-list-table :deep(tr) {
+  cursor: pointer;
 }
 </style>

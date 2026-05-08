@@ -29,6 +29,12 @@ public class VpcPeeringResponse extends BaseResponse {
     @SerializedName("groupuuid")
     private String groupUuid;
 
+    @SerializedName(ApiConstants.NAME)
+    private String name;
+
+    @SerializedName(ApiConstants.DESCRIPTION)
+    private String description;
+
     @SerializedName(ApiConstants.VPC_ID)
     private String vpcId;
 
@@ -74,6 +80,14 @@ public class VpcPeeringResponse extends BaseResponse {
 
     public void setGroupUuid(String groupUuid) {
         this.groupUuid = groupUuid;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public void setVpcId(String vpcId) {

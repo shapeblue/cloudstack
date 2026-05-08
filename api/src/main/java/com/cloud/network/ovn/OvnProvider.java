@@ -30,4 +30,7 @@ public interface OvnProvider extends InternalIdentity, Identity {
     String getClientPrivateKeyPath();
     String getExternalBridge();
     String getLocalnetName();
+    String getIcNbConnection();
+    String getIcSbConnection();
+    String getAvailabilityZoneName();
 }
