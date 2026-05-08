@@ -2004,6 +2004,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             // creation, before calling implementVpc). When the IP is changed later we re-run the
             // same idempotent helper from updateVpcSourceNatIp.
             applyVpcSourceNatPublicSide(provider, vpc);
+            // Re-provision any VPC peering this VPC participates in. shutdownVpc tears down
+            // the OVN-side artifacts but keeps the DB rows Active, so a restart-with-cleanup
+            // would otherwise leave us out of the mesh. provisionPeeringGroup is idempotent
+            // and re-runs once per group regardless of how many members live in this VPC.
+            List<OvnVpcPeeringVO> myPeerings = ovnVpcPeeringDao.listByVpcId(vpc.getId());
+            Set<String> reprovisionedGroups = new HashSet<>();
+            for (OvnVpcPeeringVO p : myPeerings) {
+                if (reprovisionedGroups.add(p.getGroupUuid())) {
+                    provisionPeeringGroup(p.getGroupUuid());
+                }
+            }
         } catch (CloudRuntimeException e) {
             throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, vpc.getZoneId());
         }
@@ -2642,6 +2653,14 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 direction, ovnPriority, matchExpr, aclAction, ext);
     }
 
+    /**
+     * Tears down the OVN-side peering artifacts owned by {@code vpc} but keeps the DB rows
+     * intact. Called from {@link #shutdownVpc} which runs both for restart-with-cleanup
+     * (where we want {@link #implementVpc} to re-provision the peering after the LR comes
+     * back) and for VPC deletion (where the foreign-key CASCADE on {@code vpc_id} removes
+     * the rows automatically once the VPC is gone). Either way, leaving the DB row Active
+     * here is the right move - it's restartable, and a real delete still trims the row.
+     */
     protected void removePeeringsForVpc(Vpc vpc, OvnProviderVO provider) {
         List<OvnVpcPeeringVO> peerings = ovnVpcPeeringDao.listByVpcId(vpc.getId());
         for (OvnVpcPeeringVO peering : peerings) {
@@ -2650,9 +2669,6 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
                 if (isCrossZonePeeringGroup(groupMembers)) {
                     removeCrossZonePeeringMember(peering, provider, groupUuid);
-                    peering.setState("Removed");
-                    peering.setRemoved(new java.util.Date());
-                    ovnVpcPeeringDao.update(peering.getId(), peering);
                     continue;
                 }
                 String routerName = String.format("cs-vpc-%d", vpc.getId());
@@ -2695,9 +2711,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                             getPeeringLsName(groupUuid));
                 }
 
-                peering.setState("Removed");
-                peering.setRemoved(new java.util.Date());
-                ovnVpcPeeringDao.update(peering.getId(), peering);
+                // DB row left Active on purpose - see method javadoc.
             } catch (CloudRuntimeException e) {
                 logger.warn("Failed to clean up peering {} for VPC {}: {}", peering.getUuid(), vpc.getId(), e.getMessage());
             }
