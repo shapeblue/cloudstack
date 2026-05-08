@@ -527,12 +527,15 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
                         if (svc == Service.UserData) {
                             svcProviderMap.put(svc, configDriveProvider);
                         } else if (svc == Service.Vpn) {
-                            // Out of scope for OVN VPC v1 - no VPN provider in the offering.
                             continue;
                         } else {
                             svcProviderMap.put(svc, ovnProvider);
                         }
                     }
+                    // OVN implements Firewall natively via OVN ACLs; VPC tiers use it
+                    // instead of (or alongside) NetworkACL. getSupportedServices()
+                    // excludes Firewall for legacy VR-based VPCs, so add it explicitly.
+                    svcProviderMap.put(Service.Firewall, ovnProvider);
                     createVpcOffering(VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME, VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME, svcProviderMap, false,
                             State.Enabled, null, false, false, false, NetworkOffering.NetworkMode.NATTED, null, false, false);
                 }

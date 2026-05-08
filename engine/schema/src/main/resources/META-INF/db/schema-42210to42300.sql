@@ -163,3 +163,14 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_vpc_peerings` (
     CONSTRAINT `fk_ovn_vpc_peerings_zone` FOREIGN KEY (`zone_id`) REFERENCES `cloud`.`data_center`(`id`),
     CONSTRAINT `fk_ovn_vpc_peerings_account` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Add Firewall service to the default OVN VPC offering so that OVN VPC tiers
+-- using network offerings with Firewall/Ovn pass the service validation check.
+INSERT IGNORE INTO `cloud`.`vpc_offering_service_map` (`vpc_offering_id`, `service`, `provider`)
+    SELECT vo.id, 'Firewall', 'Ovn'
+    FROM `cloud`.`vpc_offerings` vo
+    WHERE vo.unique_name = 'VPC offering with OVN - NAT Mode'
+      AND NOT EXISTS (
+          SELECT 1 FROM `cloud`.`vpc_offering_service_map` sm
+          WHERE sm.vpc_offering_id = vo.id AND sm.service = 'Firewall'
+      );
