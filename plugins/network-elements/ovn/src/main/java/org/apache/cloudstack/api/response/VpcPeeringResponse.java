@@ -21,6 +21,7 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 
 import java.util.Date;
+import java.util.List;
 
 public class VpcPeeringResponse extends BaseResponse {
     @SerializedName(ApiConstants.ID)
@@ -73,6 +74,26 @@ public class VpcPeeringResponse extends BaseResponse {
 
     @SerializedName(ApiConstants.CREATED)
     private Date created;
+
+    /**
+     * Number of VPCs in the peering group. Set on aggregated (group-level) responses.
+     */
+    @SerializedName("vpccount")
+    private Integer vpcCount;
+
+    /**
+     * Comma-separated list of VPC names in the group. Convenient for the list-view column.
+     */
+    @SerializedName("vpcnames")
+    private String vpcNames;
+
+    /**
+     * Per-member detail. Populated only on group-level responses (id == groupuuid).
+     * Each entry corresponds to one VPC's row in the peering DB and is enough to drive
+     * the "VPC Peers" detail tab without an extra round-trip.
+     */
+    @SerializedName("members")
+    private List<VpcPeeringMemberResponse> members;
 
     public void setId(String id) {
         this.id = id;
@@ -140,5 +161,17 @@ public class VpcPeeringResponse extends BaseResponse {
 
     public void setCreated(Date created) {
         this.created = created;
+    }
+
+    public void setVpcCount(Integer vpcCount) {
+        this.vpcCount = vpcCount;
+    }
+
+    public void setVpcNames(String vpcNames) {
+        this.vpcNames = vpcNames;
+    }
+
+    public void setMembers(List<VpcPeeringMemberResponse> members) {
+        this.members = members;
     }
 }

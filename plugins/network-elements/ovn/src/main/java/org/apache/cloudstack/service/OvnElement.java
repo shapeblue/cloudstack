@@ -70,8 +70,11 @@ import com.cloud.vm.VirtualMachineProfile;
 
 import org.apache.cloudstack.api.command.CreateVpcPeeringCmd;
 import org.apache.cloudstack.api.command.DeleteVpcPeeringCmd;
+import org.apache.cloudstack.api.command.DisableVpcPeeringCmd;
+import org.apache.cloudstack.api.command.EnableVpcPeeringCmd;
 import org.apache.cloudstack.api.command.ListVpcPeeringsCmd;
 import org.apache.cloudstack.api.command.UpdateVpcPeeringCmd;
+import org.apache.cloudstack.api.response.VpcPeeringMemberResponse;
 import org.apache.cloudstack.api.response.VpcPeeringResponse;
 import org.apache.cloudstack.context.CallContext;
 import com.cloud.exception.InvalidParameterValueException;
@@ -2311,15 +2314,41 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     @Override
     public boolean deleteVpcPeering(DeleteVpcPeeringCmd cmd) {
+        // The cmd.id is normally a peering row UUID, but the AutogenView list maps each
+        // peering "group" to a single resource keyed off groupUuid. Accept both: if the
+        // value matches a group, delete every member sequentially so the group as a
+        // whole disappears.
         OvnVpcPeeringVO peering = ovnVpcPeeringDao.findByUuid(cmd.getId());
-        if (peering == null || !"Active".equals(peering.getState())) {
+        if (peering == null) {
+            List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuidIncludingDisabled(cmd.getId());
+            if (groupMembers != null && !groupMembers.isEmpty()) {
+                long callerId = CallContext.current().getCallingAccount().getId();
+                if (groupMembers.get(0).getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+                    throw new PermissionDeniedException("Caller does not own this peering");
+                }
+                boolean ok = true;
+                for (OvnVpcPeeringVO m : groupMembers) {
+                    DeleteVpcPeeringCmd memberCmd = new DeleteVpcPeeringCmd();
+                    try {
+                        java.lang.reflect.Field idField = DeleteVpcPeeringCmd.class.getDeclaredField("id");
+                        idField.setAccessible(true);
+                        idField.set(memberCmd, m.getUuid());
+                    } catch (ReflectiveOperationException ex) {
+                        throw new CloudRuntimeException("Cannot rewrite DeleteVpcPeeringCmd.id: " + ex.getMessage(), ex);
+                    }
+                    ok &= deleteVpcPeering(memberCmd);
+                }
+                return ok;
+            }
+            throw new InvalidParameterValueException("VPC peering not found or already removed: " + cmd.getId());
+        }
+        if ("Removed".equals(peering.getState())) {
             throw new InvalidParameterValueException("VPC peering not found or already removed: " + cmd.getId());
         }
         long callerId = CallContext.current().getCallingAccount().getId();
         if (peering.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
             throw new PermissionDeniedException("Caller does not own this peering");
         }
-
         String groupUuid = peering.getGroupUuid();
         long vpcId = peering.getVpcId();
         VpcVO vpc = vpcDao.findById(vpcId);
@@ -2328,8 +2357,13 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         // Cross-zone path: OVN-IC propagates route removal automatically (since ic-route-adv
         // re-runs whenever the LRP set on the TS changes), so we just need to detach this
         // member's LRP+LSP from the TS and let ovn-ic do the rest.
-        List<OvnVpcPeeringVO> groupMembersForBranch = ovnVpcPeeringDao.listByGroupUuid(groupUuid);
-        if (provider != null && vpc != null && isCrossZonePeeringGroup(groupMembersForBranch)) {
+        // We must look at the FULL group history (any state, including Removed) so a bulk
+        // delete that has already marked earlier members Removed still routes the next
+        // iterations through the cross-zone path. The link-local IP itself encodes the
+        // pool the member was allocated from, which is the most reliable indicator.
+        boolean isCrossZone = peering.getLinkLocalIp() != null
+                && peering.getLinkLocalIp().startsWith(CROSS_ZONE_LL_PREFIX);
+        if (provider != null && vpc != null && isCrossZone) {
             removeCrossZonePeeringMember(peering, provider, groupUuid);
             peering.setState("Removed");
             peering.setRemoved(new java.util.Date());
@@ -2432,25 +2466,216 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         return peering;
     }
 
+    /**
+     * Resolves the cmd id to a peering group's full membership (every member,
+     * including Disabled) and verifies the caller owns the group. Throws if the
+     * id is unknown or the group is empty. The id may be either a group UUID or
+     * any single member's peering UUID.
+     */
+    protected List<OvnVpcPeeringVO> resolveGroupMembersForToggle(String id) {
+        List<OvnVpcPeeringVO> members = ovnVpcPeeringDao.listByGroupUuidIncludingDisabled(id);
+        if (members.isEmpty()) {
+            OvnVpcPeeringVO single = ovnVpcPeeringDao.findByUuid(id);
+            if (single != null && !"Removed".equals(single.getState())) {
+                members = ovnVpcPeeringDao.listByGroupUuidIncludingDisabled(single.getGroupUuid());
+            }
+        }
+        if (members.isEmpty()) {
+            throw new InvalidParameterValueException("VPC peering not found: " + id);
+        }
+        long callerId = CallContext.current().getCallingAccount().getId();
+        if (members.get(0).getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+            throw new PermissionDeniedException("Caller does not own this peering");
+        }
+        return members;
+    }
+
+    @Override
+    public boolean disableVpcPeering(DisableVpcPeeringCmd cmd) {
+        List<OvnVpcPeeringVO> members = resolveGroupMembersForToggle(cmd.getId());
+        String groupUuid = members.get(0).getGroupUuid();
+
+        // Tear down OVN data plane on every member's router so traffic stops, then
+        // mark each row Disabled. We deliberately keep DB rows + linkLocalIp
+        // assignments so a subsequent enable can deterministically rebuild the
+        // same fabric via provisionPeeringGroup.
+        boolean crossZone = isCrossZonePeeringGroup(members);
+        for (OvnVpcPeeringVO m : members) {
+            if ("Disabled".equals(m.getState())) continue;
+            OvnProviderVO provider = ovnProviderDao.findByZoneId(m.getZoneId());
+            VpcVO vpc = vpcDao.findById(m.getVpcId());
+            if (provider != null && vpc != null) {
+                if (crossZone) {
+                    removeCrossZonePeeringMember(m, provider, groupUuid);
+                } else {
+                    String routerName = String.format("cs-vpc-%d", m.getVpcId());
+                    ovnNbClient.removeStaticRoutesByExternalId(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, PEERING_EXT_KEY, groupUuid);
+                    ovnNbClient.removeLogicalRouterPoliciesByExternalId(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, PEERING_EXT_KEY, groupUuid);
+                    String peerLs = getPeeringLsName(groupUuid);
+                    String peeringTag = "cloudstack_peering_acl_vpc_" + m.getVpcId();
+                    ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            peerLs, peeringTag, "true");
+                    String lrpName = getPeeringLrpName(groupUuid, m.getVpcId());
+                    ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            routerName, lrpName);
+                    ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
+                            provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                            peerLs, getPeeringLspName(groupUuid, m.getVpcId()));
+                }
+            }
+            m.setState("Disabled");
+            ovnVpcPeeringDao.update(m.getId(), m);
+        }
+
+        // Same-zone path: also remove the peering LS once no Active members remain.
+        if (!crossZone) {
+            String peerLs = getPeeringLsName(groupUuid);
+            Set<Long> cleanedZones = new HashSet<>();
+            for (OvnVpcPeeringVO m : members) {
+                if (!cleanedZones.add(m.getZoneId())) continue;
+                OvnProviderVO zp = ovnProviderDao.findByZoneId(m.getZoneId());
+                if (zp == null) continue;
+                ovnNbClient.deleteLogicalSwitch(zp.getNbConnection(),
+                        zp.getCaCertPath(), zp.getClientCertPath(), zp.getClientPrivateKeyPath(),
+                        peerLs);
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean enableVpcPeering(EnableVpcPeeringCmd cmd) {
+        List<OvnVpcPeeringVO> members = resolveGroupMembersForToggle(cmd.getId());
+        for (OvnVpcPeeringVO m : members) {
+            if (!"Active".equals(m.getState())) {
+                m.setState("Active");
+                ovnVpcPeeringDao.update(m.getId(), m);
+            }
+        }
+        // provisionPeeringGroup is idempotent; reads listByGroupUuid (Active only)
+        // so it now sees the freshly-Active members and rebuilds LS/LRPs/routes.
+        provisionPeeringGroup(members.get(0).getGroupUuid());
+        return true;
+    }
+
     @Override
     public List<VpcPeeringResponse> listVpcPeerings(ListVpcPeeringsCmd cmd) {
         long callerId = CallContext.current().getCallingAccount().getId();
-        List<OvnVpcPeeringVO> peerings;
+        List<VpcPeeringResponse> responses = new ArrayList<>();
+
+        // Filter by VPC: caller wants every peering record this VPC participates in
+        // (flat, one per row). Used by the per-VPC tab inside a VPC detail view.
         if (cmd.getVpcId() != null) {
-            peerings = ovnVpcPeeringDao.listByVpcId(cmd.getVpcId());
-        } else if (cmd.getGroupUuid() != null) {
-            peerings = ovnVpcPeeringDao.listByGroupUuid(cmd.getGroupUuid());
-        } else if (accountMgr.isRootAdmin(callerId)) {
-            peerings = ovnVpcPeeringDao.listAllActive();
-        } else {
-            peerings = ovnVpcPeeringDao.listByAccountId(callerId);
+            for (OvnVpcPeeringVO p : ovnVpcPeeringDao.listByVpcId(cmd.getVpcId())) {
+                responses.add(createVpcPeeringResponse(p));
+            }
+            return responses;
         }
 
-        List<VpcPeeringResponse> responses = new ArrayList<>();
-        for (OvnVpcPeeringVO p : peerings) {
-            responses.add(createVpcPeeringResponse(p));
+        // Filter by group: return ONE aggregated row representing the whole peering
+        // mesh. AutogenView's detail view (/vpcpeering/<id>) hits this branch with id =
+        // group_uuid (aliased onto groupuuid in the cmd), expecting members[] embedded.
+        if (cmd.getGroupUuid() != null) {
+            List<OvnVpcPeeringVO> members = ovnVpcPeeringDao.listByGroupUuidIncludingDisabled(cmd.getGroupUuid());
+            if (!members.isEmpty()) {
+                responses.add(createGroupResponse(cmd.getGroupUuid(), members));
+            }
+            return responses;
+        }
+
+        // Default list: ONE row per peering group (aggregated). Driven by the
+        // standard list view in AutogenView. Disabled groups are also returned so
+        // users can see and re-enable them; "Removed" rows are excluded.
+        List<OvnVpcPeeringVO> all = accountMgr.isRootAdmin(callerId)
+                ? ovnVpcPeeringDao.listAllIncludingDisabled()
+                : ovnVpcPeeringDao.listByAccountIdIncludingDisabled(callerId);
+
+        // Group by group_uuid preserving insertion order (= creation order, since the
+        // DAO already sorts by id).
+        Map<String, List<OvnVpcPeeringVO>> byGroup = new java.util.LinkedHashMap<>();
+        for (OvnVpcPeeringVO p : all) {
+            byGroup.computeIfAbsent(p.getGroupUuid(), k -> new ArrayList<>()).add(p);
+        }
+        for (Map.Entry<String, List<OvnVpcPeeringVO>> e : byGroup.entrySet()) {
+            responses.add(createGroupResponse(e.getKey(), e.getValue()));
         }
         return responses;
+    }
+
+    /**
+     * Builds a group-level VpcPeeringResponse with members[] embedded. Used by the
+     * AutogenView list and detail flows so a peering "group" appears as a single
+     * resource entity (id == groupUuid).
+     */
+    protected VpcPeeringResponse createGroupResponse(String groupUuid, List<OvnVpcPeeringVO> members) {
+        VpcPeeringResponse response = new VpcPeeringResponse();
+        response.setObjectName("vpcpeering");
+        response.setId(groupUuid);
+        response.setGroupUuid(groupUuid);
+
+        // Aggregate name/description from any non-blank member (they should all match).
+        OvnVpcPeeringVO first = members.get(0);
+        for (OvnVpcPeeringVO m : members) {
+            if (m.getName() != null) { response.setName(m.getName()); break; }
+        }
+        for (OvnVpcPeeringVO m : members) {
+            if (m.getDescription() != null) { response.setDescription(m.getDescription()); break; }
+        }
+        response.setState(first.getState());
+        response.setCreated(first.getCreated());
+
+        // Zone column: a single zone name when same-zone, otherwise "multi-zone".
+        Set<Long> zones = new HashSet<>();
+        for (OvnVpcPeeringVO m : members) zones.add(m.getZoneId());
+        if (zones.size() == 1) {
+            DataCenterVO z = dataCenterDao.findById(first.getZoneId());
+            if (z != null) response.setZoneName(z.getName());
+        } else {
+            response.setZoneName("multi-zone");
+        }
+
+        // Member rollup: vpccount, comma-separated names, and the embedded list used
+        // by the VPC Peers tab.
+        List<VpcPeeringMemberResponse> memberResponses = new ArrayList<>();
+        StringBuilder names = new StringBuilder();
+        for (OvnVpcPeeringVO m : members) {
+            VpcPeeringMemberResponse mr = new VpcPeeringMemberResponse();
+            mr.setObjectName("member");
+            mr.setId(m.getUuid());
+            mr.setLinkLocalIp(m.getLinkLocalIp());
+            mr.setState(m.getState());
+            VpcVO vpc = vpcDao.findById(m.getVpcId());
+            if (vpc != null) {
+                mr.setVpcId(vpc.getUuid());
+                mr.setVpcName(vpc.getName());
+                mr.setVpcCidr(vpc.getCidr());
+                if (names.length() > 0) names.append(", ");
+                names.append(vpc.getName());
+            }
+            DataCenterVO mz = dataCenterDao.findById(m.getZoneId());
+            if (mz != null) {
+                mr.setZoneId(mz.getUuid());
+                mr.setZoneName(mz.getName());
+            }
+            if (m.getAclId() != null) {
+                NetworkACLVO acl = networkACLDao.findById(m.getAclId());
+                if (acl != null) {
+                    mr.setAclId(acl.getUuid());
+                    mr.setAclName(acl.getName());
+                }
+            }
+            memberResponses.add(mr);
+        }
+        response.setMembers(memberResponses);
+        response.setVpcCount(memberResponses.size());
+        response.setVpcNames(names.toString());
+        return response;
     }
 
     @Override

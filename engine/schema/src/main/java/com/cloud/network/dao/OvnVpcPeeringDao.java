@@ -23,10 +23,13 @@ import java.util.List;
 
 public interface OvnVpcPeeringDao extends GenericDao<OvnVpcPeeringVO, Long> {
     List<OvnVpcPeeringVO> listByGroupUuid(String groupUuid);
+    List<OvnVpcPeeringVO> listByGroupUuidIncludingDisabled(String groupUuid);
     List<OvnVpcPeeringVO> listByVpcId(long vpcId);
     OvnVpcPeeringVO findByGroupUuidAndVpcId(String groupUuid, long vpcId);
     List<OvnVpcPeeringVO> listByAccountId(long accountId);
+    List<OvnVpcPeeringVO> listByAccountIdIncludingDisabled(long accountId);
     List<OvnVpcPeeringVO> listAllActive();
+    List<OvnVpcPeeringVO> listAllIncludingDisabled();
     List<OvnVpcPeeringVO> listByAclId(long aclId);
     OvnVpcPeeringVO findByUuid(String uuid);
 }

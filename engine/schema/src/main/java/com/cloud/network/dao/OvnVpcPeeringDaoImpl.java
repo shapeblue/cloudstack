@@ -24,6 +24,7 @@ import com.cloud.utils.db.SearchCriteria;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @DB()
@@ -50,6 +51,15 @@ public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> 
         sc.setParameters("group_uuid", groupUuid);
         sc.setParameters("state", "Active");
         return listBy(sc);
+    }
+
+    @Override
+    public List<OvnVpcPeeringVO> listByGroupUuidIncludingDisabled(String groupUuid) {
+        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+        sc.setParameters("group_uuid", groupUuid);
+        return listBy(sc).stream()
+                .filter(p -> !"Removed".equals(p.getState()))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -90,6 +100,23 @@ public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> 
         SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
         sc.setParameters("state", "Active");
         return listBy(sc);
+    }
+
+    @Override
+    public List<OvnVpcPeeringVO> listByAccountIdIncludingDisabled(long accountId) {
+        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+        sc.setParameters("account_id", accountId);
+        return listBy(sc).stream()
+                .filter(p -> !"Removed".equals(p.getState()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<OvnVpcPeeringVO> listAllIncludingDisabled() {
+        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+        return listBy(sc).stream()
+                .filter(p -> !"Removed".equals(p.getState()))
+                .collect(Collectors.toList());
     }
 
     @Override

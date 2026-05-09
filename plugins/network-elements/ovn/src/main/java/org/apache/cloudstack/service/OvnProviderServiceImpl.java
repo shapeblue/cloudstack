@@ -37,6 +37,8 @@ import org.apache.cloudstack.api.command.AddOvnProviderCmd;
 import org.apache.cloudstack.api.command.CreateVpcPeeringCmd;
 import org.apache.cloudstack.api.command.DeleteOvnProviderCmd;
 import org.apache.cloudstack.api.command.DeleteVpcPeeringCmd;
+import org.apache.cloudstack.api.command.DisableVpcPeeringCmd;
+import org.apache.cloudstack.api.command.EnableVpcPeeringCmd;
 import org.apache.cloudstack.api.command.ListOvnProvidersCmd;
 import org.apache.cloudstack.api.command.ListVpcPeeringsCmd;
 import org.apache.cloudstack.api.command.UpdateVpcPeeringCmd;
@@ -190,6 +192,8 @@ public class OvnProviderServiceImpl implements OvnProviderService {
             cmdList.add(CreateVpcPeeringCmd.class);
             cmdList.add(UpdateVpcPeeringCmd.class);
             cmdList.add(DeleteVpcPeeringCmd.class);
+            cmdList.add(EnableVpcPeeringCmd.class);
+            cmdList.add(DisableVpcPeeringCmd.class);
             cmdList.add(ListVpcPeeringsCmd.class);
         }
         return cmdList;

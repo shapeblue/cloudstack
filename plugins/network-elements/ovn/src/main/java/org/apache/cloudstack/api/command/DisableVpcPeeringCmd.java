@@ -19,53 +19,31 @@ package org.apache.cloudstack.api.command;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.api.BaseListCmd;
+import org.apache.cloudstack.api.ApiErrorCode;
+import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.cloudstack.api.response.VpcPeeringResponse;
-import org.apache.cloudstack.api.response.VpcResponse;
+import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
 import org.apache.cloudstack.service.OvnPeeringService;
 
 import javax.inject.Inject;
-import java.util.List;
 
-@APICommand(name = ListVpcPeeringsCmd.APINAME,
-        description = "Lists VPC peerings for the calling account. Optionally filter by VPC ID or peering group.",
-        responseObject = VpcPeeringResponse.class,
+@APICommand(name = DisableVpcPeeringCmd.APINAME,
+        description = "Disables a VPC peering group. Removes the OVN data-plane (routes, NAT bypass, ACLs) from every member while keeping records and topology so it can be re-enabled.",
+        responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
         since = "4.23.0")
-public class ListVpcPeeringsCmd extends BaseListCmd {
-    public static final String APINAME = "listVpcPeerings";
+public class DisableVpcPeeringCmd extends BaseCmd {
+    public static final String APINAME = "disableVpcPeering";
 
     @Inject
     OvnPeeringService ovnPeeringService;
 
-    @Parameter(name = ApiConstants.VPC_ID, type = CommandType.UUID, entityType = VpcResponse.class,
-            description = "The ID of the VPC to list peerings for")
-    private Long vpcId;
-
-    @Parameter(name = "groupuuid", type = CommandType.STRING,
-            description = "The peering group UUID to filter by")
-    private String groupUuid;
-
     @Parameter(name = ApiConstants.ID, type = CommandType.STRING,
-            description = "The peering group ID (alias of groupuuid; used by AutogenView for the detail view)")
+            required = true, description = "The UUID of the VPC peering group (or any member peering UUID)")
     private String id;
-
-    public Long getVpcId() {
-        return vpcId;
-    }
-
-    public String getGroupUuid() {
-        // id is exposed as the resource identifier of a peering "group" so the standard
-        // AutogenView /:id/ detail flow works. We aliase it onto groupUuid since both
-        // refer to the same peering mesh.
-        if (groupUuid != null) return groupUuid;
-        return id;
-    }
 
     public String getId() {
         return id;
@@ -73,11 +51,12 @@ public class ListVpcPeeringsCmd extends BaseListCmd {
 
     @Override
     public void execute() throws ServerApiException {
-        List<VpcPeeringResponse> responses = ovnPeeringService.listVpcPeerings(this);
-        ListResponse<VpcPeeringResponse> listResponse = new ListResponse<>();
-        listResponse.setResponses(responses, responses.size());
-        listResponse.setResponseName(getCommandName());
-        setResponseObject(listResponse);
+        boolean result = ovnPeeringService.disableVpcPeering(this);
+        if (!result) {
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to disable VPC peering");
+        }
+        SuccessResponse response = new SuccessResponse(getCommandName());
+        setResponseObject(response);
     }
 
     @Override

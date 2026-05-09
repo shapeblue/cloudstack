@@ -938,7 +938,61 @@ export default {
       title: 'label.vpc.peering',
       icon: 'swap-outlined',
       permission: ['listVpcPeerings'],
-      component: shallowRef(defineAsyncComponent(() => import('@/views/network/VpcPeeringDashboard.vue'))),
+      resourceType: 'VpcPeering',
+      columns: ['name', 'description', 'vpccount', 'vpcnames', 'state', 'zonename'],
+      details: ['name', 'id', 'groupuuid', 'description', 'state', 'zonename', 'vpccount', 'vpcnames', 'created'],
+      searchFilters: ['name', 'zoneid'],
+      tabs: [{
+        name: 'details',
+        component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
+      }, {
+        name: 'vpc.peers',
+        component: shallowRef(defineAsyncComponent(() => import('@/views/network/VpcPeeringMembersTab.vue')))
+      }],
+      actions: [
+        {
+          api: 'createVpcPeering',
+          icon: 'plus-outlined',
+          label: 'label.add.vpc.peering',
+          listView: true,
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/network/CreateVpcPeering.vue')))
+        },
+        {
+          api: 'enableVpcPeering',
+          icon: 'play-circle-outlined',
+          label: 'label.enable.vpc.peering',
+          message: 'message.confirm.enable.vpc.peering',
+          dataView: true,
+          groupAction: true,
+          popup: true,
+          show: (record) => record.state === 'Disabled',
+          groupShow: (selection, store) => true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
+        },
+        {
+          api: 'disableVpcPeering',
+          icon: 'pause-circle-outlined',
+          label: 'label.disable.vpc.peering',
+          message: 'message.confirm.disable.vpc.peering',
+          dataView: true,
+          groupAction: true,
+          popup: true,
+          show: (record) => record.state === 'Active',
+          groupShow: (selection, store) => true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
+        },
+        {
+          api: 'deleteVpcPeering',
+          icon: 'delete-outlined',
+          label: 'label.delete.vpc.peering',
+          message: 'message.confirm.delete.vpc.peering.group',
+          dataView: true,
+          groupAction: true,
+          popup: true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
+        }
+      ],
       show: () => {
         return isZoneCreated()
       }
