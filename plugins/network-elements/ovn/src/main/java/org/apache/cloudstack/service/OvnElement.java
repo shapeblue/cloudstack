@@ -2222,6 +2222,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             throw new InvalidParameterValueException("Both VPCs already belong to different peering groups. A VPC can only be in one peering group.");
         }
 
+        // Reject overlapping CIDRs. The peering data plane installs one static route per
+        // peer CIDR on every member's LR; if two members share an overlapping CIDR the
+        // routes collide and OVN cannot resolve which peer to forward at — there is no
+        // sane way to disambiguate at runtime. Bail out before any OVN row is created.
+        rejectOverlappingPeeringCidrs(vpc, peerVpc, vpcExisting, peerExisting);
+
         // Determine group: if peer VPC already belongs to a group, join it; otherwise check if our VPC
         // already belongs to one. If neither, create a new group.
         String groupUuid = null;
@@ -2464,6 +2470,65 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
         applyPeeringAcl(peering);
         return peering;
+    }
+
+    /**
+     * Rejects a {@code createVpcPeering} call when the new VPC pair (or any
+     * existing group member) carries an IPv4 CIDR that overlaps another. The
+     * peering fabric installs one static route per peer CIDR on every member's
+     * LR; two routes for overlapping prefixes would race and OVN cannot
+     * disambiguate at runtime. We compare every relevant CIDR pair before any
+     * OVN row is touched so the operator gets a clear error instead of a
+     * subtle, intermittent reachability bug.
+     *
+     * <p>Members already in the group are taken from {@code listByVpcId}, which
+     * filters Active rows. Disabled members keep their slot reserved but their
+     * data plane is torn down — we still include them here because re-enabling
+     * the group must not produce overlapping routes either.
+     */
+    protected void rejectOverlappingPeeringCidrs(VpcVO vpc, VpcVO peerVpc,
+                                                 List<OvnVpcPeeringVO> vpcExisting,
+                                                 List<OvnVpcPeeringVO> peerExisting) {
+        String cidrA = vpc.getCidr();
+        String cidrB = peerVpc.getCidr();
+        if (StringUtils.isNotBlank(cidrA) && StringUtils.isNotBlank(cidrB)
+                && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrA, cidrB)) {
+            throw new InvalidParameterValueException(String.format(
+                    "VPC %s (%s) and VPC %s (%s) have overlapping CIDRs and cannot be peered",
+                    vpc.getName(), cidrA, peerVpc.getName(), cidrB));
+        }
+
+        // Determine the group we're about to land in (mirrors the resolver below)
+        // and walk every other member's CIDR against the incoming pair.
+        String groupUuid = null;
+        if (!peerExisting.isEmpty()) {
+            groupUuid = peerExisting.get(0).getGroupUuid();
+        } else if (!vpcExisting.isEmpty()) {
+            groupUuid = vpcExisting.get(0).getGroupUuid();
+        }
+        if (groupUuid == null) {
+            return; // brand-new group; only the pair-vs-pair check applies
+        }
+        List<OvnVpcPeeringVO> existingGroupMembers = ovnVpcPeeringDao.listByGroupUuidIncludingDisabled(groupUuid);
+        for (OvnVpcPeeringVO m : existingGroupMembers) {
+            if (m.getVpcId() == vpc.getId() || m.getVpcId() == peerVpc.getId()) {
+                continue;
+            }
+            VpcVO other = vpcDao.findById(m.getVpcId());
+            if (other == null || StringUtils.isBlank(other.getCidr())) {
+                continue;
+            }
+            if (StringUtils.isNotBlank(cidrA) && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrA, other.getCidr())) {
+                throw new InvalidParameterValueException(String.format(
+                        "VPC %s (%s) overlaps existing peering member %s (%s)",
+                        vpc.getName(), cidrA, other.getName(), other.getCidr()));
+            }
+            if (StringUtils.isNotBlank(cidrB) && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrB, other.getCidr())) {
+                throw new InvalidParameterValueException(String.format(
+                        "VPC %s (%s) overlaps existing peering member %s (%s)",
+                        peerVpc.getName(), cidrB, other.getName(), other.getCidr()));
+            }
+        }
     }
 
     /**
