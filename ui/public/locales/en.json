@@ -2002,6 +2002,7 @@
 "message.confirm.delete.vpc.peering": "Are you sure you want to remove this VPC from the peering group?",
 "message.confirm.enable.vpc.peering": "Are you sure you want to enable this VPC peering group? Routes and NAT bypass will be re-applied to all members.",
 "message.confirm.disable.vpc.peering": "Are you sure you want to disable this VPC peering group? Routes and NAT bypass will be removed from all members; records are preserved.",
+"message.vpc.peering.acl.scope": "The ACL is applied to this VPC's traffic over the peering link only. Pick \"Default (Allow All)\" to remove ACL filtering.",
 "message.delete.vpc.peering.processing": "Removing VPC peering...",
 "message.delete.vpc.peering.failed": "Failed to remove VPC peering",
 "message.success.update.vpc.peering": "VPC peering ACL updated successfully",

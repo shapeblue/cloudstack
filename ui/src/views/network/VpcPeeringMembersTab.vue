@@ -36,10 +36,24 @@
         <template v-if="column.key === 'vpcname'">
           <router-link :to="{ path: '/vpc/' + record.vpcid }">{{ record.vpcname }}</router-link>
         </template>
+        <template v-if="column.key === 'aclname'">
+          <span v-if="record.aclname">{{ record.aclname }}</span>
+          <span v-else style="color: #aaa;">{{ $t('label.default.allow.all') }}</span>
+        </template>
         <template v-if="column.key === 'state'">
           <status :text="record.state" displayText />
         </template>
         <template v-if="column.key === 'actions'">
+          <a-tooltip :title="$t('label.edit.acl')">
+            <a-button
+              type="link"
+              size="small"
+              style="margin-right: 4px;"
+              :disabled="!('updateVpcPeering' in $store.getters.apis)"
+              @click="openEditAcl(record)">
+              <template #icon><setting-outlined /></template>
+            </a-button>
+          </a-tooltip>
           <a-popconfirm
             :title="$t('message.confirm.remove.vpc.from.peering')"
             @confirm="removeMember(record)"
@@ -92,6 +106,48 @@
         </a-form>
       </a-spin>
     </a-modal>
+
+    <a-modal
+      :visible="showAclModal"
+      :title="$t('label.edit.acl')"
+      :maskClosable="false"
+      :closable="true"
+      :footer="null"
+      @cancel="showAclModal = false"
+      width="520px">
+      <a-spin :spinning="aclLoading">
+        <a-form layout="vertical">
+          <a-form-item :label="$t('label.vpc')">
+            <strong>{{ aclTarget && aclTarget.vpcname }}</strong>
+            <span v-if="aclTarget" style="color: #888;"> ({{ aclTarget.vpccidr }})</span>
+          </a-form-item>
+          <a-form-item :label="$t('label.aclid')">
+            <a-select
+              v-model:value="newAclId"
+              showSearch
+              optionFilterProp="label"
+              allowClear
+              :placeholder="$t('label.default.allow.all')"
+              :filterOption="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())">
+              <a-select-option
+                v-for="acl in aclList"
+                :key="acl.id"
+                :value="acl.id"
+                :label="acl.name + (acl.description ? ' (' + acl.description + ')' : '')">
+                {{ acl.name }}<span v-if="acl.description" style="color: #888;"> ({{ acl.description }})</span>
+              </a-select-option>
+            </a-select>
+            <div style="color: #888; font-size: 12px; margin-top: 4px;">
+              {{ $t('message.vpc.peering.acl.scope') }}
+            </div>
+          </a-form-item>
+          <div class="action-button">
+            <a-button @click="showAclModal = false">{{ $t('label.cancel') }}</a-button>
+            <a-button type="primary" @click="saveAcl">{{ $t('label.ok') }}</a-button>
+          </div>
+        </a-form>
+      </a-spin>
+    </a-modal>
   </div>
 </template>
 
@@ -118,7 +174,12 @@ export default {
       peeredVpcIds: new Set(),
       showAddModal: false,
       newVpcId: undefined,
-      adding: false
+      adding: false,
+      showAclModal: false,
+      aclLoading: false,
+      aclTarget: null,
+      aclList: [],
+      newAclId: undefined
     }
   },
   computed: {
@@ -128,11 +189,12 @@ export default {
     columns () {
       return [
         { key: 'vpcname', title: this.$t('label.vpc'), dataIndex: 'vpcname' },
-        { key: 'vpccidr', title: this.$t('label.cidr'), dataIndex: 'vpccidr', width: 160 },
-        { key: 'linklocalip', title: this.$t('label.link.local.ip'), dataIndex: 'linklocalip', width: 160 },
-        { key: 'zonename', title: this.$t('label.zone'), dataIndex: 'zonename', width: 160 },
-        { key: 'state', title: this.$t('label.state'), dataIndex: 'state', width: 100 },
-        { key: 'actions', title: '', dataIndex: 'actions', width: 60, align: 'center' }
+        { key: 'vpccidr', title: this.$t('label.cidr'), dataIndex: 'vpccidr', width: 140 },
+        { key: 'linklocalip', title: this.$t('label.link.local.ip'), dataIndex: 'linklocalip', width: 140 },
+        { key: 'zonename', title: this.$t('label.zone'), dataIndex: 'zonename', width: 140 },
+        { key: 'aclname', title: this.$t('label.aclid'), dataIndex: 'aclname', width: 180 },
+        { key: 'state', title: this.$t('label.state'), dataIndex: 'state', width: 90 },
+        { key: 'actions', title: '', dataIndex: 'actions', width: 90, align: 'center' }
       ]
     },
     vpcsAvailable () {
@@ -189,6 +251,45 @@ export default {
         this.$emit('refresh-data')
       } catch (error) {
         this.$notifyError(error)
+      }
+    },
+    openEditAcl (record) {
+      this.aclTarget = record
+      this.newAclId = record.aclid || undefined
+      this.aclList = []
+      this.showAclModal = true
+      this.fetchAclsForVpc(record.vpcid)
+    },
+    fetchAclsForVpc (vpcid) {
+      this.aclLoading = true
+      // The networkacl listing returns ACLs that belong to either THIS VPC
+      // (vpcid filter) OR the system "default_allow" / "default_deny" lists,
+      // which apply to any VPC. listAll=true gives us both.
+      getAPI('listNetworkACLLists', { vpcid, listAll: true }).then(json => {
+        const lists = json.listnetworkacllistsresponse?.networkacllist || []
+        this.aclList = lists.filter(a => !a.name || a.name !== 'default_deny' || a.vpcid)
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.aclLoading = false
+      })
+    },
+    async saveAcl () {
+      if (!this.aclTarget) return
+      this.aclLoading = true
+      try {
+        const params = { id: this.aclTarget.id }
+        if (this.newAclId) {
+          params.aclid = this.newAclId
+        }
+        await postAPI('updateVpcPeering', params)
+        this.$message.success(this.$t('message.success.update.vpc.peering'))
+        this.showAclModal = false
+        this.$emit('refresh-data')
+      } catch (error) {
+        this.$notifyError(error)
+      } finally {
+        this.aclLoading = false
       }
     }
   }
