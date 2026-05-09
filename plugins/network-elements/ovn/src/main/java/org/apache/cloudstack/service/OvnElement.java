@@ -2517,7 +2517,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         peering.setAclId(aclId);
         ovnVpcPeeringDao.update(peering.getId(), peering);
 
-        applyPeeringAcl(peering);
+        List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(peering.getGroupUuid());
+        if (isCrossZonePeeringGroup(groupMembers)) {
+            applyCrossZonePeeringAcl(peering, getTransitSwitchName(peering.getGroupUuid()));
+        } else {
+            applyPeeringAcl(peering);
+        }
         return peering;
     }
 
