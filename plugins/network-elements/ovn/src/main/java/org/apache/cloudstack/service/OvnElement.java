@@ -133,6 +133,9 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     @Inject
     NetworkACLItemDao networkACLItemDao;
 
+    @Inject
+    com.cloud.service.dao.ServiceOfferingDao serviceOfferingDao;
+
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
 
@@ -310,6 +313,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                             lspName, dhcpUuid);
                 }
+                applyNicEgressRateLimit(provider, network, nic, vm, lspName);
             } catch (CloudRuntimeException e) {
                 throw new ResourceUnavailableException(e.getMessage(), DataCenter.class, network.getDataCenterId());
             }
@@ -361,6 +365,57 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 (int) ((networkId >> 16) & 0xff),
                 (int) ((networkId >> 8) & 0xff),
                 (int) (networkId & 0xff));
+    }
+
+    /**
+     * Applies a per-LSP egress rate-limit derived from the VM's compute (service)
+     * offering {@code nw_rate} (Mbps). {@code null} or non-positive ⇒ no shaping
+     * (LSP options stay untouched). We read directly from {@link com.cloud.service.dao.ServiceOfferingDao}
+     * to avoid pulling {@code NetworkModel} into the OVN plugin's Spring context — that
+     * dependency direction risks a cycle since {@code NetworkModel} discovers
+     * {@code OvnElement} as a {@link com.cloud.network.element.NetworkElement}.
+     *
+     * <p>OVN reads {@code Logical_Switch_Port.options:qos_max_rate} as <strong>kbps</strong>
+     * for traffic ingressing the switch from this port — i.e. VM upload/egress — and
+     * {@code qos_burst} as the bucket size in <strong>kbits</strong>. We give the burst
+     * 100 ms of room so TCP slow-start isn't punished, with a 12 kbit floor so a single
+     * MTU still fits.
+     *
+     * <p>Phase 1 limitation: only the service offering's {@code nw_rate} is consulted.
+     * The global {@code vm.network.throttling.rate} fallback applied by the legacy
+     * VR-based path is NOT applied here — operators that rely on the global must set
+     * {@code nw_rate} explicitly on the offering. Phase 2 will broaden coverage.
+     * Phase 1 also doesn't remove keys when the offering changes from positive to null;
+     * stop+start is required.
+     */
+    protected void applyNicEgressRateLimit(OvnProviderVO provider, Network network,
+                                           NicProfile nic, VirtualMachineProfile vm, String lspName) {
+        Long soId = vm.getServiceOfferingId();
+        if (soId == null) {
+            return;
+        }
+        com.cloud.service.ServiceOfferingVO so;
+        try {
+            so = serviceOfferingDao.findById(vm.getId(), soId);
+        } catch (RuntimeException e) {
+            logger.warn("Skipping QoS on LSP [{}]: ServiceOffering lookup failed: {}", lspName, e.getMessage());
+            return;
+        }
+        Integer rateMbps = (so != null) ? so.getRateMbps() : null;
+        if (rateMbps == null || rateMbps <= 0) {
+            logger.debug("No nw_rate on service offering for nic [{}] on network [{}]; skipping QoS", nic.getId(), network.getId());
+            return;
+        }
+        long rateKbps = rateMbps.longValue() * 1000L;
+        long burstKbits = Math.max(rateMbps.longValue() * 100L, 12L);
+        Map<String, String> qos = new HashMap<>();
+        qos.put("qos_max_rate", String.valueOf(rateKbps));
+        qos.put("qos_burst", String.valueOf(burstKbits));
+        ovnNbClient.setLspOptions(provider.getNbConnection(),
+                provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
+                lspName, qos);
+        logger.info("Applied QoS to LSP [{}]: max-rate={} kbps, burst={} kbits ({} Mbps offering)",
+                lspName, rateKbps, burstKbits, rateMbps);
     }
 
     /**
@@ -2462,7 +2517,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         peering.setAclId(aclId);
         ovnVpcPeeringDao.update(peering.getId(), peering);
 
-        applyPeeringAcl(peering);
+        List<OvnVpcPeeringVO> groupMembers = ovnVpcPeeringDao.listByGroupUuid(peering.getGroupUuid());
+        if (isCrossZonePeeringGroup(groupMembers)) {
+            applyCrossZonePeeringAcl(peering, getTransitSwitchName(peering.getGroupUuid()));
+        } else {
+            applyPeeringAcl(peering);
+        }
         return peering;
     }
 
