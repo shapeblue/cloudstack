@@ -2165,14 +2165,38 @@ public class OvnNbClient {
 
             // First, remove any existing ACL on this LS that already carries the same external_ids
             // tag. We do this in the same transaction to keep the operation atomic.
-            List<UUID> staleAclUuids = findAclUuidsByExternalIds(client, schema, aclTable, externalIds);
-            List<Operation> ops = new ArrayList<>();
+            //
+            // Two correctness requirements:
+            //
+            // 1) Operation order: detach the ACL UUID from Logical_Switch.acls FIRST, then delete
+            //    the ACL row. The reverse order trips OVSDB's strong-ref guard with
+            //    "referential integrity violation: cannot delete ACL row because of N remaining
+            //    reference(s)". Same gotcha documented on removeAclsOnLsByExternalId.
+            //
+            // 2) Scope by LS: findAclUuidsByExternalIds returns ACL rows by tag across the whole
+            //    NB, including rows that live on a DIFFERENT LS (e.g. the same network_id tag is
+            //    written on per-tier ACLs and on peering-LS ACLs). Without scoping we'd attempt
+            //    to free-delete a row that's still referenced from another LS and OVSDB would
+            //    refuse. Same scoping rule applied on removeAclsOnLsByExternalId.
+            List<UUID> candidateAclUuids = findAclUuidsByExternalIds(client, schema, aclTable, externalIds);
             ColumnSchema<GenericTableSchema, UUID> aclUuidCol = aclTable.column("_uuid", UUID.class);
-            for (UUID stale : staleAclUuids) {
-                ops.add(OVSDB_OPS.delete(aclTable).where(aclUuidCol.opEqual(stale)).build());
+            List<UUID> staleAclUuids = new ArrayList<>();
+            if (!candidateAclUuids.isEmpty()) {
+                Set<UUID> lsAclSet = lsAclSet(client, schema, lsTable, lsNameCol, lsAclsCol, logicalSwitchName);
+                for (UUID u : candidateAclUuids) {
+                    if (lsAclSet.contains(u)) {
+                        staleAclUuids.add(u);
+                    }
+                }
+            }
+            List<Operation> ops = new ArrayList<>();
+            if (!staleAclUuids.isEmpty()) {
                 ops.add(OVSDB_OPS.mutate(lsTable)
-                        .addMutation(lsAclsCol, Mutator.DELETE, Collections.singleton(stale))
+                        .addMutation(lsAclsCol, Mutator.DELETE, new java.util.HashSet<>(staleAclUuids))
                         .where(lsNameCol.opEqual(logicalSwitchName)).build());
+                for (UUID stale : staleAclUuids) {
+                    ops.add(OVSDB_OPS.delete(aclTable).where(aclUuidCol.opEqual(stale)).build());
+                }
             }
 
             String namedUuid = "newacl";
