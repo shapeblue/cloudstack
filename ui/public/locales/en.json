@@ -1996,6 +1996,7 @@
 "label.mesh.network.member.not.implemented": "Deploy a VM first (network not implemented)",
 "label.membercount": "Members",
 "label.membernames": "Member names",
+"label.mesh_peers": "Members",
 "label.isolated.network": "Isolated network",
 "label.mesh.members": "Members",
 "message.confirm.remove.vpc.from.mesh.network": "Are you sure you want to remove this VPC from the mesh network?",

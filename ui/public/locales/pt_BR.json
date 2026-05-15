@@ -1816,6 +1816,7 @@
 "label.mesh.network.member.not.implemented": "Faça deploy de uma VM primeiro (rede não implementada)",
 "label.membercount": "Membros",
 "label.membernames": "Nomes dos membros",
+"label.mesh_peers": "Membros",
 "label.isolated.network": "Rede isolada",
 "message.confirm.remove.vpc.from.mesh.network": "Tem certeza que quer remover esta VPC da rede mesh?",
 "message.confirm.delete.mesh.network": "Tem certeza que quer remover esta VPC da rede mesh?",

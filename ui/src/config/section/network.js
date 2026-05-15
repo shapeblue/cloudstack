@@ -946,7 +946,7 @@ export default {
         name: 'details',
         component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
       }, {
-        name: 'vpc.peers',
+        name: 'mesh_peers',
         component: shallowRef(defineAsyncComponent(() => import('@/views/network/MeshNetworkMembersTab.vue')))
       }],
       actions: [
