@@ -29,8 +29,8 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "ovn_vpc_peerings")
-public class OvnVpcPeeringVO implements InternalIdentity, Identity {
+@Table(name = "ovn_mesh_networks")
+public class OvnMeshNetworkVO implements InternalIdentity, Identity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -39,8 +39,8 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
     @Column(name = "uuid")
     private String uuid;
 
-    @Column(name = "group_uuid")
-    private String groupUuid;
+    @Column(name = "mesh_uuid")
+    private String meshUuid;
 
     @Column(name = "name")
     private String name;
@@ -75,13 +75,13 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
     @Column(name = "removed")
     private Date removed;
 
-    public OvnVpcPeeringVO() {
+    public OvnMeshNetworkVO() {
         uuid = UUID.randomUUID().toString();
     }
 
-    public OvnVpcPeeringVO(String groupUuid, String name, String description, long vpcId, long zoneId, long accountId, long domainId, String linkLocalIp) {
+    public OvnMeshNetworkVO(String meshUuid, String name, String description, long vpcId, long zoneId, long accountId, long domainId, String linkLocalIp) {
         this.uuid = UUID.randomUUID().toString();
-        this.groupUuid = groupUuid;
+        this.meshUuid = meshUuid;
         this.name = name;
         this.description = description;
         this.vpcId = vpcId;
@@ -103,8 +103,8 @@ public class OvnVpcPeeringVO implements InternalIdentity, Identity {
         return uuid;
     }
 
-    public String getGroupUuid() {
-        return groupUuid;
+    public String getMeshUuid() {
+        return meshUuid;
     }
 
     public String getName() {

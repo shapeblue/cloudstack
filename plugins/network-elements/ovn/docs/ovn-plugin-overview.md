@@ -111,7 +111,7 @@ the VR is never required for OVN-backed networks.
         DB / Schema
         (cloud schema +
          ovn_providers,
-         ovn_vpc_peerings)
+         ovn_mesh_networks)
 ```
 
 The Management Server is the only writer to the **OVN Northbound** database.
@@ -147,18 +147,18 @@ described in §6 — not by sharing one NB across zones.
 plugins/network-elements/ovn/src/main/java/org/apache/cloudstack/
 ├── api/
 │   ├── command/      # AddOvnProviderCmd, ListOvnProvidersCmd,
-│   │                 # CreateVpcPeeringCmd, EnableVpcPeeringCmd, ...
-│   └── response/     # OvnProviderResponse, VpcPeeringResponse, ...
+│   │                 # CreateMeshNetworkCmd, EnableMeshNetworkCmd, ...
+│   └── response/     # OvnProviderResponse, MeshNetworkResponse, ...
 ├── service/
 │   ├── OvnElement.java          # NetworkElement implementation
 │   ├── OvnNbClient.java         # OVSDB JSON-RPC wrapper
 │   ├── OvnProviderServiceImpl.java
-│   └── OvnPeeringService.java   # Service interface for peering APIs
+│   └── OvnMeshNetworkService.java   # Service interface for peering APIs
 └── resources/applicationContext.xml
 
 engine/schema/src/main/java/com/cloud/network/
-├── element/OvnVpcPeeringVO.java
-└── dao/OvnVpcPeeringDao{,Impl}.java
+├── element/OvnMeshNetworkVO.java
+└── dao/OvnMeshNetworkDao{,Impl}.java
 ```
 
 `OvnElement` is the public Spring bean that registers as a CloudStack
@@ -214,7 +214,7 @@ any orphans.
 | Public IP (StaticNAT / Floating) | NAT row (`dnat_and_snat`) | one per public IP |
 | Port forward rule | NAT row (`dnat_and_snat` with `external_port`) | one per rule |
 | Network ACL list | ACL rows on the tier LS | filtered by `external_ids:cloudstack_acl_id` |
-| VPC peering member (same zone) | LRP on VPC LR + LSP on peering LS | `lrp-peer-<groupUuid>-vpc-<vpcId>`, `lsp-peer-<groupUuid>-vpc-<vpcId>` |
+| VPC peering member (same zone) | LRP on VPC LR + LSP on peering LS | `lrp-mesh-<meshUuid>-vpc-<vpcId>`, `lsp-mesh-<meshUuid>-vpc-<vpcId>` |
 | VPC peering member (cross zone) | LRP on VPC LR + LSP on Transit_Switch | `lrp-cs-vpc-<vpcId>-ts`, `lsp-ts-vpc-<vpcId>` |
 | DHCP server for a tier | DHCP_Options row | indexed by network external_id |
 | Per-VM egress rate-limit | LSP `options:qos_max_rate` + `qos_burst` | applied to NIC LSP |
@@ -303,7 +303,7 @@ Switch*.
                      │                                │
                      ▼                                ▼
                  +────────────────────────────────────────+
-                 │           ts-peer-<groupUuid>          │      ◄── IC NB
+                 │           ts-mesh-<meshUuid>          │      ◄── IC NB
                  │                (Transit Switch)        │
                  +────────────────────────────────────────+
                                      ▲
@@ -460,7 +460,7 @@ VPC's LR to it via /30 link-local subnets:
 
 ```
                      ┌── peering LS ───────────────────────┐
-                     │   cs-peer-<groupUuid>               │
+                     │   cs-mesh-<meshUuid>               │
                      └──┬───────────────┬──────────────┬───┘
                         │ .1/30         │ .5/30        │ .9/30
                 ┌───────┴───┐  ┌────────┴───┐  ┌───────┴───┐
@@ -476,7 +476,7 @@ that bypasses SNAT for destinations inside any peered CIDR.
 ### 9.2 Cross-zone peering
 
 When the group spans zones, the same logic moves into the IC-NB through
-a **Transit_Switch** named `ts-peer-<groupUuid>`:
+a **Transit_Switch** named `ts-mesh-<meshUuid>`:
 
 ```
         Zone Z1                                       Zone Z2
@@ -485,7 +485,7 @@ a **Transit_Switch** named `ts-peer-<groupUuid>`:
    │  cs-vpc-B  ─┤        │                     │       │              │
    └─────────────┼────────┘                     └───────┼──────────────┘
                  │   ┌────────────────────────────┐    │
-                 └──>│ ts-peer-<groupUuid>        │<───┘
+                 └──>│ ts-mesh-<meshUuid>        │<───┘
                      │  (Transit_Switch in IC-NB) │
                      └────────────────────────────┘
 ```
@@ -507,11 +507,11 @@ For each peering record (one VPC's slot in a group), the plugin creates:
 
 | Object | External_id tag | Purpose |
 |---|---|---|
-| LRP on `cs-vpc-<vpcId>` | `cloudstack_peering_group=<groupUuid>` | Router-side port into the peering LS or TS |
-| LSP on peering LS or TS | `cloudstack_peering_group=<groupUuid>` | Counterpart of the LRP |
-| Static route per peer CIDR | `cloudstack_peering_group=<groupUuid>` | Forwards traffic to the peer's link-local IP (same-zone only; cross-zone uses learned routes) |
-| LR Policy `reroute` priority 1000 | `cloudstack_peering_group_target=<peerVpcId>` | Skips SNAT for peered CIDRs |
-| ACL rows on the peering LS | `cloudstack_peering_acl_vpc_<vpcId>=true` | Apply this VPC's `aclid` filter to its peering traffic |
+| LRP on `cs-vpc-<vpcId>` | `cloudstack_mesh_network=<meshUuid>` | Router-side port into the peering LS or TS |
+| LSP on peering LS or TS | `cloudstack_mesh_network=<meshUuid>` | Counterpart of the LRP |
+| Static route per peer CIDR | `cloudstack_mesh_network=<meshUuid>` | Forwards traffic to the peer's link-local IP (same-zone only; cross-zone uses learned routes) |
+| LR Policy `reroute` priority 1000 | `cloudstack_mesh_network_target=<peerVpcId>` | Skips SNAT for peered CIDRs |
+| ACL rows on the peering LS | `cloudstack_mesh_acl_vpc_<vpcId>=true` | Apply this VPC's `aclid` filter to its peering traffic |
 
 The `external_ids` strategy means **bulk cleanup never has to track
 individual UUIDs in the CloudStack DB.** A delete or disable removes every
@@ -522,10 +522,10 @@ methods like `removeStaticRoutesByExternalId` and
 ### 9.4 Persistence
 
 ```sql
-CREATE TABLE ovn_vpc_peerings (
+CREATE TABLE ovn_mesh_networks (
     id              bigint unsigned auto_increment PRIMARY KEY,
     uuid            varchar(40)  NOT NULL UNIQUE,
-    group_uuid      varchar(40)  NOT NULL,    -- group identifier (UUID for the mesh)
+    mesh_uuid      varchar(40)  NOT NULL,    -- group identifier (UUID for the mesh)
     vpc_id          bigint       NOT NULL,    -- one row per VPC in the group
     zone_id         bigint       NOT NULL,
     account_id      bigint       NOT NULL,
@@ -541,7 +541,7 @@ CREATE TABLE ovn_vpc_peerings (
 ```
 
 There is **one row per VPC** in a peering mesh. The natural grouping key
-is `group_uuid`. The link-local IP is stored explicitly because (a) the
+is `mesh_uuid`. The link-local IP is stored explicitly because (a) the
 pool prefix is the cross-zone signal, and (b) the slot must remain
 reserved while a member is `Disabled`, so a re-enable picks the same
 address.
@@ -550,19 +550,19 @@ address.
 
 | Command | Role | Body |
 |---|---|---|
-| `createVpcPeering` | Add a VPC to a group; the very first call seeds the group | `{name, vpcid, peervpcid, [aclid], [description]}` |
-| `listVpcPeerings` | Returns aggregated **groups** with `members[]` embedded | `{vpcid?, groupuuid?}` |
-| `updateVpcPeering` | Change a member's ACL | `{id, aclid?}` |
-| `enableVpcPeering` | Re-provision the OVN data plane for a Disabled group | `{id}` (group UUID or any member UUID) |
-| `disableVpcPeering` | Tear down the OVN data plane, keep DB rows | `{id}` |
-| `deleteVpcPeering` | Remove a member, or the whole group | `{id}` (peering-uuid or group-uuid) |
+| `createMeshNetwork` | Add a VPC to a group; the very first call seeds the group | `{name, vpcid, peervpcid, [aclid], [description]}` |
+| `listMeshNetworks` | Returns aggregated **groups** with `members[]` embedded | `{vpcid?, meshuuid?}` |
+| `updateMeshNetwork` | Change a member's ACL | `{id, aclid?}` |
+| `enableMeshNetwork` | Re-provision the OVN data plane for a Disabled group | `{id}` (group UUID or any member UUID) |
+| `disableMeshNetwork` | Tear down the OVN data plane, keep DB rows | `{id}` |
+| `deleteMeshNetwork` | Remove a member, or the whole group | `{id}` (peering-uuid or group-uuid) |
 
 All commands are authorized for the **User** role — no admin gate. Adding
 a VPC to a group works through `peervpcid`: if the peer is already in a
-group, the new caller joins that `group_uuid` instead of starting a new
+group, the new caller joins that `mesh_uuid` instead of starting a new
 mesh.
 
-The aggregated `listVpcPeerings` response is what the CloudStack UI's
+The aggregated `listMeshNetworks` response is what the CloudStack UI's
 AutogenView consumes: one row per group, with each row carrying the full
 member list under `members[]` so the per-VPC tab can be rendered without a
 second round-trip.
@@ -570,12 +570,12 @@ second round-trip.
 ### 9.6 State machine
 
 ```
-                ┌──────────┐  enableVpcPeering   ┌──────────┐
+                ┌──────────┐  enableMeshNetwork   ┌──────────┐
                 │ Disabled │ ──────────────────> │  Active  │
                 └────┬─────┘ <───────────────────└────┬─────┘
-                     │       disableVpcPeering        │
+                     │       disableMeshNetwork        │
                      │                                │
-                     │  deleteVpcPeering              │  deleteVpcPeering
+                     │  deleteMeshNetwork              │  deleteMeshNetwork
                      ▼                                ▼
                 ┌────────────────────────────────────────┐
                 │              Removed                   │
@@ -586,14 +586,14 @@ second round-trip.
   NAT bypass policies live.
 - **Disabled** — DB row + link-local IP still reserved. The OVN data plane
   for this group is torn down (LRPs, LSPs, peering LS or TS attachments,
-  routes, policies, ACLs all removed). `enableVpcPeering` is idempotent
-  and rebuilds via `provisionPeeringGroup`.
+  routes, policies, ACLs all removed). `enableMeshNetwork` is idempotent
+  and rebuilds via `provisionMeshNetwork`.
 - **Removed** — terminal. The link-local slot is freed. A new
-  `createVpcPeering` may reuse the slot.
+  `createMeshNetwork` may reuse the slot.
 
 ### 9.7 Constraints enforced at create time
 
-`createVpcPeering` rejects the request before any OVN row is touched if any
+`createMeshNetwork` rejects the request before any OVN row is touched if any
 of these hold:
 
 - The two VPCs are the same VPC (`vpcid == peervpcid`).
@@ -620,7 +620,7 @@ A few invariants worth knowing when reading the code or debugging:
   zones?" gives a wrong answer once you're processing the second-to-last
   member. The link-local IP (`169.254.200.x` ⇒ cross-zone) is stable
   through the whole delete.
-- **Provisioning is fully idempotent.** `provisionPeeringGroup(uuid)` can
+- **Provisioning is fully idempotent.** `provisionMeshNetwork(uuid)` can
   be called any number of times; it computes the desired set and calls
   the NB client which short-circuits when the requested state already
   matches the current state. This makes restart-with-cleanup and
@@ -628,7 +628,7 @@ A few invariants worth knowing when reading the code or debugging:
 - **`external_ids` are the only delete handle.** Static routes and LR
   policies are not tracked individually in CloudStack DB. The delete
   path removes every NB row whose external_ids match the
-  (`cloudstack_peering_group`, `<groupUuid>`) tuple. Add new tagged
+  (`cloudstack_mesh_network`, `<meshUuid>`) tuple. Add new tagged
   rows and update the cleanup queries accordingly when extending the
   feature.
 
@@ -646,7 +646,7 @@ interface methods. The interesting ones:
 | `release(nic, vm)` | NIC unplugging | Removes the NIC LSP |
 | `shutdown(network)` / `shutdownVpc(vpc)` | Network/VPC being torn down | Cascading cleanup of all OVN rows for the network/VPC |
 | `applyIps`, `applyStaticNats`, `applyPortForwards`, `applyAcls` | User-facing API call modifies a Public IP / NAT / ACL | Reconciles the corresponding NAT or ACL rows |
-| `startup()` | MS boot | Walks active VPC peering groups and re-runs `provisionPeeringGroup` to recover from any drift introduced while the MS was down |
+| `startup()` | MS boot | Walks active VPC peering groups and re-runs `provisionMeshNetwork` to recover from any drift introduced while the MS was down |
 
 All hooks are written to be safe to re-run. The plugin does **not**
 maintain a "what was last seen" cache; it always reads CloudStack DB +
@@ -701,7 +701,7 @@ exists across the mesh).
 ```
 
 Replication traffic (DB streaming, S3 sync, K8s control plane) over the
-private OVN-IC fabric. `disableVpcPeering` on the standby side caps egress
+private OVN-IC fabric. `disableMeshNetwork` on the standby side caps egress
 without losing topology — useful for blue/green or controlled fail-back.
 
 ### 11.4 Dev / staging / prod with disabled-by-default prod peering
@@ -714,8 +714,8 @@ without losing topology — useful for blue/green or controlled fail-back.
 ```
 
 One artifact-server VPC reachable from each environment. The prod peering
-stays Disabled until a release window: `enableVpcPeering` opens it for
-the deploy, `disableVpcPeering` shuts it again — both auditable through
+stays Disabled until a release window: `enableMeshNetwork` opens it for
+the deploy, `disableMeshNetwork` shuts it again — both auditable through
 the standard CloudStack API logs.
 
 ---
@@ -752,7 +752,7 @@ that prefix returns most of the per-operation summary (e.g.
 |---|---|---|
 | `/client/api` returns 404 after a UI deploy | `WEB-INF/web.xml` was wiped by an `rsync -a --delete` from `ui/dist/` | Restore WEB-INF from the most recent timestamped backup of `webapp.dir` |
 | New VPC peering does not propagate cross-zone | `ovn-ic` not running, or zones don't share an IC-NB | `ovn-ic-nbctl ts-list` on each zone host; check `ovn_providers.ic_nb_connection` |
-| Stale routes remain on a VPC LR after delete | `external_ids` mismatch on the cleanup query | Inspect `lr-route-list cs-vpc-<id>` for routes whose external_ids contain the dead group_uuid; delete by external_id |
+| Stale routes remain on a VPC LR after delete | `external_ids` mismatch on the cleanup query | Inspect `lr-route-list cs-vpc-<id>` for routes whose external_ids contain the dead mesh_uuid; delete by external_id |
 | VM cannot reach Internet | DGP gateway_chassis is on a host that lost the physical mapping, or the chassis is unreachable | `ovn-sbctl list chassis`, `ovn-nbctl get logical_router_port lrp-... gateway_chassis` |
 | Peering says "removed" in DB but VMs still talk | Cross-zone delete bug fixed in `OvnElement` (use IP-prefix detection); leftover TS/LRPs may remain on a deployment that hit the bug — manual cleanup via `ovn-nbctl --if-exists lrp-del` and `ovn-ic-nbctl ts-del` is required once |
 
@@ -784,7 +784,7 @@ Already in flight or considered for the next branch:
   upstream peering for multi-homed deployments.
 - **IPv6 dual-stack.** Both for tier networks and the peering pools.
 - **Live ACL hot-swap** without a disable/enable churn — currently the
-  ACL re-apply is wrapped into `updateVpcPeering`.
+  ACL re-apply is wrapped into `updateMeshNetwork`.
 - **Per-flow telemetry.** Surface OVN's `Logical_Flow` stats to the
   CloudStack UI per peering or per tier.
 
@@ -804,7 +804,7 @@ and the plugin jar, and CI matrices that include the OVN path.
 - **Plugin source — entry points.**
   - [OvnElement.java](../src/main/java/org/apache/cloudstack/service/OvnElement.java)
   - [OvnNbClient.java](../src/main/java/org/apache/cloudstack/service/OvnNbClient.java)
-  - [OvnPeeringService.java](../src/main/java/org/apache/cloudstack/service/OvnPeeringService.java)
+  - [OvnMeshNetworkService.java](../src/main/java/org/apache/cloudstack/service/OvnMeshNetworkService.java)
 - **Schema additions.**
   [`schema-42210to42300.sql`](../../../../engine/schema/src/main/resources/META-INF/db/schema-42210to42300.sql)
 - **Companion deck.**

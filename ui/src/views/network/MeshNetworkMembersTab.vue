@@ -19,10 +19,10 @@
     <a-button
       type="dashed"
       style="width: 100%; margin-bottom: 12px;"
-      :disabled="!('createVpcPeering' in $store.getters.apis)"
+      :disabled="!('createMeshNetwork' in $store.getters.apis)"
       @click="openAddModal">
       <template #icon><plus-outlined /></template>
-      {{ $t('label.add.vpc.to.peering') }}
+      {{ $t('label.add.vpc.to.mesh.network') }}
     </a-button>
 
     <a-table
@@ -49,13 +49,13 @@
               type="link"
               size="small"
               style="margin-right: 4px;"
-              :disabled="!('updateVpcPeering' in $store.getters.apis)"
+              :disabled="!('updateMeshNetwork' in $store.getters.apis)"
               @click="openEditAcl(record)">
               <template #icon><setting-outlined /></template>
             </a-button>
           </a-tooltip>
           <a-popconfirm
-            :title="$t('message.confirm.remove.vpc.from.peering')"
+            :title="$t('message.confirm.remove.vpc.from.mesh.network')"
             @confirm="removeMember(record)"
             :okText="$t('label.yes')"
             :cancelText="$t('label.no')">
@@ -75,7 +75,7 @@
 
     <a-modal
       :visible="showAddModal"
-      :title="$t('label.add.vpc.to.peering')"
+      :title="$t('label.add.vpc.to.mesh.network')"
       :maskClosable="false"
       :closable="true"
       :footer="null"
@@ -138,7 +138,7 @@
               </a-select-option>
             </a-select>
             <div style="color: #888; font-size: 12px; margin-top: 4px;">
-              {{ $t('message.vpc.peering.acl.scope') }}
+              {{ $t('message.mesh.network.acl.scope') }}
             </div>
           </a-form-item>
           <div class="action-button">
@@ -156,7 +156,7 @@ import { getAPI, postAPI } from '@/api'
 import Status from '@/components/widgets/Status'
 
 export default {
-  name: 'VpcPeeringMembersTab',
+  name: 'MeshNetworkMembersTab',
   components: { Status },
   props: {
     resource: {
@@ -210,10 +210,10 @@ export default {
     fetchAllVpcs () {
       Promise.all([
         getAPI('listVPCs', { listAll: true }),
-        getAPI('listVpcPeerings')
+        getAPI('listMeshNetworks')
       ]).then(([vpcResp, peerResp]) => {
         this.allVpcs = vpcResp.listvpcsresponse?.vpc || []
-        const groups = peerResp.listvpcpeeringsresponse?.vpcpeering || []
+        const groups = peerResp.listmeshnetworksresponse?.meshnetwork || []
         const used = new Set()
         for (const g of groups) {
           for (const m of (g.members || [])) {
@@ -230,12 +230,12 @@ export default {
       this.adding = true
       try {
         const existing = this.members[0]
-        await postAPI('createVpcPeering', {
+        await postAPI('createMeshNetwork', {
           name: this.resource.name,
           vpcid: this.newVpcId,
           peervpcid: existing.vpcid
         })
-        this.$message.success(this.$t('message.success.add.vpc.peering'))
+        this.$message.success(this.$t('message.success.add.mesh.network'))
         this.showAddModal = false
         this.$emit('refresh-data')
       } catch (error) {
@@ -246,8 +246,8 @@ export default {
     },
     async removeMember (record) {
       try {
-        await postAPI('deleteVpcPeering', { id: record.id })
-        this.$message.success(this.$t('message.success.remove.vpc.from.peering'))
+        await postAPI('deleteMeshNetwork', { id: record.id })
+        this.$message.success(this.$t('message.success.remove.vpc.from.mesh.network'))
         this.$emit('refresh-data')
       } catch (error) {
         this.$notifyError(error)
@@ -282,8 +282,8 @@ export default {
         if (this.newAclId) {
           params.aclid = this.newAclId
         }
-        await postAPI('updateVpcPeering', params)
-        this.$message.success(this.$t('message.success.update.vpc.peering'))
+        await postAPI('updateMeshNetwork', params)
+        this.$message.success(this.$t('message.success.update.mesh.network'))
         this.showAclModal = false
         this.$emit('refresh-data')
       } catch (error) {

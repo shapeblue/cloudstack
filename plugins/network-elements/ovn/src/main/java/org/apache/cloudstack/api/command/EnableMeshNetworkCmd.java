@@ -25,24 +25,24 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.service.OvnPeeringService;
+import org.apache.cloudstack.service.OvnMeshNetworkService;
 
 import javax.inject.Inject;
 
-@APICommand(name = EnableVpcPeeringCmd.APINAME,
-        description = "Enables a VPC peering group. Re-applies the OVN data-plane (routes, NAT bypass, ACLs) for every member of the group.",
+@APICommand(name = EnableMeshNetworkCmd.APINAME,
+        description = "Enables a VPC mesh network. Re-applies the OVN data-plane (routes, NAT bypass, ACLs) for every member of the group.",
         responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
         since = "4.23.0")
-public class EnableVpcPeeringCmd extends BaseCmd {
-    public static final String APINAME = "enableVpcPeering";
+public class EnableMeshNetworkCmd extends BaseCmd {
+    public static final String APINAME = "enableMeshNetwork";
 
     @Inject
-    OvnPeeringService ovnPeeringService;
+    OvnMeshNetworkService ovnMeshNetworkService;
 
     @Parameter(name = ApiConstants.ID, type = CommandType.STRING,
-            required = true, description = "The UUID of the VPC peering group (or any member peering UUID)")
+            required = true, description = "The UUID of the VPC mesh network (or any member UUID)")
     private String id;
 
     public String getId() {
@@ -51,9 +51,9 @@ public class EnableVpcPeeringCmd extends BaseCmd {
 
     @Override
     public void execute() throws ServerApiException {
-        boolean result = ovnPeeringService.enableVpcPeering(this);
+        boolean result = ovnMeshNetworkService.enableMeshNetwork(this);
         if (!result) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to enable VPC peering");
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to enable mesh network");
         }
         SuccessResponse response = new SuccessResponse(getCommandName());
         setResponseObject(response);

@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api.command;
 
-import com.cloud.network.element.OvnVpcPeeringVO;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -24,49 +23,39 @@ import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.NetworkACLResponse;
-import org.apache.cloudstack.api.response.VpcPeeringResponse;
+import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.service.OvnPeeringService;
+import org.apache.cloudstack.service.OvnMeshNetworkService;
 
 import javax.inject.Inject;
 
-@APICommand(name = UpdateVpcPeeringCmd.APINAME,
-        description = "Updates a VPC peering membership. Allows changing the Network ACL applied to this peering connection.",
-        responseObject = VpcPeeringResponse.class,
+@APICommand(name = DeleteMeshNetworkCmd.APINAME,
+        description = "Removes a VPC from a mesh network. Routes and NAT bypass policies are cleaned up on all remaining group members.",
+        responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
         since = "4.23.0")
-public class UpdateVpcPeeringCmd extends BaseCmd {
-    public static final String APINAME = "updateVpcPeering";
+public class DeleteMeshNetworkCmd extends BaseCmd {
+    public static final String APINAME = "deleteMeshNetwork";
 
     @Inject
-    OvnPeeringService ovnPeeringService;
+    OvnMeshNetworkService ovnMeshNetworkService;
 
     @Parameter(name = ApiConstants.ID, type = CommandType.STRING,
-            required = true, description = "The UUID of the VPC peering to update")
+            required = true, description = "The UUID of the mesh network to delete")
     private String id;
-
-    @Parameter(name = "aclid", type = CommandType.UUID, entityType = NetworkACLResponse.class,
-            description = "The ID of a VPC Network ACL list to apply to this peering membership. Pass empty or omit to remove the ACL (allow all).")
-    private Long aclId;
 
     public String getId() {
         return id;
     }
 
-    public Long getAclId() {
-        return aclId;
-    }
-
     @Override
     public void execute() throws ServerApiException {
-        OvnVpcPeeringVO peering = ovnPeeringService.updateVpcPeering(this);
-        if (peering == null) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to update VPC peering");
+        boolean result = ovnMeshNetworkService.deleteMeshNetwork(this);
+        if (!result) {
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete mesh network");
         }
-        VpcPeeringResponse response = ovnPeeringService.createVpcPeeringResponse(peering);
-        response.setResponseName(getCommandName());
+        SuccessResponse response = new SuccessResponse(getCommandName());
         setResponseObject(response);
     }
 

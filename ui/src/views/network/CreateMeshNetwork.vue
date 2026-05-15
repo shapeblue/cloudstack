@@ -34,13 +34,13 @@
             v-model:value="form.description"
             :placeholder="$t('label.description')" />
         </a-form-item>
-        <a-form-item name="vpcids" ref="vpcids" :label="$t('label.vpc.peering.members')">
+        <a-form-item name="vpcids" ref="vpcids" :label="$t('label.mesh.network.members')">
           <a-select
             v-model:value="form.vpcids"
             mode="multiple"
             showSearch
             optionFilterProp="label"
-            :placeholder="$t('label.vpc.peering.select.vpcs')"
+            :placeholder="$t('label.mesh.network.select.vpcs')"
             :filterOption="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())">
             <a-select-option
               v-for="item in availableVpcs"
@@ -50,12 +50,12 @@
               :disabled="peeredVpcIds.has(item.id)">
               {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
               <a-tag v-if="peeredVpcIds.has(item.id)" color="orange" style="margin-left: 8px;">
-                {{ $t('label.vpc.peering.already.peered') }}
+                {{ $t('label.vpc.already.in.mesh.network') }}
               </a-tag>
             </a-select-option>
           </a-select>
           <div v-if="form.vpcids && form.vpcids.length < 2" style="color: #faad14; margin-top: 4px; font-size: 12px;">
-            {{ $t('label.vpc.peering.select.min') }}
+            {{ $t('label.mesh.network.select.min') }}
           </div>
         </a-form-item>
         <div :span="24" class="action-button">
@@ -79,7 +79,7 @@ import { ref, reactive } from 'vue'
 import { getAPI, postAPI } from '@/api'
 
 export default {
-  name: 'CreateVpcPeering',
+  name: 'CreateMeshNetwork',
   data () {
     return {
       loading: false,
@@ -102,7 +102,7 @@ export default {
     })
     this.rules = reactive({
       name: [{ required: true, message: this.$t('label.required') }],
-      vpcids: [{ required: true, type: 'array', min: 2, message: this.$t('label.vpc.peering.select.min') }]
+      vpcids: [{ required: true, type: 'array', min: 2, message: this.$t('label.mesh.network.select.min') }]
     })
   },
   created () {
@@ -113,10 +113,10 @@ export default {
       this.loading = true
       Promise.all([
         getAPI('listVPCs', { listAll: true }),
-        getAPI('listVpcPeerings')
+        getAPI('listMeshNetworks')
       ]).then(([vpcResp, peerResp]) => {
         this.allVpcs = vpcResp.listvpcsresponse?.vpc || []
-        const groups = peerResp.listvpcpeeringsresponse?.vpcpeering || []
+        const groups = peerResp.listmeshnetworksresponse?.meshnetwork || []
         const used = new Set()
         for (const g of groups) {
           for (const m of (g.members || [])) {
@@ -142,8 +142,8 @@ export default {
           const vpcids = this.form.vpcids
           // First call seeds the group with the first pair (and the name/description).
           // Subsequent calls add each remaining VPC to the same group via peervpcid =
-          // first VPC; OvnElement.createVpcPeering joins them under the existing
-          // group_uuid because peervpcid already belongs to it.
+          // first VPC; OvnElement.createMeshNetwork joins them under the existing
+          // mesh_uuid because peervpcid already belongs to it.
           const params = {
             name: this.form.name,
             vpcid: vpcids[0],
@@ -152,15 +152,15 @@ export default {
           if (this.form.description) {
             params.description = this.form.description
           }
-          await postAPI('createVpcPeering', params)
+          await postAPI('createMeshNetwork', params)
           for (let i = 2; i < vpcids.length; i++) {
-            await postAPI('createVpcPeering', {
+            await postAPI('createMeshNetwork', {
               name: this.form.name,
               vpcid: vpcids[i],
               peervpcid: vpcids[0]
             })
           }
-          this.$message.success(this.$t('message.success.add.vpc.peering'))
+          this.$message.success(this.$t('message.success.add.mesh.network'))
           this.$emit('refresh-data')
           this.closeAction()
         } catch (error) {

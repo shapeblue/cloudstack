@@ -23,12 +23,12 @@ import org.apache.cloudstack.api.BaseResponse;
 import java.util.Date;
 import java.util.List;
 
-public class VpcPeeringResponse extends BaseResponse {
+public class MeshNetworkResponse extends BaseResponse {
     @SerializedName(ApiConstants.ID)
     private String id;
 
-    @SerializedName("groupuuid")
-    private String groupUuid;
+    @SerializedName("meshuuid")
+    private String meshUuid;
 
     @SerializedName(ApiConstants.NAME)
     private String name;
@@ -76,7 +76,7 @@ public class VpcPeeringResponse extends BaseResponse {
     private Date created;
 
     /**
-     * Number of VPCs in the peering group. Set on aggregated (group-level) responses.
+     * Number of VPCs in the mesh network. Set on aggregated (group-level) responses.
      */
     @SerializedName("vpccount")
     private Integer vpcCount;
@@ -88,19 +88,19 @@ public class VpcPeeringResponse extends BaseResponse {
     private String vpcNames;
 
     /**
-     * Per-member detail. Populated only on group-level responses (id == groupuuid).
-     * Each entry corresponds to one VPC's row in the peering DB and is enough to drive
+     * Per-member detail. Populated only on group-level responses (id == meshuuid).
+     * Each entry corresponds to one VPC's row in the mesh network DB and is enough to drive
      * the "VPC Peers" detail tab without an extra round-trip.
      */
     @SerializedName("members")
-    private List<VpcPeeringMemberResponse> members;
+    private List<MeshNetworkMemberResponse> members;
 
     public void setId(String id) {
         this.id = id;
     }
 
-    public void setGroupUuid(String groupUuid) {
-        this.groupUuid = groupUuid;
+    public void setMeshUuid(String meshUuid) {
+        this.meshUuid = meshUuid;
     }
 
     public void setName(String name) {
@@ -171,7 +171,7 @@ public class VpcPeeringResponse extends BaseResponse {
         this.vpcNames = vpcNames;
     }
 
-    public void setMembers(List<VpcPeeringMemberResponse> members) {
+    public void setMembers(List<MeshNetworkMemberResponse> members) {
         this.members = members;
     }
 }

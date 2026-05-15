@@ -16,7 +16,7 @@
 // under the License.
 package com.cloud.network.dao;
 
-import com.cloud.network.element.OvnVpcPeeringVO;
+import com.cloud.network.element.OvnMeshNetworkVO;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.db.GenericDaoBase;
 import com.cloud.utils.db.SearchBuilder;
@@ -28,15 +28,15 @@ import java.util.stream.Collectors;
 
 @Component
 @DB()
-public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> implements OvnVpcPeeringDao {
-    final SearchBuilder<OvnVpcPeeringVO> allFieldsSearch;
+public class OvnMeshNetworkDaoImpl extends GenericDaoBase<OvnMeshNetworkVO, Long> implements OvnMeshNetworkDao {
+    final SearchBuilder<OvnMeshNetworkVO> allFieldsSearch;
 
-    public OvnVpcPeeringDaoImpl() {
+    public OvnMeshNetworkDaoImpl() {
         super();
         allFieldsSearch = createSearchBuilder();
         allFieldsSearch.and("id", allFieldsSearch.entity().getId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("uuid", allFieldsSearch.entity().getUuid(), SearchCriteria.Op.EQ);
-        allFieldsSearch.and("group_uuid", allFieldsSearch.entity().getGroupUuid(), SearchCriteria.Op.EQ);
+        allFieldsSearch.and("mesh_uuid", allFieldsSearch.entity().getMeshUuid(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("vpc_id", allFieldsSearch.entity().getVpcId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("zone_id", allFieldsSearch.entity().getZoneId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("account_id", allFieldsSearch.entity().getAccountId(), SearchCriteria.Op.EQ);
@@ -46,65 +46,65 @@ public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> 
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listByGroupUuid(String groupUuid) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
-        sc.setParameters("group_uuid", groupUuid);
+    public List<OvnMeshNetworkVO> listByMeshUuid(String meshUuid) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
+        sc.setParameters("mesh_uuid", meshUuid);
         sc.setParameters("state", "Active");
         return listBy(sc);
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listByGroupUuidIncludingDisabled(String groupUuid) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
-        sc.setParameters("group_uuid", groupUuid);
+    public List<OvnMeshNetworkVO> listByMeshUuidIncludingDisabled(String meshUuid) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
+        sc.setParameters("mesh_uuid", meshUuid);
         return listBy(sc).stream()
                 .filter(p -> !"Removed".equals(p.getState()))
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listByVpcId(long vpcId) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public List<OvnMeshNetworkVO> listByVpcId(long vpcId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("vpc_id", vpcId);
         sc.setParameters("state", "Active");
         return listBy(sc);
     }
 
     @Override
-    public OvnVpcPeeringVO findByGroupUuidAndVpcId(String groupUuid, long vpcId) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
-        sc.setParameters("group_uuid", groupUuid);
+    public OvnMeshNetworkVO findByMeshUuidAndVpcId(String meshUuid, long vpcId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
+        sc.setParameters("mesh_uuid", meshUuid);
         sc.setParameters("vpc_id", vpcId);
         sc.setParameters("state", "Active");
         return findOneBy(sc);
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listByAccountId(long accountId) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public List<OvnMeshNetworkVO> listByAccountId(long accountId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("account_id", accountId);
         sc.setParameters("state", "Active");
         return listBy(sc);
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listByAclId(long aclId) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public List<OvnMeshNetworkVO> listByAclId(long aclId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("acl_id", aclId);
         sc.setParameters("state", "Active");
         return listBy(sc);
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listAllActive() {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public List<OvnMeshNetworkVO> listAllActive() {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("state", "Active");
         return listBy(sc);
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listByAccountIdIncludingDisabled(long accountId) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public List<OvnMeshNetworkVO> listByAccountIdIncludingDisabled(long accountId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("account_id", accountId);
         return listBy(sc).stream()
                 .filter(p -> !"Removed".equals(p.getState()))
@@ -112,16 +112,16 @@ public class OvnVpcPeeringDaoImpl extends GenericDaoBase<OvnVpcPeeringVO, Long> 
     }
 
     @Override
-    public List<OvnVpcPeeringVO> listAllIncludingDisabled() {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public List<OvnMeshNetworkVO> listAllIncludingDisabled() {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         return listBy(sc).stream()
                 .filter(p -> !"Removed".equals(p.getState()))
                 .collect(Collectors.toList());
     }
 
     @Override
-    public OvnVpcPeeringVO findByUuid(String uuid) {
-        SearchCriteria<OvnVpcPeeringVO> sc = allFieldsSearch.create();
+    public OvnMeshNetworkVO findByUuid(String uuid) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("uuid", uuid);
         return findOneBy(sc);
     }

@@ -72,7 +72,7 @@ public class AddOvnProviderCmd extends BaseCmd {
     private String localnetName;
 
     @Parameter(name = ApiConstants.OVN_IC_NB_CONNECTION, type = CommandType.STRING,
-            description = "OVN-IC Northbound database connection string (e.g. tcp:host:6645). Required to enable cross-zone VPC peering via OVN Interconnection.")
+            description = "OVN-IC Northbound database connection string (e.g. tcp:host:6645). Required to enable cross-zone mesh network via OVN Interconnection.")
     private String icNbConnection;
 
     @Parameter(name = ApiConstants.OVN_IC_SB_CONNECTION, type = CommandType.STRING,

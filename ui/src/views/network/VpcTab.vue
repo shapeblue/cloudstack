@@ -467,10 +467,10 @@ export default {
       fetchLoading: false,
       privateGateways: [],
       associatedNetworks: [],
-      vpcPeerings: [],
+      meshNetworks: [],
       peerableVpcs: [],
-      peeringAclList: [],
-      editingPeeringId: null,
+      meshAclList: [],
+      editingMeshMemberId: null,
       vpnGateways: [],
       publicIps: [],
       vpnConnections: [],
@@ -483,10 +483,10 @@ export default {
         vpnConnection: false,
         vpnConnectionLoading: false,
         networkAcl: false,
-        peering: false,
-        peeringLoading: false,
-        peeringAcl: false,
-        peeringAclLoading: false
+        member: false,
+        meshLoading: false,
+        meshAcl: false,
+        meshAclLoading: false
       },
       placeholders: {
         vlan: null,
@@ -551,7 +551,7 @@ export default {
           dataIndex: 'description'
         }
       ],
-      vpcPeeringsColumns: [
+      meshNetworksColumns: [
         {
           key: 'peervpcname',
           title: this.$t('label.peer.vpc'),
@@ -590,7 +590,7 @@ export default {
         privateGateways: 0,
         vpnConnections: 0,
         networkAcls: 0,
-        vpcPeerings: 0
+        meshNetworks: 0
       },
       page: 1,
       pageSize: 10,
@@ -661,8 +661,8 @@ export default {
         case 'acl':
           this.fetchAclList()
           break
-        case 'peering':
-          this.fetchVpcPeerings()
+        case 'member':
+          this.fetchMeshNetworks()
           break
         case 'comments':
           this.fetchComments()
@@ -856,14 +856,14 @@ export default {
           }
           this.modals.networkAcl = true
           break
-        case 'peering':
+        case 'member':
           this.rules = {
             peervpcid: [{ required: true, message: this.$t('label.required') }]
           }
-          this.form.peeringaclid = undefined
-          this.modals.peering = true
+          this.form.meshaclid = undefined
+          this.modals.member = true
           this.fetchPeerableVpcs()
-          this.fetchPeeringAclList()
+          this.fetchMeshAclList()
           break
       }
     },
@@ -1047,15 +1047,15 @@ export default {
         this.fetchLoading = false
       })
     },
-    fetchVpcPeerings () {
+    fetchMeshNetworks () {
       this.fetchLoading = true
-      getAPI('listVpcPeerings', {
+      getAPI('listMeshNetworks', {
         vpcid: this.resource.id,
         page: this.page,
         pagesize: this.pageSize
       }).then(json => {
-        this.vpcPeerings = json.listvpcpeeringsresponse?.vpcpeering || []
-        this.itemCounts.vpcPeerings = json.listvpcpeeringsresponse?.count || 0
+        this.meshNetworks = json.listmeshnetworksresponse?.meshnetwork || []
+        this.itemCounts.meshNetworks = json.listmeshnetworksresponse?.count || 0
       }).catch(error => {
         this.$notifyError(error)
       }).finally(() => {
@@ -1063,7 +1063,7 @@ export default {
       })
     },
     fetchPeerableVpcs () {
-      this.modals.peeringLoading = true
+      this.modals.meshLoading = true
       this.peerableVpcs = []
       // First get OVN-enabled zones
       var ovnZoneIds = new Set()
@@ -1083,7 +1083,7 @@ export default {
         }).catch(error => {
           this.$notifyError(error)
         }).finally(() => {
-          this.modals.peeringLoading = false
+          this.modals.meshLoading = false
         })
       }
       if ('listOvnProviders' in this.$store.getters.apis) {
@@ -1099,9 +1099,9 @@ export default {
         fetchVpcsAfterZones()
       }
     },
-    handleCreateVpcPeering () {
-      if (this.modals.peeringLoading) return
-      this.modals.peeringLoading = true
+    handleCreateMeshNetwork () {
+      if (this.modals.meshLoading) return
+      this.modals.meshLoading = true
 
       this.formRef.value.validate().then(() => {
         const data = toRaw(this.form)
@@ -1109,70 +1109,70 @@ export default {
           vpcid: this.resource.id,
           peervpcid: data.peervpcid
         }
-        if (data.peeringaclid) {
-          params.aclid = data.peeringaclid
+        if (data.meshaclid) {
+          params.aclid = data.meshaclid
         }
-        postAPI('createVpcPeering', params).then(response => {
-          this.$message.success(this.$t('message.success.add.vpc.peering'))
-          this.modals.peering = false
-          this.fetchVpcPeerings()
+        postAPI('createMeshNetwork', params).then(response => {
+          this.$message.success(this.$t('message.success.add.mesh.network'))
+          this.modals.member = false
+          this.fetchMeshNetworks()
         }).catch(error => {
           this.$notifyError(error)
         }).finally(() => {
-          this.modals.peeringLoading = false
+          this.modals.meshLoading = false
         })
       }).catch(error => {
         this.formRef.value.scrollToField(error.errorFields[0].name)
-        this.modals.peeringLoading = false
+        this.modals.meshLoading = false
       })
     },
-    handleDeleteVpcPeering (record) {
+    handleDeleteMeshNetwork (record) {
       this.fetchLoading = true
-      postAPI('deleteVpcPeering', {
+      postAPI('deleteMeshNetwork', {
         id: record.id
       }).then(() => {
         this.$message.success(this.$t('label.action.delete.succeeded'))
-        this.fetchVpcPeerings()
+        this.fetchMeshNetworks()
       }).catch(error => {
         this.$notifyError(error)
       }).finally(() => {
         this.fetchLoading = false
       })
     },
-    fetchPeeringAclList () {
+    fetchMeshAclList () {
       getAPI('listNetworkACLLists', {
         vpcid: this.resource.id,
         listAll: true
       }).then(json => {
-        this.peeringAclList = json.listnetworkacllistsresponse?.networkacllist || []
+        this.meshAclList = json.listnetworkacllistsresponse?.networkacllist || []
       }).catch(error => {
         this.$notifyError(error)
       })
     },
-    handleEditPeeringAcl (record) {
-      this.editingPeeringId = record.id
-      this.form.peeringaclid = record.aclid || undefined
-      this.modals.peeringAcl = true
-      this.fetchPeeringAclList()
+    handleEditMeshAcl (record) {
+      this.editingMeshMemberId = record.id
+      this.form.meshaclid = record.aclid || undefined
+      this.modals.meshAcl = true
+      this.fetchMeshAclList()
     },
-    handleUpdatePeeringAcl () {
-      if (this.modals.peeringAclLoading) return
-      this.modals.peeringAclLoading = true
+    handleUpdateMeshAcl () {
+      if (this.modals.meshAclLoading) return
+      this.modals.meshAclLoading = true
       const data = toRaw(this.form)
       const params = {
-        id: this.editingPeeringId
+        id: this.editingMeshMemberId
       }
-      if (data.peeringaclid) {
-        params.aclid = data.peeringaclid
+      if (data.meshaclid) {
+        params.aclid = data.meshaclid
       }
-      postAPI('updateVpcPeering', params).then(() => {
-        this.$message.success(this.$t('message.success.update.vpc.peering'))
-        this.modals.peeringAcl = false
-        this.fetchVpcPeerings()
+      postAPI('updateMeshNetwork', params).then(() => {
+        this.$message.success(this.$t('message.success.update.mesh.network'))
+        this.modals.meshAcl = false
+        this.fetchMeshNetworks()
       }).catch(error => {
         this.$notifyError(error)
       }).finally(() => {
-        this.modals.peeringAclLoading = false
+        this.modals.meshAclLoading = false
       })
     },
     changePage (page, pageSize) {

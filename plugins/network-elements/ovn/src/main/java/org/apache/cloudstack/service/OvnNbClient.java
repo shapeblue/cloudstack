@@ -1224,7 +1224,7 @@ public class OvnNbClient {
     /**
      * Idempotently overwrites a Logical_Router_Port's {@code networks} column. No-op if the
      * existing set already matches. Used to drift-correct LRPs that were created with a
-     * stale CIDR (e.g. by a previous peering) so ovn-ic re-advertises the right nexthop.
+     * stale CIDR (e.g. by a previous mesh network attach) so ovn-ic re-advertises the right nexthop.
      */
     public void setLrpNetworks(String nbConnection, String caCertPath, String clientCertPath,
                                String clientPrivateKeyPath,
@@ -2175,7 +2175,7 @@ public class OvnNbClient {
             //
             // 2) Scope by LS: findAclUuidsByExternalIds returns ACL rows by tag across the whole
             //    NB, including rows that live on a DIFFERENT LS (e.g. the same network_id tag is
-            //    written on per-tier ACLs and on peering-LS ACLs). Without scoping we'd attempt
+            //    written on per-tier ACLs and on mesh-network-LS ACLs). Without scoping we'd attempt
             //    to free-delete a row that's still referenced from another LS and OVSDB would
             //    refuse. Same scoping rule applied on removeAclsOnLsByExternalId.
             List<UUID> candidateAclUuids = findAclUuidsByExternalIds(client, schema, aclTable, externalIds);
@@ -2416,8 +2416,8 @@ public class OvnNbClient {
     //
     // These talk to either the per-AZ NB (NB_Global, Chassis) or the global IC NB
     // (Transit_Switch). They are used by OvnElement to provision cross-zone VPC
-    // peering on top of OVN's Interconnection feature instead of per-zone local
-    // peering switches. See https://docs.ovn.org/en/latest/tutorials/ovn-interconnection.html
+    // mesh networks on top of OVN's Interconnection feature instead of per-zone local
+    // mesh network switches. See https://docs.ovn.org/en/latest/tutorials/ovn-interconnection.html
     // for the protocol.
 
     /**
@@ -2549,7 +2549,7 @@ public class OvnNbClient {
 
     /**
      * Idempotently deletes a Transit_Switch from the IC NB DB. Should be called when the
-     * last peering group member is removed; ovn-ic will then propagate the removal to all
+     * last mesh network member is removed; ovn-ic will then propagate the removal to all
      * AZ NBs and tear down remote ports.
      */
     public void deleteTransitSwitch(String icNbConnection, String caCertPath, String clientCertPath,
@@ -2629,7 +2629,7 @@ public class OvnNbClient {
             }
             // Deterministic order so every LRP in the same AZ ends up with the same
             // primary gateway-chassis. Two LRPs anchored on different primaries break
-            // intra-AZ peering: the OVN logical flow lr_in_admission carries an
+            // intra-AZ member: the OVN logical flow lr_in_admission carries an
             // is_chassis_resident("cr-lrp") guard, so a packet hopping LRP A → LRP B in
             // the same TS must traverse a chassis where both cr-lrps are resident.
             java.util.Collections.sort(result);
@@ -2662,7 +2662,7 @@ public class OvnNbClient {
         // create gets the standard router type/addresses, so this works.
         attachRouterToSwitch(nbConnection, caCertPath, clientCertPath, clientPrivateKeyPath,
                 routerName, tsLsName, lrpName, lrpMac, Collections.singletonList(lrpIpCidr));
-        // Drift-correct: if the LRP already existed (e.g. from an older peering with a
+        // Drift-correct: if the LRP already existed (e.g. from an older member with a
         // different link-local subnet) attachRouterToSwitch left its networks alone for
         // idempotency. The TS LRP IP is what ovn-ic advertises as nexthop for connected
         // routes; a stale value silently misroutes traffic from peer VPCs to the wrong

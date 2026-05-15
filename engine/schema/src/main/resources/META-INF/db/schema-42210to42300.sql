@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_providers` (
     `client_private_key_path` varchar(1024) COMMENT 'OVN TLS client private key path',
     `external_bridge` varchar(255) COMMENT 'OVN external bridge used for provider network access',
     `localnet_name` varchar(255) COMMENT 'OVN localnet name used for provider network mapping',
-    `ic_nb_connection` varchar(255) COMMENT 'OVN-IC Northbound DB connection string for inter-zone peering',
+    `ic_nb_connection` varchar(255) COMMENT 'OVN-IC Northbound DB connection string for inter-zone mesh networks',
     `ic_sb_connection` varchar(255) COMMENT 'OVN-IC Southbound DB connection string for diagnostics',
     `availability_zone_name` varchar(255) COMMENT 'Availability zone name registered in NB_Global for OVN-IC',
     `created` datetime NOT NULL COMMENT 'created date',
@@ -144,29 +144,29 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_providers` (
     INDEX `i_ovn_providers__zone_id`(`zone_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- OVN VPC Peering
-CREATE TABLE IF NOT EXISTS `cloud`.`ovn_vpc_peerings` (
+-- OVN Mesh Network
+CREATE TABLE IF NOT EXISTS `cloud`.`ovn_mesh_networks` (
     `id` bigint unsigned NOT NULL auto_increment,
     `uuid` varchar(40) NOT NULL,
-    `group_uuid` varchar(40) NOT NULL COMMENT 'Peering mesh group identifier',
-    `name` varchar(255) DEFAULT NULL COMMENT 'User-given peering group name',
-    `description` varchar(1024) DEFAULT NULL COMMENT 'User-given peering group description',
+    `mesh_uuid` varchar(40) NOT NULL COMMENT 'Mesh network identifier (groups VPCs in a single mesh)',
+    `name` varchar(255) DEFAULT NULL COMMENT 'User-given mesh network name',
+    `description` varchar(1024) DEFAULT NULL COMMENT 'User-given mesh network description',
     `vpc_id` bigint unsigned NOT NULL,
     `zone_id` bigint unsigned NOT NULL,
     `account_id` bigint unsigned NOT NULL,
     `domain_id` bigint unsigned NOT NULL,
-    `link_local_ip` varchar(15) NOT NULL COMMENT 'Link-local IP on the peering switch',
-    `acl_id` bigint unsigned DEFAULT NULL COMMENT 'Optional Network ACL applied to this peering membership',
+    `link_local_ip` varchar(15) NOT NULL COMMENT 'Link-local IP on the mesh network switch',
+    `acl_id` bigint unsigned DEFAULT NULL COMMENT 'Optional Network ACL applied to this mesh network membership',
     `state` varchar(16) NOT NULL DEFAULT 'Active',
     `created` datetime NOT NULL,
     `removed` datetime DEFAULT NULL,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_ovn_vpc_peerings_uuid` (`uuid`),
-    INDEX `i_ovn_vpc_peerings_group` (`group_uuid`),
-    INDEX `i_ovn_vpc_peerings_vpc` (`vpc_id`),
-    CONSTRAINT `fk_ovn_vpc_peerings_vpc` FOREIGN KEY (`vpc_id`) REFERENCES `cloud`.`vpc`(`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_ovn_vpc_peerings_zone` FOREIGN KEY (`zone_id`) REFERENCES `cloud`.`data_center`(`id`),
-    CONSTRAINT `fk_ovn_vpc_peerings_account` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`)
+    UNIQUE KEY `uk_ovn_mesh_networks_uuid` (`uuid`),
+    INDEX `i_ovn_mesh_networks_mesh` (`mesh_uuid`),
+    INDEX `i_ovn_mesh_networks_vpc` (`vpc_id`),
+    CONSTRAINT `fk_ovn_mesh_networks_vpc` FOREIGN KEY (`vpc_id`) REFERENCES `cloud`.`vpc`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_mesh_networks_zone` FOREIGN KEY (`zone_id`) REFERENCES `cloud`.`data_center`(`id`),
+    CONSTRAINT `fk_ovn_mesh_networks_account` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Add Firewall service to the default OVN VPC offering so that OVN VPC tiers

@@ -25,24 +25,24 @@ import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.service.OvnPeeringService;
+import org.apache.cloudstack.service.OvnMeshNetworkService;
 
 import javax.inject.Inject;
 
-@APICommand(name = DisableVpcPeeringCmd.APINAME,
-        description = "Disables a VPC peering group. Removes the OVN data-plane (routes, NAT bypass, ACLs) from every member while keeping records and topology so it can be re-enabled.",
+@APICommand(name = DisableMeshNetworkCmd.APINAME,
+        description = "Disables a VPC mesh network. Removes the OVN data-plane (routes, NAT bypass, ACLs) from every member while keeping records and topology so it can be re-enabled.",
         responseObject = SuccessResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
         since = "4.23.0")
-public class DisableVpcPeeringCmd extends BaseCmd {
-    public static final String APINAME = "disableVpcPeering";
+public class DisableMeshNetworkCmd extends BaseCmd {
+    public static final String APINAME = "disableMeshNetwork";
 
     @Inject
-    OvnPeeringService ovnPeeringService;
+    OvnMeshNetworkService ovnMeshNetworkService;
 
     @Parameter(name = ApiConstants.ID, type = CommandType.STRING,
-            required = true, description = "The UUID of the VPC peering group (or any member peering UUID)")
+            required = true, description = "The UUID of the VPC mesh network (or any member UUID)")
     private String id;
 
     public String getId() {
@@ -51,9 +51,9 @@ public class DisableVpcPeeringCmd extends BaseCmd {
 
     @Override
     public void execute() throws ServerApiException {
-        boolean result = ovnPeeringService.disableVpcPeering(this);
+        boolean result = ovnMeshNetworkService.disableMeshNetwork(this);
         if (!result) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to disable VPC peering");
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to disable mesh network");
         }
         SuccessResponse response = new SuccessResponse(getCommandName());
         setResponseObject(response);

@@ -21,12 +21,12 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 
 /**
- * One VPC's membership in a peering group, embedded under
- * {@link VpcPeeringResponse#setMembers(java.util.List)} on group-level responses.
- * Carries the per-VPC peering row identity so the UI can drive add/remove actions
- * without a separate listVpcPeerings round-trip.
+ * One VPC's membership in a mesh network, embedded under
+ * {@link MeshNetworkResponse#setMembers(java.util.List)} on group-level responses.
+ * Carries the per-VPC member row identity so the UI can drive add/remove actions
+ * without a separate listMeshNetworks round-trip.
  */
-public class VpcPeeringMemberResponse extends BaseResponse {
+public class MeshNetworkMemberResponse extends BaseResponse {
     @SerializedName(ApiConstants.ID)
     private String id;
 

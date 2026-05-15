@@ -934,11 +934,11 @@ export default {
       ]
     },
     {
-      name: 'vpcpeering',
-      title: 'label.vpc.peering',
+      name: 'meshnetwork',
+      title: 'label.mesh.network',
       icon: 'swap-outlined',
-      permission: ['listVpcPeerings'],
-      resourceType: 'VpcPeering',
+      permission: ['listMeshNetworks'],
+      resourceType: 'MeshNetwork',
       columns: ['name', 'description', 'vpccount', 'vpcnames', 'state', 'zonename'],
       details: ['name', 'id', 'groupuuid', 'description', 'state', 'zonename', 'vpccount', 'vpcnames', 'created'],
       searchFilters: ['name', 'zoneid'],
@@ -947,22 +947,22 @@ export default {
         component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
       }, {
         name: 'vpc.peers',
-        component: shallowRef(defineAsyncComponent(() => import('@/views/network/VpcPeeringMembersTab.vue')))
+        component: shallowRef(defineAsyncComponent(() => import('@/views/network/MeshNetworkMembersTab.vue')))
       }],
       actions: [
         {
-          api: 'createVpcPeering',
+          api: 'createMeshNetwork',
           icon: 'plus-outlined',
-          label: 'label.add.vpc.peering',
+          label: 'label.add.mesh.network',
           listView: true,
           popup: true,
-          component: shallowRef(defineAsyncComponent(() => import('@/views/network/CreateVpcPeering.vue')))
+          component: shallowRef(defineAsyncComponent(() => import('@/views/network/CreateMeshNetwork.vue')))
         },
         {
-          api: 'enableVpcPeering',
+          api: 'enableMeshNetwork',
           icon: 'play-circle-outlined',
-          label: 'label.enable.vpc.peering',
-          message: 'message.confirm.enable.vpc.peering',
+          label: 'label.enable.mesh.network',
+          message: 'message.confirm.enable.mesh.network',
           dataView: true,
           groupAction: true,
           popup: true,
@@ -971,10 +971,10 @@ export default {
           groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
         },
         {
-          api: 'disableVpcPeering',
+          api: 'disableMeshNetwork',
           icon: 'pause-circle-outlined',
-          label: 'label.disable.vpc.peering',
-          message: 'message.confirm.disable.vpc.peering',
+          label: 'label.disable.mesh.network',
+          message: 'message.confirm.disable.mesh.network',
           dataView: true,
           groupAction: true,
           popup: true,
@@ -983,10 +983,10 @@ export default {
           groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
         },
         {
-          api: 'deleteVpcPeering',
+          api: 'deleteMeshNetwork',
           icon: 'delete-outlined',
-          label: 'label.delete.vpc.peering',
-          message: 'message.confirm.delete.vpc.peering.group',
+          label: 'label.delete.mesh.network',
+          message: 'message.confirm.delete.mesh.network.group',
           dataView: true,
           groupAction: true,
           popup: true,

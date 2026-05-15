@@ -1224,7 +1224,7 @@ export default {
     },
     enableGroupAction () {
       return ['vm', 'alert', 'vmgroup', 'ssh', 'userdata', 'affinitygroup', 'autoscalevmgroup', 'volume', 'snapshot',
-        'vmsnapshot', 'backup', 'guestnetwork', 'vpc', 'vpcpeering', 'publicip', 'vpnuser', 'vpncustomergateway', 'vnfapp',
+        'vmsnapshot', 'backup', 'guestnetwork', 'vpc', 'meshnetwork', 'publicip', 'vpnuser', 'vpncustomergateway', 'vnfapp',
         'project', 'account', 'systemvm', 'router', 'computeoffering', 'systemoffering',
         'diskoffering', 'backupoffering', 'networkoffering', 'vpcoffering', 'ilbvm', 'kubernetes', 'comment', 'buckets',
         'webhook', 'webhookdeliveries', 'sharedfs', 'ipv4subnets', 'asnumbers', 'guestos', 'gpucard', 'gpudevices', 'vgpuprofile'

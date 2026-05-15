@@ -16,20 +16,20 @@
 // under the License.
 package com.cloud.network.dao;
 
-import com.cloud.network.element.OvnVpcPeeringVO;
+import com.cloud.network.element.OvnMeshNetworkVO;
 import com.cloud.utils.db.GenericDao;
 
 import java.util.List;
 
-public interface OvnVpcPeeringDao extends GenericDao<OvnVpcPeeringVO, Long> {
-    List<OvnVpcPeeringVO> listByGroupUuid(String groupUuid);
-    List<OvnVpcPeeringVO> listByGroupUuidIncludingDisabled(String groupUuid);
-    List<OvnVpcPeeringVO> listByVpcId(long vpcId);
-    OvnVpcPeeringVO findByGroupUuidAndVpcId(String groupUuid, long vpcId);
-    List<OvnVpcPeeringVO> listByAccountId(long accountId);
-    List<OvnVpcPeeringVO> listByAccountIdIncludingDisabled(long accountId);
-    List<OvnVpcPeeringVO> listAllActive();
-    List<OvnVpcPeeringVO> listAllIncludingDisabled();
-    List<OvnVpcPeeringVO> listByAclId(long aclId);
-    OvnVpcPeeringVO findByUuid(String uuid);
+public interface OvnMeshNetworkDao extends GenericDao<OvnMeshNetworkVO, Long> {
+    List<OvnMeshNetworkVO> listByMeshUuid(String meshUuid);
+    List<OvnMeshNetworkVO> listByMeshUuidIncludingDisabled(String meshUuid);
+    List<OvnMeshNetworkVO> listByVpcId(long vpcId);
+    OvnMeshNetworkVO findByMeshUuidAndVpcId(String meshUuid, long vpcId);
+    List<OvnMeshNetworkVO> listByAccountId(long accountId);
+    List<OvnMeshNetworkVO> listByAccountIdIncludingDisabled(long accountId);
+    List<OvnMeshNetworkVO> listAllActive();
+    List<OvnMeshNetworkVO> listAllIncludingDisabled();
+    List<OvnMeshNetworkVO> listByAclId(long aclId);
+    OvnMeshNetworkVO findByUuid(String uuid);
 }

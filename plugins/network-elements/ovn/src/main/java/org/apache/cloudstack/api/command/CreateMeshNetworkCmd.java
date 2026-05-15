@@ -16,7 +16,7 @@
 // under the License.
 package org.apache.cloudstack.api.command;
 
-import com.cloud.network.element.OvnVpcPeeringVO;
+import com.cloud.network.element.OvnMeshNetworkVO;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
@@ -24,31 +24,31 @@ import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.VpcPeeringResponse;
+import org.apache.cloudstack.api.response.MeshNetworkResponse;
 import org.apache.cloudstack.api.response.VpcResponse;
 import org.apache.cloudstack.context.CallContext;
-import org.apache.cloudstack.service.OvnPeeringService;
+import org.apache.cloudstack.service.OvnMeshNetworkService;
 
 import javax.inject.Inject;
 
-@APICommand(name = CreateVpcPeeringCmd.APINAME,
-        description = "Creates a peering connection between two OVN-backed VPCs. If the peer VPC already belongs to a peering group, the calling VPC joins that group (mesh topology).",
-        responseObject = VpcPeeringResponse.class,
+@APICommand(name = CreateMeshNetworkCmd.APINAME,
+        description = "Creates a mesh network between two OVN-backed VPCs. If the peer VPC already belongs to a mesh network, the calling VPC joins that group (mesh topology).",
+        responseObject = MeshNetworkResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
         since = "4.23.0")
-public class CreateVpcPeeringCmd extends BaseCmd {
-    public static final String APINAME = "createVpcPeering";
+public class CreateMeshNetworkCmd extends BaseCmd {
+    public static final String APINAME = "createMeshNetwork";
 
     @Inject
-    OvnPeeringService ovnPeeringService;
+    OvnMeshNetworkService ovnMeshNetworkService;
 
     @Parameter(name = ApiConstants.NAME, type = CommandType.STRING,
-            required = true, description = "Name for the VPC peering group")
+            required = true, description = "Name for the VPC mesh network")
     private String name;
 
     @Parameter(name = ApiConstants.DESCRIPTION, type = CommandType.STRING,
-            description = "Description for the VPC peering group")
+            description = "Description for the VPC mesh network")
     private String description;
 
     @Parameter(name = ApiConstants.VPC_ID, type = CommandType.UUID, entityType = VpcResponse.class,
@@ -56,11 +56,11 @@ public class CreateVpcPeeringCmd extends BaseCmd {
     private Long vpcId;
 
     @Parameter(name = "peervpcid", type = CommandType.UUID, entityType = VpcResponse.class,
-            required = true, description = "The ID of the peer VPC. If it already belongs to a peering group, the calling VPC joins that group.")
+            required = true, description = "The ID of the peer VPC. If it already belongs to a mesh network, the calling VPC joins that group.")
     private Long peerVpcId;
 
     @Parameter(name = "aclid", type = CommandType.UUID, entityType = org.apache.cloudstack.api.response.NetworkACLResponse.class,
-            description = "The ID of a VPC Network ACL list to apply to this peering membership. Controls what traffic is allowed through the peering connection.")
+            description = "The ID of a VPC Network ACL list to apply to this mesh network membership. Controls what traffic is allowed through the mesh network.")
     private Long aclId;
 
     public String getName() {
@@ -85,11 +85,11 @@ public class CreateVpcPeeringCmd extends BaseCmd {
 
     @Override
     public void execute() throws ServerApiException {
-        OvnVpcPeeringVO peering = ovnPeeringService.createVpcPeering(this);
-        if (peering == null) {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create VPC peering");
+        OvnMeshNetworkVO member = ovnMeshNetworkService.createMeshNetwork(this);
+        if (member == null) {
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create mesh network");
         }
-        VpcPeeringResponse response = ovnPeeringService.createVpcPeeringResponse(peering);
+        MeshNetworkResponse response = ovnMeshNetworkService.createMeshNetworkResponse(member);
         response.setResponseName(getCommandName());
         setResponseObject(response);
     }
