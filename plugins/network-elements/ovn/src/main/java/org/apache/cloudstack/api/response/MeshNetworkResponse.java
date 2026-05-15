@@ -45,6 +45,15 @@ public class MeshNetworkResponse extends BaseResponse {
     @SerializedName("vpccidr")
     private String vpcCidr;
 
+    @SerializedName(ApiConstants.NETWORK_ID)
+    private String networkId;
+
+    @SerializedName("networkname")
+    private String networkName;
+
+    @SerializedName("networkcidr")
+    private String networkCidr;
+
     @SerializedName("peervpcid")
     private String peerVpcId;
 
@@ -53,6 +62,15 @@ public class MeshNetworkResponse extends BaseResponse {
 
     @SerializedName("peervpccidr")
     private String peerVpcCidr;
+
+    @SerializedName("peernetworkid")
+    private String peerNetworkId;
+
+    @SerializedName("peernetworkname")
+    private String peerNetworkName;
+
+    @SerializedName("peernetworkcidr")
+    private String peerNetworkCidr;
 
     @SerializedName(ApiConstants.ZONE_ID)
     private String zoneId;
@@ -133,6 +151,30 @@ public class MeshNetworkResponse extends BaseResponse {
 
     public void setPeerVpcCidr(String peerVpcCidr) {
         this.peerVpcCidr = peerVpcCidr;
+    }
+
+    public void setNetworkId(String networkId) {
+        this.networkId = networkId;
+    }
+
+    public void setNetworkName(String networkName) {
+        this.networkName = networkName;
+    }
+
+    public void setNetworkCidr(String networkCidr) {
+        this.networkCidr = networkCidr;
+    }
+
+    public void setPeerNetworkId(String peerNetworkId) {
+        this.peerNetworkId = peerNetworkId;
+    }
+
+    public void setPeerNetworkName(String peerNetworkName) {
+        this.peerNetworkName = peerNetworkName;
+    }
+
+    public void setPeerNetworkCidr(String peerNetworkCidr) {
+        this.peerNetworkCidr = peerNetworkCidr;
     }
 
     public void setZoneId(String zoneId) {

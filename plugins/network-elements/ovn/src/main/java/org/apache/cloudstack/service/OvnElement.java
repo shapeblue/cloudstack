@@ -136,6 +136,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     @Inject
     com.cloud.service.dao.ServiceOfferingDao serviceOfferingDao;
 
+    @Inject
+    com.cloud.network.dao.NetworkDao networksDao;
+
+    @Inject
+    com.cloud.offerings.dao.NetworkOfferingServiceMapDao networkOfferingServiceMapDao;
+
     protected static Map<Network.Service, Map<Network.Capability, String>> initCapabilities() {
         Map<Network.Service, Map<Network.Capability, String>> capabilities = new HashMap<>();
 
@@ -2233,144 +2239,288 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
     // ── Mesh Network (OvnMeshNetworkService) ───────────────────────────────────────────────────────────────────────
 
+    /**
+     * Adapter that hides whether a mesh-network member is a VPC or an
+     * Isolated guest network behind a single shape. Every provisioning
+     * code path below operates on {@code MeshMember} instead of branching
+     * on the underlying CS entity, so adding a new member kind in the
+     * future means writing one more {@link #resolveMeshMember(Long, Long,
+     * long, String)} branch and not touching the data-plane code.
+     */
+    protected static final class MeshMember {
+        final String kind;          // "vpc" | "network"
+        final long id;              // vpc.id or networks.id
+        final String uuid;
+        final String name;
+        final String cidr;
+        final long zoneId;
+        final long accountId;
+        final long domainId;
+        final String lrName;        // cs-vpc-<id> or cs-router-<id>
+
+        private MeshMember(String kind, long id, String uuid, String name, String cidr,
+                           long zoneId, long accountId, long domainId, String lrName) {
+            this.kind = kind;
+            this.id = id;
+            this.uuid = uuid;
+            this.name = name;
+            this.cidr = cidr;
+            this.zoneId = zoneId;
+            this.accountId = accountId;
+            this.domainId = domainId;
+            this.lrName = lrName;
+        }
+
+        static MeshMember ofVpc(VpcVO v) {
+            return new MeshMember("vpc", v.getId(), v.getUuid(), v.getName(), v.getCidr(),
+                    v.getZoneId(), v.getAccountId(), v.getDomainId(),
+                    String.format("cs-vpc-%d", v.getId()));
+        }
+
+        static MeshMember ofNetwork(com.cloud.network.dao.NetworkVO n) {
+            return new MeshMember("network", n.getId(), n.getUuid(),
+                    n.getName() != null ? n.getName() : "network-" + n.getId(),
+                    n.getCidr(),
+                    n.getDataCenterId(), n.getAccountId(), n.getDomainId(),
+                    String.format("cs-router-%d", n.getId()));
+        }
+
+        boolean isVpc() { return "vpc".equals(kind); }
+        boolean isNetwork() { return "network".equals(kind); }
+        Long vpcIdOrNull() { return isVpc() ? id : null; }
+        Long networkIdOrNull() { return isNetwork() ? id : null; }
+    }
+
+    /**
+     * Resolves a (vpcId, networkId) pair from a {@code CreateMeshNetworkCmd}
+     * into a {@link MeshMember}. Exactly one of the two must be set. Runs
+     * the eligibility checks that protect the mesh fabric: the underlying
+     * CS object must exist, must live in an OVN-enabled zone, must be
+     * owned by the caller (or admin), and must be of a kind that owns a
+     * Logical Router in the OVN NB.
+     */
+    protected MeshMember resolveMeshMember(Long vpcId, Long networkId, long callerId, String role) {
+        if (vpcId != null && networkId != null) {
+            throw new InvalidParameterValueException(
+                    String.format("Pass only one of vpcid/networkid for the %s member, not both", role));
+        }
+        if (vpcId == null && networkId == null) {
+            throw new InvalidParameterValueException(
+                    String.format("One of vpcid/networkid must be supplied for the %s member", role));
+        }
+        if (vpcId != null) {
+            VpcVO v = vpcDao.findById(vpcId);
+            if (v == null) {
+                throw new InvalidParameterValueException(String.format("%s VPC not found: %d", role, vpcId));
+            }
+            if (v.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+                throw new PermissionDeniedException("Caller does not own " + role + " VPC " + v.getUuid());
+            }
+            if (ovnProviderDao.findByZoneId(v.getZoneId()) == null) {
+                throw new InvalidParameterValueException(
+                        String.format("%s VPC %s lives in zone %d which has no OVN provider",
+                                role, v.getUuid(), v.getZoneId()));
+            }
+            return MeshMember.ofVpc(v);
+        }
+        // networkId path: only Isolated, OVN-backed, non-VPC-tier networks are eligible.
+        com.cloud.network.dao.NetworkVO n = networksDao.findById(networkId);
+        if (n == null) {
+            throw new InvalidParameterValueException(String.format("%s network not found: %d", role, networkId));
+        }
+        if (n.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
+            throw new PermissionDeniedException("Caller does not own " + role + " network " + n.getUuid());
+        }
+        if (n.getGuestType() != com.cloud.network.Network.GuestType.Isolated) {
+            throw new InvalidParameterValueException(
+                    String.format("%s network %s is not an Isolated network (kind=%s); only Isolated networks can be mesh members",
+                            role, n.getUuid(), n.getGuestType()));
+        }
+        if (n.getVpcId() != null) {
+            throw new InvalidParameterValueException(
+                    String.format("%s network %s is a VPC tier; pass the parent VPC instead", role, n.getUuid()));
+        }
+        if (n.getBroadcastDomainType() != Networks.BroadcastDomainType.OVN) {
+            throw new InvalidParameterValueException(
+                    String.format("%s network %s is not backed by OVN (broadcast=%s)",
+                            role, n.getUuid(), n.getBroadcastDomainType()));
+        }
+        if (n.getCidr() == null || n.getCidr().isEmpty()) {
+            throw new InvalidParameterValueException(
+                    String.format("%s network %s has no CIDR and cannot participate in a mesh", role, n.getUuid()));
+        }
+        // The OVN Logical_Router (cs-router-<id>) for an isolated network is only
+        // provisioned once the network reaches Implemented. Adding a mesh attachment
+        // before that produces a dangling LSP on the mesh LS because the target LR
+        // does not exist yet. Require Implemented and tell the operator how to drive
+        // the network there.
+        if (n.getState() != com.cloud.network.Network.State.Implemented) {
+            throw new InvalidParameterValueException(
+                    String.format("%s network %s is in state %s — implement it (deploy a VM or restart the network) before adding it to a mesh",
+                            role, n.getUuid(), n.getState()));
+        }
+        if (ovnProviderDao.findByZoneId(n.getDataCenterId()) == null) {
+            throw new InvalidParameterValueException(
+                    String.format("%s network %s lives in zone %d which has no OVN provider",
+                            role, n.getUuid(), n.getDataCenterId()));
+        }
+        return MeshMember.ofNetwork(n);
+    }
+
+    /**
+     * Returns the row that records the given member's current mesh-network
+     * membership (Active state). Looks up by vpc_id for VPC members or by
+     * network_id for Isolated network members. Returns {@code null} if the
+     * member is not yet in any mesh.
+     */
+    protected OvnMeshNetworkVO findExistingMembership(MeshMember m) {
+        List<OvnMeshNetworkVO> rows = m.isVpc()
+                ? ovnMeshNetworkDao.listByVpcId(m.id)
+                : ovnMeshNetworkDao.listByNetworkId(m.id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /**
+     * Looks up the active row for a member in a specific mesh group.
+     */
+    protected OvnMeshNetworkVO findMembershipInMesh(String meshUuid, MeshMember m) {
+        return m.isVpc()
+                ? ovnMeshNetworkDao.findByMeshUuidAndVpcId(meshUuid, m.id)
+                : ovnMeshNetworkDao.findByMeshUuidAndNetworkId(meshUuid, m.id);
+    }
+
+
     private static final String MESH_NETWORK_EXT_KEY = "cloudstack_mesh_network";
     private static final int NAT_BYPASS_PRIORITY = 1000;
 
     @Override
     public OvnMeshNetworkVO createMeshNetwork(CreateMeshNetworkCmd cmd) {
         long callerId = CallContext.current().getCallingAccount().getId();
-        VpcVO vpc = vpcDao.findById(cmd.getVpcId());
-        VpcVO peerVpc = vpcDao.findById(cmd.getPeerVpcId());
-        if (vpc == null) {
-            throw new InvalidParameterValueException("VPC not found: " + cmd.getVpcId());
+
+        // Resolve both pair members into a kind-agnostic MeshMember so all
+        // subsequent provisioning logic stays VPC/Network-neutral.
+        MeshMember memberAobj = resolveMeshMember(cmd.getVpcId(), cmd.getNetworkId(), callerId, "first");
+        MeshMember memberBobj = resolveMeshMember(cmd.getPeerVpcId(), cmd.getPeerNetworkId(), callerId, "peer");
+
+        if (memberAobj.kind.equals(memberBobj.kind) && memberAobj.id == memberBobj.id) {
+            throw new InvalidParameterValueException("Cannot mesh a member with itself");
         }
-        if (peerVpc == null) {
-            throw new InvalidParameterValueException("Peer VPC not found: " + cmd.getPeerVpcId());
-        }
-        if (vpc.getId() == peerVpc.getId()) {
-            throw new InvalidParameterValueException("Cannot peer a VPC with itself");
-        }
-        if (vpc.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
-            throw new PermissionDeniedException("Caller does not own VPC " + vpc.getUuid());
-        }
-        if (peerVpc.getAccountId() != callerId && !accountMgr.isRootAdmin(callerId)) {
-            throw new PermissionDeniedException("Caller does not own peer VPC " + peerVpc.getUuid());
-        }
-        if (vpc.getAccountId() != peerVpc.getAccountId()) {
-            throw new InvalidParameterValueException("Mesh network is only allowed between VPCs of the same account");
+        if (memberAobj.accountId != memberBobj.accountId) {
+            throw new InvalidParameterValueException("Mesh network is only allowed between members of the same account");
         }
 
-        OvnProviderVO providerA = ovnProviderDao.findByZoneId(vpc.getZoneId());
-        OvnProviderVO providerB = ovnProviderDao.findByZoneId(peerVpc.getZoneId());
-        if (providerA == null) {
-            throw new InvalidParameterValueException("VPC zone " + vpc.getZoneId() + " has no OVN provider");
-        }
-        if (providerB == null) {
-            throw new InvalidParameterValueException("Peer VPC zone " + peerVpc.getZoneId() + " has no OVN provider");
-        }
-
-        // A VPC may only belong to one mesh network
-        List<OvnMeshNetworkVO> vpcExisting = ovnMeshNetworkDao.listByVpcId(vpc.getId());
-        List<OvnMeshNetworkVO> peerExisting = ovnMeshNetworkDao.listByVpcId(peerVpc.getId());
-        if (!vpcExisting.isEmpty() && !peerExisting.isEmpty()
-                && !vpcExisting.get(0).getMeshUuid().equals(peerExisting.get(0).getMeshUuid())) {
-            throw new InvalidParameterValueException("Both VPCs already belong to different mesh networks. A VPC can only be in one mesh network.");
+        // A member may only belong to one mesh network at a time
+        OvnMeshNetworkVO aExistingHead = findExistingMembership(memberAobj);
+        OvnMeshNetworkVO bExistingHead = findExistingMembership(memberBobj);
+        if (aExistingHead != null && bExistingHead != null
+                && !aExistingHead.getMeshUuid().equals(bExistingHead.getMeshUuid())) {
+            throw new InvalidParameterValueException(
+                    String.format("Both members already belong to different mesh networks: %s is in %s, %s is in %s. A member can only be in one mesh.",
+                            memberAobj.uuid, aExistingHead.getMeshUuid(), memberBobj.uuid, bExistingHead.getMeshUuid()));
         }
 
         // Reject overlapping CIDRs. The mesh network data plane installs one static route per
         // peer CIDR on every member's LR; if two members share an overlapping CIDR the
         // routes collide and OVN cannot resolve which peer to forward at — there is no
         // sane way to disambiguate at runtime. Bail out before any OVN row is created.
-        rejectOverlappingMeshNetworkCidrs(vpc, peerVpc, vpcExisting, peerExisting);
+        rejectOverlappingMeshNetworkCidrs(memberAobj, memberBobj,
+                aExistingHead != null ? aExistingHead.getMeshUuid()
+                        : (bExistingHead != null ? bExistingHead.getMeshUuid() : null));
 
-        // Determine group: if peer VPC already belongs to a group, join it; otherwise check if our VPC
-        // already belongs to one. If neither, create a new group.
+        // Determine the mesh: if the peer already belongs to a group, join it; otherwise check if
+        // the calling member already belongs to one. If neither, create a new group.
         String meshUuid = null;
         String meshName = cmd.getName();
         String meshDescription = cmd.getDescription();
-        if (!peerExisting.isEmpty()) {
-            meshUuid = peerExisting.get(0).getMeshUuid();
-            if (meshName == null) {
-                meshName = peerExisting.get(0).getName();
-            }
-            if (meshDescription == null) {
-                meshDescription = peerExisting.get(0).getDescription();
-            }
+        if (bExistingHead != null) {
+            meshUuid = bExistingHead.getMeshUuid();
+            if (meshName == null) meshName = bExistingHead.getName();
+            if (meshDescription == null) meshDescription = bExistingHead.getDescription();
         }
-        if (meshUuid == null && !vpcExisting.isEmpty()) {
-            meshUuid = vpcExisting.get(0).getMeshUuid();
-            if (meshName == null) {
-                meshName = vpcExisting.get(0).getName();
-            }
-            if (meshDescription == null) {
-                meshDescription = vpcExisting.get(0).getDescription();
-            }
+        if (meshUuid == null && aExistingHead != null) {
+            meshUuid = aExistingHead.getMeshUuid();
+            if (meshName == null) meshName = aExistingHead.getName();
+            if (meshDescription == null) meshDescription = aExistingHead.getDescription();
         }
         if (meshUuid == null) {
             meshUuid = UUID.randomUUID().toString();
         }
 
-        // Ensure both VPCs aren't already in the same group
-        if (ovnMeshNetworkDao.findByMeshUuidAndVpcId(meshUuid, vpc.getId()) != null
-                && ovnMeshNetworkDao.findByMeshUuidAndVpcId(meshUuid, peerVpc.getId()) != null) {
-            throw new InvalidParameterValueException("Both VPCs are already in the same mesh network");
+        // Already-paired short circuit
+        if (findMembershipInMesh(meshUuid, memberAobj) != null
+                && findMembershipInMesh(meshUuid, memberBobj) != null) {
+            throw new InvalidParameterValueException("Both members are already in the same mesh network");
         }
 
-        // Allocate link-local IPs for new members
+        // Allocate link-local IPs for the new members
         List<OvnMeshNetworkVO> meshMembers = ovnMeshNetworkDao.listByMeshUuid(meshUuid);
         Set<String> usedIps = new HashSet<>();
         for (OvnMeshNetworkVO m : meshMembers) {
             usedIps.add(m.getLinkLocalIp());
         }
 
-        // Validate ACL belongs to the calling VPC if specified
+        // Validate ACL ownership for the calling member.
+        // VPC members must reference a VPC-scoped ACL (acl.vpc_id == 0 means system default).
+        // Isolated network members must reference a network-scoped ACL (acl.vpc_id == 0 only).
         Long aclId = cmd.getAclId();
         if (aclId != null) {
             NetworkACLVO acl = networkACLDao.findById(aclId);
             if (acl == null) {
                 throw new InvalidParameterValueException("Network ACL not found: " + aclId);
             }
-            if (acl.getVpcId() != 0 && acl.getVpcId() != vpc.getId()) {
-                throw new InvalidParameterValueException("Network ACL does not belong to VPC " + vpc.getUuid());
+            if (memberAobj.isVpc()) {
+                if (acl.getVpcId() != 0 && acl.getVpcId() != memberAobj.id) {
+                    throw new InvalidParameterValueException("Network ACL " + acl.getUuid()
+                            + " does not belong to VPC " + memberAobj.uuid);
+                }
+            } else {
+                // For isolated networks we only accept the system defaults (acl.vpc_id == 0).
+                if (acl.getVpcId() != 0) {
+                    throw new InvalidParameterValueException("Network ACL " + acl.getUuid()
+                            + " is VPC-scoped and cannot be applied to isolated network " + memberAobj.uuid);
+                }
             }
         }
 
-        // Cross-zone vs same-zone: drives which link-local pool feeds the mesh network LRP IP.
-        // We treat the group as cross-zone if the new pair OR any existing member crosses
-        // a zone boundary - that matches the topology decision in provisionMeshNetwork().
-        boolean willBeCrossZone = vpc.getZoneId() != peerVpc.getZoneId();
+        // Cross-zone vs same-zone: drives which link-local pool feeds the mesh-network LRP IP.
+        // We treat the group as cross-zone if the new pair OR any existing member crosses a
+        // zone boundary - that matches the topology decision in provisionMeshNetwork().
+        boolean willBeCrossZone = memberAobj.zoneId != memberBobj.zoneId;
         if (!willBeCrossZone) {
             for (OvnMeshNetworkVO m : meshMembers) {
-                if (m.getZoneId() != vpc.getZoneId()) { willBeCrossZone = true; break; }
+                if (m.getZoneId() != memberAobj.zoneId) { willBeCrossZone = true; break; }
             }
         }
 
-        OvnMeshNetworkVO memberA = null;
-        OvnMeshNetworkVO memberB = null;
+        OvnMeshNetworkVO rowA = persistOrFindMember(meshUuid, meshName, meshDescription, memberAobj, aclId, usedIps, willBeCrossZone);
+        persistOrFindMember(meshUuid, meshName, meshDescription, memberBobj, null, usedIps, willBeCrossZone);
 
-        if (ovnMeshNetworkDao.findByMeshUuidAndVpcId(meshUuid, vpc.getId()) == null) {
-            String ipA = willBeCrossZone ? allocateCrossZoneLinkLocalIp(usedIps) : allocateLinkLocalIp(usedIps);
-            usedIps.add(ipA);
-            memberA = new OvnMeshNetworkVO(meshUuid, meshName, meshDescription, vpc.getId(), vpc.getZoneId(),
-                    vpc.getAccountId(), vpc.getDomainId(), ipA);
-            memberA.setAclId(aclId);
-            memberA = ovnMeshNetworkDao.persist(memberA);
-        } else {
-            memberA = ovnMeshNetworkDao.findByMeshUuidAndVpcId(meshUuid, vpc.getId());
-        }
-
-        if (ovnMeshNetworkDao.findByMeshUuidAndVpcId(meshUuid, peerVpc.getId()) == null) {
-            String ipB = willBeCrossZone ? allocateCrossZoneLinkLocalIp(usedIps) : allocateLinkLocalIp(usedIps);
-            usedIps.add(ipB);
-            memberB = new OvnMeshNetworkVO(meshUuid, meshName, meshDescription, peerVpc.getId(), peerVpc.getZoneId(),
-                    peerVpc.getAccountId(), peerVpc.getDomainId(), ipB);
-            memberB = ovnMeshNetworkDao.persist(memberB);
-        }
-
-        // Provision OVN fabric for the entire group
+        // Provision OVN fabric for the entire mesh
         provisionMeshNetwork(meshUuid);
 
-        return memberA;
+        return rowA;
+    }
+
+    /**
+     * Inserts a mesh-network membership row for {@code m} if it doesn't
+     * already exist in this mesh, allocating a link-local IP from the
+     * appropriate pool. Returns the existing row when present.
+     */
+    private OvnMeshNetworkVO persistOrFindMember(String meshUuid, String meshName, String meshDescription,
+                                                 MeshMember m, Long aclId, Set<String> usedIps, boolean crossZone) {
+        OvnMeshNetworkVO existing = findMembershipInMesh(meshUuid, m);
+        if (existing != null) {
+            return existing;
+        }
+        String ip = crossZone ? allocateCrossZoneLinkLocalIp(usedIps) : allocateLinkLocalIp(usedIps);
+        usedIps.add(ip);
+        OvnMeshNetworkVO row = new OvnMeshNetworkVO(meshUuid, meshName, meshDescription,
+                m.vpcIdOrNull(), m.networkIdOrNull(),
+                m.zoneId, m.accountId, m.domainId, ip);
+        if (aclId != null) {
+            row.setAclId(aclId);
+        }
+        return ovnMeshNetworkDao.persist(row);
     }
 
     @Override
@@ -2411,8 +2561,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             throw new PermissionDeniedException("Caller does not own this mesh network");
         }
         String meshUuid = member.getMeshUuid();
-        long vpcId = member.getVpcId();
-        VpcVO vpc = vpcDao.findById(vpcId);
+        String memberCidr = resolveMemberCidr(member);
 
         OvnProviderVO provider = ovnProviderDao.findByZoneId(member.getZoneId());
         // Cross-zone path: OVN-IC propagates route removal automatically (since ic-route-adv
@@ -2424,35 +2573,35 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         // pool the member was allocated from, which is the most reliable indicator.
         boolean isCrossZone = member.getLinkLocalIp() != null
                 && member.getLinkLocalIp().startsWith(CROSS_ZONE_LL_PREFIX);
-        if (provider != null && vpc != null && isCrossZone) {
+        if (provider != null && memberCidr != null && isCrossZone) {
             removeCrossZoneMeshNetworkMember(member, provider, meshUuid);
             member.setState("Removed");
             member.setRemoved(new java.util.Date());
             ovnMeshNetworkDao.update(member.getId(), member);
             return true;
         }
-        if (provider != null && vpc != null) {
-            String routerName = String.format("cs-vpc-%d", vpcId);
-            // Remove routes and policies on all OTHER members pointing to this VPC
+        if (provider != null && memberCidr != null) {
+            String routerName = getRouterNameForMember(member);
+            String targetTag = String.format("%s-%d", memberKindSuffix(member), member.getMemberId());
+            // Remove routes and policies on all OTHER members pointing to this member's CIDR
             List<OvnMeshNetworkVO> meshMembers = ovnMeshNetworkDao.listByMeshUuid(meshUuid);
             for (OvnMeshNetworkVO other : meshMembers) {
-                if (other.getVpcId() == vpcId) continue;
+                if (other.getId() == member.getId()) continue;
                 OvnProviderVO memberProvider = ovnProviderDao.findByZoneId(other.getZoneId());
                 if (memberProvider == null) continue;
-                String memberRouter = String.format("cs-vpc-%d", other.getVpcId());
-                VpcVO memberVpc = vpcDao.findById(other.getVpcId());
-                if (memberVpc == null) continue;
-                // Remove route on member pointing to this VPC
+                String memberRouter = getRouterNameForMember(other);
+                if (resolveMemberCidr(other) == null) continue;
+                // Remove route on other pointing to this member's CIDR
                 ovnNbClient.removeStaticRoute(memberProvider.getNbConnection(),
                         memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
-                        memberRouter, vpc.getCidr(), other.getLinkLocalIp());
-                // Remove NAT bypass policy on member for this VPC's CIDR
+                        memberRouter, memberCidr, other.getLinkLocalIp());
+                // Remove NAT bypass policy on other for this member's CIDR
                 ovnNbClient.removeLogicalRouterPoliciesByExternalId(memberProvider.getNbConnection(),
                         memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
-                        memberRouter, MESH_NETWORK_EXT_KEY + "_target", String.valueOf(vpcId));
+                        memberRouter, MESH_NETWORK_EXT_KEY + "_target", targetTag);
             }
 
-            // Remove routes and policies on THIS VPC pointing to all other members
+            // Remove routes and policies on THIS member pointing to all others
             ovnNbClient.removeStaticRoutesByExternalId(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     routerName, MESH_NETWORK_EXT_KEY, meshUuid);
@@ -2460,25 +2609,25 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     routerName, MESH_NETWORK_EXT_KEY, meshUuid);
 
-            // Remove mesh network ACLs for this VPC on the mesh network LS
+            // Remove mesh network ACLs for this member on the mesh network LS
             String peerLs = getMeshLsName(meshUuid);
-            String meshAclTag = "cloudstack_mesh_acl_vpc_" + vpcId;
+            String meshAclTag = String.format("cloudstack_mesh_acl_%s_%d", memberKindSuffix(member), member.getMemberId());
             ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     peerLs, meshAclTag, "true");
 
-            // Remove LRP+LSP for this VPC on the mesh network switch
-            String lrpName = getMeshLrpName(meshUuid, vpcId);
+            // Remove LRP+LSP for this member on the mesh network switch
+            String lrpName = getMeshLrpName(meshUuid, member);
             ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                     routerName, lrpName);
             ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                    peerLs, getMeshLspName(meshUuid, vpcId));
+                    peerLs, getMeshLspName(meshUuid, member));
 
             // If no other members, delete the mesh network LS from all zones
             List<OvnMeshNetworkVO> remaining = ovnMeshNetworkDao.listByMeshUuid(meshUuid);
-            long activeCount = remaining.stream().filter(m -> m.getVpcId() != vpcId).count();
+            long activeCount = remaining.stream().filter(m -> m.getId() != member.getId()).count();
             if (activeCount == 0) {
                 Set<Long> cleanedZones = new HashSet<>();
                 for (OvnMeshNetworkVO m : remaining) {
@@ -2533,60 +2682,68 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     }
 
     /**
-     * Rejects a {@code createMeshNetwork} call when the new VPC pair (or any
-     * existing group member) carries an IPv4 CIDR that overlaps another. The
-     * member fabric installs one static route per peer CIDR on every member's
-     * LR; two routes for overlapping prefixes would race and OVN cannot
-     * disambiguate at runtime. We compare every relevant CIDR pair before any
-     * OVN row is touched so the operator gets a clear error instead of a
-     * subtle, intermittent reachability bug.
+     * Rejects a {@code createMeshNetwork} call when the new pair (or any
+     * existing mesh member) carries an IPv4 CIDR that overlaps another.
+     * The data plane installs one static route per peer CIDR on every
+     * member's LR; two routes for overlapping prefixes would race and
+     * OVN cannot disambiguate at runtime. We compare every relevant CIDR
+     * pair before any OVN row is touched so the operator gets a clear
+     * error instead of a subtle, intermittent reachability bug.
      *
-     * <p>Members already in the group are taken from {@code listByVpcId}, which
-     * filters Active rows. Disabled members keep their slot reserved but their
-     * data plane is torn down — we still include them here because re-enabling
-     * the group must not produce overlapping routes either.
+     * <p>This is the kind-agnostic version: each {@link MeshMember}
+     * already exposes its CIDR (the VPC super-CIDR for VPC members, the
+     * network CIDR for Isolated members), and existing rows are resolved
+     * back to their CIDRs the same way. {@code listByMeshUuidIncludingDisabled}
+     * is used so Disabled members — which keep their slot reserved
+     * waiting for re-enable — still count as constraints.
      */
-    protected void rejectOverlappingMeshNetworkCidrs(VpcVO vpc, VpcVO peerVpc,
-                                                 List<OvnMeshNetworkVO> vpcExisting,
-                                                 List<OvnMeshNetworkVO> peerExisting) {
-        String cidrA = vpc.getCidr();
-        String cidrB = peerVpc.getCidr();
+    protected void rejectOverlappingMeshNetworkCidrs(MeshMember a, MeshMember b, String meshUuid) {
+        String cidrA = a.cidr;
+        String cidrB = b.cidr;
         if (StringUtils.isNotBlank(cidrA) && StringUtils.isNotBlank(cidrB)
                 && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrA, cidrB)) {
             throw new InvalidParameterValueException(String.format(
-                    "VPC %s (%s) and VPC %s (%s) have overlapping CIDRs and cannot be peered",
-                    vpc.getName(), cidrA, peerVpc.getName(), cidrB));
-        }
-
-        // Determine the group we're about to land in (mirrors the resolver below)
-        // and walk every other member's CIDR against the incoming pair.
-        String meshUuid = null;
-        if (!peerExisting.isEmpty()) {
-            meshUuid = peerExisting.get(0).getMeshUuid();
-        } else if (!vpcExisting.isEmpty()) {
-            meshUuid = vpcExisting.get(0).getMeshUuid();
+                    "%s %s (%s) and %s %s (%s) have overlapping CIDRs and cannot be in the same mesh",
+                    a.kind, a.name, cidrA, b.kind, b.name, cidrB));
         }
         if (meshUuid == null) {
             return; // brand-new group; only the pair-vs-pair check applies
         }
         List<OvnMeshNetworkVO> existingGroupMembers = ovnMeshNetworkDao.listByMeshUuidIncludingDisabled(meshUuid);
         for (OvnMeshNetworkVO m : existingGroupMembers) {
-            if (m.getVpcId() == vpc.getId() || m.getVpcId() == peerVpc.getId()) {
+            // Skip rows that already represent A or B themselves
+            if (a.isVpc() && m.getVpcId() != null && m.getVpcId() == a.id) continue;
+            if (a.isNetwork() && m.getNetworkId() != null && m.getNetworkId() == a.id) continue;
+            if (b.isVpc() && m.getVpcId() != null && m.getVpcId() == b.id) continue;
+            if (b.isNetwork() && m.getNetworkId() != null && m.getNetworkId() == b.id) continue;
+
+            String otherKind = m.getMemberKind();
+            String otherName;
+            String otherCidr;
+            if (m.getVpcId() != null) {
+                VpcVO ov = vpcDao.findById(m.getVpcId());
+                if (ov == null) continue;
+                otherName = ov.getName();
+                otherCidr = ov.getCidr();
+            } else if (m.getNetworkId() != null) {
+                com.cloud.network.dao.NetworkVO on = networksDao.findById(m.getNetworkId());
+                if (on == null) continue;
+                otherName = on.getName();
+                otherCidr = on.getCidr();
+            } else {
                 continue;
             }
-            VpcVO other = vpcDao.findById(m.getVpcId());
-            if (other == null || StringUtils.isBlank(other.getCidr())) {
-                continue;
-            }
-            if (StringUtils.isNotBlank(cidrA) && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrA, other.getCidr())) {
+            if (StringUtils.isBlank(otherCidr)) continue;
+
+            if (StringUtils.isNotBlank(cidrA) && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrA, otherCidr)) {
                 throw new InvalidParameterValueException(String.format(
-                        "VPC %s (%s) overlaps existing mesh network member %s (%s)",
-                        vpc.getName(), cidrA, other.getName(), other.getCidr()));
+                        "%s %s (%s) overlaps existing mesh member %s %s (%s)",
+                        a.kind, a.name, cidrA, otherKind, otherName, otherCidr));
             }
-            if (StringUtils.isNotBlank(cidrB) && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrB, other.getCidr())) {
+            if (StringUtils.isNotBlank(cidrB) && com.cloud.utils.net.NetUtils.isNetworksOverlap(cidrB, otherCidr)) {
                 throw new InvalidParameterValueException(String.format(
-                        "VPC %s (%s) overlaps existing mesh network member %s (%s)",
-                        peerVpc.getName(), cidrB, other.getName(), other.getCidr()));
+                        "%s %s (%s) overlaps existing mesh member %s %s (%s)",
+                        b.kind, b.name, cidrB, otherKind, otherName, otherCidr));
             }
         }
     }
@@ -2628,12 +2785,11 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         for (OvnMeshNetworkVO m : members) {
             if ("Disabled".equals(m.getState())) continue;
             OvnProviderVO provider = ovnProviderDao.findByZoneId(m.getZoneId());
-            VpcVO vpc = vpcDao.findById(m.getVpcId());
-            if (provider != null && vpc != null) {
+            if (provider != null && resolveMemberCidr(m) != null) {
                 if (crossZone) {
                     removeCrossZoneMeshNetworkMember(m, provider, meshUuid);
                 } else {
-                    String routerName = String.format("cs-vpc-%d", m.getVpcId());
+                    String routerName = getRouterNameForMember(m);
                     ovnNbClient.removeStaticRoutesByExternalId(provider.getNbConnection(),
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                             routerName, MESH_NETWORK_EXT_KEY, meshUuid);
@@ -2641,17 +2797,17 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                             routerName, MESH_NETWORK_EXT_KEY, meshUuid);
                     String peerLs = getMeshLsName(meshUuid);
-                    String meshAclTag = "cloudstack_mesh_acl_vpc_" + m.getVpcId();
+                    String meshAclTag = String.format("cloudstack_mesh_acl_%s_%d", memberKindSuffix(m), m.getMemberId());
                     ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                             peerLs, meshAclTag, "true");
-                    String lrpName = getMeshLrpName(meshUuid, m.getVpcId());
+                    String lrpName = getMeshLrpName(meshUuid, m);
                     ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                             routerName, lrpName);
                     ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                            peerLs, getMeshLspName(meshUuid, m.getVpcId()));
+                            peerLs, getMeshLspName(meshUuid, m));
                 }
             }
             m.setState("Disabled");
@@ -2698,6 +2854,14 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         // (flat, one per row). Used by the per-VPC tab inside a VPC detail view.
         if (cmd.getVpcId() != null) {
             for (OvnMeshNetworkVO p : ovnMeshNetworkDao.listByVpcId(cmd.getVpcId())) {
+                responses.add(createMeshNetworkResponse(p));
+            }
+            return responses;
+        }
+
+        // Filter by isolated network: same flat-list shape for the network detail tab.
+        if (cmd.getNetworkId() != null) {
+            for (OvnMeshNetworkVO p : ovnMeshNetworkDao.listByNetworkId(cmd.getNetworkId())) {
                 responses.add(createMeshNetworkResponse(p));
             }
             return responses;
@@ -2765,24 +2929,18 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             response.setZoneName("multi-zone");
         }
 
-        // Member rollup: vpccount, comma-separated names, and the embedded list used
-        // by the VPC Peers tab.
+        // Member rollup: count, comma-separated names, and the embedded list used
+        // by the Members tab.
         List<MeshNetworkMemberResponse> memberResponses = new ArrayList<>();
         StringBuilder names = new StringBuilder();
         for (OvnMeshNetworkVO m : members) {
             MeshNetworkMemberResponse mr = new MeshNetworkMemberResponse();
             mr.setObjectName("member");
             mr.setId(m.getUuid());
+            mr.setKind(m.getMemberKind());
             mr.setLinkLocalIp(m.getLinkLocalIp());
             mr.setState(m.getState());
-            VpcVO vpc = vpcDao.findById(m.getVpcId());
-            if (vpc != null) {
-                mr.setVpcId(vpc.getUuid());
-                mr.setVpcName(vpc.getName());
-                mr.setVpcCidr(vpc.getCidr());
-                if (names.length() > 0) names.append(", ");
-                names.append(vpc.getName());
-            }
+            populateMemberResponse(mr, m, names);
             DataCenterVO mz = dataCenterDao.findById(m.getZoneId());
             if (mz != null) {
                 mr.setZoneId(mz.getUuid());
@@ -2803,6 +2961,41 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         return response;
     }
 
+    /**
+     * Fills the kind-specific identity/name/cidr columns on a member
+     * response. Appends the human name onto {@code names} for the
+     * group-level comma-separated rollup.
+     */
+    private void populateMemberResponse(MeshNetworkMemberResponse mr, OvnMeshNetworkVO m, StringBuilder names) {
+        if (m.getVpcId() != null) {
+            VpcVO vpc = vpcDao.findById(m.getVpcId());
+            if (vpc != null) {
+                mr.setVpcId(vpc.getUuid());
+                mr.setVpcName(vpc.getName());
+                mr.setVpcCidr(vpc.getCidr());
+                mr.setMemberName(vpc.getName());
+                mr.setMemberCidr(vpc.getCidr());
+                if (names != null) {
+                    if (names.length() > 0) names.append(", ");
+                    names.append(vpc.getName());
+                }
+            }
+        } else if (m.getNetworkId() != null) {
+            com.cloud.network.dao.NetworkVO net = networksDao.findById(m.getNetworkId());
+            if (net != null) {
+                mr.setNetworkId(net.getUuid());
+                mr.setNetworkName(net.getName());
+                mr.setNetworkCidr(net.getCidr());
+                mr.setMemberName(net.getName());
+                mr.setMemberCidr(net.getCidr());
+                if (names != null) {
+                    if (names.length() > 0) names.append(", ");
+                    names.append(net.getName());
+                }
+            }
+        }
+    }
+
     @Override
     public MeshNetworkResponse createMeshNetworkResponse(OvnMeshNetworkVO member) {
         MeshNetworkResponse response = new MeshNetworkResponse();
@@ -2815,11 +3008,24 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         response.setState(member.getState());
         response.setCreated(member.getCreated());
 
-        VpcVO vpc = vpcDao.findById(member.getVpcId());
-        if (vpc != null) {
-            response.setVpcId(vpc.getUuid());
-            response.setVpcName(vpc.getName());
-            response.setVpcCidr(vpc.getCidr());
+        // Carry the kind-specific identifiers so the UI knows whether this
+        // record is for a VPC or an Isolated network. We keep the legacy
+        // vpcid/vpcname/vpccidr fields for backward compatibility when the
+        // member happens to be a VPC.
+        if (member.getVpcId() != null) {
+            VpcVO vpc = vpcDao.findById(member.getVpcId());
+            if (vpc != null) {
+                response.setVpcId(vpc.getUuid());
+                response.setVpcName(vpc.getName());
+                response.setVpcCidr(vpc.getCidr());
+            }
+        } else if (member.getNetworkId() != null) {
+            com.cloud.network.dao.NetworkVO net = networksDao.findById(member.getNetworkId());
+            if (net != null) {
+                response.setNetworkId(net.getUuid());
+                response.setNetworkName(net.getName());
+                response.setNetworkCidr(net.getCidr());
+            }
         }
 
         DataCenterVO zone = dataCenterDao.findById(member.getZoneId());
@@ -2836,18 +3042,29 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             }
         }
 
-        // Find the "other" VPCs in this group for richer response
+        // Find the first "other" member in this mesh for richer response — used
+        // by the legacy VPC-tab compatibility view that expected a single peer.
+        // For meshes with isolated network members the same peer fields still
+        // surface the underlying entity's identity.
         List<OvnMeshNetworkVO> meshMembers = ovnMeshNetworkDao.listByMeshUuid(member.getMeshUuid());
         for (OvnMeshNetworkVO m : meshMembers) {
-            if (m.getVpcId() != member.getVpcId()) {
+            if (m.getId() == member.getId()) continue;
+            if (m.getVpcId() != null) {
                 VpcVO peerVpc = vpcDao.findById(m.getVpcId());
                 if (peerVpc != null) {
                     response.setPeerVpcId(peerVpc.getUuid());
                     response.setPeerVpcName(peerVpc.getName());
                     response.setPeerVpcCidr(peerVpc.getCidr());
                 }
-                break;
+            } else if (m.getNetworkId() != null) {
+                com.cloud.network.dao.NetworkVO peerNet = networksDao.findById(m.getNetworkId());
+                if (peerNet != null) {
+                    response.setPeerNetworkId(peerNet.getUuid());
+                    response.setPeerNetworkName(peerNet.getName());
+                    response.setPeerNetworkCidr(peerNet.getCidr());
+                }
             }
+            break;
         }
 
         return response;
@@ -2883,12 +3100,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         for (OvnMeshNetworkVO member : members) {
             OvnProviderVO provider = ovnProviderDao.findByZoneId(member.getZoneId());
             if (provider == null) continue;
-            VpcVO vpc = vpcDao.findById(member.getVpcId());
-            if (vpc == null) continue;
+            String memberCidr = resolveMemberCidr(member);
+            if (memberCidr == null) continue;
 
-            String routerName = String.format("cs-vpc-%d", member.getVpcId());
-            String lrpName = getMeshLrpName(meshUuid, member.getVpcId());
-            String mac = buildMeshMac(member.getVpcId());
+            String routerName = getRouterNameForMember(member);
+            String lrpName = getMeshLrpName(meshUuid, member);
+            String mac = buildMeshMac(member);
 
             // Attach router to mesh network switch
             ovnNbClient.attachRouterToSwitch(provider.getNbConnection(),
@@ -2898,22 +3115,23 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
             // Add routes and NAT bypass policies for every OTHER member
             for (OvnMeshNetworkVO other : members) {
-                if (other.getVpcId() == member.getVpcId()) continue;
-                VpcVO otherVpc = vpcDao.findById(other.getVpcId());
-                if (otherVpc == null || otherVpc.getCidr() == null) continue;
+                if (other.getId() == member.getId()) continue;
+                String otherCidr = resolveMemberCidr(other);
+                if (otherCidr == null) continue;
+                String targetTag = String.format("%s-%d", memberKindSuffix(other), other.getMemberId());
 
                 Map<String, String> routeExt = new HashMap<>();
                 routeExt.put(MESH_NETWORK_EXT_KEY, meshUuid);
-                routeExt.put(MESH_NETWORK_EXT_KEY + "_target", String.valueOf(other.getVpcId()));
+                routeExt.put(MESH_NETWORK_EXT_KEY + "_target", targetTag);
                 ovnNbClient.addStaticRoute(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        routerName, otherVpc.getCidr(), other.getLinkLocalIp(), routeExt);
+                        routerName, otherCidr, other.getLinkLocalIp(), routeExt);
 
-                // NAT bypass: skip SNAT for traffic destined to peered VPC
-                String match = String.format("ip4.dst == %s", otherVpc.getCidr());
+                // NAT bypass: skip SNAT for traffic destined to the peered member's CIDR
+                String match = String.format("ip4.dst == %s", otherCidr);
                 Map<String, String> polExt = new HashMap<>();
                 polExt.put(MESH_NETWORK_EXT_KEY, meshUuid);
-                polExt.put(MESH_NETWORK_EXT_KEY + "_target", String.valueOf(other.getVpcId()));
+                polExt.put(MESH_NETWORK_EXT_KEY + "_target", targetTag);
                 ovnNbClient.addLogicalRouterPolicy(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
                         routerName, NAT_BYPASS_PRIORITY, match, "allow", null, polExt);
@@ -2933,8 +3151,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (provider == null) return;
 
         String peerLs = getMeshLsName(member.getMeshUuid());
-        String lspName = getMeshLspName(member.getMeshUuid(), member.getVpcId());
-        String meshAclTag = "cloudstack_mesh_acl_vpc_" + member.getVpcId();
+        String lspName = getMeshLspName(member.getMeshUuid(), member);
+        String meshAclTag = String.format("cloudstack_mesh_acl_%s_%d", memberKindSuffix(member), member.getMemberId());
 
         // Wipe existing ACLs for this member on the mesh network LS
         ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
@@ -2968,7 +3186,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             ext.put("cloudstack_acl_default", "true");
             ovnNbClient.addAclOnLs(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                    peerLs, "peer-acl-default-" + dir + "-vpc-" + member.getVpcId(),
+                    peerLs,
+                    String.format("mesh-acl-default-%s-%s-%d", dir, memberKindSuffix(member), member.getMemberId()),
                     dir, 1L, matchExpr, "drop", ext);
         }
     }
@@ -3013,6 +3232,27 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
      */
     protected void removeMeshNetworksForVpc(Vpc vpc, OvnProviderVO provider) {
         List<OvnMeshNetworkVO> memberships = ovnMeshNetworkDao.listByVpcId(vpc.getId());
+        removeMeshNetworkMemberships(memberships, provider, "VPC " + vpc.getUuid());
+    }
+
+    /**
+     * Tears down the OVN-side mesh artifacts owned by an isolated guest
+     * network (called from the network shutdown hook). The DB row is kept
+     * Active so a re-implementation of the network re-provisions the
+     * member, mirroring the VPC path.
+     */
+    protected void removeMeshNetworksForNetwork(Network network, OvnProviderVO provider) {
+        List<OvnMeshNetworkVO> memberships = ovnMeshNetworkDao.listByNetworkId(network.getId());
+        removeMeshNetworkMemberships(memberships, provider, "Network " + network.getUuid());
+    }
+
+    /**
+     * Common OVN-side cleanup for a member's mesh-network rows during
+     * resource shutdown. Pulled out of {@link #removeMeshNetworksForVpc}
+     * so the network-side shutdown can reuse the same logic without
+     * duplicating route/LRP/LSP teardown.
+     */
+    private void removeMeshNetworkMemberships(List<OvnMeshNetworkVO> memberships, OvnProviderVO provider, String resourceLabel) {
         for (OvnMeshNetworkVO member : memberships) {
             try {
                 String meshUuid = member.getMeshUuid();
@@ -3021,20 +3261,24 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                     removeCrossZoneMeshNetworkMember(member, provider, meshUuid);
                     continue;
                 }
-                String routerName = String.format("cs-vpc-%d", vpc.getId());
+                String routerName = getRouterNameForMember(member);
+                String memberCidr = resolveMemberCidr(member);
+                String targetTag = String.format("%s-%d", memberKindSuffix(member), member.getMemberId());
 
                 // Clean up routes/policies on other members
                 for (OvnMeshNetworkVO other : meshMembers) {
-                    if (other.getVpcId() == vpc.getId()) continue;
+                    if (other.getId() == member.getId()) continue;
                     OvnProviderVO memberProvider = ovnProviderDao.findByZoneId(other.getZoneId());
                     if (memberProvider == null) continue;
-                    String memberRouter = String.format("cs-vpc-%d", other.getVpcId());
-                    ovnNbClient.removeStaticRoute(memberProvider.getNbConnection(),
-                            memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
-                            memberRouter, vpc.getCidr(), other.getLinkLocalIp());
+                    String memberRouter = getRouterNameForMember(other);
+                    if (memberCidr != null) {
+                        ovnNbClient.removeStaticRoute(memberProvider.getNbConnection(),
+                                memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
+                                memberRouter, memberCidr, other.getLinkLocalIp());
+                    }
                     ovnNbClient.removeLogicalRouterPoliciesByExternalId(memberProvider.getNbConnection(),
                             memberProvider.getCaCertPath(), memberProvider.getClientCertPath(), memberProvider.getClientPrivateKeyPath(),
-                            memberRouter, MESH_NETWORK_EXT_KEY + "_target", String.valueOf(vpc.getId()));
+                            memberRouter, MESH_NETWORK_EXT_KEY + "_target", targetTag);
                 }
 
                 // Remove our own routes/policies
@@ -3048,13 +3292,13 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 // Remove LRP+LSP
                 ovnNbClient.removeLogicalRouterPort(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        routerName, getMeshLrpName(meshUuid, vpc.getId()));
+                        routerName, getMeshLrpName(meshUuid, member));
                 ovnNbClient.deleteLogicalSwitchPort(provider.getNbConnection(),
                         provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                        getMeshLsName(meshUuid), getMeshLspName(meshUuid, vpc.getId()));
+                        getMeshLsName(meshUuid), getMeshLspName(meshUuid, member));
 
                 // Delete mesh network LS if last member
-                long activeCount = meshMembers.stream().filter(m -> m.getVpcId() != vpc.getId()).count();
+                long activeCount = meshMembers.stream().filter(m -> m.getId() != member.getId()).count();
                 if (activeCount == 0) {
                     ovnNbClient.deleteLogicalSwitch(provider.getNbConnection(),
                             provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -3063,7 +3307,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
                 // DB row left Active on purpose - see method javadoc.
             } catch (CloudRuntimeException e) {
-                logger.warn("Failed to clean up member {} for VPC {}: {}", member.getUuid(), vpc.getId(), e.getMessage());
+                logger.warn("Failed to clean up mesh member {} for {}: {}", member.getUuid(), resourceLabel, e.getMessage());
             }
         }
     }
@@ -3072,18 +3316,85 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         return "cs-mesh-" + meshUuid;
     }
 
-    private static String getMeshLrpName(String meshUuid, long vpcId) {
-        return String.format("lrp-mesh-%s-vpc-%d", meshUuid, vpcId);
+    /**
+     * Short suffix used inside OVN names to distinguish member kinds.
+     * The suffix is part of the LRP/LSP names: {@code -vpc-<id>} for VPC
+     * members, {@code -net-<id>} for Isolated network members. Including
+     * the kind in the suffix means a VPC and an Isolated network sharing
+     * the same numeric id never collide on the same mesh LS.
+     */
+    private static String memberKindSuffix(OvnMeshNetworkVO m) {
+        return m.getNetworkId() != null ? "net" : "vpc";
     }
 
-    private static String getMeshLspName(String meshUuid, long vpcId) {
-        return String.format("lsp-mesh-%s-vpc-%d", meshUuid, vpcId);
+    /**
+     * Returns the OVN Logical_Router name that owns this mesh-network
+     * membership: the VPC's {@code cs-vpc-<vpcId>} for VPC members, the
+     * isolated network's {@code cs-router-<networkId>} for Network
+     * members.
+     */
+    private static String getRouterNameForMember(OvnMeshNetworkVO m) {
+        if (m.getNetworkId() != null) {
+            return String.format("cs-router-%d", m.getNetworkId());
+        }
+        return String.format("cs-vpc-%d", m.getVpcId());
     }
 
-    private static String buildMeshMac(long vpcId) {
-        return String.format("fa:16:3e:fa:%02x:%02x",
-                (int) ((vpcId >> 8) & 0xff),
-                (int) (vpcId & 0xff));
+    private static String getMeshLrpName(String meshUuid, OvnMeshNetworkVO m) {
+        return String.format("lrp-mesh-%s-%s-%d", meshUuid, memberKindSuffix(m), m.getMemberId());
+    }
+
+    private static String getMeshLspName(String meshUuid, OvnMeshNetworkVO m) {
+        return String.format("lsp-mesh-%s-%s-%d", meshUuid, memberKindSuffix(m), m.getMemberId());
+    }
+
+    /**
+     * Derives a stable MAC for a mesh-network LRP. The third byte
+     * encodes the member kind (0xfa for VPC, 0xfb for Network) so a VPC
+     * with the same numeric id as an isolated network cannot produce
+     * a duplicate MAC on the same mesh switch.
+     */
+    private static String buildMeshMac(OvnMeshNetworkVO m) {
+        int kindByte = m.getNetworkId() != null ? 0xfb : 0xfa;
+        long id = m.getMemberId();
+        return String.format("fa:16:3e:%02x:%02x:%02x",
+                kindByte,
+                (int) ((id >> 8) & 0xff),
+                (int) (id & 0xff));
+    }
+
+    /**
+     * Resolves a mesh-network member's CIDR (VPC super-CIDR or isolated
+     * network CIDR) from its DB row. Returns {@code null} if the row's
+     * underlying entity is gone.
+     */
+    private String resolveMemberCidr(OvnMeshNetworkVO m) {
+        if (m.getNetworkId() != null) {
+            com.cloud.network.dao.NetworkVO n = networksDao.findById(m.getNetworkId());
+            return n != null ? n.getCidr() : null;
+        }
+        if (m.getVpcId() != null) {
+            VpcVO v = vpcDao.findById(m.getVpcId());
+            return v != null ? v.getCidr() : null;
+        }
+        return null;
+    }
+
+    /**
+     * Returns the human-readable name of the entity backing a mesh-network
+     * member row (VPC name or Network name). Used by error messages and
+     * the API response surface.
+     */
+    private String resolveMemberName(OvnMeshNetworkVO m) {
+        if (m.getNetworkId() != null) {
+            com.cloud.network.dao.NetworkVO n = networksDao.findById(m.getNetworkId());
+            return n != null ? n.getName() : "network-" + m.getNetworkId();
+        }
+        if (m.getVpcId() != null) {
+            VpcVO v = vpcDao.findById(m.getVpcId());
+            return v != null ? v.getName() : "vpc-" + m.getVpcId();
+        }
+        return null;
     }
 
     private static String allocateLinkLocalIp(Set<String> usedIps) {
@@ -3117,12 +3428,12 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         return "ts-mesh-" + meshUuid;
     }
 
-    private static String getCrossZoneLrpName(long vpcId) {
-        return String.format("lrp-cs-vpc-%d-ts", vpcId);
+    private static String getCrossZoneLrpName(OvnMeshNetworkVO m) {
+        return String.format("lrp-cs-%s-%d-ts", memberKindSuffix(m), m.getMemberId());
     }
 
-    private static String getCrossZoneLspName(long vpcId) {
-        return String.format("lsp-ts-vpc-%d", vpcId);
+    private static String getCrossZoneLspName(OvnMeshNetworkVO m) {
+        return String.format("lsp-ts-%s-%d", memberKindSuffix(m), m.getMemberId());
     }
 
     private static String allocateCrossZoneLinkLocalIp(Set<String> usedIps) {
@@ -3200,18 +3511,18 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
                 icProvider.getCaCertPath(), icProvider.getClientCertPath(), icProvider.getClientPrivateKeyPath(),
                 tsName, tsExt);
 
-        // Attach each member's VPC router to the TS. ovn-ic picks up these LRPs and
+        // Attach each member's router to the TS — VPC LR for VPC members,
+        // isolated-network LR for Network members. ovn-ic picks up these LRPs and
         // exposes them as remote ports in the other AZs' NBs - no manual cross-AZ
         // sync needed.
         for (OvnMeshNetworkVO member : members) {
             OvnProviderVO p = providersByZone.get(member.getZoneId());
-            VpcVO vpc = vpcDao.findById(member.getVpcId());
-            if (vpc == null) continue;
+            if (resolveMemberCidr(member) == null) continue;
 
-            String routerName = String.format("cs-vpc-%d", member.getVpcId());
-            String lrpName = getCrossZoneLrpName(member.getVpcId());
-            String lspName = getCrossZoneLspName(member.getVpcId());
-            String mac = buildMeshMac(member.getVpcId());
+            String routerName = getRouterNameForMember(member);
+            String lrpName = getCrossZoneLrpName(member);
+            String lspName = getCrossZoneLspName(member);
+            String mac = buildMeshMac(member);
             // /24 over the link-local pool keeps every member in the same broadcast
             // domain on the TS, which is what OVN-IC expects.
             String lrpIpCidr = member.getLinkLocalIp() + "/24";
@@ -3248,8 +3559,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
     protected void applyCrossZoneMeshNetworkAcl(OvnMeshNetworkVO member, String tsLsName) {
         OvnProviderVO provider = ovnProviderDao.findByZoneId(member.getZoneId());
         if (provider == null) return;
-        String lspName = getCrossZoneLspName(member.getVpcId());
-        String meshAclTag = "cloudstack_mesh_acl_vpc_" + member.getVpcId();
+        String lspName = getCrossZoneLspName(member);
+        String meshAclTag = String.format("cloudstack_mesh_acl_%s_%d", memberKindSuffix(member), member.getMemberId());
 
         ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
@@ -3273,7 +3584,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
             ext.put("cloudstack_acl_default", "true");
             ovnNbClient.addAclOnLs(provider.getNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                    tsLsName, "ts-acl-default-" + dir + "-vpc-" + member.getVpcId(),
+                    tsLsName,
+                    String.format("ts-acl-default-%s-%s-%d", dir, memberKindSuffix(member), member.getMemberId()),
                     dir, 1L, matchExpr, "drop", ext);
         }
     }
@@ -3290,7 +3602,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         if (baseMatch == null) return;
         String matchExpr = String.format("%s == \"%s\" && %s", portField, lspName, baseMatch);
 
-        String meshAclTag = "cloudstack_mesh_acl_vpc_" + member.getVpcId();
+        String meshAclTag = String.format("cloudstack_mesh_acl_%s_%d", memberKindSuffix(member), member.getMemberId());
         Map<String, String> ext = new HashMap<>();
         ext.put(meshAclTag, "true");
         ext.put("cloudstack_acl_rule_id", String.valueOf(rule.getId()));
@@ -3300,20 +3612,21 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
 
         ovnNbClient.addAclOnLs(provider.getNbConnection(),
                 provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),
-                tsLsName, "ts-acl-" + rule.getId() + "-vpc-" + member.getVpcId(),
+                tsLsName,
+                String.format("ts-acl-%d-%s-%d", rule.getId(), memberKindSuffix(member), member.getMemberId()),
                 direction, ovnPriority, matchExpr, aclAction, ext);
     }
 
     /**
-     * Removes a single VPC's TS attachment in its AZ NB. If the group has no remaining
+     * Removes a single member's TS attachment in its AZ NB. If the mesh has no remaining
      * members at all, also drops the Transit_Switch from the IC NB.
      */
     protected void removeCrossZoneMeshNetworkMember(OvnMeshNetworkVO member, OvnProviderVO provider, String meshUuid) {
         String tsName = getTransitSwitchName(meshUuid);
-        String routerName = String.format("cs-vpc-%d", member.getVpcId());
-        String lrpName = getCrossZoneLrpName(member.getVpcId());
-        String lspName = getCrossZoneLspName(member.getVpcId());
-        String meshAclTag = "cloudstack_mesh_acl_vpc_" + member.getVpcId();
+        String routerName = getRouterNameForMember(member);
+        String lrpName = getCrossZoneLrpName(member);
+        String lspName = getCrossZoneLspName(member);
+        String meshAclTag = String.format("cloudstack_mesh_acl_%s_%d", memberKindSuffix(member), member.getMemberId());
 
         // Wipe ACLs scoped to this member on the TS LS first
         ovnNbClient.removeAclsOnLsByExternalId(provider.getNbConnection(),
@@ -3327,7 +3640,7 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         // If group has no other live members, drop the TS in IC NB. ovn-ic propagates
         // the removal to every AZ NB.
         List<OvnMeshNetworkVO> remaining = ovnMeshNetworkDao.listByMeshUuid(meshUuid);
-        long active = remaining.stream().filter(m -> m.getVpcId() != member.getVpcId()).count();
+        long active = remaining.stream().filter(m -> m.getId() != member.getId()).count();
         if (active == 0 && StringUtils.isNotBlank(provider.getIcNbConnection())) {
             ovnNbClient.deleteTransitSwitch(provider.getIcNbConnection(),
                     provider.getCaCertPath(), provider.getClientCertPath(), provider.getClientPrivateKeyPath(),

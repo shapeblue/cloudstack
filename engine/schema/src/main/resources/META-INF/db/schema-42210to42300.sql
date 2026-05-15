@@ -145,13 +145,18 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_providers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- OVN Mesh Network
+-- A row stores one mesh-network membership. The member is either a VPC
+-- (vpc_id set) or an Isolated guest Network (network_id set) — exactly
+-- one of those two columns is populated; the other is NULL. A mesh
+-- network groups one or more members sharing the same mesh_uuid.
 CREATE TABLE IF NOT EXISTS `cloud`.`ovn_mesh_networks` (
     `id` bigint unsigned NOT NULL auto_increment,
     `uuid` varchar(40) NOT NULL,
-    `mesh_uuid` varchar(40) NOT NULL COMMENT 'Mesh network identifier (groups VPCs in a single mesh)',
+    `mesh_uuid` varchar(40) NOT NULL COMMENT 'Mesh network identifier (groups members in a single mesh)',
     `name` varchar(255) DEFAULT NULL COMMENT 'User-given mesh network name',
     `description` varchar(1024) DEFAULT NULL COMMENT 'User-given mesh network description',
-    `vpc_id` bigint unsigned NOT NULL,
+    `vpc_id` bigint unsigned DEFAULT NULL COMMENT 'Set when the member is a VPC; NULL when the member is an isolated network',
+    `network_id` bigint unsigned DEFAULT NULL COMMENT 'Set when the member is an isolated guest network; NULL when the member is a VPC',
     `zone_id` bigint unsigned NOT NULL,
     `account_id` bigint unsigned NOT NULL,
     `domain_id` bigint unsigned NOT NULL,
@@ -164,7 +169,9 @@ CREATE TABLE IF NOT EXISTS `cloud`.`ovn_mesh_networks` (
     UNIQUE KEY `uk_ovn_mesh_networks_uuid` (`uuid`),
     INDEX `i_ovn_mesh_networks_mesh` (`mesh_uuid`),
     INDEX `i_ovn_mesh_networks_vpc` (`vpc_id`),
+    INDEX `i_ovn_mesh_networks_network` (`network_id`),
     CONSTRAINT `fk_ovn_mesh_networks_vpc` FOREIGN KEY (`vpc_id`) REFERENCES `cloud`.`vpc`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_mesh_networks_network` FOREIGN KEY (`network_id`) REFERENCES `cloud`.`networks`(`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_ovn_mesh_networks_zone` FOREIGN KEY (`zone_id`) REFERENCES `cloud`.`data_center`(`id`),
     CONSTRAINT `fk_ovn_mesh_networks_account` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

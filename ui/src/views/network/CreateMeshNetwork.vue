@@ -34,27 +34,30 @@
             v-model:value="form.description"
             :placeholder="$t('label.description')" />
         </a-form-item>
-        <a-form-item name="vpcids" ref="vpcids" :label="$t('label.mesh.network.members')">
+        <a-form-item name="memberkeys" ref="memberkeys" :label="$t('label.mesh.network.members')">
           <a-select
-            v-model:value="form.vpcids"
+            v-model:value="form.memberKeys"
             mode="multiple"
             showSearch
             optionFilterProp="label"
-            :placeholder="$t('label.mesh.network.select.vpcs')"
+            :placeholder="$t('label.mesh.network.select.members')"
             :filterOption="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())">
             <a-select-option
-              v-for="item in availableVpcs"
-              :key="item.id"
-              :value="item.id"
-              :label="`${item.name} (${item.cidr}) - ${item.zonename}`"
-              :disabled="peeredVpcIds.has(item.id)">
+              v-for="item in availableMembers"
+              :key="item.key"
+              :value="item.key"
+              :label="`[${item.kindLabel}] ${item.name} (${item.cidr}) - ${item.zonename}`"
+              :disabled="usedKeys.has(item.key)">
+              <a-tag :color="item.kind === 'vpc' ? 'blue' : 'green'" style="margin-right: 6px;">
+                {{ item.kindLabel }}
+              </a-tag>
               {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
-              <a-tag v-if="peeredVpcIds.has(item.id)" color="orange" style="margin-left: 8px;">
-                {{ $t('label.vpc.already.in.mesh.network') }}
+              <a-tag v-if="usedKeys.has(item.key)" color="orange" style="margin-left: 8px;">
+                {{ $t('label.member.already.in.mesh.network') }}
               </a-tag>
             </a-select-option>
           </a-select>
-          <div v-if="form.vpcids && form.vpcids.length < 2" style="color: #faad14; margin-top: 4px; font-size: 12px;">
+          <div v-if="form.memberKeys && form.memberKeys.length < 2" style="color: #faad14; margin-top: 4px; font-size: 12px;">
             {{ $t('label.mesh.network.select.min') }}
           </div>
         </a-form-item>
@@ -64,7 +67,7 @@
             ref="submit"
             type="primary"
             :loading="submitting"
-            :disabled="!form.name || !form.vpcids || form.vpcids.length < 2"
+            :disabled="!form.name || !form.memberKeys || form.memberKeys.length < 2"
             @click="handleSubmit">
             {{ $t('label.ok') }}
           </a-button>
@@ -85,12 +88,42 @@ export default {
       loading: false,
       submitting: false,
       allVpcs: [],
-      peeredVpcIds: new Set()
+      allIsolatedNetworks: [],
+      usedKeys: new Set()
     }
   },
   computed: {
-    availableVpcs () {
-      return this.allVpcs
+    /**
+     * Returns the picker rows for every mesh-eligible resource the caller can
+     * see, mixing VPCs and Isolated networks behind a single shape. Each
+     * entry's {@code key} encodes the kind+id so the submit step can derive
+     * the right API param (vpcid or networkid) without a second lookup.
+     */
+    availableMembers () {
+      const items = []
+      for (const v of this.allVpcs) {
+        items.push({
+          key: 'vpc:' + v.id,
+          kind: 'vpc',
+          kindLabel: this.$t('label.vpc'),
+          id: v.id,
+          name: v.name,
+          cidr: v.cidr,
+          zonename: v.zonename
+        })
+      }
+      for (const n of this.allIsolatedNetworks) {
+        items.push({
+          key: 'network:' + n.id,
+          kind: 'network',
+          kindLabel: this.$t('label.isolated.network'),
+          id: n.id,
+          name: n.name,
+          cidr: n.cidr,
+          zonename: n.zonename
+        })
+      }
+      return items
     }
   },
   beforeCreate () {
@@ -98,11 +131,11 @@ export default {
     this.form = reactive({
       name: '',
       description: '',
-      vpcids: []
+      memberKeys: []
     })
     this.rules = reactive({
       name: [{ required: true, message: this.$t('label.required') }],
-      vpcids: [{ required: true, type: 'array', min: 2, message: this.$t('label.mesh.network.select.min') }]
+      memberKeys: [{ required: true, type: 'array', min: 2, message: this.$t('label.mesh.network.select.min') }]
     })
   },
   created () {
@@ -111,19 +144,32 @@ export default {
   methods: {
     fetchData () {
       this.loading = true
+      // Pull VPCs + Isolated networks + existing mesh-network memberships in parallel.
+      // Isolated networks are filtered to those that are OVN-backed, in the
+      // Implemented state, and not VPC tiers — the same eligibility rules the
+      // backend enforces on createMeshNetwork. Filtering here just keeps the
+      // picker from showing entries that would be rejected on submit.
       Promise.all([
         getAPI('listVPCs', { listAll: true }),
+        getAPI('listNetworks', { listAll: true, type: 'Isolated', state: 'Implemented' }),
         getAPI('listMeshNetworks')
-      ]).then(([vpcResp, peerResp]) => {
+      ]).then(([vpcResp, netResp, meshResp]) => {
         this.allVpcs = vpcResp.listvpcsresponse?.vpc || []
-        const groups = peerResp.listmeshnetworksresponse?.meshnetwork || []
+        const networks = netResp.listnetworksresponse?.network || []
+        this.allIsolatedNetworks = networks.filter(n => {
+          if (n.vpcid) return false // tier, not standalone
+          if (n.broadcastdomaintype !== 'OVN') return false
+          return true
+        })
+        const groups = meshResp.listmeshnetworksresponse?.meshnetwork || []
         const used = new Set()
         for (const g of groups) {
           for (const m of (g.members || [])) {
-            if (m.vpcid) used.add(m.vpcid)
+            if (m.vpcid) used.add('vpc:' + m.vpcid)
+            if (m.networkid) used.add('network:' + m.networkid)
           }
         }
-        this.peeredVpcIds = used
+        this.usedKeys = used
       }).catch(error => {
         this.$notifyError(error)
       }).finally(() => {
@@ -133,31 +179,55 @@ export default {
     closeAction () {
       this.$emit('close-action')
     },
+    /**
+     * Splits a picker key (kind:uuid) into the right createMeshNetwork
+     * parameters. The backend accepts vpcid OR networkid (and the same on
+     * the peer side); this helper produces one half of that pair.
+     */
+    paramsForKey (key, suffix) {
+      const [kind, id] = key.split(':')
+      return kind === 'vpc'
+        ? { [suffix ? 'peer' + suffix : 'vpcid']: id }
+        : { [suffix ? 'peernetworkid' : 'networkid']: id }
+    },
+    /**
+     * Builds the first member half of the create payload. The first member
+     * goes in vpcid|networkid; the peer (in the call we use) goes in
+     * peervpcid|peernetworkid.
+     */
+    firstParam (key) {
+      const [kind, id] = key.split(':')
+      return kind === 'vpc' ? { vpcid: id } : { networkid: id }
+    },
+    peerParam (key) {
+      const [kind, id] = key.split(':')
+      return kind === 'vpc' ? { peervpcid: id } : { peernetworkid: id }
+    },
     async handleSubmit () {
       if (this.submitting) return
       this.formRef.value.validate().then(async () => {
-        if (!this.form.vpcids || this.form.vpcids.length < 2) return
+        if (!this.form.memberKeys || this.form.memberKeys.length < 2) return
         this.submitting = true
         try {
-          const vpcids = this.form.vpcids
-          // First call seeds the group with the first pair (and the name/description).
-          // Subsequent calls add each remaining VPC to the same group via peervpcid =
-          // first VPC; OvnElement.createMeshNetwork joins them under the existing
-          // mesh_uuid because peervpcid already belongs to it.
-          const params = {
+          const keys = this.form.memberKeys
+          // First call seeds the mesh with the first pair (and the name/description).
+          // Subsequent calls add each remaining member to the same mesh via
+          // peer = keys[0]; OvnElement.createMeshNetwork joins them under the
+          // existing mesh_uuid because the peer already belongs to it.
+          const base = {
             name: this.form.name,
-            vpcid: vpcids[0],
-            peervpcid: vpcids[1]
+            ...this.firstParam(keys[0]),
+            ...this.peerParam(keys[1])
           }
           if (this.form.description) {
-            params.description = this.form.description
+            base.description = this.form.description
           }
-          await postAPI('createMeshNetwork', params)
-          for (let i = 2; i < vpcids.length; i++) {
+          await postAPI('createMeshNetwork', base)
+          for (let i = 2; i < keys.length; i++) {
             await postAPI('createMeshNetwork', {
               name: this.form.name,
-              vpcid: vpcids[i],
-              peervpcid: vpcids[0]
+              ...this.firstParam(keys[i]),
+              ...this.peerParam(keys[0])
             })
           }
           this.$message.success(this.$t('message.success.add.mesh.network'))

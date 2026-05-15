@@ -47,6 +47,11 @@ public class ListMeshNetworksCmd extends BaseListCmd {
             description = "The ID of the VPC to list mesh network memberships for")
     private Long vpcId;
 
+    @Parameter(name = ApiConstants.NETWORK_ID, type = CommandType.UUID,
+            entityType = org.apache.cloudstack.api.response.NetworkResponse.class,
+            description = "The ID of the isolated network to list mesh network memberships for")
+    private Long networkId;
+
     @Parameter(name = "meshuuid", type = CommandType.STRING,
             description = "The mesh network UUID to filter by")
     private String meshUuid;
@@ -57,6 +62,10 @@ public class ListMeshNetworksCmd extends BaseListCmd {
 
     public Long getVpcId() {
         return vpcId;
+    }
+
+    public Long getNetworkId() {
+        return networkId;
     }
 
     public String getMeshUuid() {

@@ -21,14 +21,24 @@ import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 
 /**
- * One VPC's membership in a mesh network, embedded under
+ * One member's record inside a mesh network, embedded under
  * {@link MeshNetworkResponse#setMembers(java.util.List)} on group-level responses.
- * Carries the per-VPC member row identity so the UI can drive add/remove actions
+ * The member is either a VPC or an Isolated guest network — {@code kind} carries
+ * that distinction, and exactly one of {@code vpcid}/{@code networkid} is set.
+ * Carries the per-member row identity so the UI can drive add/remove actions
  * without a separate listMeshNetworks round-trip.
  */
 public class MeshNetworkMemberResponse extends BaseResponse {
     @SerializedName(ApiConstants.ID)
     private String id;
+
+    /**
+     * "vpc" or "network" — distinguishes whether this row's member is a VPC or
+     * an isolated guest network. Drives the UI rendering choice (link target,
+     * icon, allowed actions).
+     */
+    @SerializedName("kind")
+    private String kind;
 
     @SerializedName(ApiConstants.VPC_ID)
     private String vpcId;
@@ -38,6 +48,26 @@ public class MeshNetworkMemberResponse extends BaseResponse {
 
     @SerializedName("vpccidr")
     private String vpcCidr;
+
+    @SerializedName(ApiConstants.NETWORK_ID)
+    private String networkId;
+
+    @SerializedName("networkname")
+    private String networkName;
+
+    @SerializedName("networkcidr")
+    private String networkCidr;
+
+    /**
+     * Convenience name field — copy of vpcname or networkname depending on
+     * kind, so UI columns and dropdowns can render member names without
+     * branching on kind.
+     */
+    @SerializedName("membername")
+    private String memberName;
+
+    @SerializedName("membercidr")
+    private String memberCidr;
 
     @SerializedName(ApiConstants.ZONE_ID)
     private String zoneId;
@@ -58,9 +88,15 @@ public class MeshNetworkMemberResponse extends BaseResponse {
     private String state;
 
     public void setId(String id) { this.id = id; }
+    public void setKind(String kind) { this.kind = kind; }
     public void setVpcId(String vpcId) { this.vpcId = vpcId; }
     public void setVpcName(String vpcName) { this.vpcName = vpcName; }
     public void setVpcCidr(String vpcCidr) { this.vpcCidr = vpcCidr; }
+    public void setNetworkId(String networkId) { this.networkId = networkId; }
+    public void setNetworkName(String networkName) { this.networkName = networkName; }
+    public void setNetworkCidr(String networkCidr) { this.networkCidr = networkCidr; }
+    public void setMemberName(String memberName) { this.memberName = memberName; }
+    public void setMemberCidr(String memberCidr) { this.memberCidr = memberCidr; }
     public void setZoneId(String zoneId) { this.zoneId = zoneId; }
     public void setZoneName(String zoneName) { this.zoneName = zoneName; }
     public void setLinkLocalIp(String linkLocalIp) { this.linkLocalIp = linkLocalIp; }

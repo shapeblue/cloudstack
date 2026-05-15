@@ -32,7 +32,7 @@ import org.apache.cloudstack.service.OvnMeshNetworkService;
 import javax.inject.Inject;
 
 @APICommand(name = CreateMeshNetworkCmd.APINAME,
-        description = "Creates a mesh network between two OVN-backed VPCs. If the peer VPC already belongs to a mesh network, the calling VPC joins that group (mesh topology).",
+        description = "Creates a mesh network connecting two OVN-backed members. Each member can be either a VPC or an Isolated guest network; pass either vpcid or networkid (and either peervpcid or peernetworkid). If the peer member already belongs to a mesh network, the calling member joins that mesh (mesh-of-N topology).",
         responseObject = MeshNetworkResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User},
@@ -44,23 +44,33 @@ public class CreateMeshNetworkCmd extends BaseCmd {
     OvnMeshNetworkService ovnMeshNetworkService;
 
     @Parameter(name = ApiConstants.NAME, type = CommandType.STRING,
-            required = true, description = "Name for the VPC mesh network")
+            required = true, description = "Name for the mesh network")
     private String name;
 
     @Parameter(name = ApiConstants.DESCRIPTION, type = CommandType.STRING,
-            description = "Description for the VPC mesh network")
+            description = "Description for the mesh network")
     private String description;
 
     @Parameter(name = ApiConstants.VPC_ID, type = CommandType.UUID, entityType = VpcResponse.class,
-            required = true, description = "The ID of the VPC to peer")
+            description = "The ID of the VPC member to add. Mutually exclusive with networkid.")
     private Long vpcId;
 
+    @Parameter(name = ApiConstants.NETWORK_ID, type = CommandType.UUID,
+            entityType = org.apache.cloudstack.api.response.NetworkResponse.class,
+            description = "The ID of the Isolated guest network member to add. Mutually exclusive with vpcid.")
+    private Long networkId;
+
     @Parameter(name = "peervpcid", type = CommandType.UUID, entityType = VpcResponse.class,
-            required = true, description = "The ID of the peer VPC. If it already belongs to a mesh network, the calling VPC joins that group.")
+            description = "The ID of the peer VPC. If it already belongs to a mesh network, the calling member joins that mesh. Mutually exclusive with peernetworkid.")
     private Long peerVpcId;
 
+    @Parameter(name = "peernetworkid", type = CommandType.UUID,
+            entityType = org.apache.cloudstack.api.response.NetworkResponse.class,
+            description = "The ID of the peer Isolated guest network. If it already belongs to a mesh network, the calling member joins that mesh. Mutually exclusive with peervpcid.")
+    private Long peerNetworkId;
+
     @Parameter(name = "aclid", type = CommandType.UUID, entityType = org.apache.cloudstack.api.response.NetworkACLResponse.class,
-            description = "The ID of a VPC Network ACL list to apply to this mesh network membership. Controls what traffic is allowed through the mesh network.")
+            description = "The ID of a Network ACL list to apply to this member's traffic over the mesh network link. For VPC members this must be a VPC ACL list; for Isolated networks it must be a network-scoped ACL.")
     private Long aclId;
 
     public String getName() {
@@ -75,8 +85,16 @@ public class CreateMeshNetworkCmd extends BaseCmd {
         return vpcId;
     }
 
+    public Long getNetworkId() {
+        return networkId;
+    }
+
     public Long getPeerVpcId() {
         return peerVpcId;
+    }
+
+    public Long getPeerNetworkId() {
+        return peerNetworkId;
     }
 
     public Long getAclId() {

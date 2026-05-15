@@ -25,7 +25,9 @@ public interface OvnMeshNetworkDao extends GenericDao<OvnMeshNetworkVO, Long> {
     List<OvnMeshNetworkVO> listByMeshUuid(String meshUuid);
     List<OvnMeshNetworkVO> listByMeshUuidIncludingDisabled(String meshUuid);
     List<OvnMeshNetworkVO> listByVpcId(long vpcId);
+    List<OvnMeshNetworkVO> listByNetworkId(long networkId);
     OvnMeshNetworkVO findByMeshUuidAndVpcId(String meshUuid, long vpcId);
+    OvnMeshNetworkVO findByMeshUuidAndNetworkId(String meshUuid, long networkId);
     List<OvnMeshNetworkVO> listByAccountId(long accountId);
     List<OvnMeshNetworkVO> listByAccountIdIncludingDisabled(long accountId);
     List<OvnMeshNetworkVO> listAllActive();

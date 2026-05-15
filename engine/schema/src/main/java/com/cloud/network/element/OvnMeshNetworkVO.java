@@ -49,7 +49,10 @@ public class OvnMeshNetworkVO implements InternalIdentity, Identity {
     private String description;
 
     @Column(name = "vpc_id")
-    private long vpcId;
+    private Long vpcId;
+
+    @Column(name = "network_id")
+    private Long networkId;
 
     @Column(name = "zone_id")
     private long zoneId;
@@ -79,12 +82,22 @@ public class OvnMeshNetworkVO implements InternalIdentity, Identity {
         uuid = UUID.randomUUID().toString();
     }
 
-    public OvnMeshNetworkVO(String meshUuid, String name, String description, long vpcId, long zoneId, long accountId, long domainId, String linkLocalIp) {
+    /**
+     * Build a mesh-network membership row. Exactly one of {@code vpcId} or
+     * {@code networkId} must be non-null — they encode whether the member
+     * is a VPC or an isolated guest network. The caller is responsible for
+     * upholding that invariant; the schema only enforces the FK presence
+     * when the column is set.
+     */
+    public OvnMeshNetworkVO(String meshUuid, String name, String description,
+                            Long vpcId, Long networkId,
+                            long zoneId, long accountId, long domainId, String linkLocalIp) {
         this.uuid = UUID.randomUUID().toString();
         this.meshUuid = meshUuid;
         this.name = name;
         this.description = description;
         this.vpcId = vpcId;
+        this.networkId = networkId;
         this.zoneId = zoneId;
         this.accountId = accountId;
         this.domainId = domainId;
@@ -123,8 +136,35 @@ public class OvnMeshNetworkVO implements InternalIdentity, Identity {
         this.description = description;
     }
 
-    public long getVpcId() {
+    public Long getVpcId() {
         return vpcId;
+    }
+
+    public Long getNetworkId() {
+        return networkId;
+    }
+
+    /**
+     * Returns the member kind ("vpc" or "network") inferred from which id
+     * column is populated. Used by the OVN provisioning code to pick the
+     * right Logical Router name and external_ids tag.
+     */
+    public String getMemberKind() {
+        if (networkId != null) {
+            return "network";
+        }
+        return "vpc";
+    }
+
+    /**
+     * Returns whichever id is set (vpc_id when the member is a VPC,
+     * network_id when the member is an isolated network).
+     */
+    public long getMemberId() {
+        if (networkId != null) {
+            return networkId;
+        }
+        return vpcId != null ? vpcId : 0L;
     }
 
     public long getZoneId() {

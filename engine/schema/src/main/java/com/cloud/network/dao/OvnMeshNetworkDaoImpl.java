@@ -38,6 +38,7 @@ public class OvnMeshNetworkDaoImpl extends GenericDaoBase<OvnMeshNetworkVO, Long
         allFieldsSearch.and("uuid", allFieldsSearch.entity().getUuid(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("mesh_uuid", allFieldsSearch.entity().getMeshUuid(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("vpc_id", allFieldsSearch.entity().getVpcId(), SearchCriteria.Op.EQ);
+        allFieldsSearch.and("network_id", allFieldsSearch.entity().getNetworkId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("zone_id", allFieldsSearch.entity().getZoneId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("account_id", allFieldsSearch.entity().getAccountId(), SearchCriteria.Op.EQ);
         allFieldsSearch.and("state", allFieldsSearch.entity().getState(), SearchCriteria.Op.EQ);
@@ -75,6 +76,23 @@ public class OvnMeshNetworkDaoImpl extends GenericDaoBase<OvnMeshNetworkVO, Long
         SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
         sc.setParameters("mesh_uuid", meshUuid);
         sc.setParameters("vpc_id", vpcId);
+        sc.setParameters("state", "Active");
+        return findOneBy(sc);
+    }
+
+    @Override
+    public List<OvnMeshNetworkVO> listByNetworkId(long networkId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
+        sc.setParameters("network_id", networkId);
+        sc.setParameters("state", "Active");
+        return listBy(sc);
+    }
+
+    @Override
+    public OvnMeshNetworkVO findByMeshUuidAndNetworkId(String meshUuid, long networkId) {
+        SearchCriteria<OvnMeshNetworkVO> sc = allFieldsSearch.create();
+        sc.setParameters("mesh_uuid", meshUuid);
+        sc.setParameters("network_id", networkId);
         sc.setParameters("state", "Active");
         return findOneBy(sc);
     }

@@ -34,7 +34,18 @@
       :loading="loading">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'vpcname'">
-          <router-link :to="{ path: '/vpc/' + record.vpcid }">{{ record.vpcname }}</router-link>
+          <a-tag :color="record.kind === 'network' ? 'green' : 'blue'" style="margin-right: 6px;">
+            {{ record.kind === 'network' ? $t('label.isolated.network') : $t('label.vpc') }}
+          </a-tag>
+          <router-link v-if="record.kind === 'network'" :to="{ path: '/guestnetwork/' + record.networkid }">
+            {{ record.networkname || record.membername }}
+          </router-link>
+          <router-link v-else :to="{ path: '/vpc/' + record.vpcid }">
+            {{ record.vpcname || record.membername }}
+          </router-link>
+        </template>
+        <template v-if="column.key === 'vpccidr'">
+          {{ record.membercidr || record.vpccidr || record.networkcidr }}
         </template>
         <template v-if="column.key === 'aclname'">
           <span v-if="record.aclname">{{ record.aclname }}</span>
