@@ -47,13 +47,16 @@
               :key="item.key"
               :value="item.key"
               :label="`[${item.kindLabel}] ${item.name} (${item.cidr}) - ${item.zonename}`"
-              :disabled="usedKeys.has(item.key)">
+              :disabled="usedKeys.has(item.key) || item.notReady">
               <a-tag :color="item.kind === 'vpc' ? 'blue' : 'green'" style="margin-right: 6px;">
                 {{ item.kindLabel }}
               </a-tag>
               {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
               <a-tag v-if="usedKeys.has(item.key)" color="orange" style="margin-left: 8px;">
                 {{ $t('label.member.already.in.mesh.network') }}
+              </a-tag>
+              <a-tag v-else-if="item.notReady" color="red" style="margin-left: 8px;">
+                {{ $t('label.mesh.network.member.not.implemented') }}
               </a-tag>
             </a-select-option>
           </a-select>
@@ -120,7 +123,9 @@ export default {
           id: n.id,
           name: n.name,
           cidr: n.cidr,
-          zonename: n.zonename
+          zonename: n.zonename,
+          notReady: n.state !== 'Implemented',
+          state: n.state
         })
       }
       return items
@@ -156,14 +161,13 @@ export default {
       ]).then(([vpcResp, netResp, meshResp]) => {
         this.allVpcs = vpcResp.listvpcsresponse?.vpc || []
         const networks = netResp.listnetworksresponse?.network || []
+        // Show every OVN-backed standalone Isolated network. Non-Implemented
+        // ones (no LR yet) are kept in the list but disabled in the picker,
+        // so the user can see "isolated-z1 exists but needs a VM first"
+        // instead of wondering why it's missing.
         this.allIsolatedNetworks = networks.filter(n => {
           if (n.vpcid) return false // tier, not standalone
           if (n.broadcastdomaintype !== 'OVN') return false
-          // listNetworks ignores the state param, so re-check here. The
-          // backend rejects non-Implemented networks (no LR provisioned
-          // yet), so showing them would just produce a confusing error
-          // at submit time.
-          if (n.state !== 'Implemented') return false
           return true
         })
         const groups = meshResp.listmeshnetworksresponse?.meshnetwork || []

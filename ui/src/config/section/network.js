@@ -939,8 +939,8 @@ export default {
       icon: 'swap-outlined',
       permission: ['listMeshNetworks'],
       resourceType: 'MeshNetwork',
-      columns: ['name', 'description', 'vpccount', 'vpcnames', 'state', 'zonename'],
-      details: ['name', 'id', 'groupuuid', 'description', 'state', 'zonename', 'vpccount', 'vpcnames', 'created'],
+      columns: ['name', 'description', 'membercount', 'membernames', 'state', 'zonename'],
+      details: ['name', 'id', 'groupuuid', 'description', 'state', 'zonename', 'membercount', 'membernames', 'created'],
       searchFilters: ['name', 'zoneid'],
       tabs: [{
         name: 'details',

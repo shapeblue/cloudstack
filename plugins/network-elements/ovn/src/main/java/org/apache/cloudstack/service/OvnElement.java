@@ -2958,6 +2958,8 @@ public class OvnElement extends AdapterBase implements DhcpServiceProvider, DnsS
         response.setMembers(memberResponses);
         response.setVpcCount(memberResponses.size());
         response.setVpcNames(names.toString());
+        response.setMemberCount(memberResponses.size());
+        response.setMemberNames(names.toString());
         return response;
     }
 

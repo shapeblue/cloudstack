@@ -106,6 +106,16 @@ public class MeshNetworkResponse extends BaseResponse {
     private String vpcNames;
 
     /**
+     * Kind-agnostic member rollup. Mirrors vpcCount/vpcNames but covers Isolated networks too,
+     * so the list-view column can label itself "Members" instead of "VPC count".
+     */
+    @SerializedName("membercount")
+    private Integer memberCount;
+
+    @SerializedName("membernames")
+    private String memberNames;
+
+    /**
      * Per-member detail. Populated only on group-level responses (id == meshuuid).
      * Each entry corresponds to one VPC's row in the mesh network DB and is enough to drive
      * the "VPC Peers" detail tab without an extra round-trip.
@@ -211,6 +221,14 @@ public class MeshNetworkResponse extends BaseResponse {
 
     public void setVpcNames(String vpcNames) {
         this.vpcNames = vpcNames;
+    }
+
+    public void setMemberCount(Integer memberCount) {
+        this.memberCount = memberCount;
+    }
+
+    public void setMemberNames(String memberNames) {
+        this.memberNames = memberNames;
     }
 
     public void setMembers(List<MeshNetworkMemberResponse> members) {
