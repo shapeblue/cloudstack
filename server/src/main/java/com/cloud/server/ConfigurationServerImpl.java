@@ -1222,6 +1222,14 @@ public class ConfigurationServerImpl extends ManagerBase implements Configuratio
                 // Offering #15 - network offering for Netris provider for VPCs - NATTED mode
                 createAndPersistDefaultProviderOffering(NetworkOffering.DEFAULT_NAT_NETRIS_OFFERING_FOR_VPC, "Offering for Netris enabled networks on VPCs - NAT mode",
                         NetworkOffering.NetworkMode.NATTED, true, true, true, Provider.Netris);
+
+                // Offering #16 - network offering for OVN provider - NATTED mode
+                createAndPersistDefaultProviderOffering(NetworkOffering.DEFAULT_NAT_OVN_OFFERING, "Offering for OVN enabled networks - NAT mode",
+                        NetworkOffering.NetworkMode.NATTED, false, true, false, Provider.Ovn);
+
+                // Offering #17 - network offering for OVN provider for VPCs - NATTED mode
+                createAndPersistDefaultProviderOffering(NetworkOffering.DEFAULT_NAT_OVN_OFFERING_FOR_VPC, "Offering for OVN enabled networks on VPCs - NAT mode",
+                        NetworkOffering.NetworkMode.NATTED, true, true, false, Provider.Ovn);
             }
         });
     }
@@ -1251,15 +1259,21 @@ public class ConfigurationServerImpl extends ManagerBase implements Configuratio
     private Map<Service, Provider> getServicesAndProvidersForProviderNetwork(NetworkOffering.NetworkMode networkMode, boolean forVpc, Provider provider) {
         final Map<Network.Service, Network.Provider> serviceProviderMap = new HashMap<>();
         Provider routerProvider = forVpc ? Provider.VPCVirtualRouter : Provider.VirtualRouter;
-        serviceProviderMap.put(Service.Dhcp, routerProvider);
-        serviceProviderMap.put(Service.Dns, routerProvider);
-        serviceProviderMap.put(Service.UserData, routerProvider);
+        Provider controlPlaneProvider = Provider.Ovn.equals(provider) ? provider : routerProvider;
+        serviceProviderMap.put(Service.Dhcp, controlPlaneProvider);
+        serviceProviderMap.put(Service.Dns, controlPlaneProvider);
+        if (!Provider.Ovn.equals(provider)) {
+            serviceProviderMap.put(Service.UserData, routerProvider);
+        }
         if (forVpc) {
             serviceProviderMap.put(Service.NetworkACL, provider);
         } else {
             serviceProviderMap.put(Service.Firewall, provider);
         }
         if (networkMode == NetworkOffering.NetworkMode.NATTED) {
+            if (Provider.Ovn.equals(provider)) {
+                serviceProviderMap.put(Service.Gateway, provider);
+            }
             serviceProviderMap.put(Service.SourceNat, provider);
             serviceProviderMap.put(Service.StaticNat, provider);
             serviceProviderMap.put(Service.PortForwarding, provider);

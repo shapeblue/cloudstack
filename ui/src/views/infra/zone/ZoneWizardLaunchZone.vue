@@ -493,6 +493,13 @@ export default {
                 physicalNetwork.traffics.findIndex(traffic => traffic.type === 'public' || traffic.type === 'guest') > -1) {
                 this.stepData.isNetrisZone = true
               }
+              // Same gating as Netris/NSX: only flag the zone as OVN when the physical
+              // network actually carries public or guest traffic. Storage- or management-
+              // only physnets that happen to be tagged OVN do not need a provider entry.
+              if (physicalNetwork.isolationMethod.toLowerCase() === 'ovn' &&
+                physicalNetwork.traffics.findIndex(traffic => traffic.type === 'public' || traffic.type === 'guest') > -1) {
+                this.stepData.isOvnZone = true
+              }
             } else {
               this.stepData.physicalNetworkReturned = this.stepData.physicalNetworkItem['createPhysicalNetwork' + index]
             }
@@ -910,6 +917,8 @@ export default {
         await this.stepAddNsxController()
       } else if (this.stepData.isNetrisZone) {
         await this.stepAddNetrisProvider()
+      } else if (this.stepData.isOvnZone) {
+        await this.stepAddOvnProvider()
       } else {
         await this.stepConfigureStorageTraffic()
       }
@@ -1150,6 +1159,54 @@ export default {
           this.stepData.stepMove.push('addNetrisProvider')
         }
         this.stepData.stepMove.push('netris')
+        await this.stepConfigureStorageTraffic()
+      } catch (e) {
+        this.messageError = e
+        this.processStatus = STATUS_FAILED
+        this.setStepStatus(STATUS_FAILED)
+      }
+    },
+    async stepAddOvnProvider () {
+      // Mirror of stepAddNetrisProvider: register the OVN central (NB/SB) endpoints with
+      // the zone via addOvnProvider so OvnGuestNetworkGuru can resolve the provider when
+      // a network is implemented. Only `name` and `nbconnection` are mandatory; the rest
+      // are optional and skipped when the operator left the field blank in the wizard.
+      this.setStepStatus(STATUS_FINISH)
+      this.currentStep++
+      this.addStep('message.add.ovn.controller', 'ovn')
+      if (this.stepData.stepMove.includes('ovn')) {
+        await this.stepConfigureStorageTraffic()
+        return
+      }
+      try {
+        if (!this.stepData.stepMove.includes('addOvnProvider')) {
+          const providerParams = {}
+          providerParams.zoneid = this.stepData.zoneReturned.id
+          providerParams.name = this.prefillContent?.ovnName || ''
+          providerParams.nbconnection = this.prefillContent?.ovnNbConnection || ''
+          if (this.prefillContent?.ovnSbConnection) {
+            providerParams.sbconnection = this.prefillContent.ovnSbConnection
+          }
+          if (this.prefillContent?.ovnExternalBridge) {
+            providerParams.externalbridge = this.prefillContent.ovnExternalBridge
+          }
+          if (this.prefillContent?.ovnLocalnetName) {
+            providerParams.localnetname = this.prefillContent.ovnLocalnetName
+          }
+          if (this.prefillContent?.ovnCaCertPath) {
+            providerParams.cacertpath = this.prefillContent.ovnCaCertPath
+          }
+          if (this.prefillContent?.ovnClientCertPath) {
+            providerParams.clientcertpath = this.prefillContent.ovnClientCertPath
+          }
+          if (this.prefillContent?.ovnClientPrivateKeyPath) {
+            providerParams.clientprivatekeypath = this.prefillContent.ovnClientPrivateKeyPath
+          }
+
+          await this.addOvnProvider(providerParams)
+          this.stepData.stepMove.push('addOvnProvider')
+        }
+        this.stepData.stepMove.push('ovn')
         await this.stepConfigureStorageTraffic()
       } catch (e) {
         this.messageError = e
@@ -2332,6 +2389,16 @@ export default {
     addNetrisProvider (args) {
       return new Promise((resolve, reject) => {
         postAPI('addNetrisProvider', args).then(json => {
+          resolve()
+        }).catch(error => {
+          const message = error.response.headers['x-description']
+          reject(message)
+        })
+      })
+    },
+    addOvnProvider (args) {
+      return new Promise((resolve, reject) => {
+        postAPI('addOvnProvider', args).then(json => {
           resolve()
         }).catch(error => {
           const message = error.response.headers['x-description']

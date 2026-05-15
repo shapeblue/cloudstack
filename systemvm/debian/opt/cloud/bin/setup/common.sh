@@ -730,9 +730,9 @@ parse_cmd_line() {
 
   for i in $CMDLINE
     do
-      # search for foo=bar pattern and cut out foo
+      # Search for foo=bar and preserve any additional '=' in encoded values.
       KEY=$(echo $i | cut -d= -f1)
-      VALUE=$(echo $i | cut -d= -f2)
+      VALUE=$(echo $i | cut -d= -f2-)
       echo -en ${COMMA} >> ${CHEF_TMP_FILE}
       # Two lines so values do not accidentally interpretted as escapes!!
       echo -n \"${KEY}\"': '\"${VALUE}\" >> ${CHEF_TMP_FILE}

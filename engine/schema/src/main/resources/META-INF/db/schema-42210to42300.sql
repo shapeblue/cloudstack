@@ -118,6 +118,75 @@ CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.vpc_offerings','conserve_mode', 'tin
 --- Disable/enable NICs
 CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.nics','enabled', 'TINYINT(1) NOT NULL DEFAULT 1 COMMENT ''Indicates whether the NIC is enabled or not'' ');
 
+-- OVN Plugin
+CREATE TABLE IF NOT EXISTS `cloud`.`ovn_providers` (
+    `id` bigint unsigned NOT NULL auto_increment COMMENT 'id',
+    `uuid` varchar(40),
+    `zone_id` bigint unsigned NOT NULL COMMENT 'Zone ID',
+    `host_id` bigint unsigned COMMENT 'Optional resource host ID if OVN command routing is enabled',
+    `name` varchar(255) NOT NULL,
+    `nb_connection` varchar(255) NOT NULL COMMENT 'OVN Northbound database connection string',
+    `sb_connection` varchar(255) COMMENT 'OVN Southbound database connection string',
+    `ca_cert_path` varchar(1024) COMMENT 'OVN TLS CA certificate path',
+    `client_cert_path` varchar(1024) COMMENT 'OVN TLS client certificate path',
+    `client_private_key_path` varchar(1024) COMMENT 'OVN TLS client private key path',
+    `external_bridge` varchar(255) COMMENT 'OVN external bridge used for provider network access',
+    `localnet_name` varchar(255) COMMENT 'OVN localnet name used for provider network mapping',
+    `ic_nb_connection` varchar(255) COMMENT 'OVN-IC Northbound DB connection string for inter-zone mesh networks',
+    `ic_sb_connection` varchar(255) COMMENT 'OVN-IC Southbound DB connection string for diagnostics',
+    `availability_zone_name` varchar(255) COMMENT 'Availability zone name registered in NB_Global for OVN-IC',
+    `created` datetime NOT NULL COMMENT 'created date',
+    `removed` datetime COMMENT 'removed date if not null',
+    PRIMARY KEY (`id`),
+    CONSTRAINT `fk_ovn_providers__zone_id` FOREIGN KEY `fk_ovn_providers__zone_id` (`zone_id`) REFERENCES `data_center`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_providers__host_id` FOREIGN KEY `fk_ovn_providers__host_id` (`host_id`) REFERENCES `host`(`id`) ON DELETE SET NULL,
+    UNIQUE KEY `uk_ovn_providers__zone_id` (`zone_id`),
+    INDEX `i_ovn_providers__zone_id`(`zone_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- OVN Mesh Network
+-- A row stores one mesh-network membership. The member is either a VPC
+-- (vpc_id set) or an Isolated guest Network (network_id set) — exactly
+-- one of those two columns is populated; the other is NULL. A mesh
+-- network groups one or more members sharing the same mesh_uuid.
+CREATE TABLE IF NOT EXISTS `cloud`.`ovn_mesh_networks` (
+    `id` bigint unsigned NOT NULL auto_increment,
+    `uuid` varchar(40) NOT NULL,
+    `mesh_uuid` varchar(40) NOT NULL COMMENT 'Mesh network identifier (groups members in a single mesh)',
+    `name` varchar(255) DEFAULT NULL COMMENT 'User-given mesh network name',
+    `description` varchar(1024) DEFAULT NULL COMMENT 'User-given mesh network description',
+    `vpc_id` bigint unsigned DEFAULT NULL COMMENT 'Set when the member is a VPC; NULL when the member is an isolated network',
+    `network_id` bigint unsigned DEFAULT NULL COMMENT 'Set when the member is an isolated guest network; NULL when the member is a VPC',
+    `zone_id` bigint unsigned NOT NULL,
+    `account_id` bigint unsigned NOT NULL,
+    `domain_id` bigint unsigned NOT NULL,
+    `link_local_ip` varchar(15) NOT NULL COMMENT 'Link-local IP on the mesh network switch',
+    `acl_id` bigint unsigned DEFAULT NULL COMMENT 'Optional Network ACL applied to this mesh network membership',
+    `state` varchar(16) NOT NULL DEFAULT 'Active',
+    `created` datetime NOT NULL,
+    `removed` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_ovn_mesh_networks_uuid` (`uuid`),
+    INDEX `i_ovn_mesh_networks_mesh` (`mesh_uuid`),
+    INDEX `i_ovn_mesh_networks_vpc` (`vpc_id`),
+    INDEX `i_ovn_mesh_networks_network` (`network_id`),
+    CONSTRAINT `fk_ovn_mesh_networks_vpc` FOREIGN KEY (`vpc_id`) REFERENCES `cloud`.`vpc`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_mesh_networks_network` FOREIGN KEY (`network_id`) REFERENCES `cloud`.`networks`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ovn_mesh_networks_zone` FOREIGN KEY (`zone_id`) REFERENCES `cloud`.`data_center`(`id`),
+    CONSTRAINT `fk_ovn_mesh_networks_account` FOREIGN KEY (`account_id`) REFERENCES `cloud`.`account`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Add Firewall service to the default OVN VPC offering so that OVN VPC tiers
+-- using network offerings with Firewall/Ovn pass the service validation check.
+INSERT IGNORE INTO `cloud`.`vpc_offering_service_map` (`vpc_offering_id`, `service`, `provider`)
+    SELECT vo.id, 'Firewall', 'Ovn'
+    FROM `cloud`.`vpc_offerings` vo
+    WHERE vo.unique_name = 'VPC offering with OVN - NAT Mode'
+      AND NOT EXISTS (
+          SELECT 1 FROM `cloud`.`vpc_offering_service_map` sm
+          WHERE sm.vpc_offering_id = vo.id AND sm.service = 'Firewall'
+      );
+
 --- Quota tariff/usage mapping
 CREATE TABLE IF NOT EXISTS `cloud_usage`.`quota_tariff_usage` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,

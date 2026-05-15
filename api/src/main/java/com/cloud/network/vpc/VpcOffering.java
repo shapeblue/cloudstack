@@ -34,6 +34,7 @@ public interface VpcOffering extends InternalIdentity, Identity {
     public static final String DEFAULT_VPC_ROUTE_NSX_OFFERING_NAME = "VPC offering with NSX - Route Mode";
     public static final String DEFAULT_VPC_ROUTE_NETRIS_OFFERING_NAME = "VPC offering with Netris - Route Mode";
     public static final String DEFAULT_VPC_NAT_NETRIS_OFFERING_NAME = "VPC offering with Netris - NAT Mode";
+    public static final String DEFAULT_VPC_NAT_OVN_OFFERING_NAME = "VPC offering with OVN - NAT Mode";
 
     /**
      *

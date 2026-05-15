@@ -433,6 +433,7 @@ import AnnotationsTab from '@/components/view/AnnotationsTab'
 import ResourceIcon from '@/components/view/ResourceIcon'
 import BgpPeersTab from '@/views/infra/zone/BgpPeersTab.vue'
 import StaticRoutesTab from './StaticRoutesTab'
+import TooltipButton from '@/components/widgets/TooltipButton'
 
 export default {
   name: 'VpcTab',
@@ -445,6 +446,7 @@ export default {
     VpcTiersTab,
     VnfAppliancesTab,
     StaticRoutesTab,
+    TooltipButton,
     EventsTab,
     AnnotationsTab,
     ResourceIcon
@@ -465,6 +467,10 @@ export default {
       fetchLoading: false,
       privateGateways: [],
       associatedNetworks: [],
+      meshNetworks: [],
+      peerableVpcs: [],
+      meshAclList: [],
+      editingMeshMemberId: null,
       vpnGateways: [],
       publicIps: [],
       vpnConnections: [],
@@ -476,7 +482,11 @@ export default {
         vpnGatewayLoading: false,
         vpnConnection: false,
         vpnConnectionLoading: false,
-        networkAcl: false
+        networkAcl: false,
+        member: false,
+        meshLoading: false,
+        meshAcl: false,
+        meshAclLoading: false
       },
       placeholders: {
         vlan: null,
@@ -541,10 +551,46 @@ export default {
           dataIndex: 'description'
         }
       ],
+      meshNetworksColumns: [
+        {
+          key: 'peervpcname',
+          title: this.$t('label.peer.vpc'),
+          dataIndex: 'peervpcname'
+        },
+        {
+          title: 'CIDR',
+          dataIndex: 'peervpccidr'
+        },
+        {
+          title: this.$t('label.zone'),
+          dataIndex: 'zonename'
+        },
+        {
+          title: this.$t('label.link.local.ip'),
+          dataIndex: 'linklocalip'
+        },
+        {
+          key: 'aclname',
+          title: this.$t('label.aclid'),
+          dataIndex: 'aclname'
+        },
+        {
+          key: 'state',
+          title: this.$t('label.state'),
+          dataIndex: 'state'
+        },
+        {
+          key: 'actions',
+          title: '',
+          dataIndex: 'actions',
+          width: 100
+        }
+      ],
       itemCounts: {
         privateGateways: 0,
         vpnConnections: 0,
-        networkAcls: 0
+        networkAcls: 0,
+        meshNetworks: 0
       },
       page: 1,
       pageSize: 10,
@@ -614,6 +660,9 @@ export default {
           break
         case 'acl':
           this.fetchAclList()
+          break
+        case 'member':
+          this.fetchMeshNetworks()
           break
         case 'comments':
           this.fetchComments()
@@ -807,6 +856,15 @@ export default {
           }
           this.modals.networkAcl = true
           break
+        case 'member':
+          this.rules = {
+            peervpcid: [{ required: true, message: this.$t('label.required') }]
+          }
+          this.form.meshaclid = undefined
+          this.modals.member = true
+          this.fetchPeerableVpcs()
+          this.fetchMeshAclList()
+          break
       }
     },
     handleGatewayFormSubmit () {
@@ -987,6 +1045,134 @@ export default {
       }).catch(error => {
         this.formRef.value.scrollToField(error.errorFields[0].name)
         this.fetchLoading = false
+      })
+    },
+    fetchMeshNetworks () {
+      this.fetchLoading = true
+      getAPI('listMeshNetworks', {
+        vpcid: this.resource.id,
+        page: this.page,
+        pagesize: this.pageSize
+      }).then(json => {
+        this.meshNetworks = json.listmeshnetworksresponse?.meshnetwork || []
+        this.itemCounts.meshNetworks = json.listmeshnetworksresponse?.count || 0
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.fetchLoading = false
+      })
+    },
+    fetchPeerableVpcs () {
+      this.modals.meshLoading = true
+      this.peerableVpcs = []
+      // First get OVN-enabled zones
+      var ovnZoneIds = new Set()
+      var fetchVpcsAfterZones = () => {
+        getAPI('listVPCs', {
+          account: this.resource.account,
+          domainid: this.resource.domainid,
+          listAll: true
+        }).then(json => {
+          var vpcs = json.listvpcsresponse?.vpc || []
+          this.peerableVpcs = vpcs.filter(v =>
+            v.id !== this.resource.id && (ovnZoneIds.size === 0 || ovnZoneIds.has(v.zoneid))
+          )
+          if (this.peerableVpcs.length > 0) {
+            this.form.peervpcid = this.peerableVpcs[0].id
+          }
+        }).catch(error => {
+          this.$notifyError(error)
+        }).finally(() => {
+          this.modals.meshLoading = false
+        })
+      }
+      if ('listOvnProviders' in this.$store.getters.apis) {
+        getAPI('listOvnProviders', {}).then(json => {
+          var providers = json.listovnprovidersresponse?.ovnprovider || []
+          providers.forEach(p => ovnZoneIds.add(p.zoneid))
+        }).catch(() => {
+          // If listOvnProviders fails, show all VPCs
+        }).finally(() => {
+          fetchVpcsAfterZones()
+        })
+      } else {
+        fetchVpcsAfterZones()
+      }
+    },
+    handleCreateMeshNetwork () {
+      if (this.modals.meshLoading) return
+      this.modals.meshLoading = true
+
+      this.formRef.value.validate().then(() => {
+        const data = toRaw(this.form)
+        const params = {
+          vpcid: this.resource.id,
+          peervpcid: data.peervpcid
+        }
+        if (data.meshaclid) {
+          params.aclid = data.meshaclid
+        }
+        postAPI('createMeshNetwork', params).then(response => {
+          this.$message.success(this.$t('message.success.add.mesh.network'))
+          this.modals.member = false
+          this.fetchMeshNetworks()
+        }).catch(error => {
+          this.$notifyError(error)
+        }).finally(() => {
+          this.modals.meshLoading = false
+        })
+      }).catch(error => {
+        this.formRef.value.scrollToField(error.errorFields[0].name)
+        this.modals.meshLoading = false
+      })
+    },
+    handleDeleteMeshNetwork (record) {
+      this.fetchLoading = true
+      postAPI('deleteMeshNetwork', {
+        id: record.id
+      }).then(() => {
+        this.$message.success(this.$t('label.action.delete.succeeded'))
+        this.fetchMeshNetworks()
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.fetchLoading = false
+      })
+    },
+    fetchMeshAclList () {
+      getAPI('listNetworkACLLists', {
+        vpcid: this.resource.id,
+        listAll: true
+      }).then(json => {
+        this.meshAclList = json.listnetworkacllistsresponse?.networkacllist || []
+      }).catch(error => {
+        this.$notifyError(error)
+      })
+    },
+    handleEditMeshAcl (record) {
+      this.editingMeshMemberId = record.id
+      this.form.meshaclid = record.aclid || undefined
+      this.modals.meshAcl = true
+      this.fetchMeshAclList()
+    },
+    handleUpdateMeshAcl () {
+      if (this.modals.meshAclLoading) return
+      this.modals.meshAclLoading = true
+      const data = toRaw(this.form)
+      const params = {
+        id: this.editingMeshMemberId
+      }
+      if (data.meshaclid) {
+        params.aclid = data.meshaclid
+      }
+      postAPI('updateMeshNetwork', params).then(() => {
+        this.$message.success(this.$t('message.success.update.mesh.network'))
+        this.modals.meshAcl = false
+        this.fetchMeshNetworks()
+      }).catch(error => {
+        this.$notifyError(error)
+      }).finally(() => {
+        this.modals.meshAclLoading = false
       })
     },
     changePage (page, pageSize) {

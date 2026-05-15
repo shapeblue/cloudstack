@@ -8354,8 +8354,8 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
                                   String detectedProvider, String networkMode) {
 
         detectedProvider = getExternalNetworkProvider(detectedProvider, sourceServiceProviderMap);
-        // If this is an NSX/Netris offering, prevent network mode changes
-        if (detectedProvider != null && (detectedProvider.equals("NSX") || detectedProvider.equals("Netris"))) {
+        // If this is an external provider offering, prevent network mode changes
+        if (detectedProvider != null && (detectedProvider.equals("NSX") || detectedProvider.equals("Netris") || detectedProvider.equals("OVN"))) {
             if (networkMode != null && sourceOffering.getNetworkMode() != null) {
                 if (!networkMode.equalsIgnoreCase(sourceOffering.getNetworkMode().toString())) {
                     throw new InvalidParameterValueException(
@@ -8387,6 +8387,9 @@ public class ConfigurationManagerImpl extends ManagerBase implements Configurati
                 }
                 if (provider == Provider.Netris) {
                     return "Netris";
+                }
+                if (provider == Provider.Ovn) {
+                    return "OVN";
                 }
             }
         }

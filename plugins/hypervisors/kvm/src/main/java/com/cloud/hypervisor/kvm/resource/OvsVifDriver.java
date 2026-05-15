@@ -150,6 +150,14 @@ public class OvsVifDriver extends VifDriverBase {
                 intf.setVirtualPortInterfaceId(nic.getUuid());
                 String brName = (trafficLabel != null && !trafficLabel.isEmpty()) ? _pifs.get(trafficLabel) : _pifs.get("private");
                 intf.defBridgeNet(brName, null, nic.getMac(), getGuestNicModel(guestOsType, nicAdapter), networkRateKBps);
+            } else if (nic.getBroadcastType() == Networks.BroadcastDomainType.OVN) {
+                // OVN integration bridge attachment: ovn-controller binds the OVS port to the
+                // Logical_Switch_Port whose name equals external_ids:iface-id. Use the NIC UUID,
+                // matching the LSP name chosen by OvnElement.getLogicalSwitchPortName.
+                String brName = (trafficLabel != null && !trafficLabel.isEmpty()) ? _pifs.get(trafficLabel) : _bridges.get("guest");
+                logger.debug("nic " + nic + " needs to be connected to OVN integration bridge " + brName);
+                intf.setVirtualPortInterfaceId(nic.getUuid());
+                intf.defBridgeNet(brName, null, nic.getMac(), getGuestNicModel(guestOsType, nicAdapter), networkRateKBps);
             } else if (nic.getBroadcastType() == Networks.BroadcastDomainType.Vswitch) {
                 String brName = getOvsTunnelNetworkName(nic.getBroadcastUri().getAuthority());
                 logger.debug("nic " + nic + " needs to be connected to Open vSwitch bridge " + brName);

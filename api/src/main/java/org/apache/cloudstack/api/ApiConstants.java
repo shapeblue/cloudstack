@@ -1040,6 +1040,16 @@ public class ApiConstants {
 
     public static final String NSX_PROVIDER_PORT = "nsxproviderport";
     public static final String NSX_CONTROLLER_ID = "nsxcontrollerid";
+    public static final String OVN_NB_CONNECTION = "ovnnbconnection";
+    public static final String OVN_SB_CONNECTION = "ovnsbconnection";
+    public static final String OVN_CA_CERT_PATH = "ovncacertpath";
+    public static final String OVN_CLIENT_CERT_PATH = "ovnclientcertpath";
+    public static final String OVN_CLIENT_PRIVATE_KEY_PATH = "ovnclientprivatekeypath";
+    public static final String OVN_EXTERNAL_BRIDGE = "ovnexternalbridge";
+    public static final String OVN_LOCALNET_NAME = "ovnlocalnetname";
+    public static final String OVN_IC_NB_CONNECTION = "ovnicnbconnection";
+    public static final String OVN_IC_SB_CONNECTION = "ovnicsbconnection";
+    public static final String OVN_AVAILABILITY_ZONE_NAME = "ovnavailabilityzonename";
     public static final String S3_ACCESS_KEY = "accesskey";
     public static final String SECRET_KEY = "secretkey";
     public static final String S3_END_POINT = "endpoint";
@@ -1313,6 +1323,7 @@ public class ApiConstants {
     public static final String HAS_RULES = "hasrules";
     public static final String NSX_DETAIL_KEY = "forNsx";
     public static final String NETRIS_DETAIL_KEY = "forNetris";
+    public static final String OVN_DETAIL_KEY = "forOvn";
     public static final String NETRIS_TAG = "netristag";
     public static final String NETRIS_VXLAN_ID = "netrisvxlanid";
     public static final String NETRIS_URL = "netrisurl";

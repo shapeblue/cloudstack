@@ -1082,7 +1082,10 @@ export default {
           this.$store.getters.customColumns[this.$store.getters.userInfo.id] = {}
           this.$store.getters.customColumns[this.$store.getters.userInfo.id][this.$route.path] = this.selectedColumns
         } else {
-          this.selectedColumns = this.$store.getters.customColumns[this.$store.getters.userInfo.id][this.$route.path] || this.selectedColumns
+          const cached = this.$store.getters.customColumns[this.$store.getters.userInfo.id][this.$route.path]
+          const allKeys = this.allColumns.map(c => c.dataIndex)
+          const validCached = Array.isArray(cached) ? cached.filter(k => allKeys.includes(k)) : []
+          this.selectedColumns = validCached.length > 0 ? validCached : this.selectedColumns
           if (this.$store.getters.listAllProjects && !this.projectView) {
             this.selectedColumns.push('project')
           }

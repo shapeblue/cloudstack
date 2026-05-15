@@ -103,6 +103,18 @@
     />
 
     <static-inputs-form
+      v-if="steps && steps[currentStep].formKey === 'ovn'"
+      @nextPressed="nextPressed"
+      @backPressed="handleBack"
+      @fieldsChanged="fieldsChanged"
+      @submitLaunchZone="submitLaunchZone"
+      :fields="ovnFields"
+      :prefillContent="prefillContent"
+      :description="ovnSetupDescription"
+      :isFixError="isFixError"
+    />
+
+    <static-inputs-form
       v-if="steps && steps[currentStep].formKey === 'pod'"
       @nextPressed="nextPressed"
       @backPressed="handleBack"
@@ -237,6 +249,15 @@ export default {
       }
       return isNetris
     },
+    isOvnZone () {
+      // The physical-network grid stores the user's selection as the literal label of the
+      // dropdown option. The OVN option is registered as value="OVN" in
+      // ZoneWizardPhysicalNetworkSetupStep.vue, so match on that exact string.
+      if (!this.prefillContent.physicalNetworks) {
+        return false
+      }
+      return this.prefillContent.physicalNetworks.findIndex(network => network.isolationMethod === 'OVN') > -1
+    },
     allSteps () {
       const steps = []
       steps.push({
@@ -259,6 +280,12 @@ export default {
         steps.push({
           title: 'label.netris.provider',
           formKey: 'netris'
+        })
+      }
+      if (this.isOvnZone) {
+        steps.push({
+          title: 'label.ovn.provider',
+          formKey: 'ovn'
         })
       }
       if (this.havingNetscaler) {
@@ -523,6 +550,68 @@ export default {
       ]
       return fields
     },
+    ovnFields () {
+      // Mirrors the AddOvnProviderCmd parameters in
+      // plugins/network-elements/ovn/.../api/command/AddOvnProviderCmd.java.
+      // Only `name` and `nbConnection` are mandatory on the API; everything else is
+      // optional but operator-recommended for a usable zone:
+      //   - sbConnection lets us prune stale Gateway_Chassis rows (PR-2a/PR-2b)
+      //   - externalBridge / localnetName are how the public LS bridges to the
+      //     physical network via ovn-bridge-mappings
+      //   - the three TLS paths are required when the operator has secured the
+      //     OVSDB endpoints with TLS (NB/SB on ssl:host:6641|6642).
+      const fields = [
+        {
+          title: 'label.ovn.provider.name',
+          key: 'ovnName',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.name',
+          required: true
+        },
+        {
+          title: 'label.ovn.provider.nb.connection',
+          key: 'ovnNbConnection',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.nb.connection',
+          required: true
+        },
+        {
+          title: 'label.ovn.provider.sb.connection',
+          key: 'ovnSbConnection',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.sb.connection',
+          required: false
+        },
+        {
+          title: 'label.ovn.provider.external.bridge',
+          key: 'ovnExternalBridge',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.external.bridge',
+          required: false
+        },
+        {
+          title: 'label.ovn.provider.localnet.name',
+          key: 'ovnLocalnetName',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.localnet.name',
+          required: false
+        },
+        {
+          title: 'label.ovn.provider.ca.cert.path',
+          key: 'ovnCaCertPath',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.ca.cert.path',
+          required: false
+        },
+        {
+          title: 'label.ovn.provider.client.cert.path',
+          key: 'ovnClientCertPath',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.client.cert.path',
+          required: false
+        },
+        {
+          title: 'label.ovn.provider.client.private.key.path',
+          key: 'ovnClientPrivateKeyPath',
+          placeHolder: 'message.installwizard.tooltip.ovn.provider.client.private.key.path',
+          required: false
+        }
+      ]
+      return fields
+    },
     guestTrafficFields () {
       const fields = [
         {
@@ -594,6 +683,7 @@ export default {
       tungstenSetupDescription: 'message.infra.setup.tungsten.description',
       nsxSetupDescription: 'message.infra.setup.nsx.description',
       netrisSetupDescription: 'message.infra.setup.netris.description',
+      ovnSetupDescription: 'message.infra.setup.ovn.description',
       netscalerSetupDescription: 'label.please.specify.netscaler.info',
       storageTrafficDescription: 'label.zonewizard.traffictype.storage',
       podFields: [

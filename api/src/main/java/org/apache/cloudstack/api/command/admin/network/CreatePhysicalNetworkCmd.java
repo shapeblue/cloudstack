@@ -75,7 +75,7 @@ public class CreatePhysicalNetworkCmd extends BaseAsyncCreateCmd {
     @Parameter(name = ApiConstants.ISOLATION_METHODS,
                type = CommandType.LIST,
                collectionType = CommandType.STRING,
-               description = "The isolation method for the physical Network[VLAN/VXLAN/GRE/STT/BCF_SEGMENT/SSP/ODL/L3VPN/VCS/NSX/NETRIS]")
+               description = "The isolation method for the physical Network[VLAN/VXLAN/GRE/STT/BCF_SEGMENT/SSP/ODL/L3VPN/VCS/NSX/NETRIS/OVN]")
     private List<String> isolationMethods;
 
     @Parameter(name = ApiConstants.NAME, type = CommandType.STRING, required = true, description = "The name of the physical Network")

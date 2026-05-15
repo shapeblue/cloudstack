@@ -4331,6 +4331,13 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService, C
                         logger.warn("Failed to add Netris provider to physical network due to:", ex.getMessage());
                     }
 
+                    // Add OVN provider
+                    try {
+                        addOvnProviderToPhysicalNetwork(pNetwork.getId());
+                    } catch (Exception ex) {
+                        logger.warn("Failed to add OVN provider to physical network due to:", ex.getMessage());
+                    }
+
                     CallContext.current().putContextParameter(PhysicalNetwork.class, pNetwork.getUuid());
 
                     return pNetwork;
@@ -5754,6 +5761,21 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService, C
 
             addProviderToPhysicalNetwork(physicalNetworkId, Provider.Netris.getName(), null, null);
             enableProvider(Provider.Netris.getName());
+        }
+        return null;
+    }
+
+    private PhysicalNetworkServiceProvider addOvnProviderToPhysicalNetwork(long physicalNetworkId) {
+        PhysicalNetworkVO pvo = _physicalNetworkDao.findById(physicalNetworkId);
+        DataCenterVO dvo = _dcDao.findById(pvo.getDataCenterId());
+        if (dvo.getNetworkType() == NetworkType.Advanced) {
+            Provider provider = Network.Provider.getProvider(Provider.Ovn.getName());
+            if (provider == null) {
+                return null;
+            }
+
+            addProviderToPhysicalNetwork(physicalNetworkId, Provider.Ovn.getName(), null, null);
+            enableProvider(Provider.Ovn.getName());
         }
         return null;
     }

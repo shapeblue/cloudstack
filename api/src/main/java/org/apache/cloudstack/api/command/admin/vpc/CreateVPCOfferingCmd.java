@@ -64,6 +64,7 @@ import static com.cloud.network.Network.Service.Gateway;
 import static org.apache.cloudstack.api.command.utils.OfferingUtils.isNetrisNatted;
 import static org.apache.cloudstack.api.command.utils.OfferingUtils.isNetrisRouted;
 import static org.apache.cloudstack.api.command.utils.OfferingUtils.isNsxWithoutLb;
+import static org.apache.cloudstack.api.command.utils.OfferingUtils.isOvnProvider;
 
 @APICommand(name = "createVPCOffering", description = "Creates VPC offering", responseObject = VpcOfferingResponse.class,
         requestHasSensitiveInfo = false, responseHasSensitiveInfo = false)
@@ -179,7 +180,7 @@ public class CreateVPCOfferingCmd extends BaseAsyncCreateCmd {
     }
 
     public boolean isExternalNetworkProvider() {
-        return Arrays.asList("NSX", "Netris").stream()
+        return Arrays.asList("NSX", "Netris", "OVN").stream()
                 .anyMatch(s -> provider != null && s.equalsIgnoreCase(provider));
     }
 
@@ -189,9 +190,11 @@ public class CreateVPCOfferingCmd extends BaseAsyncCreateCmd {
             supportedServices = new ArrayList<>(List.of(
                     Dhcp.getName(),
                     Dns.getName(),
-                    NetworkACL.getName(),
-                    UserData.getName()
+                    NetworkACL.getName()
                     ));
+            if (!isOvnProvider(getProvider())) {
+                supportedServices.add(UserData.getName());
+            }
             if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode())) {
                 supportedServices.addAll(Arrays.asList(
                         StaticNat.getName(),
@@ -201,7 +204,7 @@ public class CreateVPCOfferingCmd extends BaseAsyncCreateCmd {
             if (NetworkOffering.NetworkMode.ROUTED.name().equalsIgnoreCase(getNetworkMode())) {
                 supportedServices.add(Gateway.getName());
             }
-            if (getNsxSupportsLbService() || isNetrisNatted(getProvider(), getNetworkMode())) {
+            if (getNsxSupportsLbService() || isNetrisNatted(getProvider(), getNetworkMode()) || isOvnProvider(getProvider())) {
                 supportedServices.add(Lb.getName());
             }
         }
@@ -252,13 +255,16 @@ public class CreateVPCOfferingCmd extends BaseAsyncCreateCmd {
         if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode())) {
             unsupportedServices.add("Gateway");
         }
-        List<String> routerSupported = List.of("Dhcp", "Dns", "UserData");
+        List<String> routerSupported = isOvnProvider(provider) ? List.of() : List.of("Dhcp", "Dns", "UserData");
         List<String> allServices = Network.Service.listAllServices().stream().map(Network.Service::getName).collect(Collectors.toList());
         for (String service : allServices) {
             if (unsupportedServices.contains(service))
                 continue;
             if (routerSupported.contains(service))
                 serviceProviderMap.put(service, List.of(VirtualRouterProvider.Type.VPCVirtualRouter.name()));
+            else if (isOvnProvider(provider) && (Dhcp.getName().equalsIgnoreCase(service) || Dns.getName().equalsIgnoreCase(service))) {
+                serviceProviderMap.put(service, List.of(provider));
+            }
             else if (NetworkOffering.NetworkMode.NATTED.name().equalsIgnoreCase(getNetworkMode()) ||
                     Stream.of(NetworkACL.getName(), Gateway.getName()).anyMatch(s -> s.equalsIgnoreCase(service))) {
                 serviceProviderMap.put(service, List.of(provider));

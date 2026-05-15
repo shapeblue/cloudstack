@@ -137,6 +137,7 @@ import com.cloud.network.dao.NetworkDao;
 import com.cloud.network.dao.NetworkVO;
 import com.cloud.network.dao.NetrisProviderDao;
 import com.cloud.network.dao.NsxProviderDao;
+import com.cloud.network.dao.OvnProviderDao;
 import com.cloud.network.dao.RemoteAccessVpnDao;
 import com.cloud.network.dao.RemoteAccessVpnVO;
 import com.cloud.network.dao.Site2SiteCustomerGatewayDao;
@@ -147,6 +148,7 @@ import com.cloud.network.element.NetrisProviderVO;
 import com.cloud.network.element.NetworkACLServiceProvider;
 import com.cloud.network.element.NetworkElement;
 import com.cloud.network.element.NsxProviderVO;
+import com.cloud.network.element.OvnProviderVO;
 import com.cloud.network.element.StaticNatServiceProvider;
 import com.cloud.network.element.VpcProvider;
 import com.cloud.network.router.CommandSetupHelper;
@@ -314,6 +316,8 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     @Inject
     private NetrisProviderDao netrisProviderDao;
     @Inject
+    private OvnProviderDao ovnProviderDao;
+    @Inject
     RoutedIpv4Manager routedIpv4Manager;
     @Inject
     DomainRouterDao domainRouterDao;
@@ -334,7 +338,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
     private List<VpcProvider> vpcElements = null;
     private final List<Service> nonSupportedServices = Arrays.asList(Service.SecurityGroup, Service.Firewall);
     private final List<Provider> supportedProviders = Arrays.asList(Provider.VPCVirtualRouter, Provider.NiciraNvp, Provider.InternalLbVm, Provider.Netscaler,
-            Provider.JuniperContrailVpcRouter, Provider.Ovs, Provider.BigSwitchBcf, Provider.ConfigDrive, Provider.Nsx, Provider.Netris);
+            Provider.JuniperContrailVpcRouter, Provider.Ovs, Provider.BigSwitchBcf, Provider.ConfigDrive, Provider.Nsx, Provider.Netris, Provider.Ovn);
 
     int _cleanupInterval;
     int _maxNetworks;
@@ -505,6 +509,35 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
                     createVpcOffering(VpcOffering.DEFAULT_VPC_NAT_NETRIS_OFFERING_NAME, VpcOffering.DEFAULT_VPC_NAT_NETRIS_OFFERING_NAME, svcProviderMap, false,
                             State.Enabled, null, false, false, false, NetworkOffering.NetworkMode.NATTED, null, false, false);
 
+                }
+
+                // Default OVN-backed VPC offering (NAT mode). Mirrors the Netris NAT entry
+                // above but binds every service the OVN provider can satisfy natively (Vpc,
+                // SourceNat, StaticNat, PortForwarding, Lb, NetworkACL, Firewall, Dhcp, Dns,
+                // Gateway) to the Ovn provider; UserData is delivered via ConfigDrive (the
+                // OVN data-plane has no metadata service of its own). The offering pairs with
+                // DefaultNATOVNNetworkOfferingForVpc on the tier side.
+                if (_vpcOffDao.findByUniqueName(VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME) == null) {
+                    logger.debug(String.format("Creating default VPC offering for OVN network service provider %s in NAT mode",
+                            VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME));
+                    final Map<Service, Set<Provider>> svcProviderMap = new HashMap<>();
+                    final Set<Provider> ovnProvider = Set.of(Provider.Ovn);
+                    final Set<Provider> configDriveProvider = Set.of(Provider.ConfigDrive);
+                    for (final Service svc : getSupportedServices()) {
+                        if (svc == Service.UserData) {
+                            svcProviderMap.put(svc, configDriveProvider);
+                        } else if (svc == Service.Vpn) {
+                            continue;
+                        } else {
+                            svcProviderMap.put(svc, ovnProvider);
+                        }
+                    }
+                    // OVN implements Firewall natively via OVN ACLs; VPC tiers use it
+                    // instead of (or alongside) NetworkACL. getSupportedServices()
+                    // excludes Firewall for legacy VR-based VPCs, so add it explicitly.
+                    svcProviderMap.put(Service.Firewall, ovnProvider);
+                    createVpcOffering(VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME, VpcOffering.DEFAULT_VPC_NAT_OVN_OFFERING_NAME, svcProviderMap, false,
+                            State.Enabled, null, false, false, false, NetworkOffering.NetworkMode.NATTED, null, false, false);
                 }
             }
         });
@@ -1733,10 +1766,11 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         String sourceNatIP = cmd.getSourceNatIP();
         boolean forNsx = isVpcForProvider(Provider.Nsx, vpc);
         boolean forNetris = isVpcForProvider(Provider.Netris, vpc);
+        boolean forOvn = isVpcForProvider(Provider.Ovn, vpc);
         try {
-            if (sourceNatIP != null || forNsx || forNetris) {
-                if (forNsx || forNetris) {
-                    logger.info("Provided source NAT IP will be ignored in an NSX-enabled or Netris-enabled zone");
+            if (sourceNatIP != null || forNsx || forNetris || forOvn) {
+                if (forNsx || forNetris || forOvn) {
+                    logger.info("Provided source NAT IP will be ignored in an NSX-enabled, Netris-enabled or OVN-enabled zone");
                     sourceNatIP = null;
                 }
                 logger.info(String.format("Trying to allocate the specified IP [%s] as the source NAT of VPC [%s].", sourceNatIP, vpc));
@@ -2511,8 +2545,9 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         // 2) Only Isolated networks with Source nat service enabled can be
         // added to vpc
         boolean isForNsx = _ntwkModel.isProviderForNetworkOffering(Provider.Nsx, guestNtwkOff.getId());
-        boolean isForNNetris = _ntwkModel.isProviderForNetworkOffering(Provider.Netris, guestNtwkOff.getId());
-        if (!isForNsx && !isForNNetris
+        boolean isForNetris = _ntwkModel.isProviderForNetworkOffering(Provider.Netris, guestNtwkOff.getId());
+        boolean isForOvn = _ntwkModel.isProviderForNetworkOffering(Provider.Ovn, guestNtwkOff.getId());
+        if (!isForNsx && !isForNetris && !isForOvn
                 && !(guestNtwkOff.getGuestType() == GuestType.Isolated && (supportedSvcs.contains(Service.SourceNat) || supportedSvcs.contains(Service.Gateway)))) {
 
             throw new InvalidParameterValueException("Only network offerings of type " + GuestType.Isolated + " with service " + Service.SourceNat.getName()
@@ -3898,6 +3933,8 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         boolean forNsx = nsxProvider != null;
         NetrisProviderVO netrisProvider = netrisProviderDao.findByZoneId(dcId);
         boolean forNetris = netrisProvider != null;
+        OvnProviderVO ovnProvider = ovnProviderDao.findByZoneId(dcId);
+        boolean forOvn = ovnProvider != null;
 
         final IPAddressVO sourceNatIp = getExistingSourceNatInVpc(owner.getId(), vpc.getId(), forNsx, forNetris);
 
@@ -3906,7 +3943,7 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         if (sourceNatIp != null) {
             ipToReturn = PublicIp.createFromAddrAndVlan(sourceNatIp, _vlanDao.findById(sourceNatIp.getVlanId()));
         } else {
-            if (forNsx || forNetris) {
+            if (forNsx || forNetris || forOvn) {
                 // Assign VR (helper VM) public NIC IP address from the separate provider Public IP range/pool
                 // NSX: VR uses Public IP from the system VM range
                 // Netris: VR uses Public IP from the non system VM range
@@ -3954,11 +3991,13 @@ public class VpcManagerImpl extends ManagerBase implements VpcManager, VpcProvis
         return (Objects.nonNull(vpcOffSvcProvidersMap.get(Network.Service.SourceNat))
                 && (vpcOffSvcProvidersMap.get(Network.Service.SourceNat).contains(Network.Provider.VPCVirtualRouter)
                 || vpcOffSvcProvidersMap.get(Service.SourceNat).contains(Provider.Nsx)
-                || vpcOffSvcProvidersMap.get(Service.SourceNat).contains(Provider.Netris)))
+                || vpcOffSvcProvidersMap.get(Service.SourceNat).contains(Provider.Netris)
+                || vpcOffSvcProvidersMap.get(Service.SourceNat).contains(Provider.Ovn)))
                 || (Objects.nonNull(vpcOffSvcProvidersMap.get(Network.Service.Gateway))
                     && (vpcOffSvcProvidersMap.get(Service.Gateway).contains(Network.Provider.VPCVirtualRouter)
                     || vpcOffSvcProvidersMap.get(Service.Gateway).contains(Provider.Nsx)
-                    || vpcOffSvcProvidersMap.get(Service.Gateway).contains(Network.Provider.Netris)));
+                    || vpcOffSvcProvidersMap.get(Service.Gateway).contains(Network.Provider.Netris)
+                    || vpcOffSvcProvidersMap.get(Service.Gateway).contains(Network.Provider.Ovn)));
     }
 
      @Override

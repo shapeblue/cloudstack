@@ -5295,6 +5295,9 @@ public class LibvirtComputingResourceTest {
                     Mockito.anyString(), Mockito.anyInt(),
                     Mockito.anyString(), any(File.class), nullable(String.class), Mockito.anyString(),
                     any(String[].class), Mockito.anyString())).thenAnswer(invocation -> null);
+            sshHelperMockedStatic.when(() -> SshHelper.sshExecute(
+                    Mockito.anyString(), Mockito.anyInt(), Mockito.anyString(), any(File.class), nullable(String.class),
+                    Mockito.anyString(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt())).thenReturn(new Pair<>(true, ""));
 
             final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
             assertNotNull(wrapper);
@@ -5375,6 +5378,9 @@ public class LibvirtComputingResourceTest {
                     Mockito.anyString(), Mockito.anyInt(),
                     Mockito.anyString(), any(File.class), nullable(String.class), Mockito.anyString(),
                     any(String[].class), Mockito.anyString())).thenAnswer(invocation -> null);
+            sshHelperMockedStatic.when(() -> SshHelper.sshExecute(
+                    Mockito.anyString(), Mockito.anyInt(), Mockito.anyString(), any(File.class), nullable(String.class),
+                    Mockito.anyString(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt())).thenReturn(new Pair<>(true, ""));
             final LibvirtRequestWrapper wrapper = LibvirtRequestWrapper.getInstance();
             assertNotNull(wrapper);
 

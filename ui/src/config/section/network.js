@@ -934,6 +934,70 @@ export default {
       ]
     },
     {
+      name: 'meshnetwork',
+      title: 'label.mesh.network',
+      icon: 'swap-outlined',
+      permission: ['listMeshNetworks'],
+      resourceType: 'MeshNetwork',
+      columns: ['name', 'description', 'membercount', 'membernames', 'state', 'zonename'],
+      details: ['name', 'id', 'groupuuid', 'description', 'state', 'zonename', 'membercount', 'membernames', 'created'],
+      searchFilters: ['name', 'zoneid'],
+      tabs: [{
+        name: 'details',
+        component: shallowRef(defineAsyncComponent(() => import('@/components/view/DetailsTab.vue')))
+      }, {
+        name: 'mesh_peers',
+        component: shallowRef(defineAsyncComponent(() => import('@/views/network/MeshNetworkMembersTab.vue')))
+      }],
+      actions: [
+        {
+          api: 'createMeshNetwork',
+          icon: 'plus-outlined',
+          label: 'label.add.mesh.network',
+          listView: true,
+          popup: true,
+          component: shallowRef(defineAsyncComponent(() => import('@/views/network/CreateMeshNetwork.vue')))
+        },
+        {
+          api: 'enableMeshNetwork',
+          icon: 'play-circle-outlined',
+          label: 'label.enable.mesh.network',
+          message: 'message.confirm.enable.mesh.network',
+          dataView: true,
+          groupAction: true,
+          popup: true,
+          show: (record) => record.state === 'Disabled',
+          groupShow: (selection, store) => true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
+        },
+        {
+          api: 'disableMeshNetwork',
+          icon: 'pause-circle-outlined',
+          label: 'label.disable.mesh.network',
+          message: 'message.confirm.disable.mesh.network',
+          dataView: true,
+          groupAction: true,
+          popup: true,
+          show: (record) => record.state === 'Active',
+          groupShow: (selection, store) => true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
+        },
+        {
+          api: 'deleteMeshNetwork',
+          icon: 'delete-outlined',
+          label: 'label.delete.mesh.network',
+          message: 'message.confirm.delete.mesh.network.group',
+          dataView: true,
+          groupAction: true,
+          popup: true,
+          groupMap: (selection) => { return selection.map(x => { return { id: x } }) }
+        }
+      ],
+      show: () => {
+        return isZoneCreated()
+      }
+    },
+    {
       name: 'privategw',
       title: 'label.private.gateway',
       icon: 'gateway-outlined',

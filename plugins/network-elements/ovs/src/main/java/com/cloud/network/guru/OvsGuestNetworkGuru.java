@@ -77,6 +77,7 @@ public class OvsGuestNetworkGuru extends GuestNetworkGuru {
             && isMyTrafficType(offering.getTrafficType())
             && offering.getGuestType() == Network.GuestType.Isolated
             && isMyIsolationMethod(physicalNetwork)
+            && _ntwkOfferingSrvcDao.isProviderForNetworkOffering(offering.getId(), Network.Provider.Ovs)
             && _ntwkOfferingSrvcDao.areServicesSupportedByNetworkOffering(
                 offering.getId(), Service.Connectivity)) {
             return true;

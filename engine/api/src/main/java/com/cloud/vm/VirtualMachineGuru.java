@@ -88,7 +88,7 @@ public interface VirtualMachineGuru {
         return Base64.getEncoder().encodeToString(certificate.replace("\n", KeyStoreUtils.CERT_NEWLINE_ENCODER).replace(" ", KeyStoreUtils.CERT_SPACE_ENCODER).getBytes(StandardCharsets.UTF_8));
     }
 
-    static void appendCertificateDetails(StringBuilder buf, Certificate certificate) {
+    public static void appendCertificateDetails(StringBuilder buf, Certificate certificate) {
         try {
             buf.append(" certificate=").append(getEncodedString(CertUtils.x509CertificateToPem(certificate.getClientCertificate())));
             buf.append(" cacertificate=").append(getEncodedString(CertUtils.x509CertificatesToPem(certificate.getCaCertificates())));

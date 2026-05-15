@@ -114,6 +114,9 @@ public interface NetworkOrchestrationService {
 
     ConfigKey<Boolean> NETRIS_ENABLED = new ConfigKey<>(Boolean.class, "netris.plugin.enable", "Advanced", "false",
             "Indicates whether to enable the Netris plugin", false, ConfigKey.Scope.Zone, null);
+
+    ConfigKey<Boolean> OVN_ENABLED = new ConfigKey<>(Boolean.class, "ovn.plugin.enable", "Advanced", "false",
+            "Indicates whether to enable the OVN plugin", false, ConfigKey.Scope.Zone, null);
     ConfigKey<Integer> NETWORK_LB_HAPROXY_MAX_CONN = new ConfigKey<>(
                     "Network",
                     Integer.class,

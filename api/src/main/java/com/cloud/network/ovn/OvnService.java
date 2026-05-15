@@ -1,0 +1,34 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+package com.cloud.network.ovn;
+
+/**
+ * Service boundary for CloudStack's native OVN integration.
+ */
+public interface OvnService {
+    String getLogicalSwitchName(long networkId);
+    String getLogicalRouterName(long vpcId);
+    String getLogicalSwitchPortName(long nicId);
+    boolean isValidConnectionString(String connection);
+
+    /**
+     * Opens a transient connection to the OVN Northbound endpoint described by the arguments,
+     * runs an OVSDB echo and confirms the OVN_Northbound database is advertised. Throws a
+     * {@link com.cloud.utils.exception.CloudRuntimeException} on any failure, leaving no resources behind.
+     */
+    void verifyNbConnection(String nbConnection, String caCertPath, String clientCertPath, String clientPrivateKeyPath);
+}
