@@ -159,6 +159,11 @@ export default {
         this.allIsolatedNetworks = networks.filter(n => {
           if (n.vpcid) return false // tier, not standalone
           if (n.broadcastdomaintype !== 'OVN') return false
+          // listNetworks ignores the state param, so re-check here. The
+          // backend rejects non-Implemented networks (no LR provisioned
+          // yet), so showing them would just produce a confusing error
+          // at submit time.
+          if (n.state !== 'Implemented') return false
           return true
         })
         const groups = meshResp.listmeshnetworksresponse?.meshnetwork || []

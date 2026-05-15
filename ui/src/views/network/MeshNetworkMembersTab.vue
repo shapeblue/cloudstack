@@ -94,25 +94,28 @@
       width="480px">
       <a-spin :spinning="adding">
         <a-form layout="vertical">
-          <a-form-item :label="$t('label.vpc')">
+          <a-form-item :label="$t('label.mesh.network.members')">
             <a-select
-              v-model:value="newVpcId"
+              v-model:value="newMemberKey"
               showSearch
               optionFilterProp="label"
               :placeholder="$t('label.select')"
               :filterOption="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())">
               <a-select-option
-                v-for="item in vpcsAvailable"
-                :key="item.id"
-                :value="item.id"
-                :label="`${item.name} (${item.cidr}) - ${item.zonename}`">
+                v-for="item in membersAvailable"
+                :key="item.key"
+                :value="item.key"
+                :label="`[${item.kindLabel}] ${item.name} (${item.cidr}) - ${item.zonename}`">
+                <a-tag :color="item.kind === 'vpc' ? 'blue' : 'green'" style="margin-right: 6px;">
+                  {{ item.kindLabel }}
+                </a-tag>
                 {{ item.name }} ({{ item.cidr }}) - {{ item.zonename }}
               </a-select-option>
             </a-select>
           </a-form-item>
           <div class="action-button">
             <a-button @click="showAddModal = false">{{ $t('label.cancel') }}</a-button>
-            <a-button type="primary" @click="addMember" :disabled="!newVpcId">{{ $t('label.ok') }}</a-button>
+            <a-button type="primary" @click="addMember" :disabled="!newMemberKey">{{ $t('label.ok') }}</a-button>
           </div>
         </a-form>
       </a-spin>
@@ -182,9 +185,10 @@ export default {
   data () {
     return {
       allVpcs: [],
-      peeredVpcIds: new Set(),
+      allIsolatedNetworks: [],
+      usedKeys: new Set(),
       showAddModal: false,
-      newVpcId: undefined,
+      newMemberKey: undefined,
       adding: false,
       showAclModal: false,
       aclLoading: false,
@@ -208,43 +212,87 @@ export default {
         { key: 'actions', title: '', dataIndex: 'actions', width: 90, align: 'center' }
       ]
     },
-    vpcsAvailable () {
-      return this.allVpcs.filter(v => !this.peeredVpcIds.has(v.id))
+    membersAvailable () {
+      const items = []
+      for (const v of this.allVpcs) {
+        if (this.usedKeys.has('vpc:' + v.id)) continue
+        items.push({
+          key: 'vpc:' + v.id,
+          kind: 'vpc',
+          kindLabel: this.$t('label.vpc'),
+          id: v.id,
+          name: v.name,
+          cidr: v.cidr,
+          zonename: v.zonename
+        })
+      }
+      for (const n of this.allIsolatedNetworks) {
+        if (this.usedKeys.has('network:' + n.id)) continue
+        items.push({
+          key: 'network:' + n.id,
+          kind: 'network',
+          kindLabel: this.$t('label.isolated.network'),
+          id: n.id,
+          name: n.name,
+          cidr: n.cidr,
+          zonename: n.zonename
+        })
+      }
+      return items
     }
   },
   methods: {
     openAddModal () {
-      this.newVpcId = undefined
+      this.newMemberKey = undefined
       this.showAddModal = true
-      this.fetchAllVpcs()
+      this.fetchAllMembers()
     },
-    fetchAllVpcs () {
+    fetchAllMembers () {
       Promise.all([
         getAPI('listVPCs', { listAll: true }),
+        getAPI('listNetworks', { listAll: true, type: 'Isolated' }),
         getAPI('listMeshNetworks')
-      ]).then(([vpcResp, peerResp]) => {
+      ]).then(([vpcResp, netResp, peerResp]) => {
         this.allVpcs = vpcResp.listvpcsresponse?.vpc || []
+        const networks = netResp.listnetworksresponse?.network || []
+        this.allIsolatedNetworks = networks.filter(n => {
+          if (n.vpcid) return false
+          if (n.broadcastdomaintype !== 'OVN') return false
+          if (n.state !== 'Implemented') return false
+          return true
+        })
         const groups = peerResp.listmeshnetworksresponse?.meshnetwork || []
         const used = new Set()
         for (const g of groups) {
           for (const m of (g.members || [])) {
-            if (m.vpcid) used.add(m.vpcid)
+            if (m.vpcid) used.add('vpc:' + m.vpcid)
+            if (m.networkid) used.add('network:' + m.networkid)
           }
         }
-        this.peeredVpcIds = used
+        this.usedKeys = used
       }).catch(error => {
         this.$notifyError(error)
       })
     },
+    paramsForKey (key, peer) {
+      const [kind, id] = key.split(':')
+      if (peer) {
+        return kind === 'vpc' ? { peervpcid: id } : { peernetworkid: id }
+      }
+      return kind === 'vpc' ? { vpcid: id } : { networkid: id }
+    },
     async addMember () {
-      if (!this.newVpcId || this.members.length === 0) return
+      if (!this.newMemberKey || this.members.length === 0) return
       this.adding = true
       try {
         const existing = this.members[0]
+        const existingKey = existing.kind === 'network'
+          ? 'network:' + existing.networkid
+          : 'vpc:' + existing.vpcid
         await postAPI('createMeshNetwork', {
           name: this.resource.name,
-          vpcid: this.newVpcId,
-          peervpcid: existing.vpcid
+          ...this.paramsForKey(this.newMemberKey, false),
+          ...this.paramsForKey(existingKey, true)
         })
         this.$message.success(this.$t('message.success.add.mesh.network'))
         this.showAddModal = false
