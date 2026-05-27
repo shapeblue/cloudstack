@@ -502,215 +502,6 @@ public class KVMStorageProcessorTest {
         Assert.assertEquals("vda", result);
     }
 
-    @Test
-    public void testIsBitmapUsable_ValidBitmap() {
-        String validJsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": [\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-123\",\n" +
-                "          \"flags\": []\n" +
-                "        }\n" +
-                "      ]\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(validJsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertTrue("Bitmap should be usable when it exists and has no 'in-use' flag", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_BitmapInUse() {
-        String inUseJsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": [\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-123\",\n" +
-                "          \"flags\": [\"in-use\"]\n" +
-                "        }\n" +
-                "      ]\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(inUseJsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Bitmap should not be usable when marked as 'in-use'", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_BitmapNotFound() {
-        String jsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": [\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-456\",\n" +
-                "          \"flags\": []\n" +
-                "        }\n" +
-                "      ]\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(jsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Bitmap should not be usable when not found", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_NoBitmaps() {
-        String jsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": []\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(jsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Bitmap should not be usable when no bitmaps exist", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_EmptyOutput() {
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn("");
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Bitmap should not be usable when qemu-img returns empty output", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_InvalidJson() {
-        String invalidJson = "{invalid json}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(invalidJson);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Bitmap should not be usable when JSON parsing fails", result);
-        }
-    }
-
-    @Test
-    public void testValidateClvmNgBitmapAndFallbackIfNeeded_NotClvmNg() throws LibvirtException {
-        Mockito.when(kvmStoragePoolMock.getType()).thenReturn(Storage.StoragePoolType.NetworkFilesystem);
-
-        SnapshotObjectTO result = storageProcessorSpy.validateClvmNgBitmapAndFallbackIfNeeded(
-                snapshotObjectToMock, kvmStoragePoolMock, null, null, "snapshot-1",
-                volumeObjectToMock, connectMock, 30);
-
-        Assert.assertNull("Should return null for non-CLVM_NG storage", result);
-    }
-
-    @Test
-    public void testValidateClvmNgBitmapAndFallbackIfNeeded_NoParentSnapshot() throws LibvirtException {
-        Mockito.when(kvmStoragePoolMock.getType()).thenReturn(Storage.StoragePoolType.CLVM_NG);
-        Mockito.when(snapshotObjectToMock.getParentSnapshotPath()).thenReturn(null);
-
-        SnapshotObjectTO result = storageProcessorSpy.validateClvmNgBitmapAndFallbackIfNeeded(
-                snapshotObjectToMock, kvmStoragePoolMock, null, null, "snapshot-1",
-                volumeObjectToMock, connectMock, 30);
-
-        Assert.assertNull("Should return null when there's no parent snapshot", result);
-    }
-
-    @Test
-    public void testValidateClvmNgBitmapAndFallbackIfNeeded_EmptyParentsArray() throws LibvirtException {
-        Mockito.when(kvmStoragePoolMock.getType()).thenReturn(Storage.StoragePoolType.CLVM_NG);
-        Mockito.when(snapshotObjectToMock.getParentSnapshotPath()).thenReturn("/path/to/parent");
-        Mockito.when(snapshotObjectToMock.getParents()).thenReturn(new String[]{});
-
-        SnapshotObjectTO result = storageProcessorSpy.validateClvmNgBitmapAndFallbackIfNeeded(
-                snapshotObjectToMock, kvmStoragePoolMock, null, null, "snapshot-1",
-                volumeObjectToMock, connectMock, 30);
-
-        Assert.assertNull("Should return null when parents array is empty", result);
-    }
-
-    @Test
-    public void testValidateClvmNgBitmapAndFallbackIfNeeded_BitmapValidNoFallback() throws LibvirtException {
-        String validJsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": [\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-123\",\n" +
-                "          \"flags\": []\n" +
-                "        }\n" +
-                "      ]\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getType()).thenReturn(Storage.StoragePoolType.CLVM_NG);
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(snapshotObjectToMock.getParentSnapshotPath()).thenReturn("/path/to/parent");
-            Mockito.when(snapshotObjectToMock.getParents()).thenReturn(new String[]{"/snapshots/checkpoint-123"});
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(validJsonOutput);
-
-            SnapshotObjectTO result = storageProcessorSpy.validateClvmNgBitmapAndFallbackIfNeeded(
-                    snapshotObjectToMock, kvmStoragePoolMock, null, null, "snapshot-1",
-                    volumeObjectToMock, connectMock, 30);
-
-            Assert.assertNull("Should return null when bitmap is valid (no fallback needed)", result);
-        }
-    }
-
     // ==================== CLVM/CLVM_NG Snapshot Path Parsing Tests ====================
 
     @Test
@@ -878,153 +669,53 @@ public class KVMStorageProcessorTest {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // cleanupPendingFrozenLvIfPresent — template-LV guard
+    // -----------------------------------------------------------------------
+
     @Test
-    public void testCleanupBrokenBitmap_SuccessfulRemoval() {
-        String bitmapName = "checkpoint-123";
+    public void testCleanupPendingFrozenLvSkipsTemplateLv() throws Exception {
+        String activeLvPath  = "/dev/sharedvg/vol-uuid";
+        String templatePath  = "/dev/sharedvg/template-abc123";
 
-        try (MockedConstruction<QemuImg> qemuImgConstruction = Mockito.mockConstruction(QemuImg.class, (mock, context) -> {
-            Mockito.doNothing().when(mock).bitmap(Mockito.any(), Mockito.any(), Mockito.anyString());
-        })) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
+        try (MockedConstruction<QemuImg> qemuImgCtor = Mockito.mockConstruction(QemuImg.class,
+                     (mock, ctx) -> Mockito.when(mock.info(Mockito.any()))
+                             .thenReturn(Map.of("backing_file", templatePath)));
+             MockedStatic<Script> scriptStatic = Mockito.mockStatic(Script.class)) {
 
-            java.lang.reflect.Method method = KVMStorageProcessor.class.getDeclaredMethod(
-                    "cleanupBrokenBitmap", KVMStoragePool.class, VolumeObjectTO.class, String.class);
-            method.setAccessible(true);
-            method.invoke(storageProcessorSpy, kvmStoragePoolMock, volumeObjectToMock, bitmapName);
+            java.lang.reflect.Method m = KVMStorageProcessor.class.getDeclaredMethod(
+                    "cleanupPendingFrozenLvIfPresent",
+                    String.class, SnapshotObjectTO.class, KVMStoragePool.class, int.class);
+            m.setAccessible(true);
+            m.invoke(storageProcessor, activeLvPath, snapshotObjectToMock, kvmStoragePoolMock, 30000);
 
-            Assert.assertTrue("Method should complete successfully", true);
-        } catch (Exception e) {
-            Assert.fail("Failed to test cleanupBrokenBitmap: " + e.getMessage());
+            // lvremove must NOT be called when the backing LV is a template
+            scriptStatic.verify(
+                    () -> Script.runSimpleBashScript(Mockito.contains("lvremove")),
+                    Mockito.never());
         }
     }
 
     @Test
-    public void testCleanupBrokenBitmap_QemuImgException() {
-        String bitmapName = "checkpoint-456";
+    public void testCleanupPendingFrozenLvDeletesOrphanedStagingLv() throws Exception {
+        String activeLvPath  = "/dev/sharedvg/vol-uuid";
+        String orphanedLv    = "/dev/sharedvg/snap-staging-old-snap";
 
-        try (MockedConstruction<QemuImg> qemuImgConstruction = Mockito.mockConstruction(QemuImg.class, (mock, context) -> {
-            Mockito.doThrow(new QemuImgException("Failed to remove bitmap"))
-                    .when(mock).bitmap(Mockito.any(), Mockito.any(), Mockito.anyString());
-        })) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
+        try (MockedConstruction<QemuImg> qemuImgCtor = Mockito.mockConstruction(QemuImg.class,
+                     (mock, ctx) -> Mockito.when(mock.info(Mockito.any()))
+                             .thenReturn(Map.of("backing_file", orphanedLv)));
+             MockedStatic<Script> scriptStatic = Mockito.mockStatic(Script.class)) {
 
-            java.lang.reflect.Method method = KVMStorageProcessor.class.getDeclaredMethod(
-                    "cleanupBrokenBitmap", KVMStoragePool.class, VolumeObjectTO.class, String.class);
-            method.setAccessible(true);
-            method.invoke(storageProcessorSpy, kvmStoragePoolMock, volumeObjectToMock, bitmapName);
+            java.lang.reflect.Method m = KVMStorageProcessor.class.getDeclaredMethod(
+                    "cleanupPendingFrozenLvIfPresent",
+                    String.class, SnapshotObjectTO.class, KVMStoragePool.class, int.class);
+            m.setAccessible(true);
+            m.invoke(storageProcessor, activeLvPath, snapshotObjectToMock, null, 30000);
 
-            Assert.assertTrue("Method should handle exception gracefully", true);
-        } catch (Exception e) {
-            Assert.fail("Failed to test cleanupBrokenBitmap: " + e.getMessage());
+            // lvremove MUST be called to clean up the orphaned staging LV
+            scriptStatic.verify(
+                    () -> Script.runSimpleBashScript("lvremove -f " + orphanedLv));
         }
     }
 
-    @Test
-    public void testIsBitmapUsable_MultipleFlagsWithInUse() {
-        String jsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": [\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-123\",\n" +
-                "          \"flags\": [\"auto\", \"in-use\", \"persistent\"]\n" +
-                "        }\n" +
-                "      ]\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(jsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Bitmap should not be usable when 'in-use' flag is present among multiple flags", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_MultipleBitmapsOnlyFirstMatches() {
-        String jsonOutput = "{\n" +
-                "  \"format-specific\": {\n" +
-                "    \"data\": {\n" +
-                "      \"bitmaps\": [\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-123\",\n" +
-                "          \"flags\": []\n" +
-                "        },\n" +
-                "        {\n" +
-                "          \"name\": \"checkpoint-456\",\n" +
-                "          \"flags\": [\"in-use\"]\n" +
-                "        }\n" +
-                "      ]\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(jsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertTrue("Should match the first bitmap and return usable", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_NoFormatSpecificData() {
-        String jsonOutput = "{\n" +
-                "  \"filename\": \"/dev/vg/volume\",\n" +
-                "  \"format\": \"qcow2\"\n" +
-                "}";
-
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(jsonOutput);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Should return false when no format-specific data is present", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_NullOutput() {
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-            Mockito.when(kvmStoragePoolMock.getLocalPathFor(Mockito.anyString()))
-                    .thenReturn("/dev/vg/volume");
-            Mockito.when(volumeObjectToMock.getPath()).thenReturn("volume-path");
-            scriptMock.when(() -> Script.runSimpleBashScriptWithFullResult(Mockito.anyString(), Mockito.anyInt()))
-                    .thenReturn(null);
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Should return false when qemu-img returns null", result);
-        }
-    }
-
-    @Test
-    public void testIsBitmapUsable_ExceptionDuringCheck() {
-        try (MockedStatic<Script> scriptMock = Mockito.mockStatic(Script.class)) {
-
-            boolean result = storageProcessorSpy.isBitmapUsable(kvmStoragePoolMock, volumeObjectToMock, "checkpoint-123");
-
-            Assert.assertFalse("Should return false when exception occurs", result);
-        }
-    }
 }
