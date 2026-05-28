@@ -953,6 +953,23 @@ public class ClvmStorageAdaptor extends LibvirtStorageAdaptor {
     }
 
     /**
+     * Renames {@code oldLvName} to {@code newLvName} within {@code vgName}.
+     * Throws {@link CloudRuntimeException} on failure.
+     */
+    public void renameLv(String vgName, String oldLvName, String newLvName, int timeout) {
+        Script lvrename = new Script("lvrename", Duration.millis(timeout), logger);
+        lvrename.add(vgName);
+        lvrename.add(oldLvName);
+        lvrename.add(newLvName);
+        String result = lvrename.execute();
+        if (result != null) {
+            throw new CloudRuntimeException(String.format(
+                    "Failed to rename LV [%s] to [%s] in VG [%s]: %s", oldLvName, newLvName, vgName, result));
+        }
+        logger.debug("Renamed LV [{}] to [{}] in VG [{}].", oldLvName, newLvName, vgName);
+    }
+
+    /**
      * Removes the LV at {@code lvPath} if it exists; no-op (and no exception) if it does not.
      * Used for best-effort cleanup on failure paths.
      *

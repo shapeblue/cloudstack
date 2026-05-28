@@ -2179,6 +2179,9 @@ public class KVMStorageProcessor implements StorageProcessor {
         ClvmStorageAdaptor clvmAdaptor = (ClvmStorageAdaptor) ((LibvirtStoragePool) primaryPool)._storageAdaptor;
         KVMPhysicalDisk stagingDisk = clvmAdaptor.createSnapshotStagingLv(stagingName, activeLvPath, volume.getSize(), primaryPool, wait);
 
+        String activeLvName = activeLvPath.substring(activeLvPath.lastIndexOf('/') + 1);
+        String vgName = activeLvPath.split("/")[2];
+        boolean activeLvDeleted = false;
         try {
             SnapshotObjectTO result = exportClvmNgLvToSecondary(
                     snapshotTO, primaryPool, secondaryPool, activeLvPath, snapshotName, volume, wait);
@@ -2188,18 +2191,25 @@ public class KVMStorageProcessor implements StorageProcessor {
             QemuImgFile nfsBacking = new QemuImgFile(result.getCheckpointPath(), PhysicalDiskFormat.QCOW2);
             qemuImg.rebase(stagingFile, nfsBacking, PhysicalDiskFormat.QCOW2.toString(), false);
 
-            String activeLvName = activeLvPath.substring(activeLvPath.lastIndexOf('/') + 1);
             primaryPool.deletePhysicalDisk(activeLvName, ImageFormat.QCOW2);
+            activeLvDeleted = true;
+
+            // Rename staging LV back to the original volume name so the DB path remains valid.
+            clvmAdaptor.renameLv(vgName, stagingName, activeLvName, wait);
 
             VolumeObjectTO resultVol = (VolumeObjectTO) result.getVolume();
-            resultVol.setPath(stagingDisk.getPath());
+            resultVol.setPath(activeLvPath);
 
             return result;
 
         } catch (Exception e) {
             logger.error("CLVM_NG COW snapshot failed", e);
-            String stagingLvName = stagingDisk.getPath().substring(stagingDisk.getPath().lastIndexOf('/') + 1);
-            primaryPool.deletePhysicalDisk(stagingLvName, ImageFormat.QCOW2);
+            if (!activeLvDeleted) {
+                clvmAdaptor.removeLvIfExists(stagingDisk.getPath(), wait);
+            } else {
+                logger.error("Active LV [{}] was already deleted but rename of staging LV [{}] failed. " +
+                        "Volume data is in the staging LV — manual lvrename recovery required.", activeLvPath, stagingDisk.getPath());
+            }
             throw new CloudRuntimeException("CLVM_NG COW snapshot failed: " + e.getMessage(), e);
         }
     }
