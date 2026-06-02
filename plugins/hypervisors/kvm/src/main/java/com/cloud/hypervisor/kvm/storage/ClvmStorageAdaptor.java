@@ -881,6 +881,111 @@ public class ClvmStorageAdaptor extends LibvirtStorageAdaptor {
         return disk;
     }
 
+    public KVMPhysicalDisk createSnapshotStagingLv(String stagingName, String backingLvPath,
+            long virtualSize, KVMStoragePool pool, int timeout) {
+        String vgName = getVgName(pool.getLocalPath());
+        long lvSize = calculateClvmNgLvSize(virtualSize, vgName);
+        String stagingPath = "/dev/" + vgName + "/" + stagingName;
+
+        Script lvcreate = new Script("lvcreate", Duration.millis(timeout), logger);
+        lvcreate.add("-n", stagingName);
+        lvcreate.add("-L", lvSize + "B");
+        lvcreate.add("--yes");
+        lvcreate.add(vgName);
+        String result = lvcreate.execute();
+        if (result != null) {
+            throw new CloudRuntimeException("Failed to create staging LV for CLVM_NG snapshot: " + result);
+        }
+
+        Script qemuImg = new Script("qemu-img", Duration.millis(timeout), logger);
+        qemuImg.add("create");
+        qemuImg.add("-f", "qcow2");
+        qemuImg.add("-o", String.format("backing_file=%s,backing_fmt=qcow2,cluster_size=64k,extended_l2=on", backingLvPath));
+        qemuImg.add(stagingPath);
+        qemuImg.add(String.valueOf(virtualSize));
+        result = qemuImg.execute();
+        if (result != null) {
+            removeLvOnFailure(stagingPath, timeout);
+            throw new CloudRuntimeException("Failed to create QCOW2 overlay on CLVM_NG staging LV: " + result);
+        }
+
+        long actualSize = getClvmVolumeSize(stagingPath);
+        KVMPhysicalDisk disk = new KVMPhysicalDisk(stagingPath, stagingName, pool);
+        disk.setFormat(PhysicalDiskFormat.QCOW2);
+        disk.setSize(actualSize);
+        disk.setVirtualSize(virtualSize);
+        return disk;
+    }
+
+    /**
+     * Creates a transient LVM snapshot of {@code sourceLvPath} for use as an export source.
+     *
+     * <p>The snapshot is sized at 20&nbsp;% of the source LV's actual size (minimum 1&nbsp;GiB,
+     * rounded up to the VG physical-extent boundary).  This CoW space accommodates writes by the
+     * running VM during the export window.  The caller is responsible for deleting the snapshot
+     * via {@link #removeLvIfExists} or the pool's {@code deletePhysicalDisk} once the export
+     * finishes.</p>
+     *
+     * @param snapName       name for the new snapshot LV
+     * @param sourceLvPath   absolute path of the LV to snapshot (e.g. {@code /dev/vg/vol-uuid})
+     * @param timeout        script execution timeout in milliseconds
+     */
+    public void createLvmSnapshotForExport(String snapName, String sourceLvPath, int timeout) {
+        long sourceBytes = getClvmVolumeSize(sourceLvPath);
+        long snapBytes   = Math.max(sourceBytes / 5, 1024L * 1024 * 1024);   // 20 %, min 1 GiB
+        String vgName    = sourceLvPath.split("/")[2];                        // /dev/<vg>/<lv>
+        long peSize      = getVgPhysicalExtentSize(vgName);
+        snapBytes        = ((snapBytes + peSize - 1) / peSize) * peSize;
+
+        Script lvcreate = new Script("lvcreate", Duration.millis(timeout), logger);
+        lvcreate.add("--snapshot");
+        lvcreate.add("-n", snapName);
+        lvcreate.add("-L", snapBytes + "B");
+        lvcreate.add("--yes");
+        lvcreate.add(sourceLvPath);
+        String result = lvcreate.execute();
+        if (result != null) {
+            throw new CloudRuntimeException(String.format(
+                    "Failed to create LVM snapshot [%s] of [%s]: %s", snapName, sourceLvPath, result));
+        }
+        logger.debug("Created LVM snapshot [{}] of [{}] with {} bytes CoW space.",
+                snapName, sourceLvPath, snapBytes);
+    }
+
+    /**
+     * Renames {@code oldLvName} to {@code newLvName} within {@code vgName}.
+     * Throws {@link CloudRuntimeException} on failure.
+     */
+    public void renameLv(String vgName, String oldLvName, String newLvName, int timeout) {
+        Script lvrename = new Script("lvrename", Duration.millis(timeout), logger);
+        lvrename.add(vgName);
+        lvrename.add(oldLvName);
+        lvrename.add(newLvName);
+        String result = lvrename.execute();
+        if (result != null) {
+            throw new CloudRuntimeException(String.format(
+                    "Failed to rename LV [%s] to [%s] in VG [%s]: %s", oldLvName, newLvName, vgName, result));
+        }
+        logger.debug("Renamed LV [{}] to [{}] in VG [{}].", oldLvName, newLvName, vgName);
+    }
+
+    /**
+     * Removes the LV at {@code lvPath} if it exists; no-op (and no exception) if it does not.
+     * Used for best-effort cleanup on failure paths.
+     *
+     * @param lvPath   absolute path of the LV (e.g. {@code /dev/vg/snap-tmp-...})
+     * @param timeout  script execution timeout in milliseconds
+     */
+    public void removeLvIfExists(String lvPath, int timeout) {
+        if (lvExists(lvPath)) {
+            Script lvremove = new Script("lvremove", Duration.millis(timeout), logger);
+            lvremove.add("-f");
+            lvremove.add(lvPath);
+            lvremove.execute();
+            logger.debug("Removed LV [{}] (best-effort cleanup).", lvPath);
+        }
+    }
+
     private boolean lvExists(String lvPath) {
         Script checkLv = new Script("lvs", Duration.millis(10000), logger);
         checkLv.add("--noheadings");

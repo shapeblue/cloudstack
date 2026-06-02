@@ -67,7 +67,7 @@ public class LibvirtRevertSnapshotCommandWrapper extends CommandWrapper<RevertSn
     private static final String RADOS_CONNECTION_TIMEOUT = "30";
 
     protected Set<StoragePoolType> storagePoolTypesThatSupportRevertSnapshot = new HashSet<>(Arrays.asList(StoragePoolType.RBD, StoragePoolType.Filesystem,
-            StoragePoolType.NetworkFilesystem, StoragePoolType.SharedMountPoint));
+            StoragePoolType.NetworkFilesystem, StoragePoolType.SharedMountPoint, StoragePoolType.CLVM_NG));
 
     @Override
     public Answer execute(final RevertSnapshotCommand command, final LibvirtComputingResource libvirtComputingResource) {
@@ -117,15 +117,26 @@ public class LibvirtRevertSnapshotCommandWrapper extends CommandWrapper<RevertSn
                     secondaryStoragePool = storagePoolMgr.getStoragePoolByURI(snapshotImageStore.getUrl());
                 }
 
-                if (primaryPool.getType() == StoragePoolType.CLVM || primaryPool.getType() == StoragePoolType.CLVM_NG) {
+                if (primaryPool.getType() == StoragePoolType.CLVM ||
+                        (primaryPool.getType() == StoragePoolType.CLVM_NG && !snapshot.isKvmIncrementalSnapshot())) {
                     Script cmd = new Script(libvirtComputingResource.manageSnapshotPath(), libvirtComputingResource.getCmdsTimeout(), logger);
                     cmd.add("-v", getFullPathAccordingToStorage(secondaryStoragePool, snapshotRelPath));
                     cmd.add("-n", snapshotDisk.getName());
                     cmd.add("-p", snapshotDisk.getPath());
                     String result = cmd.execute();
                     if (result != null) {
-                        logger.debug("Failed to revert snaptshot: " + result);
+                        logger.debug("Failed to revert snapshot: " + result);
                         return new Answer(command, false, result);
+                    }
+                } else if (primaryPool.getType() == StoragePoolType.CLVM_NG) {
+                    String nfsSnapshotPath = getFullPathAccordingToStorage(secondaryStoragePool, snapshotRelPath);
+                    Set<KVMStoragePool> storagePoolSet = libvirtComputingResource.connectToAllVolumeSnapshotSecondaryStorages(volume);
+                    try {
+                        replaceVolumeWithSnapshot(snapshotDisk.getPath(), nfsSnapshotPath);
+                    } catch (LibvirtException | QemuImgException ex) {
+                        throw new CloudRuntimeException(String.format("Unable to revert volume [%s] to snapshot [%s] due to [%s].", volume, snapshot, ex.getMessage()), ex);
+                    } finally {
+                        libvirtComputingResource.disconnectAllVolumeSnapshotSecondaryStorages(storagePoolSet);
                     }
                 } else {
                     revertVolumeToSnapshot(secondaryStoragePool, snapshotOnPrimaryStorage, snapshot, primaryPool, libvirtComputingResource);

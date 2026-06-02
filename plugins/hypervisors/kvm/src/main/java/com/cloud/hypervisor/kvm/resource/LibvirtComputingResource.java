@@ -5371,6 +5371,15 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
             if (CollectionUtils.isEmpty(volume.getCheckpointPaths())) {
                 continue;
             }
+
+            if (volume.getDataStore() instanceof PrimaryDataStoreTO) {
+                StoragePoolType poolType = ((PrimaryDataStoreTO) volume.getDataStore()).getPoolType();
+                if (StoragePoolType.CLVM_NG == poolType || StoragePoolType.CLVM == poolType) {
+                    logger.debug("Skipping checkpoint recreation for CLVM/CLVM_NG volume [{}]: " +
+                            "these pool types use QCOW2 backing chains instead of libvirt checkpoints.", volume);
+                    continue;
+                }
+            }
             Set<KVMStoragePool> storagePoolSet = connectToAllVolumeSnapshotSecondaryStorages(volume);
             recreateCheckpointsOfDisk(vmName, volume, mapDiskToDiskDef);
             disconnectAllVolumeSnapshotSecondaryStorages(storagePoolSet);

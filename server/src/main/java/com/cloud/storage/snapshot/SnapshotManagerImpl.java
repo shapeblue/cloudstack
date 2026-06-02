@@ -1635,7 +1635,9 @@ public class SnapshotManagerImpl extends MutualExclusiveIdsManagerBase implement
 
         StoragePoolType poolType = volume.getStoragePoolType();
 
-        if ((isKvmAndFileBasedStorage) && backupSnapToSecondary) {
+        boolean isClvmNgIncrementalCandidate = StoragePoolType.CLVM_NG == poolType
+                && kvmIncrementalSnapshot.valueIn(clusterId);
+        if ((isKvmAndFileBasedStorage || isClvmNgIncrementalCandidate) && backupSnapToSecondary) {
             DataStore imageStore = snapshotSrv.findSnapshotImageStore(snapshot);
             if (imageStore == null) {
                 throw new CloudRuntimeException(String.format("Could not find any secondary storage to allocate snapshot [%s].", snapshot));
@@ -1659,7 +1661,7 @@ public class SnapshotManagerImpl extends MutualExclusiveIdsManagerBase implement
             SnapshotInfo snapshotOnPrimary = snapshotStrategy.takeSnapshot(snapshot);
 
             if (backupSnapToSecondary) {
-                if (!isKvmAndFileBasedStorage) {
+                if (!isKvmAndFileBasedStorage && !isClvmNgIncrementalCandidate) {
                     backupSnapshotToSecondary(payload.getAsyncBackup(), snapshotStrategy, snapshotOnPrimary, payload.getZoneIds(), payload.getStoragePoolIds());
                     if (storagePool.getPoolType() == StoragePoolType.CLVM || storagePool.getPoolType() == StoragePoolType.CLVM_NG) {
                         _snapshotStoreDao.removeBySnapshotStore(snapshotId, snapshotOnPrimary.getDataStore().getId(), snapshotOnPrimary.getDataStore().getRole());
@@ -1859,8 +1861,7 @@ public class SnapshotManagerImpl extends MutualExclusiveIdsManagerBase implement
             payload.setLocationType(null);
         }
 
-        // CLVM_NG excluded: incremental snapshots not supported in this release (handled in takeSnapshot).
-        if (isKvmAndFileBasedStorage && kvmIncrementalSnapshot.valueIn(clusterId)) {
+        if ((isKvmAndFileBasedStorage || StoragePoolType.CLVM_NG == poolType) && kvmIncrementalSnapshot.valueIn(clusterId)) {
             payload.setKvmIncrementalSnapshot(true);
         }
     }

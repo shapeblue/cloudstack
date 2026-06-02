@@ -1813,7 +1813,9 @@ public class KVMStorageProcessor implements StorageProcessor {
                     vol.getIopsWriteRate(), vol.getIopsWriteRateMax(), vol.getIopsWriteRateMaxLength(), volCacheMode,
                     encryptDetails, disk.getDetails(), cmd.getControllerInfo());
 
-            resource.recreateCheckpointsOnVm(List.of((VolumeObjectTO) disk.getData()), vmName, conn);
+            if (primaryStore.getPoolType() != StoragePoolType.CLVM_NG) {
+                resource.recreateCheckpointsOnVm(List.of((VolumeObjectTO) disk.getData()), vmName, conn);
+            }
 
             return new AttachAnswer(disk);
         } catch (final LibvirtException e) {
@@ -2077,9 +2079,10 @@ public class KVMStorageProcessor implements StorageProcessor {
                             logger.error(errorMsg);
                             return new CreateObjectAnswer(errorMsg);
                         }
-                        logger.info("Taking incremental snapshot of CLVM_NG volume [{}] using QCOW2 backup to secondary storage.", volume.getName());
-                        newSnapshot = takeIncrementalVolumeSnapshotOfStoppedVm(snapshotTO, primaryPool, secondaryPool,
-                                imageStoreTo.getUrl(), snapshotName, volume, conn, cmd.getWait());
+                        logger.info("Taking CLVM_NG COW incremental snapshot of volume [{}].", volume.getName());
+                        Domain runningVm = DomainInfo.DomainState.VIR_DOMAIN_RUNNING.equals(state) ? vm : null;
+                        newSnapshot = takeClvmNgCowSnapshot(snapshotTO, primaryPool, secondaryPool,
+                                snapshotName, disk, volume, runningVm, cmd.getWait());
                     } else {
                         CreateObjectAnswer result = takeClvmVolumeSnapshotOfStoppedVm(disk, snapshotName);
                         if (result != null) return result;
@@ -2131,15 +2134,6 @@ public class KVMStorageProcessor implements StorageProcessor {
         logger.debug("Taking incremental volume snapshot of volume [{}]. Snapshot will be copied to [{}].", volumeObjectTo,
                 ObjectUtils.defaultIfNull(secondaryPool, primaryPool));
         try {
-            // For CLVM_NG incremental snapshots, validate bitmap before proceeding
-            /*
-            SnapshotObjectTO bitmapValidationResult = validateClvmNgBitmapAndFallbackIfNeeded(snapshotObjectTO, primaryPool,
-                    secondaryPool, secondaryPoolUrl, snapshotName, volumeObjectTo, conn, wait);
-            if (bitmapValidationResult != null) {
-                return bitmapValidationResult;
-            }
-             */
-
             String vmName = String.format("DUMMY-VM-%s", snapshotName);
 
             String vmXml = getVmXml(primaryPool, volumeObjectTo, vmName);
@@ -2159,6 +2153,205 @@ public class KVMStorageProcessor implements StorageProcessor {
             if (vm != null) {
                 vm.destroy();
             }
+        }
+    }
+
+    private SnapshotObjectTO takeClvmNgCowSnapshot(SnapshotObjectTO snapshotTO,
+            KVMStoragePool primaryPool, KVMStoragePool secondaryPool,
+            String snapshotName, KVMPhysicalDisk disk, VolumeObjectTO volume,
+            Domain runningVm, int wait) throws LibvirtException {
+
+        String activeLvPath = disk.getPath();
+
+        cleanupPendingFrozenLvIfPresent(activeLvPath, snapshotTO, secondaryPool, wait);
+
+        if (runningVm != null) {
+            // Running VM: use LVM snapshot approach — no libvirt disk manipulation required.
+            // lvcreate --snapshot captures a point-in-time CoW view of the active LV while the
+            // VM continues running, completely unaware of the snapshot operation.
+            return takeClvmNgSnapshotViaLvmSnapshot(
+                    snapshotTO, primaryPool, secondaryPool, snapshotName, disk, volume, runningVm, wait);
+        }
+
+        // Stopped-VM path: staging LV + pivot approach.
+        // The VM is not running, so there is no QEMU process to object to disk manipulation.
+        String stagingName = "snap-staging-" + snapshotName;
+        ClvmStorageAdaptor clvmAdaptor = (ClvmStorageAdaptor) ((LibvirtStoragePool) primaryPool)._storageAdaptor;
+        KVMPhysicalDisk stagingDisk = clvmAdaptor.createSnapshotStagingLv(stagingName, activeLvPath, volume.getSize(), primaryPool, wait);
+
+        String activeLvName = activeLvPath.substring(activeLvPath.lastIndexOf('/') + 1);
+        String vgName = activeLvPath.split("/")[2];
+        boolean activeLvDeleted = false;
+        try {
+            SnapshotObjectTO result = exportClvmNgLvToSecondary(
+                    snapshotTO, primaryPool, secondaryPool, activeLvPath, snapshotName, volume, wait);
+
+            QemuImg qemuImg = new QemuImg(wait);
+            QemuImgFile stagingFile = new QemuImgFile(stagingDisk.getPath(), PhysicalDiskFormat.QCOW2);
+            QemuImgFile nfsBacking = new QemuImgFile(result.getCheckpointPath(), PhysicalDiskFormat.QCOW2);
+            qemuImg.rebase(stagingFile, nfsBacking, PhysicalDiskFormat.QCOW2.toString(), false);
+
+            primaryPool.deletePhysicalDisk(activeLvName, ImageFormat.QCOW2);
+            activeLvDeleted = true;
+
+            // Rename staging LV back to the original volume name so the DB path remains valid.
+            clvmAdaptor.renameLv(vgName, stagingName, activeLvName, wait);
+
+            VolumeObjectTO resultVol = (VolumeObjectTO) result.getVolume();
+            resultVol.setPath(activeLvPath);
+
+            return result;
+
+        } catch (Exception e) {
+            logger.error("CLVM_NG COW snapshot failed", e);
+            if (!activeLvDeleted) {
+                clvmAdaptor.removeLvIfExists(stagingDisk.getPath(), wait);
+            } else {
+                logger.error("Active LV [{}] was already deleted but rename of staging LV [{}] failed. " +
+                        "Volume data is in the staging LV — manual lvrename recovery required.", activeLvPath, stagingDisk.getPath());
+            }
+            throw new CloudRuntimeException("CLVM_NG COW snapshot failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Takes an incremental CLVM_NG snapshot of a <b>running</b> VM's volume using an LVM snapshot.
+     *
+     * <p>libvirt refuses to change the disk source of a non-removable block-device disk via both
+     * {@code snapshotCreateXML DISK_ONLY|EXTERNAL} and {@code updateDeviceFlags LIVE}.
+     * To avoid that restriction entirely, this method uses an LVM block-level snapshot instead:
+     * {@code lvcreate --snapshot} captures a point-in-time CoW view of the active LV while the
+     * VM keeps running and writing to the original.  No libvirt disk manipulation is needed.</p>
+     *
+     * <p>Flow:</p>
+     * <ol>
+     *   <li>Create an LVM snapshot of the active LV (instant, block-level; QEMU unaware).</li>
+     *   <li>Export the LVM snapshot to NFS secondary storage (VM runs normally).</li>
+     *   <li>Delete the transient LVM snapshot.</li>
+     *   <li>Briefly suspend the VM, rebase the active LV's QCOW2 backing to the new NFS
+     *       snapshot (metadata-only update, &lt; 1 s), then resume the VM.</li>
+     * </ol>
+     *
+     */
+    protected SnapshotObjectTO takeClvmNgSnapshotViaLvmSnapshot(
+            SnapshotObjectTO snapshotTO, KVMStoragePool primaryPool, KVMStoragePool secondaryPool,
+            String snapshotName, KVMPhysicalDisk disk, VolumeObjectTO volume,
+            Domain runningVm, int wait) throws LibvirtException {
+
+        String activeLvPath = disk.getPath();
+        String snapLvName   = "snap-tmp-" + snapshotName;
+        String snapLvPath   = activeLvPath.substring(0, activeLvPath.lastIndexOf('/') + 1) + snapLvName;
+        ClvmStorageAdaptor clvmAdaptor =
+                (ClvmStorageAdaptor) ((LibvirtStoragePool) primaryPool)._storageAdaptor;
+
+        // Step 1: create LVM snapshot (instant; VM continues writing to active LV)
+        clvmAdaptor.createLvmSnapshotForExport(snapLvName, activeLvPath, wait);
+        logger.info("Created LVM snapshot [{}] of [{}] for CLVM_NG incremental snapshot.", snapLvPath, activeLvPath);
+
+        try {
+            // Step 2: export LVM snapshot to NFS (VM unaffected)
+            SnapshotObjectTO result = exportClvmNgLvToSecondary(
+                    snapshotTO, primaryPool, secondaryPool, snapLvPath, snapshotName, volume, wait);
+
+            // Step 3: delete the transient LVM snapshot
+            primaryPool.deletePhysicalDisk(snapLvName, ImageFormat.QCOW2);
+            logger.debug("Deleted transient LVM snapshot [{}].", snapLvPath);
+
+            // Step 4: briefly suspend VM and rebase active LV to the new NFS snapshot
+            //   - This is a QCOW2 header-only metadata update, typically < 1 second.
+            //   - The old backing LV is NOT deleted, so QEMU's in-memory backing reference
+            //     remains valid for the remainder of the VM's lifetime.
+            QemuImg qemuImg = new QemuImg(wait);
+            QemuImgFile activeFile  = new QemuImgFile(activeLvPath, PhysicalDiskFormat.QCOW2);
+            QemuImgFile nfsBacking  = new QemuImgFile(result.getCheckpointPath(), PhysicalDiskFormat.QCOW2);
+            logger.debug("Suspending VM to rebase active LV [{}] to NFS snapshot [{}].",
+                    activeLvPath, result.getCheckpointPath());
+            runningVm.suspend();
+            try {
+                qemuImg.rebase(activeFile, nfsBacking, PhysicalDiskFormat.QCOW2.toString(), false);
+            } finally {
+                runningVm.resume();
+                logger.debug("Resumed VM after QCOW2 rebase of [{}].", activeLvPath);
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            try {
+                clvmAdaptor.removeLvIfExists(snapLvPath, wait);
+            } catch (Exception cleanup) {
+                logger.warn("Could not remove transient LVM snapshot [{}]: {}", snapLvPath, cleanup.getMessage());
+            }
+            throw new CloudRuntimeException("CLVM_NG LVM-snapshot snapshot failed: " + e.getMessage(), e);
+        }
+    }
+
+    private SnapshotObjectTO exportClvmNgLvToSecondary(SnapshotObjectTO snapshotTO,
+            KVMStoragePool primaryPool, KVMStoragePool secondaryPool,
+            String frozenLvPath, String snapshotName, VolumeObjectTO volume, int wait) {
+
+        Pair<String, String> snapPathAndDirPath = getFullSnapshotOrCheckpointPathAndDirPathOnCorrectStorage(
+                primaryPool, secondaryPool, snapshotName, volume, false);
+        String nfsSnapPath = snapPathAndDirPath.first();
+        String dirPath = snapPathAndDirPath.second();
+
+        createFolderOnCorrectStorage(primaryPool, secondaryPool, snapPathAndDirPath);
+
+        String[] parents = snapshotTO.getParents();
+
+        try {
+            QemuImg qemuImg = new QemuImg(wait);
+            QemuImgFile srcFile = new QemuImgFile(frozenLvPath, PhysicalDiskFormat.QCOW2);
+            QemuImgFile destFile = new QemuImgFile(nfsSnapPath, PhysicalDiskFormat.QCOW2);
+
+            if (parents != null && parents.length > 0) {
+                String parentNfsPath = secondaryPool.getLocalPath() + File.separator + parents[parents.length - 1];
+                Map<String, String> options = new HashMap<>();
+                options.put("backing_file", parentNfsPath);
+                options.put("backing_fmt", "qcow2");
+                qemuImg.convert(srcFile, destFile, options, null, false);
+                QemuImgFile backingFile = new QemuImgFile(parentNfsPath, PhysicalDiskFormat.QCOW2);
+                qemuImg.rebase(destFile, backingFile, PhysicalDiskFormat.QCOW2.toString(), false);
+            } else {
+                qemuImg.convert(srcFile, destFile);
+            }
+        } catch (QemuImgException | LibvirtException e) {
+            throw new CloudRuntimeException("Failed to export CLVM_NG frozen LV to secondary: " + e.getMessage(), e);
+        }
+
+        String relativePath = dirPath + File.separator + snapshotName;
+        SnapshotObjectTO result = createSnapshotToAndUpdatePathAndSize(relativePath, nfsSnapPath);
+        result.setCheckpointPath(nfsSnapPath);
+        return result;
+    }
+
+    private void cleanupPendingFrozenLvIfPresent(String activeLvPath, SnapshotObjectTO snapshotTO,
+            KVMStoragePool secondaryPool, int wait) {
+        try {
+            QemuImg qemuImg = new QemuImg(wait);
+            QemuImgFile activeFile = new QemuImgFile(activeLvPath, PhysicalDiskFormat.QCOW2);
+            Map<String, String> info = qemuImg.info(activeFile);
+            String backingFile = info.get("backing_file");
+            if (backingFile == null || !backingFile.startsWith("/dev/")) {
+                return;
+            }
+            String backingLvName = backingFile.substring(backingFile.lastIndexOf('/') + 1);
+            if (backingLvName.startsWith("template-")) {
+                logger.debug("Backing LV [{}] is a template LV, not an orphaned frozen LV — skipping cleanup.", backingFile);
+                return;
+            }
+            logger.warn("Found orphaned frozen LV [{}] backing [{}], cleaning up", backingFile, activeLvPath);
+            if (secondaryPool != null) {
+                String[] parents = snapshotTO.getParents();
+                if (parents != null && parents.length > 0) {
+                    String nfsParentPath = secondaryPool.getLocalPath() + File.separator + parents[parents.length - 1];
+                    QemuImgFile nfsParent = new QemuImgFile(nfsParentPath, PhysicalDiskFormat.QCOW2);
+                    qemuImg.rebase(activeFile, nfsParent, PhysicalDiskFormat.QCOW2.toString(), false);
+                }
+            }
+            Script.runSimpleBashScript("lvremove -f " + backingFile);
+        } catch (Exception e) {
+            logger.warn("Could not check/cleanup orphaned frozen LV for [{}]: {}", activeLvPath, e.getMessage());
         }
     }
 
@@ -2345,209 +2538,6 @@ public class KVMStorageProcessor implements StorageProcessor {
     protected String getParentCheckpointName(String[] parents) {
         String immediateParentPath = parents[parents.length - 1];
         return immediateParentPath.substring(immediateParentPath.lastIndexOf(File.separator) + 1);
-    }
-
-    /**
-     * Checks if a QEMU bitmap exists in the volume and is usable (not in-use or corrupted).
-     * This is important after lock migration where bitmaps may be left in "in-use" state.
-     *
-     * @param pool The storage pool containing the volume
-     * @param volume The volume to check
-     * @param bitmapName The name of the bitmap to check
-     * @return true if bitmap exists and is usable, false if missing, in-use, or corrupted
-     */
-    protected boolean isBitmapUsable(KVMStoragePool pool, VolumeObjectTO volume, String bitmapName) {
-        try {
-            String volumePath = pool.getLocalPathFor(volume.getPath());
-
-            String command = String.format("qemu-img info --output=json -U %s", volumePath);
-            String jsonOutput = Script.runSimpleBashScriptWithFullResult(command, 30);
-
-            if (jsonOutput == null || jsonOutput.trim().isEmpty()) {
-                logger.warn("Failed to get qemu-img info for volume [{}]", volumePath);
-                return false;
-            }
-
-            logger.debug("qemu-img info output for volume [{}]: {}", volumePath, jsonOutput);
-
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode root = mapper.readTree(jsonOutput);
-
-                JsonNode formatSpecific = root.path("format-specific");
-                if (formatSpecific.isMissingNode()) {
-                    logger.debug("No format-specific data found for volume [{}], bitmap check skipped", volumePath);
-                    return false;
-                }
-
-                JsonNode data = formatSpecific.path("data");
-                JsonNode bitmaps = data.path("bitmaps");
-
-                if (bitmaps.isMissingNode() || !bitmaps.isArray()) {
-                    logger.debug("No bitmaps found in volume [{}]", volumePath);
-                    return false;
-                }
-
-                for (JsonNode bitmap : bitmaps) {
-                    String name = bitmap.path("name").asText();
-                    if (bitmapName.equals(name)) {
-                        JsonNode flags = bitmap.path("flags");
-                        if (flags.isArray()) {
-                            for (JsonNode flag : flags) {
-                                String flagValue = flag.asText();
-                                if ("in-use".equals(flagValue)) {
-                                    logger.warn("Bitmap [{}] in volume [{}] is marked as 'in-use' and cannot be used for incremental snapshot",
-                                               bitmapName, volumePath);
-                                    return false;
-                                }
-                            }
-                        }
-                        logger.debug("Bitmap [{}] found in volume [{}] and is usable", bitmapName, volumePath);
-                        return true;
-                    }
-                }
-
-                logger.warn("Bitmap [{}] not found in volume [{}]", bitmapName, volumePath);
-                return false;
-
-            } catch (JsonProcessingException e) {
-                logger.error("Failed to parse qemu-img JSON output for volume [{}]: {}", volumePath, e.getMessage(), e);
-                return false;
-            }
-
-        } catch (Exception e) {
-            logger.error("Error checking bitmap [{}] for volume [{}]: {}", bitmapName, volume, e.getMessage(), e);
-            return false;
-        }
-    }
-
-    /**
-     * Removes a broken or unusable bitmap from a volume.
-     * Called before falling back to full snapshot to keep volume metadata clean.
-     *
-     * @param pool Storage pool containing the volume
-     * @param volume Volume with broken bitmap
-     * @param bitmapName Name of bitmap to remove
-     */
-    private void cleanupBrokenBitmap(KVMStoragePool pool, VolumeObjectTO volume, String bitmapName) {
-        try {
-            String volumePath = pool.getLocalPathFor(volume.getPath());
-
-            logger.info("Removing broken bitmap [{}] from volume [{}] before taking full snapshot",
-                       bitmapName, volumePath);
-
-            QemuImgFile volumeFile = new QemuImgFile(volumePath, PhysicalDiskFormat.QCOW2);
-            QemuImg qemuImg = new QemuImg(0);
-
-            try {
-                qemuImg.bitmap(QemuImg.BitmapOperation.Remove, volumeFile, bitmapName);
-                logger.info("Successfully removed broken bitmap [{}] from volume [{}]",
-                           bitmapName, volume.getPath());
-            } catch (QemuImgException e) {
-                logger.warn("Failed to remove broken bitmap [{}] from volume [{}]: {}. " +
-                           "Proceeding with fallback anyway.",
-                           bitmapName, volume.getPath(), e.getMessage());
-            }
-
-        } catch (Exception e) {
-            logger.warn("Exception while cleaning up broken bitmap [{}] for volume [{}]: {}. " +
-                       "Proceeding with fallback anyway.",
-                       bitmapName, volume.getPath(), e.getMessage());
-        }
-    }
-
-    /**
-     * Validates QEMU bitmap for CLVM_NG incremental snapshots and falls back to full snapshot if needed.
-     * This method checks if the bitmap from the parent checkpoint is usable. If the bitmap is corrupted,
-     * in-use, or missing, it cleans up the broken bitmap and falls back to taking a full snapshot with
-     * a new checkpoint to restart the incremental chain.
-     *
-     * @param snapshotObjectTO Snapshot being created
-     * @param primaryPool Primary storage pool
-     * @param secondaryPool Secondary storage pool for backup
-     * @param secondaryPoolUrl Secondary pool URL
-     * @param snapshotName Name of the snapshot
-     * @param volumeObjectTo Volume being snapshotted
-     * @param conn Libvirt connection
-     * @param wait Timeout for operations
-     * @return SnapshotObjectTO if fallback to full snapshot occurred, null if validation passed
-     * @throws LibvirtException if libvirt operations fail
-     */
-    protected SnapshotObjectTO validateClvmNgBitmapAndFallbackIfNeeded(SnapshotObjectTO snapshotObjectTO,
-                                                                      KVMStoragePool primaryPool,
-                                                                      KVMStoragePool secondaryPool,
-                                                                      String secondaryPoolUrl,
-                                                                      String snapshotName,
-                                                                      VolumeObjectTO volumeObjectTo,
-                                                                      Connect conn,
-                                                                      int wait) throws LibvirtException {
-        if (primaryPool.getType() != StoragePoolType.CLVM_NG || snapshotObjectTO.getParentSnapshotPath() == null) {
-            return null;
-        }
-
-        String[] parents = snapshotObjectTO.getParents();
-        if (parents == null || parents.length == 0) {
-            return null;
-        }
-
-        String parentCheckpointName = getParentCheckpointName(parents);
-        logger.debug("Validating bitmap [{}] for CLVM_NG volume [{}] before taking incremental snapshot",
-                parentCheckpointName, volumeObjectTo.getPath());
-
-        if (!isBitmapUsable(primaryPool, volumeObjectTo, parentCheckpointName)) {
-            logger.warn("Bitmap [{}] is not usable for volume [{}]. Falling back to full snapshot with new checkpoint.",
-                    parentCheckpointName, volumeObjectTo.getPath());
-            cleanupBrokenBitmap(primaryPool, volumeObjectTo, parentCheckpointName);
-            return takeFullVolumeSnapshotOfStoppedVmForIncremental(snapshotObjectTO, primaryPool, secondaryPool,
-                    secondaryPoolUrl, snapshotName, volumeObjectTo, conn, wait);
-        }
-
-        logger.debug("Bitmap [{}] is valid and usable for incremental snapshot", parentCheckpointName);
-        return null;
-    }
-
-    /**
-     * Takes a full snapshot of a stopped VM and creates a new checkpoint to restart the incremental chain.
-     * This is used as a fallback when incremental snapshot fails due to bitmap issues.
-     */
-    private SnapshotObjectTO takeFullVolumeSnapshotOfStoppedVmForIncremental(SnapshotObjectTO snapshotObjectTO,
-                                                                              KVMStoragePool primaryPool,
-                                                                              KVMStoragePool secondaryPool,
-                                                                              String secondaryPoolUrl,
-                                                                              String snapshotName,
-                                                                              VolumeObjectTO volumeObjectTo,
-                                                                              Connect conn,
-                                                                              int wait) throws LibvirtException {
-        resource.validateLibvirtAndQemuVersionForIncrementalSnapshots();
-        Domain vm = null;
-        logger.info("Taking full volume snapshot (with new checkpoint) of volume [{}] to restart incremental chain. " +
-                   "Snapshot will be copied to [{}].", volumeObjectTo, ObjectUtils.defaultIfNull(secondaryPool, primaryPool));
-        try {
-            String vmName = String.format("DUMMY-VM-%s", snapshotName);
-
-            String vmXml = getVmXml(primaryPool, volumeObjectTo, vmName);
-
-            logger.debug("Creating dummy VM with volume [{}] to take a full snapshot with checkpoint.", volumeObjectTo);
-            resource.startVM(conn, vmName, vmXml, Domain.CreateFlags.PAUSED);
-
-            vm = resource.getDomain(conn, vmName);
-
-            SnapshotObjectTO fullSnapshotTO = new SnapshotObjectTO();
-            fullSnapshotTO.setPath(snapshotObjectTO.getPath());
-            fullSnapshotTO.setVolume(snapshotObjectTO.getVolume());
-            fullSnapshotTO.setParentSnapshotPath(null); // No parent - forces full snapshot
-
-            return takeIncrementalVolumeSnapshotOfRunningVm(fullSnapshotTO, primaryPool, secondaryPool,
-                    secondaryPoolUrl, snapshotName, volumeObjectTo, vm, conn, wait);
-        } catch (InternalErrorException | LibvirtException | CloudRuntimeException e) {
-            logger.error("Failed to take full volume snapshot with checkpoint for volume [{}] due to {}.",
-                        volumeObjectTo, e.getMessage(), e);
-            throw new CloudRuntimeException(e);
-        } finally {
-            if (vm != null) {
-                vm.destroy();
-            }
-        }
     }
 
     private Path createFileAndWrite(String content, String dir, String fileName) {

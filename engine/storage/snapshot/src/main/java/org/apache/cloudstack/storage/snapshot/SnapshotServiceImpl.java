@@ -27,8 +27,11 @@ import com.cloud.agent.api.ConvertSnapshotCommand;
 import com.cloud.agent.api.RemoveBitmapCommand;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor;
+import com.cloud.storage.Storage;
 import com.cloud.storage.Volume;
 import com.cloud.storage.snapshot.SnapshotManager;
+import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import com.cloud.vm.VirtualMachine;
 import org.apache.cloudstack.engine.subsystem.api.storage.CopyCommandResult;
 import org.apache.cloudstack.engine.subsystem.api.storage.CreateCmdResult;
@@ -116,6 +119,8 @@ public class SnapshotServiceImpl implements SnapshotService {
     ConfigurationDao _configDao;
     @Inject
     HostDao hostDao;
+    @Inject
+    private PrimaryDataStoreDao storagePoolDao;
 
     @Inject
     private HeuristicRuleHelper heuristicRuleHelper;
@@ -624,7 +629,10 @@ public class SnapshotServiceImpl implements SnapshotService {
             if (kvmCheckpointPath != null) {
                 snapInfo.setCheckpointPath(kvmCheckpointPath);
                 snapInfo.setKvmIncrementalSnapshot(true);
-                deleteBitmap(snapInfo);
+                StoragePoolVO snapPool = storagePoolDao.findById(snapInfo.getBaseVolume().getPoolId());
+                if (snapPool == null || snapPool.getPoolType() != Storage.StoragePoolType.CLVM_NG) {
+                    deleteBitmap(snapInfo);
+                }
             }
         }
 
