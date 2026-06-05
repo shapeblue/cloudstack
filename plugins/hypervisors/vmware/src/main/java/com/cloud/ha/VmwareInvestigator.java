@@ -28,7 +28,7 @@ public class VmwareInvestigator extends AdapterBase implements Investigator {
     }
 
     @Override
-    public Status getHostAgentStatus(Host agent) {
+    public Status isAgentAlive(Host agent) {
         if (agent.getHypervisorType() == HypervisorType.VMware)
             return Status.Disconnected;
 

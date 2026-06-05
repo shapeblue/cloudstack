@@ -74,7 +74,7 @@ public class KVMFencer extends AdapterBase implements FenceBuilder {
     @Override
     public Boolean fenceOff(VirtualMachine vm, Host host) {
         if (host.getHypervisorType() != HypervisorType.KVM && host.getHypervisorType() != HypervisorType.LXC) {
-            logger.warn("Don't know how to fence non kvm hosts {}", host.getHypervisorType());
+            logger.warn("Don't know how to fence non kvm hosts " + host.getHypervisorType());
             return null;
         }
 
@@ -97,8 +97,11 @@ public class KVMFencer extends AdapterBase implements FenceBuilder {
                 FenceAnswer answer;
                 try {
                     answer = (FenceAnswer)_agentMgr.send(h.getId(), fence);
-                } catch (AgentUnavailableException | OperationTimedoutException e) {
-                    logger.info("Moving on to the next host because {} is unavailable", h.toString(), e);
+                } catch (AgentUnavailableException e) {
+                    logger.info("Moving on to the next host because " + h.toString() + " is unavailable", e);
+                    continue;
+                } catch (OperationTimedoutException e) {
+                    logger.info("Moving on to the next host because " + h.toString() + " is unavailable", e);
                     continue;
                 }
                 if (answer != null && answer.getResult()) {
@@ -112,7 +115,7 @@ public class KVMFencer extends AdapterBase implements FenceBuilder {
                             "Fencing off host " + host.getId() + " did not succeed after asking " + i + " hosts. " +
                             "Check Agent logs for more information.");
 
-        logger.error("Unable to fence off {} on {}", vm.toString(), host.toString());
+        logger.error("Unable to fence off " + vm.toString() + " on " + host.toString());
 
         return false;
     }

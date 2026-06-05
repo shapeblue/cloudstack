@@ -19,7 +19,6 @@ package org.apache.cloudstack.kvm.ha;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
-import com.cloud.agent.api.CheckOnHostAnswer;
 import com.cloud.agent.api.CheckOnHostCommand;
 import com.cloud.agent.api.CheckVMActivityOnStoragePoolCommand;
 import com.cloud.dc.dao.ClusterDao;
@@ -62,7 +61,7 @@ public class KVMHostActivityChecker extends AdapterBase implements ActivityCheck
     @Inject
     private AgentManager agentMgr;
     @Inject
-    private PrimaryDataStoreDao storagePoolDao;
+    private PrimaryDataStoreDao storagePool;
     @Inject
     private StorageManager storageManager;
     @Inject
@@ -71,11 +70,11 @@ public class KVMHostActivityChecker extends AdapterBase implements ActivityCheck
     @Override
     public boolean isActive(Host r, DateTime suspectTime) throws HACheckerException {
         try {
-            return hasVMActivityOnHost(r, suspectTime);
+            return isVMActivityOnHost(r, suspectTime);
         } catch (HACheckerException e) {
-            //Re-throwing the exception to avoid polluting the 'HACheckerException' already thrown
+            //Re-throwing the exception to avoid poluting the 'HACheckerException' already thrown
             throw e;
-        } catch (Exception e) {
+        } catch (Exception e){
             String message = String.format("Operation timed out, probably the %s is not reachable.", r.toString());
             logger.warn(message, e);
             throw new HACheckerException(message, e);
@@ -84,115 +83,82 @@ public class KVMHostActivityChecker extends AdapterBase implements ActivityCheck
 
     @Override
     public boolean isHealthy(Host r) {
-        return isHostAgentUp(r);
+        return isAgentActive(r);
     }
 
-    private boolean isHostAgentUp(Host host) {
-        if (host.getHypervisorType() != Hypervisor.HypervisorType.KVM && host.getHypervisorType() != Hypervisor.HypervisorType.LXC) {
-            throw new IllegalStateException(String.format("Calling KVM investigator for non KVM Host of type [%s].", host.getHypervisorType()));
+    private boolean isAgentActive(Host agent) {
+        if (agent.getHypervisorType() != Hypervisor.HypervisorType.KVM && agent.getHypervisorType() != Hypervisor.HypervisorType.LXC) {
+            throw new IllegalStateException(String.format("Calling KVM investigator for non KVM Host of type [%s].", agent.getHypervisorType()));
         }
-
-        Status hostStatus = getHostAgentStatus(host);
-
-        logger.debug("{} has the status [{}].", host.toString(), hostStatus);
-        return hostStatus == Status.Up;
-    }
-
-    public Status getHostAgentStatus(Host host) {
-        if (host.getHypervisorType() != Hypervisor.HypervisorType.KVM && host.getHypervisorType() != Hypervisor.HypervisorType.LXC) {
-            return null;
-        }
-
-        Status hostStatusFromItself = checkHostStatusWithSameHost(host);
-        if (hostStatusFromItself == Status.Up) {
-            return Status.Up;
-        }
-
-        Status hostStatusFromNeighbour = checkHostStatusWithNeighbourHosts(host);
-        Status hostStatus = hostStatusFromItself;
-        if (hostStatusFromNeighbour == Status.Up && (hostStatusFromItself == Status.Disconnected || hostStatusFromItself == Status.Down)) {
-            hostStatus = Status.Disconnected;
-        }
-        if (hostStatusFromNeighbour == Status.Down && (hostStatusFromItself == Status.Disconnected || hostStatusFromItself == Status.Down)) {
-            hostStatus = Status.Down;
-        }
-
-        logger.debug("HA: HOST is ineligible legacy state {} for host {}", hostStatus, host);
-        return hostStatus;
-    }
-
-    private Status checkHostStatusWithSameHost(Host host) {
-        Status hostStatus;
-        boolean reportFailureIfOneStorageIsDown = HighAvailabilityManager.KvmHAFenceHostIfHeartbeatFailsOnStorage.value();
-        final CheckOnHostCommand cmd = new CheckOnHostCommand(host, reportFailureIfOneStorageIsDown);
+        Status hostStatus = Status.Unknown;
+        Status neighbourStatus = Status.Unknown;
+        final CheckOnHostCommand cmd = new CheckOnHostCommand(agent, HighAvailabilityManager.KvmHAFenceHostIfHeartbeatFailsOnStorage.value());
         try {
-            logger.debug("Checking {} status...", host.toString());
-            Answer answer = agentMgr.easySend(host.getId(), cmd);
+            logger.debug(String.format("Checking %s status...", agent.toString()));
+            Answer answer = agentMgr.easySend(agent.getId(), cmd);
             if (answer != null) {
-                if (answer.getResult()) {
-                    hostStatus = ((CheckOnHostAnswer)answer).isAlive() ? Status.Up : Status.Down;
-                } else {
-                    logger.debug("{} is not active according to itself, details: {}.", host.toString(), answer.getDetails());
-                    hostStatus = Status.Down;
+                hostStatus = answer.getResult() ? Status.Down : Status.Up;
+                logger.debug(String.format("%s has the status [%s].", agent.toString(), hostStatus));
+
+                if ( hostStatus == Status.Up ){
+                    return true;
                 }
-                logger.debug("{} has the status [{}].", host.toString(), hostStatus);
-            } else {
-                logger.debug("Setting {} to \"Disconnected\" status.", host.toString());
+            }
+            else {
+                logger.debug(String.format("Setting %s to \"Disconnected\" status.", agent.toString()));
                 hostStatus = Status.Disconnected;
             }
         } catch (Exception e) {
-            logger.warn("Failed to send command CheckOnHostCommand to {}.", host.toString(), e);
-            hostStatus = Status.Disconnected;
+            logger.warn(String.format("Failed to send command CheckOnHostCommand to %s.", agent.toString()), e);
         }
 
-        return hostStatus;
-    }
-
-    private Status checkHostStatusWithNeighbourHosts(Host host) {
-        Status hostStatusFromNeighbour = Status.Unknown;
-        boolean reportFailureIfOneStorageIsDown = HighAvailabilityManager.KvmHAFenceHostIfHeartbeatFailsOnStorage.value();
-        final CheckOnHostCommand cmd = new CheckOnHostCommand(host, reportFailureIfOneStorageIsDown);
-        List<HostVO> neighbors = resourceManager.listHostsInClusterByStatus(host.getClusterId(), Status.Up);
+        List<HostVO> neighbors = resourceManager.listHostsInClusterByStatus(agent.getClusterId(), Status.Up);
         for (HostVO neighbor : neighbors) {
-            if (neighbor.getId() == host.getId()
-                    || (neighbor.getHypervisorType() != Hypervisor.HypervisorType.KVM && neighbor.getHypervisorType() != Hypervisor.HypervisorType.LXC)) {
+            if (neighbor.getId() == agent.getId() || (neighbor.getHypervisorType() != Hypervisor.HypervisorType.KVM && neighbor.getHypervisorType() != Hypervisor.HypervisorType.LXC)) {
                 continue;
             }
 
             try {
-                logger.debug("Investigating {} via neighboring {}.", host.toString(), neighbor.toString());
+                logger.debug(String.format("Investigating %s via neighbouring %s.", agent.toString(), neighbor.toString()));
+
                 Answer answer = agentMgr.easySend(neighbor.getId(), cmd);
                 if (answer != null) {
-                    if (answer.getResult()) {
-                        hostStatusFromNeighbour = ((CheckOnHostAnswer)answer).isAlive() ? Status.Up : Status.Down;
-                        logger.debug("Neighboring {} returned status [{}] for the investigated {}.", neighbor.toString(), hostStatusFromNeighbour, host.toString());
-                        if (hostStatusFromNeighbour == Status.Up) {
-                            return hostStatusFromNeighbour;
-                        }
-                    } else {
-                        logger.debug("{} is not active according to neighbor {}, details: {}.", host.toString(), neighbor.toString(), answer.getDetails());
+                    neighbourStatus = answer.getResult() ? Status.Down : Status.Up;
+
+                    logger.debug(String.format("Neighbouring %s returned status [%s] for the investigated %s.", neighbor.toString(), neighbourStatus, agent.toString()));
+
+                    if (neighbourStatus == Status.Up) {
+                        break;
                     }
                 } else {
-                    logger.debug("Neighboring {} is Disconnected.", neighbor.toString());
+                    logger.debug(String.format("Neighbouring %s is Disconnected.", neighbor.toString()));
                 }
             } catch (Exception e) {
-                logger.warn("Failed to send command CheckOnHostCommand to neighbor {}.", neighbor.toString(), e);
+                logger.warn(String.format("Failed to send command CheckOnHostCommand to %s.", neighbor.toString()), e);
             }
         }
+        if (neighbourStatus == Status.Up && (hostStatus == Status.Disconnected || hostStatus == Status.Down)) {
+            hostStatus = Status.Disconnected;
+        }
+        if (neighbourStatus == Status.Down && (hostStatus == Status.Disconnected || hostStatus == Status.Down)) {
+            hostStatus = Status.Down;
+        }
 
-        return hostStatusFromNeighbour;
+        logger.debug(String.format("%s has the status [%s].", agent.toString(), hostStatus));
+
+        return hostStatus == Status.Up;
     }
 
-    private boolean hasVMActivityOnHost(Host host, DateTime suspectTime) throws HACheckerException {
-        if (host.getHypervisorType() != Hypervisor.HypervisorType.KVM && host.getHypervisorType() != Hypervisor.HypervisorType.LXC) {
-            throw new IllegalStateException(String.format("Calling KVM investigator for non KVM Host of type [%s].", host.getHypervisorType()));
+    private boolean isVMActivityOnHost(Host agent, DateTime suspectTime) throws HACheckerException {
+        if (agent.getHypervisorType() != Hypervisor.HypervisorType.KVM && agent.getHypervisorType() != Hypervisor.HypervisorType.LXC) {
+            throw new IllegalStateException(String.format("Calling KVM investigator for non KVM Host of type [%s].", agent.getHypervisorType()));
         }
         boolean activityStatus = true;
-        HashMap<StoragePool, List<Volume>> poolVolumeMap = getStoragePoolAndVolumeInfoOnHost(host);
-        for (StoragePool pool : poolVolumeMap.keySet()) {
-            activityStatus = verifyActivityOfStorageOnHost(poolVolumeMap, pool, host, suspectTime, activityStatus);
+        HashMap<StoragePool, List<Volume>> poolVolMap = getVolumeUuidOnHost(agent);
+        for (StoragePool pool : poolVolMap.keySet()) {
+            activityStatus = verifyActivityOfStorageOnHost(poolVolMap, pool, agent, suspectTime, activityStatus);
             if (!activityStatus) {
-                logger.warn("It seems that the storage pool [{}] does not have activity on {}.", pool, host);
+                logger.warn("It seems that the storage pool [{}] does not have activity on {}.", pool, agent);
                 break;
             }
         }
@@ -200,64 +166,66 @@ public class KVMHostActivityChecker extends AdapterBase implements ActivityCheck
         return activityStatus;
     }
 
-    protected boolean verifyActivityOfStorageOnHost(HashMap<StoragePool, List<Volume>> poolVolMap, StoragePool pool, Host host, DateTime suspectTime, boolean activityStatus) throws HACheckerException, IllegalStateException {
+    protected boolean verifyActivityOfStorageOnHost(HashMap<StoragePool, List<Volume>> poolVolMap, StoragePool pool, Host agent, DateTime suspectTime, boolean activityStatus) throws HACheckerException, IllegalStateException {
         List<Volume> volume_list = poolVolMap.get(pool);
-        final CheckVMActivityOnStoragePoolCommand cmd = new CheckVMActivityOnStoragePoolCommand(host, pool, volume_list, suspectTime);
+        final CheckVMActivityOnStoragePoolCommand cmd = new CheckVMActivityOnStoragePoolCommand(agent, pool, volume_list, suspectTime);
 
-        logger.debug("Checking VM activity for {} on storage pool [{}].", host.toString(), pool);
+        logger.debug("Checking VM activity for {} on storage pool [{}].", agent.toString(), pool);
         try {
-            Answer answer = storageManager.sendToPool(pool, getNeighbors(host), cmd);
+            Answer answer = storageManager.sendToPool(pool, getNeighbors(agent), cmd);
+
             if (answer != null) {
                 activityStatus = !answer.getResult();
-                logger.debug("{} {} activity on storage pool [{}]", host.toString(), activityStatus ? "has" : "does not have", pool);
+                logger.debug("{} {} activity on storage pool [{}]", agent.toString(), activityStatus ? "has" : "does not have", pool);
             } else {
-                String message = String.format("Did not get a valid response for VM activity check for %s on storage pool [%s].", host.toString(), pool);
+                String message = String.format("Did not get a valid response for VM activity check for %s on storage pool [%s].", agent.toString(), pool);
                 logger.debug(message);
                 throw new IllegalStateException(message);
             }
-        } catch (StorageUnavailableException e) {
-            String message = String.format("Storage [%s] is unavailable to do the check, probably the %s is not reachable.", pool, host);
+        } catch (StorageUnavailableException e){
+            String message = String.format("Storage [%s] is unavailable to do the check, probably the %s is not reachable.", pool, agent);
             logger.warn(message, e);
             throw new HACheckerException(message, e);
         }
         return activityStatus;
     }
 
-    private HashMap<StoragePool, List<Volume>> getStoragePoolAndVolumeInfoOnHost(Host host) {
-        List<VMInstanceVO> vmListOnHost = vmInstanceDao.listByHostId(host.getId());
-        List<VolumeVO> volumeListOnHost = new ArrayList<>();
-        for (VirtualMachine vm : vmListOnHost) {
+    private HashMap<StoragePool, List<Volume>> getVolumeUuidOnHost(Host agent) {
+        List<VMInstanceVO> vm_list = vmInstanceDao.listByHostId(agent.getId());
+        List<VolumeVO> volume_list = new ArrayList<VolumeVO>();
+        for (VirtualMachine vm : vm_list) {
             logger.debug("Retrieving volumes of VM [{}]...", vm);
-            List<VolumeVO> volumeListOfVM = volumeDao.findByInstance(vm.getId());
-            volumeListOnHost.addAll(volumeListOfVM);
+            List<VolumeVO> vm_volume_list = volumeDao.findByInstance(vm.getId());
+            volume_list.addAll(vm_volume_list);
         }
 
-        HashMap<StoragePool, List<Volume>> poolVolumeMap = new HashMap<>();
-        for (Volume volume : volumeListOnHost) {
-            StoragePool pool = storagePoolDao.findById(volume.getPoolId());
-            logger.debug("Retrieving storage pool [{}] of volume [{}]...", pool, volume);
-            if (!poolVolumeMap.containsKey(pool)) {
-                List<Volume> volList = new ArrayList<>();
-                volList.add(volume);
+        HashMap<StoragePool, List<Volume>> poolVolMap = new HashMap<StoragePool, List<Volume>>();
+        for (Volume vol : volume_list) {
+            StoragePool sp = storagePool.findById(vol.getPoolId());
+            logger.debug("Retrieving storage pool [{}] of volume [{}]...", sp, vol);
+            if (!poolVolMap.containsKey(sp)) {
+                List<Volume> list = new ArrayList<Volume>();
+                list.add(vol);
 
-                poolVolumeMap.put(pool, volList);
+                poolVolMap.put(sp, list);
             } else {
-                poolVolumeMap.get(pool).add(volume);
+                poolVolMap.get(sp).add(vol);
             }
         }
-        return poolVolumeMap;
+        return poolVolMap;
     }
 
-    public long[] getNeighbors(Host host) {
-        List<Long> neighbors = new ArrayList<>();
-        List<HostVO> clusterHosts = resourceManager.listHostsInClusterByStatus(host.getClusterId(), Status.Up);
-        logger.debug("Retrieving all \"Up\" hosts from cluster [{}]...", clusterDao.findById(host.getClusterId()));
-        for (HostVO clusterHost : clusterHosts) {
-            if (clusterHost.getId() == host.getId() || (clusterHost.getHypervisorType() != Hypervisor.HypervisorType.KVM && clusterHost.getHypervisorType() != Hypervisor.HypervisorType.LXC)) {
+    public long[] getNeighbors(Host agent) {
+        List<Long> neighbors = new ArrayList<Long>();
+        List<HostVO> cluster_hosts = resourceManager.listHostsInClusterByStatus(agent.getClusterId(), Status.Up);
+        logger.debug("Retrieving all \"Up\" hosts from cluster [{}]...", clusterDao.findById(agent.getClusterId()));
+        for (HostVO host : cluster_hosts) {
+            if (host.getId() == agent.getId() || (host.getHypervisorType() != Hypervisor.HypervisorType.KVM && host.getHypervisorType() != Hypervisor.HypervisorType.LXC)) {
                 continue;
             }
-            neighbors.add(clusterHost.getId());
+            neighbors.add(host.getId());
         }
         return ArrayUtils.toPrimitive(neighbors.toArray(new Long[neighbors.size()]));
     }
+
 }

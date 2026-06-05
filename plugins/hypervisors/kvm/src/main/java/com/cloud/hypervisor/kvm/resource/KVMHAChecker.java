@@ -26,43 +26,44 @@ import com.cloud.agent.api.to.HostTO;
 public class KVMHAChecker extends KVMHABase implements Callable<Boolean> {
     private List<HAStoragePool> storagePools;
     private HostTO host;
-    private boolean reportIfHeartBeatFailedForOneStoragePool;
+    private boolean reportFailureIfOneStorageIsDown;
 
-    public KVMHAChecker(List<HAStoragePool> pools, HostTO host, boolean reportIfHeartBeatFailedForOneStoragePool) {
+    public KVMHAChecker(List<HAStoragePool> pools, HostTO host, boolean reportFailureIfOneStorageIsDown) {
         this.storagePools = pools;
         this.host = host;
-        this.reportIfHeartBeatFailedForOneStoragePool = reportIfHeartBeatFailedForOneStoragePool;
+        this.reportFailureIfOneStorageIsDown = reportFailureIfOneStorageIsDown;
     }
 
     /*
-     * True means heart beating is on going, or we can't get it's status.
-     * False means heart beating is stopped definitely.
+     * True means heartbeaing is on going, or we can't get it's status. False
+     * means heartbeating is stopped definitely
      */
     @Override
-    public Boolean hasHeartBeat() {
-        String hostAndPools = String.format("host IP [%s] in pools [%s]", host.getPrivateNetwork().getIp(),
-                storagePools.stream().map(pool -> pool.getPoolUUID()).collect(Collectors.joining(", ")));
-        logger.debug("Checking heart beat with KVMHAChecker for {}", hostAndPools);
+    public Boolean checkingHeartBeat() {
+        boolean validResult = false;
 
-        boolean heartBeatCheckResult = false;
+        String hostAndPools = String.format("host IP [%s] in pools [%s]", host.getPrivateNetwork().getIp(), storagePools.stream().map(pool -> pool.getPoolUUID()).collect(Collectors.joining(", ")));
+
+        logger.debug(String.format("Checking heart beat with KVMHAChecker for %s", hostAndPools));
+
         for (HAStoragePool pool : storagePools) {
-            heartBeatCheckResult = pool.getPool().hasHeartBeat(pool, host);
-            if (reportIfHeartBeatFailedForOneStoragePool && !heartBeatCheckResult) {
+            validResult = pool.getPool().checkingHeartBeat(pool, host);
+            if (reportFailureIfOneStorageIsDown && !validResult) {
                 break;
             }
         }
 
-        if (!heartBeatCheckResult) {
-            logger.warn("All checks with KVMHAChecker for {} considered it as dead. It may cause a shutdown of the host.", hostAndPools);
+        if (!validResult) {
+            logger.warn(String.format("All checks with KVMHAChecker for %s considered it as dead. It may cause a shutdown of the host.", hostAndPools));
         }
 
-        return heartBeatCheckResult;
+        return validResult;
     }
 
     @Override
     public Boolean call() throws Exception {
         // logger.addAppender(new org.apache.log4j.ConsoleAppender(new
         // org.apache.log4j.PatternLayout(), "System.out"));
-        return hasHeartBeat();
+        return checkingHeartBeat();
     }
 }

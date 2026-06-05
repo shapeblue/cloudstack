@@ -38,7 +38,7 @@ public class CheckOnAgentInvestigator extends AdapterBase implements Investigato
     }
 
     @Override
-    public Status getHostAgentStatus(Host agent) {
+    public Status isAgentAlive(Host agent) {
         return null;
     }
 

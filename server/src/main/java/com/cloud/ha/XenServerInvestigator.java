@@ -46,7 +46,7 @@ public class XenServerInvestigator extends AdapterBase implements Investigator {
     }
 
     @Override
-    public Status getHostAgentStatus(Host agent) {
+    public Status isAgentAlive(Host agent) {
         if (agent.getHypervisorType() != HypervisorType.XenServer) {
             return null;
         }
@@ -74,7 +74,7 @@ public class XenServerInvestigator extends AdapterBase implements Investigator {
 
     @Override
     public boolean isVmAlive(VirtualMachine vm, Host host) throws UnknownVM {
-        Status status = getHostAgentStatus(host);
+        Status status = isAgentAlive(host);
         if (status == null) {
             throw new UnknownVM();
         }

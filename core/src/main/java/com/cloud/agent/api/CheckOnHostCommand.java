@@ -24,7 +24,7 @@ import com.cloud.host.Host;
 
 public class CheckOnHostCommand extends Command {
     HostTO host;
-    boolean reportIfHeartBeatFailedForOneStoragePool;
+    boolean reportCheckFailureIfOneStorageIsDown;
 
     protected CheckOnHostCommand() {
     }
@@ -34,17 +34,17 @@ public class CheckOnHostCommand extends Command {
         setWait(20);
     }
 
-    public CheckOnHostCommand(Host host, boolean reportIfHeartBeatFailedForOneStoragePool) {
+    public CheckOnHostCommand(Host host, boolean reportCheckFailureIfOneStorageIsDown) {
         this(host);
-        this.reportIfHeartBeatFailedForOneStoragePool = reportIfHeartBeatFailedForOneStoragePool;
+        this.reportCheckFailureIfOneStorageIsDown = reportCheckFailureIfOneStorageIsDown;
     }
 
     public HostTO getHost() {
         return host;
     }
 
-    public boolean shouldReportIfHeartBeatFailedForOneStoragePool() {
-        return reportIfHeartBeatFailedForOneStoragePool;
+    public boolean isCheckFailedOnOneStorage() {
+        return reportCheckFailureIfOneStorageIsDown;
     }
 
     @Override

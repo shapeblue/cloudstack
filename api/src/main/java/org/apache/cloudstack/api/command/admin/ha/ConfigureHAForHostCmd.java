@@ -87,7 +87,6 @@ public final class ConfigureHAForHostCmd extends BaseAsyncCmd {
         final HostHAResponse response = new HostHAResponse();
         response.setId(resourceUuid);
         response.setProvider(getHaProvider().toLowerCase());
-        response.setStatus(result);
         response.setResponseName(getCommandName());
         setResponseObject(response);
     }

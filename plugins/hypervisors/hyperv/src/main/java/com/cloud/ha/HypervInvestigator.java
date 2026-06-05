@@ -41,15 +41,15 @@ public class HypervInvestigator extends AdapterBase implements Investigator {
 
     @Override
     public boolean isVmAlive(com.cloud.vm.VirtualMachine vm, Host host) throws UnknownVM {
-        Status status = getHostAgentStatus(host);
+        Status status = isAgentAlive(host);
         if (status == null) {
             throw new UnknownVM();
         }
-        return status == Status.Up;
+        return status == Status.Up ? true : null;
     }
 
     @Override
-    public Status getHostAgentStatus(Host agent) {
+    public Status isAgentAlive(Host agent) {
         if (agent.getHypervisorType() != Hypervisor.HypervisorType.Hyperv) {
             return null;
         }

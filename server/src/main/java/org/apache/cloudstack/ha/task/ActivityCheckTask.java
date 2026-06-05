@@ -62,8 +62,6 @@ public class ActivityCheckTask extends BaseHATask {
             return;
         }
 
-        long activityCounter = counter.getActivityCheckCounter();
-        logger.debug("Activity check #{}, result: {} for the resource {}. Max activity checks configured is {}", activityCounter + 1, result, getResource(), maxActivityChecks);
         counter.incrActivityCounter(!result);
 
         if (counter.getActivityCheckCounter() < maxActivityChecks) {
@@ -71,9 +69,7 @@ public class ActivityCheckTask extends BaseHATask {
             return;
         }
 
-        long activityCheckFailureCount = counter.getActivityCheckFailureCounter();
-        logger.debug("{} activity checks failed out of {} checks performed for the resource {}. Failure threshold configured is {}", activityCheckFailureCount, maxActivityChecks, getResource(), activityCheckFailureRatio);
-        if (counter.hasActivityFailureThresholdExceeded(activityCheckFailureRatio)) {
+        if (counter.hasActivityThresholdExceeded(activityCheckFailureRatio)) {
             haManager.transitionHAState(HAConfig.Event.ActivityCheckFailureOverThresholdRatio, haConfig);
         } else {
             if (haManager.transitionHAState(HAConfig.Event.ActivityCheckFailureUnderThresholdRatio, haConfig)) {

@@ -54,13 +54,13 @@ public class SimulatorInvestigator extends AdapterBase implements Investigator {
     }
 
     @Override
-    public Status getHostAgentStatus(Host agent) {
+    public Status isAgentAlive(Host agent) {
         if (agent.getHypervisorType() != HypervisorType.Simulator) {
             return null;
         }
 
         if (haManager.isHAEligible(agent)) {
-            return haManager.getHostStatusFromHAConfig(agent);
+            return haManager.getHostStatus(agent);
         }
 
         CheckOnHostCommand cmd = new CheckOnHostCommand(agent);
