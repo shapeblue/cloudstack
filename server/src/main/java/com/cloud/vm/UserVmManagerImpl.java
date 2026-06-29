@@ -4152,7 +4152,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             List<HypervisorType> vpcSupportedHTypes, Long networkId) {
         NetworkVO network = _networkDao.findById(networkId);
         if (network == null) {
-            throw new InvalidParameterValueException("Unable to find network by id " + networkId);
+            throw Exceptions.invalidParameterValueException("vm.deploy.network.not.found");
         }
         if (network.getVpcId() != null) {
             // Only ISOs, XenServer, KVM, and VmWare template types are
@@ -4189,8 +4189,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         List<NetworkOfferingVO> requiredOfferings = _networkOfferingDao.listByAvailability(Availability.Required, false);
         if (requiredOfferings.size() < 1) {
-            throw new InvalidParameterValueException("Unable to find network offering with availability=" + Availability.Required
-                    + " to automatically create the network as a part of vm creation");
+            throw Exceptions.invalidParameterValueException("vm.deploy.network.offering.required.not.found");
         }
 
         if (requiredOfferings.get(0).getState() == NetworkOffering.State.Enabled) {
@@ -4220,8 +4219,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         // Validate physical network
         PhysicalNetwork physicalNetwork = _physicalNetworkDao.findById(physicalNetworkId);
         if (physicalNetwork == null) {
-            throw new InvalidParameterValueException("Unable to find physical network with id: " + physicalNetworkId + " and tag: "
-                    + requiredOfferings.get(0).getTags());
+            throw Exceptions.invalidParameterValueException("vm.deploy.physical.network.not.found", Map.of("physicalNetworkId", physicalNetworkId, "tag", requiredOfferings.get(0).getTags()));
         }
         logger.debug("Creating Network for Account {} from the network offering {} as a part of deployVM process", owner, requiredOfferings.get(0));
         Network newNetwork = _networkMgr.createGuestNetwork(requiredOfferings.get(0).getId(), owner.getAccountName() + "-network", owner.getAccountName() + "-network",
@@ -4253,8 +4251,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
     public void checkNameForRFCCompliance(String name) {
         if (!NetUtils.verifyDomainNameLabel(name, true)) {
-            throw new InvalidParameterValueException("Invalid name. Vm name can contain ASCII letters 'a' through 'z', the digits '0' through '9', "
-                    + "and the hyphen ('-'), must be between 1 and 63 characters long, and can't start or end with \"-\" and can't start with digit");
+            throw Exceptions.invalidParameterValueException("vm.deploy.hostname.invalid");
         }
     }
 
@@ -4584,8 +4581,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
                     String provider = _ntwkSrvcDao.getProviderForServiceInNetwork(network.getId(), Service.Connectivity);
                     if (!_networkModel.isProviderEnabledInPhysicalNetwork(physicalNetworkId, provider)) {
-                        throw new InvalidParameterValueException("Network in which is VM getting deployed could not be" +
-                                " streched to the zone, as we could not find a valid physical network");
+                        throw Exceptions.invalidParameterValueException("vm.deploy.network.provider.not.enabled.in.zone");
                     }
                 }
 
@@ -4744,7 +4740,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 }
             }
         } catch (Exception ex) {
-            throw new CloudRuntimeException("Unable to assign Vm to the group " + group);
+            throw Exceptions.cloudRuntimeException("vm.deploy.group.assign.failed", Map.of("group", group != null ? group : ""), ex);
         }
     }
 
@@ -4958,7 +4954,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
             VMTemplateVO templateVO = _templateDao.findById(template.getId());
             if (templateVO == null) {
-                InvalidParameterValueException ipve = new InvalidParameterValueException("Unable to look up template by id " + template.getId());
+                InvalidParameterValueException ipve = Exceptions.invalidParameterValueException("vm.deploy.template.not.found.by.id", Map.of("id", template.getId()));
                 ipve.add(VirtualMachine.class, vm.getUuid());
                 throw ipve;
             }
@@ -6455,18 +6451,18 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
 
         DataCenter zone = _entityMgr.findById(DataCenter.class, zoneId);
         if (zone == null) {
-            throw new InvalidParameterValueException("vm.deploy.zone.not.found", Collections.emptyMap());
+            throw Exceptions.invalidParameterValueException("vm.deploy.zone.not.found");
         }
 
         Long serviceOfferingId = cmd.getServiceOfferingId();
         if (serviceOfferingId == null) {
-            throw new InvalidParameterValueException("vm.deploy.serviceoffering.not.specified", Collections.emptyMap());
+            throw Exceptions.invalidParameterValueException("vm.deploy.serviceoffering.not.specified");
         }
         Long overrideDiskOfferingId = cmd.getOverrideDiskOfferingId();
 
         ServiceOffering serviceOffering = _entityMgr.findById(ServiceOffering.class, serviceOfferingId);
         if (serviceOffering == null) {
-            throw new InvalidParameterValueException("vm.deploy.serviceoffering.not.found", Collections.emptyMap());
+            throw Exceptions.invalidParameterValueException("vm.deploy.serviceoffering.not.found");
         }
         verifyServiceOffering(cmd, serviceOffering);
 
@@ -6480,14 +6476,14 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (cmd.getVolumeId() != null) {
             volume = getVolume(cmd.getVolumeId(), templateId, false);
             if (volume == null) {
-                throw new InvalidParameterValueException("vm.deploy.volume.not.found", Collections.emptyMap());
+                throw Exceptions.invalidParameterValueException("vm.deploy.volume.not.found");
             }
             _accountMgr.checkAccess(caller, null, true, volume);
             templateId = volume.getTemplateId();
         } else if (cmd.getSnapshotId() != null) {
             snapshot = _snapshotDao.findById(cmd.getSnapshotId());
             if (snapshot == null) {
-                throw new InvalidParameterValueException("vm.deploy.snapshot.not.found", Collections.emptyMap());
+                throw Exceptions.invalidParameterValueException("vm.deploy.snapshot.not.found");
             }
             _accountMgr.checkAccess(caller, null, true, snapshot);
             VolumeInfo volumeOfSnapshot = getVolume(snapshot.getVolumeId(), templateId, true);
@@ -6502,17 +6498,17 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (volume != null || snapshot != null) {
             template = _entityMgr.findByIdIncludingRemoved(VirtualMachineTemplate.class, templateId);
             if (template == null) {
-                throw new InvalidParameterValueException("vm.deploy.template.associated.not.usable", Collections.emptyMap());
+                throw Exceptions.invalidParameterValueException("vm.deploy.template.associated.not.usable");
             }
         } else {
             template = _entityMgr.findById(VirtualMachineTemplate.class, templateId);
             if (template == null) {
-                throw new InvalidParameterValueException("vm.deploy.template.not.found", Collections.emptyMap());
+                throw Exceptions.invalidParameterValueException("vm.deploy.template.not.found");
             }
         }
         if (cmd.isVolumeOrSnapshotProvided() &&
                 (!(HypervisorType.KVM.equals(template.getHypervisorType()) || HypervisorType.KVM.equals(cmd.getHypervisor())))) {
-            throw new InvalidParameterValueException("vm.deploy.hypervisor.volume.snapshot.not.supported", Collections.emptyMap());
+            throw Exceptions.invalidParameterValueException("vm.deploy.hypervisor.volume.snapshot.not.supported");
         }
         verifyTemplate(cmd, template, serviceOfferingId);
 
@@ -6521,7 +6517,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (diskOfferingId != null) {
             diskOffering = _entityMgr.findById(DiskOffering.class, diskOfferingId);
             if (diskOffering == null) {
-                throw new InvalidParameterValueException("vm.deploy.diskoffering.not.found", Collections.emptyMap());
+                throw Exceptions.invalidParameterValueException("vm.deploy.diskoffering.not.found");
             }
             if (diskOffering.isComputeOnly()) {
                 throw Exceptions.invalidParameterValueException("vm.deploy.diskoffering.compute.only", Map.of("diskOffering", diskOffering));
@@ -8585,8 +8581,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (virtualNetworks.isEmpty()) {
             throw Exceptions.cloudRuntimeException("vm.assign.applicable.network.not.found", Map.of("account", newAccount));
         } else if (virtualNetworks.size() > 1) {
-            throw new InvalidParameterValueException(String.format("More than one default isolated network has been found for account [%s]; please specify networkIDs.",
-                    newAccount));
+            throw Exceptions.invalidParameterValueException("vm.assign.multiple.default.networks", Map.of("account", newAccount));
         } else {
             defaultNetwork = _networkDao.findById(virtualNetworks.get(0).getId());
         }
@@ -9342,7 +9337,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     try {
                         _agentMgr.send(hostId, cmds);
                     } catch (Exception ex) {
-                        throw new CloudRuntimeException(ex.getMessage());
+                        throw Exceptions.cloudRuntimeException("vm.restore.managed.storage.send.failed", Map.of(), ex);
                     }
 
                     if (!cmds.isSuccessful()) {
