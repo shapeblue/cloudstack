@@ -26,13 +26,8 @@ import java.util.Map;
 import org.apache.cloudstack.backup.StartBackupAnswer;
 import org.apache.cloudstack.backup.StartBackupCommand;
 import org.apache.cloudstack.utils.cryptsetup.KeyFile;
-import org.apache.cloudstack.utils.qemu.QemuCommand;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.libvirt.Domain;
-import org.libvirt.LibvirtException;
 import com.cloud.agent.api.Answer;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
 import com.cloud.resource.CommandWrapper;
@@ -113,52 +108,21 @@ public class LibvirtStartBackupCommandWrapper extends CommandWrapper<StartBackup
 
     private Answer ensureFromCheckpointExists(StartBackupCommand cmd, String fromCheckpointId, Long fromCheckpointCreateTime) {
         String vmName = cmd.getVmName();
-        Script dumpScript = new Script("/bin/bash");
-        dumpScript.add("-c");
-        dumpScript.add(String.format("virsh checkpoint-dumpxml --domain %s --checkpointname %s --no-domain",
-            vmName, fromCheckpointId));
-        if (dumpScript.execute() == null) {
+        if (LibvirtBackupHelper.checkpointExists(vmName, fromCheckpointId)) {
             return null;
         }
         if (fromCheckpointCreateTime == null) {
             return new StartBackupAnswer(cmd, false, "From checkpoint create time is null for checkpoint " + fromCheckpointId);
         }
 
-        String redefineXml = createCheckpointXmlForRedefine(fromCheckpointId, fromCheckpointCreateTime);
-        File redefineFile;
-        try {
-            redefineFile = File.createTempFile("checkpoint-redefine-", ".xml");
-        } catch (Exception e) {
-            return new StartBackupAnswer(cmd, false, "Failed to create temp file for checkpoint redefine: " + e.getMessage());
-        }
-        try (FileWriter writer = new FileWriter(redefineFile)) {
-            writer.write(redefineXml);
-        } catch (Exception e) {
-            redefineFile.delete();
-            return new StartBackupAnswer(cmd, false, "Failed to write checkpoint redefine XML: " + e.getMessage());
-        }
-        String createCmd = String.format(LibvirtComputingResource.CHECKPOINT_CREATE_COMMAND, vmName, redefineFile.getAbsolutePath());
-        Script createScript = new Script("/bin/bash");
-        createScript.add("-c");
-        createScript.add(createCmd);
-        String result = createScript.execute();
-        redefineFile.delete();
+        String result = LibvirtBackupHelper.redefineCheckpoint(vmName, fromCheckpointId, fromCheckpointCreateTime);
         if (result != null) {
             return new StartBackupAnswer(cmd, false, "Failed to redefine from-checkpoint " + fromCheckpointId + ": " + result);
         }
         return null;
     }
 
-    private String createCheckpointXmlForRedefine(String checkpointName, Long createTime) {
-        StringBuilder xml = new StringBuilder();
-        xml.append("<domaincheckpoint>\n");
-        xml.append("  <name>").append(checkpointName).append("</name>\n");
-        xml.append("  <creationTime>").append(createTime).append("</creationTime>\n");
-        xml.append("</domaincheckpoint>");
-        return xml.toString();
-    }
-
-    private String createBackupXml(StartBackupCommand cmd, String fromCheckpointId, String socket, LibvirtComputingResource resource) throws LibvirtException {
+    private String createBackupXml(StartBackupCommand cmd, String fromCheckpointId, String socket, LibvirtComputingResource resource) {
         StringBuilder xml = new StringBuilder();
         xml.append("<domainbackup mode=\"pull\">\n");
 
@@ -170,20 +134,7 @@ public class LibvirtStartBackupCommandWrapper extends CommandWrapper<StartBackup
         Map<String, String> diskPathLabelMap = resource.getDiskPathLabelMap(cmd.getVmName());
         Map<String, Boolean> diskPathHasFromCheckpointMap = new HashMap<>();
         if (StringUtils.isNotBlank(fromCheckpointId)) {
-            Domain vm = null;
-            try {
-                vm = resource.getDomain(resource.getLibvirtUtilitiesHelper().getConnection(), cmd.getVmName());
-                if (vm != null) {
-                    diskPathHasFromCheckpointMap = getVmDiskPathHasFromCheckpointMap(vm, fromCheckpointId);
-                } else {
-                    logger.warn("Failed to get domain for VM [{}] while evaluating export bitmap [{}]. Falling back to full Backup",
-                            cmd.getVmName(), fromCheckpointId);
-                }
-            } finally {
-                if (vm != null) {
-                   vm.free();
-                }
-            }
+            diskPathHasFromCheckpointMap = LibvirtBackupHelper.getVmDiskPathHasFromCheckpointMap(resource, cmd.getVmName(), fromCheckpointId);
         }
 
         for (Map.Entry<String, String> entry : diskPathLabelMap.entrySet()) {
@@ -257,44 +208,5 @@ public class LibvirtStartBackupCommandWrapper extends CommandWrapper<StartBackup
 
     private long getCheckpointCreateTime() {
         return System.currentTimeMillis() / 1000;
-    }
-
-    private Map<String, Boolean> getVmDiskPathHasFromCheckpointMap(Domain vm, String fromCheckpointId) throws LibvirtException {
-        Map<String, Boolean> diskPathHasFromCheckpointMap = new HashMap<>();
-        String queryBlock = vm.qemuMonitorCommand(QemuCommand.buildQemuCommand("query-block", null), 0);
-        JSONObject response = new JSONObject(queryBlock);
-        JSONArray blocks = response.optJSONArray("return");
-        if (blocks == null) {
-            logger.warn("Couldn't get bitmap information for the VM [{}]. Falling back to full Backup", vm.getName());
-            return diskPathHasFromCheckpointMap;
-        }
-        for (int i = 0; i < blocks.length(); i++) {
-            JSONObject block = blocks.getJSONObject(i);
-            JSONObject inserted = block.optJSONObject("inserted");
-            if (inserted == null) {
-                continue;
-            }
-            String file = inserted.optString("file");
-            if (StringUtils.isBlank(file)) {
-                continue;
-            }
-            JSONArray dirtyBitmaps = inserted.optJSONArray("dirty-bitmaps");
-            boolean hasFromCheckpointBitmap = false;
-            if (dirtyBitmaps != null) {
-                for (int j = 0; j < dirtyBitmaps.length(); j++) {
-                    JSONObject dirtyBitmap = dirtyBitmaps.optJSONObject(j);
-                    if (dirtyBitmap == null) {
-                        continue;
-                    }
-                    String bitmapName = dirtyBitmap.optString("name");
-                    if (fromCheckpointId.equals(bitmapName)) {
-                        hasFromCheckpointBitmap = true;
-                        break;
-                    }
-                }
-            }
-            diskPathHasFromCheckpointMap.put(file, hasFromCheckpointBitmap);
-        }
-        return diskPathHasFromCheckpointMap;
     }
 }

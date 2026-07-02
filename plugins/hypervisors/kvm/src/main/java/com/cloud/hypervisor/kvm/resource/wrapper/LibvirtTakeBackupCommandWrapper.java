@@ -30,6 +30,7 @@ import com.cloud.resource.ResourceWrapper;
 import com.cloud.storage.Storage;
 import com.cloud.utils.Pair;
 import com.cloud.utils.script.Script;
+
 import org.apache.cloudstack.backup.BackupAnswer;
 import org.apache.cloudstack.backup.TakeBackupCommand;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
@@ -37,14 +38,12 @@ import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @ResourceWrapper(handles = TakeBackupCommand.class)
 public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCommand, Answer, LibvirtComputingResource> {
     private static final Integer EXIT_CLEANUP_FAILED = 20;
-    // nasbackup.sh prints this on stdout when it could not proceed as an incremental and
-    // completed a full backup instead; the orchestrator then records the backup as a full.
-    private static final String INCREMENTAL_FALLBACK_MARKER = "INCREMENTAL_FALLBACK=true";
 
     private static final String MODE_FULL = "full";
     private static final String MODE_INCREMENTAL = "incremental";
@@ -71,6 +70,13 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
             return new BackupAnswer(command, false, validationError);
         }
 
+        String mode = command.getMode();
+        boolean incrementalFallback = false;
+        if (MODE_INCREMENTAL.equals(mode) && !canProceedAsIncremental(libvirtComputingResource, vmName, command.getBitmapParent())) {
+            mode = MODE_FULL;
+            incrementalFallback = true;
+        }
+
         List<String> diskPaths = new ArrayList<>();
         if (Objects.nonNull(volumePaths)) {
             for (int idx = 0; idx < volumePaths.size(); idx++) {
@@ -87,7 +93,7 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
         }
 
         Pair<Integer, String> result = runBackupScript(libvirtComputingResource, command, vmName, backupRepoType, backupRepoAddress,
-                mountOptions, backupPath, diskPaths, command.getMode(),
+                mountOptions, backupPath, diskPaths, mode,
                 command.getBitmapNew(), command.getBitmapParent(), command.getParentPaths(), timeout);
 
         if (result.first() != 0) {
@@ -100,12 +106,7 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
             return answer;
         }
 
-        // The script self-heals to a full backup when an incremental can't proceed (e.g. the
-        // parent checkpoint can't be re-registered) and signals it with INCREMENTAL_FALLBACK
-        // on stdout. Detect it, then strip the marker line before parsing the backup size.
-        String rawStdout = result.second();
-        boolean incrementalFallback = rawStdout.contains(INCREMENTAL_FALLBACK_MARKER);
-        String stdout = stripMarkerLines(rawStdout).trim();
+        String stdout = result.second().trim();
         long backupSize = parseBackupSize(stdout, diskPaths);
 
         BackupAnswer answer = new BackupAnswer(command, true, stdout);
@@ -117,22 +118,22 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
         return answer;
     }
 
-    /** Remove nasbackup.sh's stdout signalling marker lines so they don't pollute size parsing. */
-    private String stripMarkerLines(String stdout) {
-        if (stdout == null || stdout.isEmpty()) {
-            return "";
+    private boolean canProceedAsIncremental(LibvirtComputingResource resource, String vmName, String bitmapParent) {
+        Map<String, Boolean> diskPathHasBitmapMap = LibvirtBackupHelper.getVmDiskPathHasFromCheckpointMap(resource, vmName, bitmapParent);
+        long diskCount = resource.getDiskPathLabelMap(vmName).size();
+        long bitmapCount = LibvirtBackupHelper.countDisksWithCheckpoint(diskPathHasBitmapMap);
+        if (diskCount == 0 || bitmapCount < diskCount) {
+            logger.warn("incremental: parent bitmap {} present on {}/{} disk(s) for VM [{}] — falling back to full",
+                    bitmapParent, bitmapCount, diskCount, vmName);
+            return false;
         }
-        StringBuilder sb = new StringBuilder();
-        for (String line : stdout.split("\n", -1)) {
-            if (line.contains(INCREMENTAL_FALLBACK_MARKER)) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append('\n');
-            }
-            sb.append(line);
+        String redefineError = LibvirtBackupHelper.ensureCheckpointRegistered(vmName, bitmapParent, System.currentTimeMillis() / 1000);
+        if (redefineError != null) {
+            logger.warn("incremental: parent checkpoint {} could not be re-registered for VM [{}]: {} — falling back to full",
+                    bitmapParent, vmName, redefineError);
+            return false;
         }
-        return sb.toString();
+        return true;
     }
 
     /**

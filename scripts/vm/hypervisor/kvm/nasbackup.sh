@@ -142,74 +142,13 @@ backup_running_vm() {
       ;;
   esac
 
-  # When incremental, make sure the parent checkpoint is registered with libvirt. CloudStack
-  # rebuilds the domain XML on every VM start, which wipes libvirt's in-memory checkpoint
-  # registry, while the dirty bitmap persists on the qcow2 (QEMU re-loads it on start). A
-  # fresh checkpoint-create cannot be used then — QEMU reports "Bitmap already exists" — so the
-  # parent must be re-registered with --redefine. libvirt only needs the checkpoint name and a
-  # creationTime for a redefine (the value need not be accurate — checkpoints are ephemeral),
-  # so we synthesize a minimal XML on the fly instead of persisting the full checkpoint dump.
-  #
-  # First verify the parent bitmap actually exists on the running qcow2 — it can be absent after
-  # a migration even though the orchestrator's active_checkpoint says it should be there. If it
-  # is gone, fall back to a full backup rather than letting backup-begin fail below.
-  if [[ "$effective_mode" == "incremental" ]]; then
-    # The parent bitmap must be present on EVERY disk's qcow2, not just one of them. A volume
-    # snapshot restore (or a partial migration) can wipe the bitmap on some disks while leaving
-    # it on others; a plain "is the name anywhere in query-block" check passes in that case and
-    # backup-begin then fails on the disk that is missing the bitmap. Require the bitmap on all
-    # disks: compare the disk count to the number of disks reporting the bitmap (tests 17/19).
-    disk_count=$(virsh -c qemu:///system domblklist "$VM" --details 2>/dev/null | awk '$2=="disk"{c++} END{print c+0}')
-    # Count DISKS that actually carry the parent bitmap, not raw name occurrences. query-block
-    # lists each disk's bitmap under more than one node, so "grep -o name | wc -l" double-counts:
-    # with two disks where only one has the bitmap it returns 2, is misread as present-on-all, and
-    # the incremental then fails on the disk missing it (test 19). Parse per-device exactly as
-    # LibvirtStartBackupCommandWrapper.getVmDiskPathHasFromCheckpointMap() does (one count per
-    # inserted.file whose dirty-bitmaps contains the parent). The trailing "|| echo 0" also keeps a
-    # no-match from aborting the script under "set -eo pipefail" before the fallback below runs
-    # (a snapshot restore wipes the bitmap on all disks, so nothing matches — tests 17/18).
-    bitmap_count=$(virsh -c qemu:///system qemu-monitor-command "$VM" '{"execute":"query-block"}' 2>/dev/null | python3 -c '
-import sys, json
-target = sys.argv[1]
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    print(0); sys.exit(0)
-files = set()
-for dev in data.get("return", []) or []:
-    inserted = dev.get("inserted") or {}
-    f = inserted.get("file")
-    if not f:
-        continue
-    if any((b or {}).get("name") == target for b in (inserted.get("dirty-bitmaps") or [])):
-        files.add(f)
-print(len(files))
-' "$BITMAP_PARENT" 2>/dev/null || echo 0)
-    if [[ "$disk_count" -eq 0 || "$bitmap_count" -lt "$disk_count" ]]; then
-      log -e "incremental: parent bitmap $BITMAP_PARENT present on $bitmap_count/$disk_count disk(s) — falling back to full"
-      echo "INCREMENTAL_FALLBACK=true"
-      effective_mode="full"
-    fi
-  fi
-
-  if [[ "$effective_mode" == "incremental" ]]; then
-    if ! virsh -c qemu:///system checkpoint-list "$VM" --name 2>/dev/null | grep -qx "$BITMAP_PARENT"; then
-      redefine_xml=$(mktemp)
-      printf '<domaincheckpoint><name>%s</name><creationTime>%s</creationTime></domaincheckpoint>' \
-        "$BITMAP_PARENT" "$(date +%s)" > "$redefine_xml"
-      if virsh -c qemu:///system checkpoint-create "$VM" --xmlfile "$redefine_xml" --redefine > /dev/null 2>&1; then
-        rm -f "$redefine_xml" # parent checkpoint re-registered; the incremental can proceed against it
-      else
-        rm -f "$redefine_xml"
-        # Parent checkpoint could not be re-registered — fall back to a full backup in place so
-        # the chain restarts cleanly instead of failing. Emit a stdout marker so the wrapper
-        # records this backup as a full (incrementalFallback=true).
-        log -e "incremental: parent checkpoint $BITMAP_PARENT could not be re-registered — falling back to full"
-        echo "INCREMENTAL_FALLBACK=true"
-        effective_mode="full"
-      fi
-    fi
-  fi
+  # Whether the parent bitmap is present on every disk, and whether the parent checkpoint is
+  # registered with libvirt (CloudStack rebuilds the domain XML on every VM start, which wipes
+  # libvirt's in-memory checkpoint registry while the dirty bitmap persists on the qcow2), is
+  # decided and — if needed — redefined by the caller before this script runs (see
+  # LibvirtTakeBackupCommandWrapper.canProceedAsIncremental() / LibvirtBackupHelper). By the time
+  # $MODE reaches this script it is already the effective mode: a caller that determined the
+  # incremental couldn't proceed passes "full" instead.
 
   # Build backup XML (and matching checkpoint XML when applicable).
   name="root"
