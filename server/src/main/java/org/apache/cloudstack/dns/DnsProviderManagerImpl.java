@@ -74,6 +74,8 @@ import org.apache.cloudstack.dns.vo.DnsZoneJoinVO;
 import org.apache.cloudstack.dns.vo.DnsZoneNetworkMapVO;
 import org.apache.cloudstack.dns.vo.DnsZoneVO;
 import org.apache.cloudstack.dns.vo.NicDnsJoinVO;
+import org.apache.cloudstack.framework.config.ConfigKey;
+import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.messagebus.MessageBus;
 import org.apache.cloudstack.framework.messagebus.MessageSubscriber;
 import org.apache.commons.collections.CollectionUtils;
@@ -113,7 +115,7 @@ import com.cloud.vm.dao.NicDetailsDao;
 import com.cloud.vm.dao.VMInstanceDao;
 
 @Component
-public class DnsProviderManagerImpl extends ManagerBase implements DnsProviderManager, PluggableService {
+public class DnsProviderManagerImpl extends ManagerBase implements DnsProviderManager, PluggableService, Configurable {
     List<DnsProvider> dnsProviders;
     @Inject
     AccountManager accountMgr;
@@ -215,6 +217,8 @@ public class DnsProviderManagerImpl extends ManagerBase implements DnsProviderMa
         if (MapUtils.isNotEmpty(cmd.getDetails())) {
             server.setDetails(cmd.getDetails());
         }
+        server.appendDetails(DnsProviderDeliveryPolicy.PRIVATE_ADDRESS_EXEMPT_DETAIL_KEY,
+                String.valueOf(accountMgr.isRootAdmin(caller.getId())));
 
         try {
             DnsProvider provider = getProviderByType(type);
@@ -282,6 +286,8 @@ public class DnsProviderManagerImpl extends ManagerBase implements DnsProviderMa
                     throw new InvalidParameterValueException("Another DNS server with this URL already exists.");
                 }
                 dnsServer.setUrl(dnsUrl);
+                dnsServer.appendDetails(DnsProviderDeliveryPolicy.PRIVATE_ADDRESS_EXEMPT_DETAIL_KEY,
+                        String.valueOf(accountMgr.isRootAdmin(caller.getId())));
                 validationRequired = true;
             }
         }
@@ -1251,5 +1257,25 @@ public class DnsProviderManagerImpl extends ManagerBase implements DnsProviderMa
             recordIpv6.setContents(ipv6s);
             provider.addRecord(dnsServer, dnsZone, recordIpv6);
         }
+    }
+
+    @Override
+    public String getConfigComponentName() {
+        return DnsProviderManagerImpl.class.getSimpleName();
+    }
+
+    /**
+     * Registered here, once, rather than by each {@link DnsProvider} implementation: every provider
+     * (PowerDNS, and any future provider) shares the same destination-validation policy via
+     * {@link org.apache.cloudstack.dns.DnsProviderUrlValidator}, so there is exactly one place these
+     * keys need to be listed for them to show up in the configuration table/API.
+     */
+    @Override
+    public ConfigKey<?>[] getConfigKeys() {
+        return new ConfigKey<?>[]{
+                DnsProviderUrlValidator.DnsProviderUrlBlocklist,
+                DnsProviderUrlValidator.DnsProviderBlockLocalAddresses,
+                DnsProviderUrlValidator.DnsProviderAllowHttp
+        };
     }
 }

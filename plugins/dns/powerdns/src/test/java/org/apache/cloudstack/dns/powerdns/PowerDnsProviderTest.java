@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -38,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import org.apache.cloudstack.dns.DnsProviderDeliveryPolicy;
 import org.apache.cloudstack.dns.DnsRecord;
 import org.apache.cloudstack.dns.DnsRecord.RecordType;
 import org.apache.cloudstack.dns.DnsServer;
@@ -58,6 +60,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class PowerDnsProviderTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final long DOMAIN_ID = 1L;
+    // Matches what PowerDnsProvider actually builds for serverMock (domain id 1, see setUp()).
+    private static final DnsProviderDeliveryPolicy POLICY = DnsProviderDeliveryPolicy.forDomain(DOMAIN_ID);
 
     private PowerDnsProvider provider;
     private PowerDnsClient clientMock;
@@ -77,6 +82,7 @@ public class PowerDnsProviderTest {
         when(serverMock.getPort()).thenReturn(8081);
         when(serverMock.getDetail(PowerDnsProvider.PDNS_SERVER_ID)).thenReturn("localhost");
         when(serverMock.getNameServers()).thenReturn(Arrays.asList("ns1.example.com"));
+        when(serverMock.getDomainId()).thenReturn(DOMAIN_ID);
 
         when(zoneMock.getName()).thenReturn("example.com");
     }
@@ -157,9 +163,9 @@ public class PowerDnsProviderTest {
 
     @Test
     public void testValidateDelegatesToClient() throws DnsProviderException {
-        when(clientMock.validateServerId(anyString(), anyInt(), anyString(), anyString())).thenReturn("localhost");
+        when(clientMock.validateServerId(anyString(), anyInt(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class))).thenReturn("localhost");
         provider.validate(serverMock);
-        verify(clientMock).validateServerId("http://pdns:8081", 8081, "secret", "localhost");
+        verify(clientMock).validateServerId("http://pdns:8081", 8081, "secret", "localhost", POLICY);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -170,10 +176,10 @@ public class PowerDnsProviderTest {
 
     @Test
     public void testValidateAndResolveServer() throws Exception {
-        when(clientMock.resolveServerId(anyString(), anyInt(), anyString(), anyString())).thenReturn("localhost");
+        when(clientMock.resolveServerId(anyString(), anyInt(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class))).thenReturn("localhost");
         String result = provider.validateAndResolveServer(serverMock);
         assertEquals("localhost", result);
-        verify(clientMock).resolveServerId("http://pdns:8081", 8081, "secret", "localhost");
+        verify(clientMock).resolveServerId("http://pdns:8081", 8081, "secret", "localhost", POLICY);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -184,11 +190,11 @@ public class PowerDnsProviderTest {
 
     @Test
     public void testProvisionZoneDelegatesToClient() throws DnsProviderException {
-        when(clientMock.createZone(anyString(), anyInt(), anyString(), anyString(), anyString(), anyString(), eq(false), anyList())).thenReturn("example.com.");
+        when(clientMock.createZone(anyString(), anyInt(), anyString(), anyString(), anyString(), anyString(), eq(false), anyList(), any(DnsProviderDeliveryPolicy.class))).thenReturn("example.com.");
         String zoneId = provider.provisionZone(serverMock, zoneMock);
         assertEquals("example.com.", zoneId);
         verify(clientMock).createZone("http://pdns:8081", 8081, "secret", "localhost", "example.com",
-                "Native", false, Arrays.asList("ns1.example.com"));
+                "Native", false, Arrays.asList("ns1.example.com"), POLICY);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -200,7 +206,7 @@ public class PowerDnsProviderTest {
     @Test
     public void testDeleteZoneDelegatesToClient() throws DnsProviderException {
         provider.deleteZone(serverMock, zoneMock);
-        verify(clientMock).deleteZone("http://pdns:8081", 8081, "secret", "localhost", "example.com");
+        verify(clientMock).deleteZone("http://pdns:8081", 8081, "secret", "localhost", "example.com", POLICY);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -213,20 +219,20 @@ public class PowerDnsProviderTest {
     public void testUpdateZoneDelegatesToClient() throws DnsProviderException {
         provider.updateZone(serverMock, zoneMock);
         verify(clientMock).updateZone("http://pdns:8081", 8081, "secret", "localhost", "example.com",
-                "Native", false, Arrays.asList("ns1.example.com"));
+                "Native", false, Arrays.asList("ns1.example.com"), POLICY);
     }
 
     @Test
     public void testAddRecordDelegatesToClient() throws DnsProviderException {
         DnsRecord record = new DnsRecord("www", RecordType.A, Arrays.asList("1.2.3.4"), 300);
         when(clientMock.modifyRecord(anyString(), anyInt(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyLong(), anyList(), anyString())).thenReturn("www.example.com");
+                anyString(), anyString(), anyLong(), anyList(), anyString(), any(DnsProviderDeliveryPolicy.class))).thenReturn("www.example.com");
 
         String result = provider.addRecord(serverMock, zoneMock, record);
 
         assertEquals("www.example.com", result);
         verify(clientMock).modifyRecord("http://pdns:8081", 8081, "secret", "localhost", "example.com",
-                "www", "A", 300L, Arrays.asList("1.2.3.4"), "REPLACE");
+                "www", "A", 300L, Arrays.asList("1.2.3.4"), "REPLACE", POLICY);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -240,39 +246,39 @@ public class PowerDnsProviderTest {
     public void testUpdateRecordDelegatesToAddRecord() throws DnsProviderException {
         DnsRecord record = new DnsRecord("mail", RecordType.MX, Arrays.asList("10 mail.example.com"), 300);
         when(clientMock.modifyRecord(anyString(), anyInt(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyLong(), anyList(), anyString())).thenReturn("mail.example.com");
+                anyString(), anyString(), anyLong(), anyList(), anyString(), any(DnsProviderDeliveryPolicy.class))).thenReturn("mail.example.com");
 
         String result = provider.updateRecord(serverMock, zoneMock, record);
 
         assertEquals("mail.example.com", result);
         verify(clientMock).modifyRecord(anyString(), anyInt(), anyString(), anyString(), anyString(),
-                eq("mail"), eq("MX"), eq(300L), eq(Arrays.asList("10 mail.example.com")), eq("REPLACE"));
+                eq("mail"), eq("MX"), eq(300L), eq(Arrays.asList("10 mail.example.com")), eq("REPLACE"), any(DnsProviderDeliveryPolicy.class));
     }
 
     @Test
     public void testDeleteRecordDelegatesToClientWithDeleteChangeType() throws DnsProviderException {
         DnsRecord record = new DnsRecord("old", RecordType.CNAME, Arrays.asList("target.com"), 600);
         when(clientMock.modifyRecord(anyString(), anyInt(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyLong(), anyList(), anyString())).thenReturn("old.example.com");
+                anyString(), anyString(), anyLong(), anyList(), anyString(), any(DnsProviderDeliveryPolicy.class))).thenReturn("old.example.com");
 
         String result = provider.deleteRecord(serverMock, zoneMock, record);
 
         assertEquals("old.example.com", result);
         verify(clientMock).modifyRecord(anyString(), anyInt(), anyString(), anyString(), anyString(),
-                eq("old"), eq("CNAME"), eq(600L), eq(Arrays.asList("target.com")), eq("DELETE"));
+                eq("old"), eq("CNAME"), eq(600L), eq(Arrays.asList("target.com")), eq("DELETE"), any(DnsProviderDeliveryPolicy.class));
     }
 
     @Test
     public void testApplyRecordPassesChangeTypeToClient() throws DnsProviderException {
         DnsRecord record = new DnsRecord("txt", RecordType.TXT, Arrays.asList("v=spf1 include:example.com ~all"), 3600);
         when(clientMock.modifyRecord(anyString(), anyInt(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyLong(), anyList(), anyString())).thenReturn("txt.example.com");
+                anyString(), anyString(), anyLong(), anyList(), anyString(), any(DnsProviderDeliveryPolicy.class))).thenReturn("txt.example.com");
 
         provider.applyRecord("http://pdns:8081", 8081, "secret", "localhost", "example.com",
-                record, PowerDnsProvider.ChangeType.REPLACE);
+                record, PowerDnsProvider.ChangeType.REPLACE, POLICY);
 
         verify(clientMock).modifyRecord("http://pdns:8081", 8081, "secret", "localhost", "example.com",
-                "txt", "TXT", 3600L, Arrays.asList("v=spf1 include:example.com ~all"), "REPLACE");
+                "txt", "TXT", 3600L, Arrays.asList("v=spf1 include:example.com ~all"), "REPLACE", POLICY);
     }
 
     @Test
@@ -291,7 +297,7 @@ public class PowerDnsProviderTest {
         ArrayNode mxRecords = mxRecord.putArray("records");
         mxRecords.addObject().put("content", "10 mail.example.com");
 
-        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString()))
+        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class)))
                 .thenReturn(Arrays.asList(aRecord, mxRecord));
 
         List<DnsRecord> result = provider.listRecords(serverMock, zoneMock);
@@ -319,7 +325,7 @@ public class PowerDnsProviderTest {
         soaRecord.put("ttl", 3600);
         soaRecord.putArray("records").addObject().put("content", "ns1.example.com. admin.example.com. ...");
 
-        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString()))
+        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class)))
                 .thenReturn(Collections.singletonList(soaRecord));
 
         List<DnsRecord> result = provider.listRecords(serverMock, zoneMock);
@@ -334,7 +340,7 @@ public class PowerDnsProviderTest {
         unknownRecord.put("ttl", 300);
         unknownRecord.putArray("records").addObject().put("content", "some-data");
 
-        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString()))
+        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class)))
                 .thenReturn(Collections.singletonList(unknownRecord));
 
         List<DnsRecord> result = provider.listRecords(serverMock, zoneMock);
@@ -351,7 +357,7 @@ public class PowerDnsProviderTest {
         records.addObject().put("content", "");
         records.addObject().put("content", "5.6.7.8");
 
-        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString()))
+        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class)))
                 .thenReturn(Collections.singletonList(aRecord));
 
         List<DnsRecord> result = provider.listRecords(serverMock, zoneMock);
@@ -361,7 +367,7 @@ public class PowerDnsProviderTest {
 
     @Test
     public void testListRecordsReturnsEmptyListWhenClientReturnsEmpty() throws DnsProviderException {
-        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString()))
+        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class)))
                 .thenReturn(Collections.emptyList());
 
         List<DnsRecord> result = provider.listRecords(serverMock, zoneMock);
@@ -371,7 +377,7 @@ public class PowerDnsProviderTest {
 
     @Test(expected = DnsProviderException.class)
     public void testListRecordsPropagatesClientException() throws DnsProviderException {
-        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString()))
+        when(clientMock.listRecords(anyString(), anyInt(), anyString(), anyString(), anyString(), any(DnsProviderDeliveryPolicy.class)))
                 .thenThrow(mock(DnsProviderException.class));
 
         provider.listRecords(serverMock, zoneMock);

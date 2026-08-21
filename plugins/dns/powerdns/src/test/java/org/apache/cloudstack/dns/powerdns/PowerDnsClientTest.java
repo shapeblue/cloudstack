@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import org.apache.cloudstack.dns.DnsProviderDeliveryPolicy;
 import org.apache.cloudstack.dns.exception.DnsOperationException;
 import org.apache.cloudstack.dns.exception.DnsAuthenticationException;
 import org.apache.cloudstack.dns.exception.DnsConflictException;
@@ -49,6 +50,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 @RunWith(MockitoJUnitRunner.class)
 public class PowerDnsClientTest {
+
+    // A resolvable, non-blocked public address: real DNS resolution now happens on every call
+    // (see DnsProviderUrlValidator), so fixtures need a host that actually resolves and isn't caught
+    // by the default private/local-address blocklist.
+    private static final String TEST_HOST = "http://8.8.8.8";
+    private static final DnsProviderDeliveryPolicy POLICY = new DnsProviderDeliveryPolicy(true, "", true);
 
     PowerDnsClient client;
     CloseableHttpClient httpClientMock;
@@ -136,53 +143,53 @@ public class PowerDnsClientTest {
     @Test
     public void testDiscoverAuthoritativeServerIdSuccess() throws Exception {
         mockHttpResponse(200, "[{\"id\":\"localhost\", \"daemon_type\":\"authoritative\"}]");
-        String result = client.discoverAuthoritativeServerId("http://pdns:8081", null, "apikey");
+        String result = client.discoverAuthoritativeServerId("http://8.8.8.8:8081", null, "apikey", POLICY);
         assertEquals("localhost", result);
     }
 
     @Test
     public void testDiscoverAuthoritativeServerIdFallback() throws Exception {
         mockHttpResponse(200, "[{\"id\":\"server1\", \"daemon_type\":\"recursor\"}, {\"id\":\"server2\", \"daemon_type\":\"authoritative\"}]");
-        String result = client.discoverAuthoritativeServerId("http://pdns", 8081, "apikey");
+        String result = client.discoverAuthoritativeServerId("http://8.8.8.8", 8081, "apikey", POLICY);
         assertEquals("server2", result);
     }
 
     @Test(expected = DnsOperationException.class)
     public void testDiscoverAuthoritativeServerIdEmpty() throws Exception {
         mockHttpResponse(200, "[]");
-        client.discoverAuthoritativeServerId("http://pdns", 8081, "apikey");
+        client.discoverAuthoritativeServerId("http://8.8.8.8", 8081, "apikey", POLICY);
     }
 
     @Test(expected = DnsOperationException.class)
     public void testDiscoverAuthoritativeServerIdNoAuthoritative() throws Exception {
         mockHttpResponse(200, "[{\"id\":\"server1\", \"daemon_type\":\"recursor\"}]");
-        client.discoverAuthoritativeServerId("http://pdns", 8081, "apikey");
+        client.discoverAuthoritativeServerId("http://8.8.8.8", 8081, "apikey", POLICY);
     }
 
     @Test
     public void testValidateServerIdSuccess() throws Exception {
         mockHttpResponse(200, "{\"id\":\"abc\", \"daemon_type\":\"authoritative\"}");
-        String result = client.validateServerId("http://pdns", 8081, "apikey", "abc");
+        String result = client.validateServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
         assertEquals("abc", result);
     }
 
     @Test(expected = DnsOperationException.class)
     public void testValidateServerIdNotAuthoritative() throws Exception {
         mockHttpResponse(200, "{\"id\":\"abc\", \"daemon_type\":\"recursor\"}");
-        client.validateServerId("http://pdns", 8081, "apikey", "abc");
+        client.validateServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
     }
 
     @Test
     public void testResolveServerIdWithExternalId() throws Exception {
         mockHttpResponse(200, "{\"id\":\"abc\", \"daemon_type\":\"authoritative\"}");
-        String result = client.resolveServerId("http://pdns", 8081, "apikey", "abc");
+        String result = client.resolveServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
         assertEquals("abc", result);
     }
 
     @Test
     public void testResolveServerIdWithoutExternalId() throws Exception {
         mockHttpResponse(200, "[{\"id\":\"localhost\", \"daemon_type\":\"authoritative\"}]");
-        String result = client.resolveServerId("http://pdns", 8081, "apikey", null);
+        String result = client.resolveServerId("http://8.8.8.8", 8081, "apikey", null, POLICY);
         assertEquals("localhost", result);
     }
 
@@ -202,7 +209,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        String result = client.createZone("http://pdns", 8081, "apikey", "abc", "example.com", "Native", false, Arrays.asList("ns1.com"));
+        String result = client.createZone("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "Native", false, Arrays.asList("ns1.com"), POLICY);
         assertEquals("example.com.", result);
     }
 
@@ -222,7 +229,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        client.updateZone("http://pdns", 8081, "apikey", "abc", "example.com", "Native", true, Arrays.asList("ns1.com"));
+        client.updateZone("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "Native", true, Arrays.asList("ns1.com"), POLICY);
         // No exception means success
     }
 
@@ -242,7 +249,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        client.deleteZone("http://pdns", 8081, "apikey", "abc", "example.com");
+        client.deleteZone("http://8.8.8.8", 8081, "apikey", "abc", "example.com", POLICY);
     }
 
     @Test
@@ -261,7 +268,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        String result = client.modifyRecord("http://pdns", 8081, "apikey", "abc", "example.com", "www", "A", 300, Arrays.asList("1.2.3.4"), "REPLACE");
+        String result = client.modifyRecord("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "www", "A", 300, Arrays.asList("1.2.3.4"), "REPLACE", POLICY);
         assertEquals("www.example.com", result);
     }
 
@@ -281,7 +288,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        String result = client.modifyRecord("http://pdns", 8081, "apikey", "abc", "example.com", "@", "A", 300, Arrays.asList("1.2.3.4"), "REPLACE");
+        String result = client.modifyRecord("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "@", "A", 300, Arrays.asList("1.2.3.4"), "REPLACE", POLICY);
         assertEquals("example.com", result);
     }
 
@@ -303,7 +310,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        Iterable<JsonNode> records = client.listRecords("http://pdns", 8081, "apikey", "abc", "example.com");
+        Iterable<JsonNode> records = client.listRecords("http://8.8.8.8", 8081, "apikey", "abc", "example.com", POLICY);
         assertNotNull(records);
         assertTrue(records.iterator().hasNext());
         assertEquals("www.example.com.", records.iterator().next().path("name").asText());
@@ -325,7 +332,7 @@ public class PowerDnsClientTest {
             }
         });
 
-        Iterable<JsonNode> records = client.listRecords("http://pdns", 8081, "apikey", "abc", "example.com");
+        Iterable<JsonNode> records = client.listRecords("http://8.8.8.8", 8081, "apikey", "abc", "example.com", POLICY);
         assertNotNull(records);
         assertTrue(!records.iterator().hasNext());
     }
@@ -333,25 +340,25 @@ public class PowerDnsClientTest {
     @Test(expected = DnsNotFoundException.class)
     public void testExecuteThrowsNotFound() throws Exception {
         mockHttpResponse(404, "Not Found");
-        client.validateServerId("http://pdns", 8081, "apikey", "abc");
+        client.validateServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
     }
 
     @Test(expected = DnsAuthenticationException.class)
     public void testExecuteThrowsAuthError() throws Exception {
         mockHttpResponse(401, "Unauthorized");
-        client.validateServerId("http://pdns", 8081, "apikey", "abc");
+        client.validateServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
     }
 
     @Test(expected = DnsConflictException.class)
     public void testExecuteThrowsConflictError() throws Exception {
         mockHttpResponse(409, "Conflict");
-        client.validateServerId("http://pdns", 8081, "apikey", "abc");
+        client.validateServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
     }
 
     @Test(expected = DnsOperationException.class)
     public void testExecuteThrowsUnexpectedStatus() throws Exception {
         mockHttpResponse(500, "Server Error");
-        client.validateServerId("http://pdns", 8081, "apikey", "abc");
+        client.validateServerId("http://8.8.8.8", 8081, "apikey", "abc", POLICY);
     }
     // Route helper: GET /servers/abc → validate; GET /zones/... → zone response
     private void mockRecordExists(String zoneJson) throws IOException {
@@ -376,7 +383,7 @@ public class PowerDnsClientTest {
     public void testRecordExistsZoneNodeNull() throws Exception {
         // execute() returns null → zoneNode == null → false
         mockRecordExists(null);
-        boolean result = client.recordExists("http://pdns", 8081, "apikey", "abc", "example.com", "www", "A");
+        boolean result = client.recordExists("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "www", "A", POLICY);
         assertEquals(false, result);
     }
 
@@ -384,7 +391,7 @@ public class PowerDnsClientTest {
     public void testRecordExistsMissingRrSetsField() throws Exception {
         // response has no "rrsets" key → !zoneNode.has(RR_SETS) → false
         mockRecordExists("{}");
-        boolean result = client.recordExists("http://pdns", 8081, "apikey", "abc", "example.com", "www", "A");
+        boolean result = client.recordExists("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "www", "A", POLICY);
         assertEquals(false, result);
     }
 
@@ -392,7 +399,7 @@ public class PowerDnsClientTest {
     public void testRecordExistsRrSetsNotArray() throws Exception {
         // rrsets is a scalar string, not an ArrayNode → isArray() == false → false
         mockRecordExists("{\"rrsets\":\"not-an-array\"}");
-        boolean result = client.recordExists("http://pdns", 8081, "apikey", "abc", "example.com", "www", "A");
+        boolean result = client.recordExists("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "www", "A", POLICY);
         assertEquals(false, result);
     }
 
@@ -400,7 +407,7 @@ public class PowerDnsClientTest {
     public void testRecordExistsEmptyRrSetsArray() throws Exception {
         // rrsets is an empty array → isArray() == true && isEmpty() == true → false
         mockRecordExists("{\"rrsets\":[]}");
-        boolean result = client.recordExists("http://pdns", 8081, "apikey", "abc", "example.com", "www", "A");
+        boolean result = client.recordExists("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "www", "A", POLICY);
         assertEquals(false, result);
     }
 
@@ -408,7 +415,7 @@ public class PowerDnsClientTest {
     public void testRecordExistsNonEmptyRrSetsArray() throws Exception {
         // rrsets is a non-empty array → isArray() == true && !isEmpty() → true
         mockRecordExists("{\"rrsets\":[{\"name\":\"www.example.com.\",\"type\":\"A\"}]}");
-        boolean result = client.recordExists("http://pdns", 8081, "apikey", "abc", "example.com", "www", "A");
+        boolean result = client.recordExists("http://8.8.8.8", 8081, "apikey", "abc", "example.com", "www", "A", POLICY);
         assertEquals(true, result);
     }
 

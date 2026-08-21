@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.dns.DnsProvider;
+import org.apache.cloudstack.dns.DnsProviderDeliveryPolicy;
 import org.apache.cloudstack.dns.DnsProviderType;
 import org.apache.cloudstack.dns.DnsRecord;
 import org.apache.cloudstack.dns.DnsServer;
@@ -45,13 +46,15 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
 
     public void validate(DnsServer server) throws DnsProviderException {
         validateRequiredServerFields(server);
-        client.validateServerId(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID));
+        client.validateServerId(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID),
+                DnsProviderDeliveryPolicy.forServer(server));
     }
 
     @Override
     public String validateAndResolveServer(DnsServer server) throws Exception {
         validateRequiredServerFields(server);
-        String resolvedDnsServerId = client.resolveServerId(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID));
+        String resolvedDnsServerId = client.resolveServerId(server.getUrl(), server.getPort(), server.getDnsApiKey(),
+                server.getDetail(PDNS_SERVER_ID), DnsProviderDeliveryPolicy.forServer(server));
         if (Strings.isNotBlank(resolvedDnsServerId)) {
             server.appendDetails(PDNS_SERVER_ID, resolvedDnsServerId);
         }
@@ -67,14 +70,16 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
                 server.getDnsApiKey(),
                 server.getDetail(PDNS_SERVER_ID),
                 zone.getName(),
-                ApiConstants.NATIVE_ZONE, false, server.getNameServers()
+                ApiConstants.NATIVE_ZONE, false, server.getNameServers(),
+                DnsProviderDeliveryPolicy.forServer(server)
         );
     }
 
     @Override
     public void deleteZone(DnsServer server, DnsZone zone) throws DnsProviderException {
         validateRequiredServerAndZoneFields(server, zone);
-        client.deleteZone(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID), zone.getName());
+        client.deleteZone(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID),
+                zone.getName(), DnsProviderDeliveryPolicy.forServer(server));
     }
 
     @Override
@@ -85,7 +90,8 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
                 server.getPort(),
                 server.getDnsApiKey(),
                 server.getDetail(PDNS_SERVER_ID),
-                zone.getName(), ApiConstants.NATIVE_ZONE, false, server.getNameServers());
+                zone.getName(), ApiConstants.NATIVE_ZONE, false, server.getNameServers(),
+                DnsProviderDeliveryPolicy.forServer(server));
     }
 
     public enum ChangeType {
@@ -100,7 +106,7 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
                 server.getPort(),
                 server.getDnsApiKey(),
                 server.getDetail(PDNS_SERVER_ID),
-                zone.getName(), record, ChangeType.REPLACE);
+                zone.getName(), record, ChangeType.REPLACE, DnsProviderDeliveryPolicy.forServer(server));
     }
 
     @Override
@@ -116,14 +122,14 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
                 server.getPort(),
                 server.getDnsApiKey(),
                 server.getDetail(PDNS_SERVER_ID),
-                zone.getName(), record, ChangeType.DELETE);
+                zone.getName(), record, ChangeType.DELETE, DnsProviderDeliveryPolicy.forServer(server));
     }
 
     public String applyRecord(String serverUrl, Integer port, String apiKey, String externalServerId, String zoneName,
-                              DnsRecord record, ChangeType changeType) throws DnsProviderException {
+                              DnsRecord record, ChangeType changeType, DnsProviderDeliveryPolicy policy) throws DnsProviderException {
 
         return client.modifyRecord(serverUrl, port, apiKey, externalServerId, zoneName, record.getName(),
-                record.getType().name(), record.getTtl(), record.getContents(), changeType.name());
+                record.getType().name(), record.getTtl(), record.getContents(), changeType.name(), policy);
     }
 
     @Override
@@ -131,7 +137,7 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
         validateRequiredServerAndZoneFields(server, zone);
         List<DnsRecord> records = new ArrayList<>();
         Iterable<JsonNode> rrsetNodes = client.listRecords(server.getUrl(), server.getPort(), server.getDnsApiKey(),
-                server.getDetail(PDNS_SERVER_ID), zone.getName());
+                server.getDetail(PDNS_SERVER_ID), zone.getName(), DnsProviderDeliveryPolicy.forServer(server));
 
         for (JsonNode rrset : rrsetNodes) {
             String name = rrset.path(ApiConstants.NAME).asText();
@@ -160,12 +166,13 @@ public class PowerDnsProvider extends AdapterBase implements DnsProvider {
 
     public boolean dnsRecordExists(DnsServer server, DnsZone zone, String recordName, String recordType) throws DnsProviderException {
         return client.recordExists(server.getUrl(), server.getPort(), server.getDnsApiKey(),
-                server.getDetail(PDNS_SERVER_ID), zone.getName(), recordName, recordType);
+                server.getDetail(PDNS_SERVER_ID), zone.getName(), recordName, recordType, DnsProviderDeliveryPolicy.forServer(server));
     }
 
     @Override
     public boolean dnsZoneExists(DnsServer server, DnsZone zone) {
-        return client.zoneExists(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID), zone.getName());
+        return client.zoneExists(server.getUrl(), server.getPort(), server.getDnsApiKey(), server.getDetail(PDNS_SERVER_ID),
+                zone.getName(), DnsProviderDeliveryPolicy.forServer(server));
     }
 
     void validateRequiredServerAndZoneFields(DnsServer server, DnsZone zone) {

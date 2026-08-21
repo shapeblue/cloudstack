@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.dns.DnsProviderDeliveryPolicy;
+import org.apache.cloudstack.dns.DnsProviderUrlValidator;
 import org.apache.cloudstack.dns.exception.DnsAuthenticationException;
 import org.apache.cloudstack.dns.exception.DnsConflictException;
 import org.apache.cloudstack.dns.exception.DnsNotFoundException;
@@ -41,6 +43,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -85,20 +88,23 @@ public class PowerDnsClient implements AutoCloseable {
                 .setDefaultRequestConfig(requestConfig)
                 .evictIdleConnections(30, TimeUnit.SECONDS)
                 .disableCookieManagement()
+                .disableRedirectHandling()
                 .build();
     }
 
-    public String resolveServerId(String baseUrl, Integer port, String apiKey, String externalServerId) throws DnsProviderException {
+    public String resolveServerId(String baseUrl, Integer port, String apiKey, String externalServerId,
+                                  DnsProviderDeliveryPolicy policy) throws DnsProviderException {
         if (StringUtils.isNotBlank(externalServerId)) {
-            return validateServerId(baseUrl, port, apiKey, externalServerId);
+            return validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         }
-        return discoverAuthoritativeServerId(baseUrl, port, apiKey);
+        return discoverAuthoritativeServerId(baseUrl, port, apiKey, policy);
     }
 
-    public String validateServerId(String baseUrl, Integer port, String apiKey, String externalServerId) throws DnsProviderException {
+    public String validateServerId(String baseUrl, Integer port, String apiKey, String externalServerId,
+                                   DnsProviderDeliveryPolicy policy) throws DnsProviderException {
         String encodedServer = URLEncoder.encode(externalServerId, StandardCharsets.UTF_8);
         HttpGet request = new HttpGet(buildUrl(baseUrl, port, "/servers/" + encodedServer));
-        JsonNode server = execute(request, apiKey, 200);
+        JsonNode server = execute(request, apiKey, policy, 200);
         if (!ApiConstants.AUTHORITATIVE.equalsIgnoreCase(server.path("daemon_type").asText(null))) {
             throw new DnsOperationException(String.format("Server %s is not authoritative type=%s", externalServerId,
                     server.path("daemon_type").asText(null)));
@@ -106,10 +112,11 @@ public class PowerDnsClient implements AutoCloseable {
         return externalServerId;
     }
 
-    public String discoverAuthoritativeServerId(String baseUrl, Integer port, String apiKey) throws DnsProviderException {
+    public String discoverAuthoritativeServerId(String baseUrl, Integer port, String apiKey,
+                                                 DnsProviderDeliveryPolicy policy) throws DnsProviderException {
         String url = buildUrl(baseUrl, port , "/servers");
         HttpGet request = new HttpGet(url);
-        JsonNode servers = execute(request, apiKey, 200);
+        JsonNode servers = execute(request, apiKey, policy, 200);
         if (servers == null || !servers.isArray() || servers.isEmpty()) {
             throw new DnsOperationException("No servers returned by PowerDNS API");
         }
@@ -138,9 +145,10 @@ public class PowerDnsClient implements AutoCloseable {
     }
 
     public String createZone(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName,
-                             String zoneKind, boolean dnsSecFlag, List<String> nameServers) throws DnsProviderException {
+                             String zoneKind, boolean dnsSecFlag, List<String> nameServers,
+                             DnsProviderDeliveryPolicy policy) throws DnsProviderException {
 
-        validateServerId(baseUrl, port, apiKey, externalServerId);
+        validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         String normalizedZone = normalizeZone(zoneName);
         ObjectNode json = MAPPER.createObjectNode();
         json.put(ApiConstants.NAME, normalizedZone);
@@ -154,7 +162,7 @@ public class PowerDnsClient implements AutoCloseable {
         }
         HttpPost request = new HttpPost(buildUrl(baseUrl, port, "/servers/" + externalServerId + "/zones"));
         request.setEntity(new StringEntity(json.toString(), StandardCharsets.UTF_8));
-        JsonNode response = execute(request, apiKey, 201);
+        JsonNode response = execute(request, apiKey, policy, 201);
         if (response == null) {
             throw new DnsOperationException("Empty response from DNS server");
         }
@@ -166,9 +174,10 @@ public class PowerDnsClient implements AutoCloseable {
     }
 
     public void updateZone(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName,
-                           String zoneKind, Boolean dnsSecFlag, List<String> nameServers) throws DnsProviderException {
+                           String zoneKind, Boolean dnsSecFlag, List<String> nameServers,
+                           DnsProviderDeliveryPolicy policy) throws DnsProviderException {
 
-        validateServerId(baseUrl, port, apiKey, externalServerId);
+        validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         String normalizedZone = normalizeZone(zoneName);
         String encodedZone = URLEncoder.encode(normalizedZone, StandardCharsets.UTF_8);
         String url = buildUrl(baseUrl, port,"/servers/" + externalServerId + "/zones/" + encodedZone);
@@ -188,21 +197,23 @@ public class PowerDnsClient implements AutoCloseable {
         }
         HttpPut request = new HttpPut(url);
         request.setEntity(new StringEntity(json.toString(), StandardCharsets.UTF_8));
-        execute(request, apiKey, 204);
+        execute(request, apiKey, policy, 204);
     }
 
-    public void deleteZone(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName) throws DnsProviderException {
-        validateServerId(baseUrl, port, apiKey, externalServerId);
+    public void deleteZone(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName,
+                           DnsProviderDeliveryPolicy policy) throws DnsProviderException {
+        validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         String normalizedZone = normalizeZone(zoneName);
         String encodedZone = URLEncoder.encode(normalizedZone, StandardCharsets.UTF_8);
         HttpDelete request = new HttpDelete(buildUrl(baseUrl, port, "/servers/" + externalServerId + "/zones/" + encodedZone));
-        execute(request, apiKey, 204, 404);
+        execute(request, apiKey, policy, 204, 404);
     }
 
     public String modifyRecord(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName,
-                               String recordName, String type, long ttl, List<String> contents, String changeType) throws DnsProviderException {
+                               String recordName, String type, long ttl, List<String> contents, String changeType,
+                               DnsProviderDeliveryPolicy policy) throws DnsProviderException {
 
-        validateServerId(baseUrl, port, apiKey, externalServerId);
+        validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         String normalizedZone = normalizeZone(zoneName);
         String normalizedRecord = normalizeRecordName(recordName, normalizedZone);
         ObjectNode root = MAPPER.createObjectNode();
@@ -223,16 +234,17 @@ public class PowerDnsClient implements AutoCloseable {
         String encodedZone = URLEncoder.encode(normalizedZone, StandardCharsets.UTF_8);
         HttpPatch request = new HttpPatch(buildUrl(baseUrl, port, "/servers/" + externalServerId + "/zones/" + encodedZone));
         request.setEntity(new StringEntity(root.toString(), StandardCharsets.UTF_8));
-        execute(request, apiKey, 204);
+        execute(request, apiKey, policy, 204);
         return normalizedRecord.endsWith(".") ? normalizedRecord.substring(0, normalizedRecord.length() - 1) : normalizedRecord;
     }
 
-    public Iterable<JsonNode> listRecords(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName) throws DnsProviderException {
-        validateServerId(baseUrl, port, apiKey, externalServerId);
+    public Iterable<JsonNode> listRecords(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName,
+                                          DnsProviderDeliveryPolicy policy) throws DnsProviderException {
+        validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         String normalizedZone = normalizeZone(zoneName);
         String encodedZone = URLEncoder.encode(normalizedZone, StandardCharsets.UTF_8);
         HttpGet request = new HttpGet(buildUrl(baseUrl, port, "/servers/" + externalServerId + "/zones/" + encodedZone));
-        JsonNode zoneNode = execute(request, apiKey, 200);
+        JsonNode zoneNode = execute(request, apiKey, policy, 200);
         if (zoneNode == null || !zoneNode.has(ApiConstants.RR_SETS)) {
             return Collections.emptyList();
         }
@@ -240,13 +252,14 @@ public class PowerDnsClient implements AutoCloseable {
         return rrsets.isArray() ? rrsets : Collections.emptyList();
     }
 
-    public boolean zoneExists(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName) {
+    public boolean zoneExists(String baseUrl, Integer port, String apiKey, String externalServerId, String zoneName,
+                              DnsProviderDeliveryPolicy policy) {
         try {
-            validateServerId(baseUrl, port, apiKey, externalServerId);
+            validateServerId(baseUrl, port, apiKey, externalServerId, policy);
             String normalizedZone = normalizeZone(zoneName);
             String encodedZone = URLEncoder.encode(normalizedZone, StandardCharsets.UTF_8);
             HttpGet request = new HttpGet(buildUrl(baseUrl, port, "/servers/" + externalServerId + "/zones/" + encodedZone));
-            execute(request, apiKey, 200);
+            execute(request, apiKey, policy, 200);
             return true;
         } catch (DnsProviderException | IllegalArgumentException e) {
             return false;
@@ -255,9 +268,10 @@ public class PowerDnsClient implements AutoCloseable {
 
     public boolean recordExists(String baseUrl, Integer port, String apiKey,
                                 String externalServerId, String zoneName,
-                                String recordName, String type) throws DnsProviderException {
+                                String recordName, String type,
+                                DnsProviderDeliveryPolicy policy) throws DnsProviderException {
 
-        validateServerId(baseUrl, port, apiKey, externalServerId);
+        validateServerId(baseUrl, port, apiKey, externalServerId, policy);
         String normalizedZone = normalizeZone(zoneName);
         String normalizedRecord = normalizeRecordName(recordName, normalizedZone);
         String encodedZone = URLEncoder.encode(normalizedZone, StandardCharsets.UTF_8);
@@ -265,7 +279,7 @@ public class PowerDnsClient implements AutoCloseable {
                 "?rrset_name=" + URLEncoder.encode(normalizedRecord, StandardCharsets.UTF_8) +
                 "&rrset_type=" + type.toUpperCase();
         HttpGet request = new HttpGet(buildUrl(baseUrl, port, urlPath));
-        JsonNode zoneNode = execute(request, apiKey, 200);
+        JsonNode zoneNode = execute(request, apiKey, policy, 200);
         if (zoneNode == null || !zoneNode.has(ApiConstants.RR_SETS)) {
             return false;
         }
@@ -273,7 +287,12 @@ public class PowerDnsClient implements AutoCloseable {
         return rrsets.isArray() && !rrsets.isEmpty();
     }
 
-    private JsonNode execute(HttpUriRequest request, String apiKey, int... expectedStatus) throws DnsProviderException {
+    private JsonNode execute(HttpUriRequest request, String apiKey, DnsProviderDeliveryPolicy policy, int... expectedStatus) throws DnsProviderException {
+        URI resolvedUri = DnsProviderUrlValidator.validateAndResolveDestinationUri(request.getURI(),
+                policy.isAllowHttp(), policy.getBlocklist(), policy.isBlockLocalAddresses());
+        if (request instanceof HttpRequestBase) {
+            ((HttpRequestBase) request).setURI(resolvedUri);
+        }
         request.addHeader(ApiConstants.X_API_KEY, apiKey);
         request.addHeader("Accept", "application/json");
         request.addHeader(ApiConstants.CONTENT_TYPE, "application/json");
