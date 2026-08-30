@@ -267,9 +267,7 @@
             :filterOption="(input, option) => {
               return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }" >
-            <a-select-option value="roundrobin">{{ $t('label.lb.algorithm.roundrobin') }}</a-select-option>
-            <a-select-option value="leastconn">{{ $t('label.lb.algorithm.leastconn') }}</a-select-option>
-            <a-select-option value="source">{{ $t('label.lb.algorithm.source') }}</a-select-option>
+            <a-select-option v-for="algo in supportedAlgorithms" :key="algo" :value="algo" :label="$t('label.lb.algorithm.' + algo)">{{ $t('label.lb.algorithm.' + algo) }}</a-select-option>
           </a-select>
         </div>
         <div class="edit-rule__item">
@@ -338,6 +336,10 @@ export default {
         algorithm: '',
         protocol: ''
       },
+      // Default fallback list. Replaced by fetchLbCapabilitiesForRule() with whatever the
+      // rule's tier network advertises via service.Lb.capability.SupportedLbAlgorithms,
+      // matching the pattern in LoadBalancing.vue and VpcTiersTab.vue.
+      supportedAlgorithms: ['roundrobin', 'leastconn', 'source'],
       vms: [],
       nics: [],
       totalCount: 0,
@@ -836,6 +838,36 @@ export default {
       this.editRuleDetails.name = this.selectedRule.name
       this.editRuleDetails.algorithm = this.selectedRule.algorithm
       this.editRuleDetails.protocol = this.selectedRule.protocol
+      this.fetchLbCapabilitiesForRule(this.selectedRule)
+    },
+    /**
+     * Loads SupportedLbAlgorithms from the LB rule's tier network. Same approach as
+     * LoadBalancing.vue's fetchLbCapabilities() and VpcTiersTab.vue's
+     * fetchLbCapabilitiesForNetwork() — capability is read from the live network
+     * (listNetworks) rather than the offering, since the offering response does not
+     * carry the per-provider Lb capability map.
+     */
+    fetchLbCapabilitiesForRule (rule) {
+      const networkId = rule?.networkid
+      if (!networkId) {
+        return
+      }
+      getAPI('listNetworks', { id: networkId, listall: true }).then(json => {
+        const network = json?.listnetworksresponse?.network?.[0]
+        const lbService = network?.service?.find(s => s.name === 'Lb')
+        const algoCap = lbService?.capability?.find(c => c.name === 'SupportedLbAlgorithms')
+        if (algoCap && algoCap.value) {
+          const algos = algoCap.value.split(',').map(s => s.trim()).filter(s => s)
+          if (algos.length > 0) {
+            this.supportedAlgorithms = algos
+            if (!algos.includes(this.editRuleDetails.algorithm)) {
+              this.editRuleDetails.algorithm = algos[0]
+            }
+          }
+        }
+      }).catch(error => {
+        console.warn('Failed to load AutoScale LB algorithm capabilities; using defaults', error)
+      })
     },
     handleSubmitEditForm () {
       if (this.editRuleModalLoading) return

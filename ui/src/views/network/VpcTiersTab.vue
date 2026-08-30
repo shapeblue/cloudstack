@@ -347,8 +347,8 @@
               :filterOption="(input, option) => {
                 return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
               }" >
-              <a-select-option v-for="(key, idx) in Object.keys(algorithms)" :key="idx" :value="algorithms[key]" :label="key">
-                {{ key }}
+              <a-select-option v-for="algo in supportedAlgorithms" :key="algo" :value="algo" :label="$t('label.lb.algorithm.' + algo)">
+                {{ $t('label.lb.algorithm.' + algo) }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -409,11 +409,13 @@ export default {
       errorPrivateMtu: '',
       gatewayPlaceholder: '',
       netmaskPlaceholder: '',
-      algorithms: {
-        Source: 'source',
-        'Round-robin': 'roundrobin',
-        'Least connections': 'leastconn'
-      },
+      // Default fallback algorithm list for the Internal LB modal. Replaced at runtime by
+      // fetchLbCapabilitiesForNetwork() with whatever the selected tier's Lb provider
+      // declares via service.Lb.capability.SupportedLbAlgorithms — same approach used by
+      // LoadBalancing.vue for the public LB form, so providers like OVN that only support
+      // {roundrobin, source} expose exactly that subset, while providers that declare the
+      // full set keep their previous options.
+      supportedAlgorithms: ['source', 'roundrobin', 'leastconn'],
       internalLbCols: [
         {
           key: 'name',
@@ -728,13 +730,45 @@ export default {
       this.initForm()
       this.showAddInternalLB = true
       this.networkid = id
-      this.form.algorithm = 'Source'
+      // Reset to the static default first so the dropdown is never empty while the async
+      // capability lookup runs; fetchLbCapabilitiesForNetwork() narrows it down once the
+      // listNetworks response arrives.
+      this.supportedAlgorithms = ['source', 'roundrobin', 'leastconn']
+      this.form.algorithm = this.supportedAlgorithms[0]
       this.rules = {
         name: [{ required: true, message: this.$t('message.error.internallb.name') }],
         sourcePort: [{ required: true, message: this.$t('message.error.internallb.source.port') }],
         instancePort: [{ required: true, message: this.$t('message.error.internallb.instance.port') }],
         algorithm: [{ required: true, message: this.$t('label.required') }]
       }
+      this.fetchLbCapabilitiesForNetwork(id)
+    },
+    /**
+     * Loads SupportedLbAlgorithms from the tier network's Lb service. Mirrors the
+     * fetchLbCapabilities() helper in LoadBalancing.vue so the public-LB form and the
+     * Internal-LB modal converge on the same data-driven dropdown — provider-agnostic and
+     * future-proof. Falls back silently to the static default when the lookup fails.
+     */
+    fetchLbCapabilitiesForNetwork (networkId) {
+      if (!networkId) {
+        return
+      }
+      getAPI('listNetworks', { id: networkId, listall: true }).then(json => {
+        const network = json?.listnetworksresponse?.network?.[0]
+        const lbService = network?.service?.find(s => s.name === 'Lb')
+        const algoCap = lbService?.capability?.find(c => c.name === 'SupportedLbAlgorithms')
+        if (algoCap && algoCap.value) {
+          const algos = algoCap.value.split(',').map(s => s.trim()).filter(s => s)
+          if (algos.length > 0) {
+            this.supportedAlgorithms = algos
+            if (!algos.includes(this.form.algorithm)) {
+              this.form.algorithm = algos[0]
+            }
+          }
+        }
+      }).catch(error => {
+        console.warn('Failed to load Internal LB algorithm capabilities; using defaults', error)
+      })
     },
     handleAddNetworkSubmit () {
       if (this.modalLoading) return
