@@ -18,10 +18,8 @@ package org.apache.cloudstack.framework.config;
 
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Utility class that helps with configuration key manipulation.
@@ -30,20 +28,14 @@ import java.util.stream.Collectors;
  */
 public final class ConfigKeyUtil {
 
-    /**
-     * Split by {@code ;} with optional space symbols (space, tab, new line, etc.) before and after.
-     */
-    private static Pattern ENTRY_SEPARATOR_PATTERN = Pattern.compile("\\s*;\\s*");
-    /**
-     * Split by {@code =} with optional space symbols (space, tab, new line, etc.) before and after.
-     */
-    private static Pattern KEY_VALUE_SEPARATOR_PATTERN = Pattern.compile("\\s*=\\s*");
-
     private ConfigKeyUtil() {
     }
 
     /**
      * Convert configuration value of format {@code key1=value1;key2=value2;...} to {@link Map<String, String>}.
+     * <p>
+     * Parsing notes: surrounding whitespace is stripped from every key and value, entries with an empty
+     * key are skipped, and when the same key appears more than once the last occurrence wins.
      *
      * @param configValue configuration value string
      * @return configuration values map
@@ -53,9 +45,26 @@ public final class ConfigKeyUtil {
             return Map.of();
         }
 
-        return Arrays.stream(ENTRY_SEPARATOR_PATTERN.split(configValue))
-                .map(pair -> KEY_VALUE_SEPARATOR_PATTERN.split(pair, 2))
-                .filter(keyValue -> keyValue.length == 2)
-                .collect(Collectors.toMap(keyValue -> keyValue[0], keyValue -> keyValue[1]));
+        Map<String, String> result = new HashMap<>();
+        int start = 0;
+        int len = configValue.length();
+
+        // indexOf(char) is a JVM intrinsic (SIMD scan), avoiding Matcher allocation and regex engine overhead per call.
+        // strip() is a no-op when there is no surrounding whitespace, which is the common case for machine-generated values.
+        while (start < len) {
+            int end = configValue.indexOf(';', start);
+            if (end == -1) end = len;
+
+            int eq = configValue.indexOf('=', start);
+            if (eq != -1 && eq < end) {
+                String key = configValue.substring(start, eq).strip();
+                String value = configValue.substring(eq + 1, end).strip();
+                if (!key.isEmpty()) {
+                    result.put(key, value);
+                }
+            }
+            start = end + 1;
+        }
+        return result;
     }
 }
