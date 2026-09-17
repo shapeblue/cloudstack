@@ -279,6 +279,7 @@ export default class Websock {
 
         this._websocket.onclose = (e) => {
             Log.Debug(">> WebSock.onclose");
+            Log.Warn("WebSocket onclose event: " + e);
             this._eventHandlers.close(e);
             Log.Debug("<< WebSock.onclose");
         };

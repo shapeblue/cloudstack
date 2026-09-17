@@ -28,10 +28,12 @@ public class NioSocketHandlerImpl implements NioSocketHandler {
     private NioSocketInputStream inputStream;
     private NioSocketOutputStream outputStream;
     private boolean isTLS = false;
+    private final NioSocket socket;
 
     protected Logger logger = LogManager.getLogger(getClass());
 
     public NioSocketHandlerImpl(NioSocket socket) {
+        this.socket = socket;
         this.inputStream = new NioSocketInputStream(ConsoleProxy.defaultBufferSize, socket);
         this.outputStream = new NioSocketOutputStream(ConsoleProxy.defaultBufferSize, socket);
     }
@@ -51,10 +53,24 @@ public class NioSocketHandlerImpl implements NioSocketHandler {
         inputStream.readBytes(data, length);
     }
 
+    private static final long STALL_WARNING_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+
     @Override
     public void waitForBytesAvailableForReading(int bytes) {
+        long startTime = System.nanoTime();
+        long lastLogTime = startTime;
+        long cycles = 0;
         while (!inputStream.checkForSizeWithoutWait(bytes)) {
             logger.trace("Waiting for inStream to be ready");
+            cycles++;
+            if (cycles % 1_000_000 == 0) {
+                long now = System.nanoTime();
+                if (now - lastLogTime >= STALL_WARNING_INTERVAL_NANOS) {
+                    logger.debug("Still waiting for {} byte(s) from the VNC backend socket after {} ms",
+                            bytes, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(now - startTime));
+                    lastLogTime = now;
+                }
+            }
         }
     }
 
@@ -108,5 +124,10 @@ public class NioSocketHandlerImpl implements NioSocketHandler {
     @Override
     public NioSocketOutputStream getOutputStream() {
         return outputStream;
+    }
+
+    @Override
+    public void close() {
+        socket.close();
     }
 }
