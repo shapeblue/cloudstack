@@ -1124,7 +1124,6 @@ const UI = {
             url.protocol = (window.location.protocol === "https:") ? 'wss:' : 'ws:';
         }
 
-        url.href += '/' + path;
         url.href += '?token=' + token;
 
         if (extra) {

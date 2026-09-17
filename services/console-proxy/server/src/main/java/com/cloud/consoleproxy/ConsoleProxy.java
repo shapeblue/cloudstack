@@ -112,15 +112,17 @@ public class ConsoleProxy {
     private static boolean isSessionReconnectionGrantedForClientIp(String sessionUuid, String clientIp) {
         ReconnectGrant grant = sessionReconnectGrants.remove(sessionUuid);
         if (grant == null) {
+            LOGGER.debug("No reconnect grant found for session {} requested from IP {} (reconnection window: {}ms)",
+                    sessionUuid, clientIp, sessionReconnectionWindowMs);
             return false;
         }
         if (grant.isExpired(System.currentTimeMillis())) {
-            LOGGER.warn("Rejecting reconnection for session {} as the reconnect window: {}ms is already expired",
+            LOGGER.debug("Rejecting reconnection for session {} as the reconnect window: {}ms is already expired",
                     sessionUuid, sessionReconnectionWindowMs);
             return false;
         }
         if (grant.clientIp != null && !grant.clientIp.equals(clientIp)) {
-            LOGGER.warn("Rejecting reconnection for session {} as it was requested from IP {} " +
+            LOGGER.debug("Rejecting reconnection for session {} as it was requested from IP {} " +
                     "but the session was granted to IP {}", sessionUuid, clientIp, grant.clientIp);
             return false;
         }
@@ -249,7 +251,7 @@ public class ConsoleProxy {
                 return null;
             }
         } catch (ClassNotFoundException e) {
-            LOGGER.warn("Unable to find http server factory class: " + factoryClzName);
+            LOGGER.debug("Unable to find http server factory class: " + factoryClzName);
             return new ConsoleProxyBaseServerFactoryImpl();
         }
     }
@@ -275,6 +277,8 @@ public class ConsoleProxy {
         }
 
         String sessionUuid = param.getSessionUuid();
+        LOGGER.debug("Authenticating console access [session: {}, clientIp: {}, reauthentication: {}, currently allowed sessions: {}]",
+                sessionUuid, param.getClientIp(), reauthentication, allowedSessions.size());
         synchronized (allowedSessionsLock) {
             if (allowedSessions.remove(sessionUuid)) {
                 LOGGER.debug("Acquiring the session {} from client IP {}", sessionUuid, param.getClientIp());
@@ -282,7 +286,11 @@ public class ConsoleProxy {
                 LOGGER.info("Reconnecting the session {} after a dropped connection", sessionUuid);
                 return authResult;
             } else {
-                LOGGER.info("Invalid or already used session {}, cannot connect", sessionUuid);
+                LOGGER.debug("Rejecting console session {} from client IP {}: session is not in the allowed set (already " +
+                                "consumed, unknown, or expired) and no valid reconnect grant is available " +
+                                "(reconnection window: {}ms{})",
+                        sessionUuid, param.getClientIp(), sessionReconnectionWindowMs,
+                        sessionReconnectionWindowMs <= 0 ? ", reconnection disabled" : "");
                 authResult.setSuccess(false);
                 return authResult;
             }
@@ -320,7 +328,7 @@ public class ConsoleProxy {
                 authResult.setSuccess(false);
             }
         } else {
-            LOGGER.warn("Private channel towards management server is not setup. Switch to offline mode and allow access to vm: " + param.getClientTag());
+            LOGGER.debug("Private channel towards management server is not setup. Switch to offline mode and allow access to vm: " + param.getClientTag());
         }
 
         return authResult;
@@ -336,7 +344,7 @@ public class ConsoleProxy {
                 LOGGER.error("Unable to invoke reportLoadInfo due to " + e.getMessage());
             }
         } else {
-            LOGGER.warn("Private channel towards management server is not setup. Switch to offline mode and ignore load report");
+            LOGGER.debug("Private channel towards management server is not setup. Switch to offline mode and ignore load report");
         }
     }
 
@@ -350,7 +358,7 @@ public class ConsoleProxy {
                 LOGGER.error("Unable to invoke ensureRoute due to " + e.getMessage());
             }
         } else {
-            LOGGER.warn("Unable to find ensureRoute method, console proxy agent is not up to date");
+            LOGGER.debug("Unable to find ensureRoute method, console proxy agent is not up to date");
         }
     }
 
@@ -542,7 +550,7 @@ public class ConsoleProxy {
                 LOGGER.info("The rfb thread died, reinitializing the viewer " + viewer);
                 viewer.initClient(param);
             } else if (!param.getClientHostPassword().equals(viewer.getClientHostPassword())) {
-                LOGGER.warn("Bad sid detected(VNC port may be reused). sid in session: " + viewer.getClientHostPassword() + ", sid in request: " +
+                LOGGER.debug("Bad sid detected(VNC port may be reused). sid in session: " + viewer.getClientHostPassword() + ", sid in request: " +
                         param.getClientHostPassword());
                 viewer.initClient(param);
             }
@@ -634,7 +642,7 @@ public class ConsoleProxy {
         ConsoleProxyAuthenticationResult authResult = authenticateConsoleAccess(param, false);
 
         if (authResult == null || !authResult.isSuccess()) {
-            LOGGER.warn("External authenticator failed authentication request for vm " + param.getClientTag() + " with sid " + param.getClientHostPassword());
+            LOGGER.debug("External authenticator failed authentication request for vm " + param.getClientTag() + " with sid " + param.getClientHostPassword());
 
             throw new AuthenticationException("External authenticator failed request for vm " + param.getClientTag() + " with sid " + param.getClientHostPassword());
         }

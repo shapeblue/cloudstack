@@ -413,13 +413,26 @@ public class NoVncClient {
         return verStr;
     }
 
+    protected static final long WAIT_FOR_NOVNC_TIMEOUT_MS = 30000;
+
     public void waitForNoVNCReply() {
-        int cycles = 0;
-        while (isWaitForNoVnc()) {
-            cycles++;
-        }
-        if (logger.isDebugEnabled()) {
-            logger.debug(String.format("Waited %d cycles for NoVnc", cycles));
+        long start = System.currentTimeMillis();
+        logger.debug("Waiting for a reply from the noVNC client during handshake");
+        synchronized (lock) {
+            while (waitForNoVnc) {
+                long remaining = WAIT_FOR_NOVNC_TIMEOUT_MS - (System.currentTimeMillis() - start);
+                if (remaining <= 0) {
+                    logger.debug("Timed out after {} ms waiting for a reply from the noVNC client during handshake", WAIT_FOR_NOVNC_TIMEOUT_MS);
+                    break;
+                }
+                try {
+                    lock.wait(remaining);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.debug("Interrupted while waiting for a reply from the noVNC client during handshake", e);
+                    break;
+                }
+            }
         }
     }
 
@@ -468,6 +481,7 @@ public class NoVncClient {
     public void setWaitForNoVnc(boolean val) {
         synchronized (lock) {
             this.waitForNoVnc = val;
+            lock.notifyAll();
         }
     }
 

@@ -53,9 +53,13 @@ public class NioSocket {
         }
     }
 
-    private void waitForSocketSelectorConnected(Selector selector) throws IOException {
+    private void waitForSocketSelectorConnected(Selector selector, String host, int port) throws IOException {
+        long startTime = System.currentTimeMillis();
+        int attempts = 0;
         while (selector.select(CONNECTION_TIMEOUT_MILLIS) <= 0) {
-            logger.debug("Waiting for ready operations to connect to the socket");
+            attempts++;
+            logger.debug("Still waiting to establish VNC backend connection to {}:{} after {} ms ({} attempt(s) of {} ms each)",
+                    host, port, System.currentTimeMillis() - startTime, attempts, CONNECTION_TIMEOUT_MILLIS);
         }
         Set<SelectionKey> keys = selector.selectedKeys();
         for (SelectionKey selectionKey: keys) {
@@ -75,7 +79,7 @@ public class NioSocket {
             Selector selector = Selector.open();
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
 
-            waitForSocketSelectorConnected(selector);
+            waitForSocketSelectorConnected(selector, host, port);
         } catch (IOException e) {
             logger.error("Error connecting NioSocket to {}:{}: {}", host, port, e.getMessage(), e);
             throw e;

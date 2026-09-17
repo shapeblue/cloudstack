@@ -57,6 +57,8 @@ public class ConsoleProxyNoVNCHandler extends WebSocketHandler {
             throws IOException, ServletException {
 
         if (this.getWebSocketFactory().isUpgradeRequest(request, response)) {
+            logger.debug("Received WebSocket upgrade request [path: {}, query: {}, remote IP: {}]",
+                    target, request.getQueryString(), request.getRemoteAddr());
             response.addHeader("Sec-WebSocket-Protocol", "binary");
             if (this.getWebSocketFactory().acceptWebSocket(request, response)) {
                 baseRequest.setHandled(true);
@@ -94,6 +96,9 @@ public class ConsoleProxyNoVNCHandler extends WebSocketHandler {
         String sessionUuid = queryMap.get("sessionUuid");
         String clientIp = session.getRemoteAddress().getAddress().getHostAddress();
         boolean sessionRequiresNewViewer = Boolean.parseBoolean(queryMap.get("sessionRequiresNewViewer"));
+
+        logger.info("WebSocket connect attempt [session UUID: {}, client IP: {}, host: {}, port: {}, sessionRequiresNewViewer: {}]",
+                sessionUuid, clientIp, host, portStr, sessionRequiresNewViewer);
 
         if (tag == null)
             tag = "";
@@ -199,6 +204,8 @@ public class ConsoleProxyNoVNCHandler extends WebSocketHandler {
 
     @OnWebSocketError
     public void onError(Throwable cause) {
-        logger.error("Error on WebSocket [client ID: {}, session UUID: {}].", cause, viewer.getClientId(), viewer.getSessionUuid());
+        String clientId = viewer != null ? String.valueOf(viewer.getClientId()) : "unknown (no viewer created)";
+        String sessionUuid = viewer != null ? viewer.getSessionUuid() : "unknown";
+        logger.error("Error on WebSocket [client ID: {}, session UUID: {}]: {}", clientId, sessionUuid, cause.getMessage(), cause);
     }
 }

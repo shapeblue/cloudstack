@@ -844,7 +844,7 @@ export default class RFB extends EventTargetMixin {
     }
 
     _socketError(e) {
-        Log.Warn("WebSocket on-error event");
+        Log.Warn("WebSocket on-error event: " + e);
     }
 
     _focusCanvas(event) {
