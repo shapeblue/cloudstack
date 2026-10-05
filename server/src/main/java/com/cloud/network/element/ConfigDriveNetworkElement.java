@@ -631,13 +631,22 @@ public class ConfigDriveNetworkElement extends AdapterBase implements NetworkEle
         Map<Long, List<Network.Service>> supportedServices = new HashMap<>();
         for (NicProfile nic: nics) {
             ArrayList<Network.Service> serviceList = new ArrayList<>();
-            if (_networkModel.isProviderSupportServiceInNetwork(nic.getNetworkId(), Service.Dns, getProvider())) {
+            // Dhcp / Dns are checked against the network as a whole rather than against the
+            // ConfigDrive provider itself. Their actual provider on a modern offering can be
+            // a different element entirely (Ovn / Netris / Nsx / VirtualRouter ...), but the
+            // information cloud-init needs in network_data.json — link MTU, expected IPv4,
+            // gateway, DNS servers — must still be emitted on the ConfigDrive ISO. Without
+            // this, network_data.json is written as `{}` and Ubuntu 24.04 / cloud-init >= 23
+            // does not bring any interface up at boot, even though hostname / SSH keys (read
+            // from meta_data.json) are correctly applied. UserData stays scoped to ConfigDrive
+            // because that one IS provided by this element directly.
+            if (_networkModel.areServicesSupportedInNetwork(nic.getNetworkId(), Service.Dns)) {
                 serviceList.add(Service.Dns);
             }
             if (_networkModel.isProviderSupportServiceInNetwork(nic.getNetworkId(), Service.UserData, getProvider())) {
                 serviceList.add(Service.UserData);
             }
-            if (_networkModel.isProviderSupportServiceInNetwork(nic.getNetworkId(), Service.Dhcp, getProvider())) {
+            if (_networkModel.areServicesSupportedInNetwork(nic.getNetworkId(), Service.Dhcp)) {
                 serviceList.add(Service.Dhcp);
             }
             supportedServices.put(nic.getId(), serviceList);
