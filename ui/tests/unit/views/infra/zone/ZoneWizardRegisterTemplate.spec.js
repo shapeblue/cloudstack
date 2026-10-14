@@ -72,6 +72,7 @@ const buttonStub = {
   template: '<button :disabled="disabled" :class="{ loading }" @click="$emit(\'click\')"><slot /></button>'
 }
 
+const mounted = []
 const factory = async (props = {}) => {
   const notification = { success: jest.fn(), error: jest.fn() }
   const wrapper = mount(ZoneWizardRegisterTemplate, {
@@ -88,6 +89,7 @@ const factory = async (props = {}) => {
         'a-tag': passthrough,
         'a-alert': passthrough,
         'a-switch': true,
+        'a-checkbox': true,
         'a-empty': passthrough,
         'a-table': true,
         'a-modal': passthrough,
@@ -97,6 +99,7 @@ const factory = async (props = {}) => {
       }
     }
   })
+  mounted.push(wrapper)
   await flushPromises()
   return { wrapper, notification }
 }
@@ -110,6 +113,10 @@ const selectZone = async (wrapper, zoneId) => {
 const registerCalls = () => postAPI.mock.calls.filter(([command]) => command === 'registerTemplate')
 
 describe('Views > infra > zone > ZoneWizardRegisterTemplate.vue', () => {
+  afterEach(() => {
+    mounted.splice(0).forEach(wrapper => wrapper.unmount())
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockApis()
@@ -162,10 +169,23 @@ describe('Views > infra > zone > ZoneWizardRegisterTemplate.vue', () => {
       expect(wrapper.find('.zone-select').exists()).toBe(true)
       expect(wrapper.find('.button-back').text()).toBe('label.close')
       await selectZone(wrapper, 'core-x86')
-      expect(wrapper.find('.button-next').attributes('disabled')).toBeDefined()
+      expect(wrapper.find('.register-button').attributes('disabled')).toBeDefined()
       wrapper.vm.selectedRowKeys = ['a-x86']
       await flushPromises()
-      expect(wrapper.find('.button-next').attributes('disabled')).toBeUndefined()
+      expect(wrapper.find('.register-button').attributes('disabled')).toBeUndefined()
+    })
+
+    it('disables the Public and Featured checkboxes while Register is disabled', async () => {
+      const { wrapper } = await factory()
+      await selectZone(wrapper, 'core-x86')
+      const disabled = () => wrapper.findAll('a-checkbox-stub').map(box => box.attributes('disabled') === 'true')
+
+      expect(wrapper.vm.registerDisabled).toBe(true)
+      expect(disabled()).toEqual([true, true])
+      wrapper.vm.selectedRowKeys = ['a-x86']
+      await flushPromises()
+      expect(wrapper.vm.registerDisabled).toBe(false)
+      expect(disabled()).toEqual([false, false])
     })
 
     it('disables zones without KVM clusters but keeps zones with no clusters selectable', async () => {
@@ -249,7 +269,7 @@ describe('Views > infra > zone > ZoneWizardRegisterTemplate.vue', () => {
       await flushPromises()
 
       expect(wrapper.vm.hasImageStore).toBe(false)
-      expect(wrapper.find('.button-next').attributes('disabled')).toBeDefined()
+      expect(wrapper.find('.register-button').attributes('disabled')).toBeDefined()
     })
 
     it('reports a catalog fetch failure and keeps Register disabled', async () => {
@@ -309,6 +329,19 @@ describe('Views > infra > zone > ZoneWizardRegisterTemplate.vue', () => {
       expect(notification.error).toHaveBeenCalledTimes(1)
       expect(wrapper.vm.submitting).toBe(false)
       expect(wrapper.vm.rowErrors['a-x86']).toBe('Network Error')
+    })
+
+    it('shows the state returned by registerTemplate, or Pending when none is returned', async () => {
+      postAPI.mockImplementationOnce(() => Promise.resolve({ registertemplateresponse: { template: [{ id: 'x', isready: false, status: 'Download Pending' }] } }))
+      const { wrapper } = await factory({ zoneid: 'new-zone', arch: 'x86_64', zoneSuperType: 'Core' })
+      wrapper.vm.selectedRowKeys = ['a-x86']
+      await wrapper.vm.stepRegisterTemplates()
+      expect(wrapper.vm.statusText({ id: 'a-x86' })).toContain('Download Pending')
+
+      postAPI.mockImplementationOnce(() => Promise.resolve({ registertemplateresponse: { template: [{ id: 'y' }] } }))
+      wrapper.vm.selectedRowKeys = ['b-x86']
+      await wrapper.vm.stepRegisterTemplates()
+      expect(wrapper.vm.statusText({ id: 'b-x86' })).toContain('label.catalog.status.pending')
     })
 
     it('retries a failed row successfully', async () => {

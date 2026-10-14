@@ -56,14 +56,6 @@
         <a-switch size="small" v-model:checked="showRegistered" :disabled="submitting" />
         {{ $t('label.show.registered') }}
       </span>
-      <span class="switch-item">
-        <a-switch size="small" v-model:checked="makePublic" :disabled="submitting" />
-        {{ $t('label.ispublic') }}
-      </span>
-      <span class="switch-item">
-        <a-switch size="small" v-model:checked="makeFeatured" :disabled="submitting" />
-        {{ $t('label.isfeatured') }}
-      </span>
     </div>
     <a-empty v-if="standalone && !effectiveZoneId" :description="$t(hasEligibleZone ? 'message.catalog.select.zone' : 'message.catalog.no.kvm')" style="margin: 40px 0" />
     <a-table
@@ -72,7 +64,7 @@
       :dataSource="visibleTemplates"
       :rowSelection="rowSelection"
       :loading="loading"
-      :scroll="{ y: 450 }"
+      :scroll="{ x: 760, y: 450 }"
       size="middle"
       :rowKey="record => record.id"
       :pagination="false"
@@ -91,14 +83,20 @@
     <div class="form-action">
       <a-button v-if="standalone" class="button-back" :disabled="submitting" @click="handleClose">{{ $t('label.close') }}</a-button>
       <a-button v-else class="button-back" @click="handleDone">{{ selectedRowKeys.length > 0 ? $t('label.done') : $t('label.skip') }}</a-button>
-      <a-button
-        class="button-next"
-        type="primary"
-        :loading="submitting"
-        :disabled="registerDisabled"
-        @click="handleSubmit"
-        ref="submit"
-      >{{ $t('label.register.template') }}</a-button>
+      <div class="register-actions">
+        <template v-if="effectiveZoneId">
+          <a-checkbox v-model:checked="makePublic" :disabled="registerDisabled">{{ $t('label.ispublic') }}</a-checkbox>
+          <a-checkbox v-model:checked="makeFeatured" :disabled="registerDisabled">{{ $t('label.isfeatured') }}</a-checkbox>
+        </template>
+        <a-button
+          class="register-button"
+          type="primary"
+          :loading="submitting"
+          :disabled="registerDisabled"
+          @click="handleSubmit"
+          ref="submit"
+        >{{ $t('label.register.template') }}</a-button>
+      </div>
     </div>
 
     <a-modal
@@ -250,7 +248,7 @@ export default {
           title: this.$t('label.name'),
           dataIndex: 'name',
           key: 'name',
-          width: 240,
+          width: 200,
           sorter: (a, b) => { return genericCompare(a.name || '', b.name || '') }
         },
         {
@@ -263,7 +261,9 @@ export default {
         {
           title: this.$t('label.url'),
           dataIndex: 'url',
-          key: 'url'
+          key: 'url',
+          width: 300,
+          ellipsis: true
         },
         {
           title: this.$t('label.status'),
@@ -290,7 +290,7 @@ export default {
     },
     statusText (record) {
       if (this.deployedTemplates[record.id] === true) {
-        return this.$t('label.catalog.status.registered', { state: this.templateStates[record.id] || 'Ready' })
+        return this.$t('label.catalog.status.registered', { state: this.templateStates[record.id] || this.$t('label.catalog.status.pending') })
       }
       if (this.rowErrors[record.id]) {
         return this.$t('label.catalog.status.failed', { error: this.rowErrors[record.id] })
@@ -397,7 +397,7 @@ export default {
       const known = {}
       for (const template of registered) {
         if (template.url) {
-          known[normalizeUrl(template.url)] = template.isready ? 'Ready' : (template.status || '')
+          known[normalizeUrl(template.url)] = template.isready ? 'Ready' : template.status
         }
       }
       for (const row of this.predefinedTemplates) {
@@ -455,10 +455,11 @@ export default {
       const registrationResults = []
       for (const templateData of templatesToRegister) {
         const promise = this.registerTemplate(templateData)
-          .then(() => ({
+          .then(result => ({
             id: templateData.id,
             status: 'success',
-            name: templateData.name
+            name: templateData.name,
+            state: result?.isready ? 'Ready' : result?.status
           }))
           .catch(error => ({
             id: templateData.id,
@@ -481,6 +482,7 @@ export default {
 
         successful.forEach(r => {
           this.deployedTemplates[r.id] = true
+          this.templateStates[r.id] = r.state
           delete this.rowErrors[r.id]
           this.predefinedTemplates.find(t => t.id === r.id).disabled = true
         })
@@ -585,13 +587,19 @@ export default {
   }
 
   .form-action {
-    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin-top: 16px;
-    height: 35px;
   }
 
-  .button-next {
-    position: absolute;
-    right: 0;
+  .register-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
   }
 </style>
