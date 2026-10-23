@@ -19,6 +19,8 @@ package com.cloud.hypervisor.kvm.resource;
 import static com.cloud.host.Host.HOST_CDROM_MAX_COUNT;
 import static com.cloud.host.Host.HOST_INSTANCE_CONVERSION;
 import static com.cloud.host.Host.HOST_OVFTOOL_VERSION;
+import static com.cloud.host.Host.HOST_RBD_CLI;
+import static com.cloud.host.Host.HOST_RBD_VOLUME_ENCRYPTION;
 import static com.cloud.host.Host.HOST_VDDK_LIB_DIR;
 import static com.cloud.host.Host.HOST_VDDK_SUPPORT;
 import static com.cloud.host.Host.HOST_VDDK_VERSION;
@@ -91,6 +93,7 @@ import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.cloudstack.storage.volume.VolumeOnStorageTO;
 import org.apache.cloudstack.utils.bytescale.ByteScaleUtils;
 import org.apache.cloudstack.utils.cryptsetup.CryptSetup;
+import org.apache.cloudstack.utils.rbd.RbdEncryption;
 import org.apache.cloudstack.utils.hypervisor.HypervisorUtils;
 import org.apache.cloudstack.utils.linux.CPUStat;
 import org.apache.cloudstack.utils.linux.KVMHostInfo;
@@ -1457,7 +1460,9 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
 
         final String[] info = NetUtils.getNetworkParams(privateNic);
 
-        kvmhaMonitor = new KVMHAMonitor(info[0]);
+        // the GUID of the host as the management server knows it, as in Agent.getResourceGuid()
+        final String hostGuid = AgentPropertiesFileHandler.getPropertyValue(AgentProperties.GUID) + "-" + name;
+        kvmhaMonitor = new KVMHAMonitor(info[0], hostGuid);
         final Thread haMonitorThread = new Thread(kvmhaMonitor);
         haMonitorThread.start();
 
@@ -3882,7 +3887,9 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
                 if (volumeObjectTO.requiresEncryption() &&
                         pool.getType().encryptionSupportMode() == Storage.EncryptionSupport.Hypervisor ) {
                     String secretUuid = createLibvirtVolumeSecret(conn, volumeObjectTO.getPath(), volumeObjectTO.getPassphrase());
-                    DiskDef.LibvirtDiskEncryptDetails encryptDetails = new DiskDef.LibvirtDiskEncryptDetails(secretUuid, QemuObject.EncryptFormat.enumValue(volumeObjectTO.getEncryptFormat()));
+                    // RBD volumes are encrypted natively by librbd, so request the librbd encryption engine.
+                    String encryptEngine = (pool.getType() == StoragePoolType.RBD) ? "librbd" : null;
+                    DiskDef.LibvirtDiskEncryptDetails encryptDetails = new DiskDef.LibvirtDiskEncryptDetails(secretUuid, QemuObject.EncryptFormat.enumValue(volumeObjectTO.getEncryptFormat()), encryptEngine);
                     disk.setLibvirtDiskEncryptDetails(encryptDetails);
                 }
             }
@@ -4410,6 +4417,8 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         cmd.setGatewayIpAddress(localGateway);
         cmd.setIqn(getIqn());
         cmd.getHostDetails().put(HOST_VOLUME_ENCRYPTION, String.valueOf(hostSupportsVolumeEncryption()));
+        cmd.getHostDetails().put(HOST_RBD_VOLUME_ENCRYPTION, String.valueOf(hostSupportsRbdVolumeEncryption()));
+        cmd.getHostDetails().put(HOST_RBD_CLI, String.valueOf(hostHasRbdCli()));
         cmd.setHostTags(getHostTags());
         boolean instanceConversionSupported = hostSupportsInstanceConversion();
         cmd.getHostDetails().put(HOST_INSTANCE_CONVERSION, String.valueOf(instanceConversionSupported));
@@ -6195,7 +6204,19 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
     }
 
     /**
-     * Test host for volume encryption support
+     * Whether the {@code rbd} command line tool, shipped by ceph-common, is installed. Libvirt and
+     * qemu reach RBD images through librbd, so a host works as an RBD primary storage client without
+     * it; only tooling that runs {@code rbd} itself, such as incremental RBD backups, needs it.
+     */
+    public boolean hostHasRbdCli() {
+        return new File(Script.getExecutableAbsolutePath("rbd")).isAbsolute();
+    }
+
+    /**
+     * Test host for qemu-native LUKS volume encryption (qemu-img LUKS support + cryptsetup),
+     * reported as {@code host.volume.encryption}. RBD/librbd encryption support is a separate
+     * capability, reported as {@code host.volume.encryption.rbd}
+     * (see {@link #hostSupportsRbdVolumeEncryption()}).
      * @return boolean
      */
     public boolean hostSupportsVolumeEncryption() {
@@ -6218,6 +6239,13 @@ public class LibvirtComputingResource extends ServerResourceBase implements Serv
         }
 
         return true;
+    }
+
+    /**
+     * Test host for librbd native LUKS encryption support (rbd CLI with the encryption subcommand).
+     */
+    public boolean hostSupportsRbdVolumeEncryption() {
+        return new RbdEncryption().isSupported();
     }
 
     public boolean isSecureMode(String bootMode) {

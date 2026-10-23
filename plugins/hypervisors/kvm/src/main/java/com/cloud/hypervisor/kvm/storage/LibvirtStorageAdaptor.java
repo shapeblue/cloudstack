@@ -21,8 +21,12 @@ import static com.cloud.utils.NumbersUtil.toHumanReadableSize;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +38,9 @@ import java.util.stream.Collectors;
 import com.cloud.agent.properties.AgentProperties;
 import com.cloud.agent.properties.AgentPropertiesFileHandler;
 import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.utils.cryptsetup.CryptSetup;
 import org.apache.cloudstack.utils.cryptsetup.KeyFile;
+import org.apache.cloudstack.utils.rbd.RbdEncryption;
 import org.apache.cloudstack.utils.qemu.QemuImageOptions;
 import org.apache.cloudstack.utils.qemu.QemuImg;
 import org.apache.cloudstack.utils.qemu.QemuImg.PhysicalDiskFormat;
@@ -43,6 +49,7 @@ import org.apache.cloudstack.utils.qemu.QemuImgFile;
 import org.apache.cloudstack.utils.qemu.QemuObject;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -76,6 +83,7 @@ import com.cloud.hypervisor.kvm.resource.LibvirtStorageVolumeXMLParser;
 import com.cloud.storage.Storage;
 import com.cloud.storage.Storage.StoragePoolType;
 import com.cloud.storage.StorageLayer;
+import com.cloud.utils.RbdUtils;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.script.Script;
 import com.cloud.utils.storage.TemplateDownloaderUtil;
@@ -95,6 +103,17 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
     private static final int RBD_FEATURE_DEEP_FLATTEN = 32;
     public static final int RBD_FEATURES = RBD_FEATURE_LAYERING + RBD_FEATURE_EXCLUSIVE_LOCK + RBD_FEATURE_OBJECT_MAP + RBD_FEATURE_FAST_DIFF + RBD_FEATURE_DEEP_FLATTEN;
     private int rbdOrder = 0; /* Order 0 means 4MB blocks (the default) */
+    /* Space reserved at the front of an encrypted RBD image for the LUKS2 header/keyslots so the
+       usable (decrypted) size still matches the requested volume size. */
+    public static final long LUKS2_HEADER_RESERVE_BYTES = 16L << 20; // 16 MiB
+    /* libvirt's VIR_STORAGE_VOL_DELETE_WITH_SNAPSHOTS, not exposed as a constant by libvirt-java */
+    private static final int VIR_STORAGE_VOL_DELETE_WITH_SNAPSHOTS = 2;
+
+    /* pool types an encrypted volume can be copied between, see copyEncryptedPhysicalDisk */
+    private static final Set<StoragePoolType> ENCRYPTED_COPY_POOL_TYPES = Set.of(StoragePoolType.RBD, StoragePoolType.NetworkFilesystem,
+            StoragePoolType.Filesystem, StoragePoolType.SharedMountPoint);
+    private static final String SRC_LUKS_SECRET_ID = "srcsec0";
+    private static final String DEST_LUKS_SECRET_ID = "destsec0";
 
     private static final Set<StoragePoolType> QEMU_IMG_MANAGED_POOL_TYPES = Set.of(StoragePoolType.NetworkFilesystem, StoragePoolType.Filesystem, StoragePoolType.SharedMountPoint);
 
@@ -600,6 +619,7 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                     pool.setAuthSecret(secretValue);
                 }
             }
+            pool.setAuthSecretUUID(spd.getSecretUUID());
 
             /**
              * On large (RBD) storage pools it can take up to a couple of minutes
@@ -640,6 +660,19 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
     public KVMPhysicalDisk getPhysicalDisk(String volumeUuid, KVMStoragePool pool) {
         LibvirtStoragePool libvirtPool = (LibvirtStoragePool)pool;
 
+        /*
+         * An RBD volume is looked up through librbd rather than through libvirt.
+         * A volume that was created by another host is not in the libvirt pool
+         * cache, so looking it up through libvirt misses and forces a refresh of
+         * the whole pool. Refreshing an RBD pool stats every image in it, so that
+         * cost grows with the number of volumes in the pool and is paid on every
+         * VM start. Every other RBD operation in this class already uses librbd
+         * directly.
+         */
+        if (pool.getType() == StoragePoolType.RBD) {
+            return getRbdPhysicalDisk(volumeUuid, libvirtPool);
+        }
+
         try {
             StorageVol vol = getVolume(libvirtPool.getPool(), volumeUuid);
             if (vol == null) {
@@ -678,6 +711,74 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
         } catch (LibvirtException e) {
             logger.debug("Failed to get volume from libvirt: " + e.getMessage());
             throw new CloudRuntimeException(e.toString());
+        }
+    }
+
+    /**
+     * Looks an RBD volume up directly through librbd.
+     *
+     * The size reported by librbd is used for both the size and the virtual size of
+     * the disk, matching what this class already does after converting an image into
+     * an RBD volume.
+     */
+    private KVMPhysicalDisk getRbdPhysicalDisk(String volumeUuid, LibvirtStoragePool pool) {
+        Rados r = new Rados(pool.getAuthUserName());
+        try {
+            r.confSet("mon_host", RbdUtils.getRbdMonitors(pool.getSourceHost(), pool.getSourcePort()));
+            /*
+             * The secret is null when the pool has no cephx user, and librados
+             * aborts the process rather than returning an error if it is handed a
+             * null value here.
+             */
+            if (pool.getAuthUserName() != null) {
+                r.confSet("key", pool.getAuthSecret());
+            } else {
+                r.confSet("auth_client_required", "none");
+            }
+            r.confSet("client_mount_timeout", "30");
+            r.connect();
+
+            IoCTX io = r.ioCtxCreate(pool.getSourceDir());
+            try {
+                Rbd rbd = new Rbd(io);
+                // The image is only stat'ed, so it is opened read only and cannot take the exclusive lock.
+                RbdImage image = rbd.openReadOnly(volumeUuid);
+                try {
+                    RbdImageInfo rbdInfo = image.stat();
+                    KVMPhysicalDisk disk = new KVMPhysicalDisk(pool.getSourceDir() + "/" + volumeUuid, volumeUuid, pool);
+                    disk.setFormat(PhysicalDiskFormat.RAW);
+                    disk.setSize(rbdInfo.size);
+                    disk.setVirtualSize(rbdInfo.size);
+                    return disk;
+                } finally {
+                    closeRbdImage(rbd, image, volumeUuid);
+                }
+            } finally {
+                r.ioCtxDestroy(io);
+            }
+        } catch (RadosException e) {
+            logger.error("A Ceph RADOS operation failed (" + e.getReturnValue() + "). The error was: " + e.getMessage()
+                    + " - " + ErrorCode.getErrorMessage(e.getReturnValue()));
+            throw new CloudRuntimeException(e.toString(), e);
+        } catch (RbdException e) {
+            logger.error("A Ceph RBD operation failed (" + e.getReturnValue() + "). The error was: " + e.getMessage()
+                    + " - " + ErrorCode.getErrorMessage(e.getReturnValue()));
+            throw new CloudRuntimeException(e.toString(), e);
+        } finally {
+            r.shutDown();
+        }
+    }
+
+    /**
+     * Closes an RBD image without throwing, so that a failure to close cannot discard a
+     * successful result or hide the exception that is already on its way out.
+     */
+    private void closeRbdImage(Rbd rbd, RbdImage image, String volumeUuid) {
+        try {
+            rbd.close(image);
+        } catch (RbdException e) {
+            logger.warn("Failed to close RBD image " + volumeUuid + " (" + e.getReturnValue() + "): "
+                    + e.getMessage() + " - " + ErrorCode.getErrorMessage(e.getReturnValue()));
         }
     }
 
@@ -988,8 +1089,18 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
             Map<String, String> details = pool.getDetails();
             String dataPool = (details == null) ? null : details.get(KVMPhysicalDisk.RBD_DEFAULT_DATA_POOL);
 
-            return (dataPool == null) ?  createPhysicalDiskByLibVirt(name, pool, PhysicalDiskFormat.RAW, provisioningType, size) :
-                    createPhysicalDiskByQemuImg(name, pool, PhysicalDiskFormat.RAW, provisioningType, size, passphrase);
+            // Create the raw RBD image first. For encrypted volumes we apply a native librbd LUKS header
+            // afterwards via `rbd encryption format` (engine='librbd'). We deliberately do NOT hand the
+            // passphrase to qemu-img, which would instead produce a qemu-native LUKS container.
+            KVMPhysicalDisk disk = (dataPool == null) ?
+                    createPhysicalDiskByLibVirt(name, pool, PhysicalDiskFormat.RAW, provisioningType, size) :
+                    createPhysicalDiskByQemuImg(name, pool, PhysicalDiskFormat.RAW, provisioningType, size, null);
+
+            if (passphrase != null && passphrase.length > 0) {
+                formatRbdImageEncryption(pool, name, passphrase);
+                disk.setQemuEncryptFormat(QemuObject.EncryptFormat.LUKS2);
+            }
+            return disk;
         } else if (QEMU_IMG_MANAGED_POOL_TYPES.contains(poolType)) {
             switch (format) {
                 case QCOW2:
@@ -1150,61 +1261,6 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
 
         logger.info("Attempting to remove volume " + uuid + " from pool " + pool.getUuid());
 
-        /**
-         * RBD volume can have snapshots and while they exist libvirt
-         * can't remove the RBD volume
-         *
-         * We have to remove those snapshots first
-         */
-        if (pool.getType() == StoragePoolType.RBD) {
-            try {
-                logger.info("Unprotecting and Removing RBD snapshots of image " + pool.getSourceDir() + "/" + uuid + " prior to removing the image");
-
-                Rados r = new Rados(pool.getAuthUserName());
-                r.confSet("mon_host", pool.getSourceHost() + ":" + pool.getSourcePort());
-                r.confSet("key", pool.getAuthSecret());
-                r.confSet("client_mount_timeout", "30");
-                r.connect();
-                logger.debug("Successfully connected to Ceph cluster at " + r.confGet("mon_host"));
-
-                IoCTX io = r.ioCtxCreate(pool.getSourceDir());
-                Rbd rbd = new Rbd(io);
-                RbdImage image = rbd.open(uuid);
-                logger.debug("Fetching list of snapshots of RBD image " + pool.getSourceDir() + "/" + uuid);
-                List<RbdSnapInfo> snaps = image.snapList();
-                try {
-                    for (RbdSnapInfo snap : snaps) {
-                        if (image.snapIsProtected(snap.name)) {
-                            logger.debug("Unprotecting snapshot " + pool.getSourceDir() + "/" + uuid + "@" + snap.name);
-                            image.snapUnprotect(snap.name);
-                        } else {
-                            logger.debug("Snapshot " + pool.getSourceDir() + "/" + uuid + "@" + snap.name + " is not protected.");
-                        }
-                        logger.debug("Removing snapshot " + pool.getSourceDir() + "/" + uuid + "@" + snap.name);
-                        image.snapRemove(snap.name);
-                    }
-                    logger.info("Successfully unprotected and removed any remaining snapshots (" + snaps.size() + ") of "
-                        + pool.getSourceDir() + "/" + uuid + " Continuing to remove the RBD image");
-                } catch (RbdException e) {
-                    logger.error("Failed to remove snapshot with exception: " + e.toString() +
-                        ", RBD error: " + ErrorCode.getErrorMessage(e.getReturnValue()));
-                    throw new CloudRuntimeException(e.toString() + " - " + ErrorCode.getErrorMessage(e.getReturnValue()));
-                } finally {
-                    logger.debug("Closing image and destroying context");
-                    rbd.close(image);
-                    r.ioCtxDestroy(io);
-                }
-            } catch (RadosException e) {
-                logger.error("Failed to remove snapshot with exception: " + e.toString() +
-                    ", RBD error: " + ErrorCode.getErrorMessage(e.getReturnValue()));
-                throw new CloudRuntimeException(e.toString() + " - " + ErrorCode.getErrorMessage(e.getReturnValue()));
-            } catch (RbdException e) {
-                logger.error("Failed to remove snapshot with exception: " + e.toString() +
-                    ", RBD error: " + ErrorCode.getErrorMessage(e.getReturnValue()));
-                throw new CloudRuntimeException(e.toString() + " - " + ErrorCode.getErrorMessage(e.getReturnValue()));
-            }
-        }
-
         LibvirtStoragePool libvirtPool = (LibvirtStoragePool)pool;
         try {
             StorageVol vol = getVolume(libvirtPool.getPool(), uuid);
@@ -1222,6 +1278,58 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
             return true;
         } catch (LibvirtException e) {
             throw new CloudRuntimeException(e.toString());
+        }
+    }
+
+    static String maskRbdKey(String message) {
+        return message == null ? null : message.replaceAll("key=[^:\\s]*", "key=******");
+    }
+
+    private Rados connectToCeph(KVMStoragePool pool) throws RadosException {
+        Rados r = new Rados(pool.getAuthUserName());
+        r.confSet("mon_host", RbdUtils.getRbdMonitors(pool.getSourceHost(), pool.getSourcePort()));
+        r.confSet("key", pool.getAuthSecret());
+        r.confSet("client_mount_timeout", "30");
+        r.connect();
+        return r;
+    }
+
+    private boolean rbdImageExists(KVMStoragePool pool, String imageName) throws RadosException, RbdException {
+        Rados r = connectToCeph(pool);
+        try {
+            IoCTX io = r.ioCtxCreate(pool.getSourceDir());
+            try {
+                return Arrays.asList(new Rbd(io).list()).contains(imageName);
+            } finally {
+                r.ioCtxDestroy(io);
+            }
+        } finally {
+            r.shutDown();
+        }
+    }
+
+    /**
+     * Removes an RBD image left behind by a failed copy, so that it does not make every later copy fail with "File exists"
+     */
+    private void removeRbdImageQuietly(KVMStoragePool pool, String imageName) {
+        try {
+            Rados r = connectToCeph(pool);
+            try {
+                IoCTX io = r.ioCtxCreate(pool.getSourceDir());
+                try {
+                    Rbd rbd = new Rbd(io);
+                    if (Arrays.asList(rbd.list()).contains(imageName)) {
+                        rbd.remove(imageName);
+                        logger.info("Removed the incomplete RBD image {}/{} left by the failed copy", pool.getSourceDir(), imageName);
+                    }
+                } finally {
+                    r.ioCtxDestroy(io);
+                }
+            } finally {
+                r.shutDown();
+            }
+        } catch (RadosException | RbdException e) {
+            logger.warn("Failed to remove the incomplete RBD image {}/{} left by the failed copy, remove it manually: {}", pool.getSourceDir(), imageName, e.getMessage());
         }
     }
 
@@ -1244,7 +1352,7 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
         KVMPhysicalDisk disk = null;
 
         if (destPool.getType() == StoragePoolType.RBD) {
-            disk = createDiskFromTemplateOnRBD(template, name, format, provisioningType, size, destPool, timeout);
+            disk = createDiskFromTemplateOnRBD(template, name, format, provisioningType, size, destPool, timeout, passphrase);
         } else {
             try (KeyFile keyFile = new KeyFile(passphrase)){
                 String newUuid = name;
@@ -1324,7 +1432,7 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
     }
 
     private KVMPhysicalDisk createDiskFromTemplateOnRBD(KVMPhysicalDisk template,
-            String name, PhysicalDiskFormat format, Storage.ProvisioningType provisioningType, long size, KVMStoragePool destPool, int timeout){
+            String name, PhysicalDiskFormat format, Storage.ProvisioningType provisioningType, long size, KVMStoragePool destPool, int timeout, byte[] passphrase){
 
         /*
             With RBD you can't run qemu-img convert with an existing RBD image as destination
@@ -1335,6 +1443,8 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
          */
 
         KVMStoragePool srcPool = template.getPool();
+        Map<String, String> destDetails = destPool.getDetails();
+        String dataPool = (destDetails == null) ? null : destDetails.get(KVMPhysicalDisk.RBD_DEFAULT_DATA_POOL);
         KVMPhysicalDisk disk = null;
         String newUuid = name;
 
@@ -1350,6 +1460,16 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
             disk.setVirtualSize(disk.getSize());
         }
 
+
+        if (passphrase != null && passphrase.length > 0) {
+            boolean sameClusterRbd = srcPool.getType() == StoragePoolType.RBD
+                    && srcPool.getSourceHost().equals(destPool.getSourceHost())
+                    && srcPool.getSourceDir().equals(destPool.getSourceDir());
+            if (sameClusterRbd) {
+                return createEncryptedRootCoWClone(template, destPool, newUuid, disk, passphrase);
+            }
+            return createEncryptedRootFullCopy(srcPool, template, destPool, newUuid, disk, passphrase);
+        }
 
         QemuImgFile srcFile;
         QemuImgFile destFile = new QemuImgFile(KVMPhysicalDisk.RBDStringBuilder(destPool, disk.getPath()));
@@ -1380,9 +1500,13 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                     logger.debug("Trying to perform a RBD clone (layering) since we are operating in the same storage pool");
 
                     Rados r = new Rados(srcPool.getAuthUserName());
-                    r.confSet("mon_host", srcPool.getSourceHost() + ":" + srcPool.getSourcePort());
+                    r.confSet("mon_host", RbdUtils.getRbdMonitors(srcPool.getSourceHost(), srcPool.getSourcePort()));
                     r.confSet("key", srcPool.getAuthSecret());
                     r.confSet("client_mount_timeout", "30");
+                    if (dataPool != null) {
+                        logger.debug("Setting RBD data pool to " + dataPool + " for the new image " + disk.getName());
+                        r.confSet(KVMPhysicalDisk.RBD_DEFAULT_DATA_POOL, dataPool);
+                    }
                     r.connect();
                     logger.debug("Successfully connected to Ceph cluster at " + r.confGet("mon_host"));
 
@@ -1449,16 +1573,20 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                     logger.debug("Both the source and destination are RBD, but not the same Ceph cluster. Performing a copy");
 
                     Rados rSrc = new Rados(srcPool.getAuthUserName());
-                    rSrc.confSet("mon_host", srcPool.getSourceHost() + ":" + srcPool.getSourcePort());
+                    rSrc.confSet("mon_host", RbdUtils.getRbdMonitors(srcPool.getSourceHost(), srcPool.getSourcePort()));
                     rSrc.confSet("key", srcPool.getAuthSecret());
                     rSrc.confSet("client_mount_timeout", "30");
                     rSrc.connect();
                     logger.debug("Successfully connected to source Ceph cluster at " + rSrc.confGet("mon_host"));
 
                     Rados rDest = new Rados(destPool.getAuthUserName());
-                    rDest.confSet("mon_host", destPool.getSourceHost() + ":" + destPool.getSourcePort());
+                    rDest.confSet("mon_host", RbdUtils.getRbdMonitors(destPool.getSourceHost(), destPool.getSourcePort()));
                     rDest.confSet("key", destPool.getAuthSecret());
                     rDest.confSet("client_mount_timeout", "30");
+                    if (dataPool != null) {
+                        logger.debug("Setting RBD data pool to " + dataPool + " on the destination cluster for the new image " + disk.getName());
+                        rDest.confSet(KVMPhysicalDisk.RBD_DEFAULT_DATA_POOL, dataPool);
+                    }
                     rDest.connect();
                     logger.debug("Successfully connected to source Ceph cluster at " + rDest.confGet("mon_host"));
 
@@ -1493,7 +1621,124 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                 disk = null;
             }
         }
+
+        // Encrypted volumes are handled by the early return above (create empty -> luks2 format ->
+        // import template through encryption); the clone/convert path here is for plaintext volumes.
         return disk;
+    }
+
+    /**
+     * Option A (thin CoW encrypted root), used when the template already lives on the same RBD cluster
+     * as the destination pool. Per the Ceph "Image Encryption" clone recipe: grow the template base to
+     * reserve LUKS2-header space, snapshot+protect that grown state, clone from it, apply a LUKS2 header,
+     * then resize the clone to the requested size. The inherited (plaintext) template data stays readable
+     * through the clone's encryption, and the clone is a thin CoW image (only the header is written).
+     *
+     * @return the encrypted CoW clone, or {@code null} if the Ceph operations failed
+     */
+    private KVMPhysicalDisk createEncryptedRootCoWClone(KVMPhysicalDisk template, KVMStoragePool destPool,
+            String newUuid, KVMPhysicalDisk disk, byte[] passphrase) {
+        String luksReservedSnapshotName = rbdTemplateSnapName + "-luks";
+        Rados radosConnection = null;
+        IoCTX ioContext = null;
+        Rbd rbdClient = null;
+        RbdImage templateImage = null;
+        try {
+            radosConnection = new Rados(destPool.getAuthUserName());
+            radosConnection.confSet("mon_host", RbdUtils.getRbdMonitors(destPool.getSourceHost(), destPool.getSourcePort()));
+            radosConnection.confSet("key", destPool.getAuthSecret());
+            radosConnection.confSet("client_mount_timeout", "30");
+            radosConnection.connect();
+            ioContext = radosConnection.ioCtxCreate(destPool.getSourceDir());
+            rbdClient = new Rbd(ioContext);
+            templateImage = rbdClient.open(template.getName());
+            boolean luksSnapshotExists = false;
+            for (RbdSnapInfo snapshotInfo : templateImage.snapList()) {
+                if (luksReservedSnapshotName.equals(snapshotInfo.name)) {
+                    luksSnapshotExists = true;
+                    break;
+                }
+            }
+            if (!luksSnapshotExists) {
+                templateImage.resize(template.getVirtualSize() + LUKS2_HEADER_RESERVE_BYTES);
+                templateImage.snapCreate(luksReservedSnapshotName);
+                templateImage.snapProtect(luksReservedSnapshotName);
+                logger.debug("Prepared LUKS-reserved template snapshot {}@{}", template.getName(), luksReservedSnapshotName);
+            }
+            rbdClient.clone(template.getName(), luksReservedSnapshotName, ioContext, newUuid, RBD_FEATURES, rbdOrder);
+        } catch (RadosException | RbdException e) {
+            logger.error("Failed to create encrypted CoW clone {}: {}", newUuid, e.getMessage());
+            return null;
+        } finally {
+            if (rbdClient != null && templateImage != null) {
+                try {
+                    rbdClient.close(templateImage);
+                } catch (RbdException ignored) {
+                    // best-effort close of the template handle
+                }
+            }
+            if (radosConnection != null && ioContext != null) {
+                radosConnection.ioCtxDestroy(ioContext);
+            }
+        }
+        formatRbdImageEncryption(destPool, newUuid, passphrase);
+        if (disk.getVirtualSize() > template.getVirtualSize()) {
+            // grow the clone to the requested root size (encryption-aware)
+            new RbdEncryption().resize(destPool.getSourceHost(), destPool.getSourcePort(),
+                    destPool.getAuthUserName(), destPool.getAuthSecret(), destPool.getSourceDir(),
+                    newUuid, disk.getVirtualSize(), false, passphrase);
+        }
+        disk.setQemuEncryptFormat(QemuObject.EncryptFormat.LUKS2);
+        return disk;
+    }
+
+    /**
+     * Option B (full-copy encrypted root), used when the template is not on the same RBD cluster (e.g. first
+     * use from secondary storage). Create an empty image, apply a LUKS2 header, then import the template
+     * THROUGH the encryption layer (qemu-img convert -n). Correct but not thin (no CoW).
+     *
+     * @return the encrypted image, or {@code null} if the Ceph operations failed
+     */
+    private KVMPhysicalDisk createEncryptedRootFullCopy(KVMStoragePool srcPool, KVMPhysicalDisk template,
+            KVMStoragePool destPool, String newUuid, KVMPhysicalDisk disk, byte[] passphrase) {
+        long imageSizeWithLuksHeader = disk.getVirtualSize() + LUKS2_HEADER_RESERVE_BYTES;
+        Rados radosConnection = null;
+        IoCTX ioContext = null;
+        try {
+            radosConnection = new Rados(destPool.getAuthUserName());
+            radosConnection.confSet("mon_host", RbdUtils.getRbdMonitors(destPool.getSourceHost(), destPool.getSourcePort()));
+            radosConnection.confSet("key", destPool.getAuthSecret());
+            radosConnection.confSet("client_mount_timeout", "30");
+            radosConnection.connect();
+            ioContext = radosConnection.ioCtxCreate(destPool.getSourceDir());
+            Rbd rbdClient = new Rbd(ioContext);
+            rbdClient.create(newUuid, imageSizeWithLuksHeader, RBD_FEATURES, rbdOrder);
+        } catch (RadosException | RbdException e) {
+            logger.error("Failed to create encrypted RBD image {}: {}", newUuid, e.getMessage());
+            return null;
+        } finally {
+            if (radosConnection != null && ioContext != null) {
+                radosConnection.ioCtxDestroy(ioContext);
+            }
+        }
+        formatRbdImageEncryption(destPool, newUuid, passphrase);
+        boolean sourceIsRbdPool = srcPool.getType() == StoragePoolType.RBD;
+        new RbdEncryption().importTemplate(
+                sourceIsRbdPool ? srcPool.getSourceDir() : null, sourceIsRbdPool ? template.getName() : null,
+                sourceIsRbdPool ? null : template.getPath(), sourceIsRbdPool ? null : template.getFormat().toString(),
+                destPool.getSourceHost(), destPool.getSourcePort(), destPool.getAuthUserName(), destPool.getAuthSecret(),
+                destPool.getSourceDir(), newUuid, passphrase, CryptSetup.LuksType.LUKS2);
+        disk.setQemuEncryptFormat(QemuObject.EncryptFormat.LUKS2);
+        return disk;
+    }
+
+    /**
+     * Apply native librbd LUKS encryption to an existing RBD image via the rbd CLI.
+     * Isolated here so the CLI dependency can later be swapped for a native (JNA) librbd binding.
+     */
+    private void formatRbdImageEncryption(KVMStoragePool pool, String image, byte[] passphrase) {
+        new RbdEncryption().format(pool.getSourceHost(), pool.getSourcePort(), pool.getAuthUserName(),
+                pool.getAuthSecret(), pool.getSourceDir(), image, passphrase, CryptSetup.LuksType.LUKS2);
     }
 
     @Override
@@ -1544,6 +1789,13 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
          */
 
         KVMStoragePool srcPool = disk.getPool();
+        if (ArrayUtils.isNotEmpty(srcPassphrase) && ENCRYPTED_COPY_POOL_TYPES.contains(srcPool.getType())
+                && ENCRYPTED_COPY_POOL_TYPES.contains(destPool.getType())) {
+            // the volume keeps its passphrase when it is copied to another pool
+            return copyEncryptedPhysicalDisk(disk, name, destPool, timeout, srcPassphrase,
+                    ArrayUtils.isNotEmpty(dstPassphrase) ? dstPassphrase : srcPassphrase);
+        }
+
         /* Linstor images are always stored as RAW, but Linstor uses qcow2 in DB,
            to support snapshots(backuped) as qcow2 files. */
         PhysicalDiskFormat sourceFormat = srcPool.getType() != StoragePoolType.Linstor ?
@@ -1628,11 +1880,20 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
              * To do so it's mandatory that librbd on the system is at least 0.67.7 (Ceph Dumpling)
              */
             logger.debug("The source image is not RBD, but the destination is. We will convert into RBD format 2");
+            String rbdDestPath = destPool.getSourceDir() + "/" + name;
+            // Only an image created by this copy may be removed again when the copy fails
+            boolean destCreatedByCopy = false;
             try {
                 srcFile = new QemuImgFile(sourcePath, sourceFormat);
-                String rbdDestPath = destPool.getSourceDir() + "/" + name;
                 String rbdDestFile = KVMPhysicalDisk.RBDStringBuilder(destPool, rbdDestPath);
                 destFile = new QemuImgFile(rbdDestFile, destFormat);
+
+                if (rbdImageExists(destPool, name)) {
+                    // qemu-img can't convert into an existing image, and it can't be told if it is complete, so don't touch it
+                    logger.error("RBD image {} already exists, it will not be overwritten by the copy of {}", rbdDestPath, srcFile.getFileName());
+                    return null;
+                }
+                destCreatedByCopy = true;
 
                 logger.debug("Starting copy from source image " + srcFile.getFileName() + " to RBD image " + rbdDestPath);
                 qemu.convert(srcFile, destFile);
@@ -1640,7 +1901,7 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
 
                 /* We have to stat the RBD image to see how big it became afterwards */
                 Rados r = new Rados(destPool.getAuthUserName());
-                r.confSet("mon_host", destPool.getSourceHost() + ":" + destPool.getSourcePort());
+                r.confSet("mon_host", RbdUtils.getRbdMonitors(destPool.getSourceHost(), destPool.getSourcePort()));
                 r.confSet("key", destPool.getAuthSecret());
                 r.confSet("client_mount_timeout", "30");
                 r.connect();
@@ -1659,15 +1920,23 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                 r.ioCtxDestroy(io);
             } catch (QemuImgException | LibvirtException e) {
                 String srcFilename = srcFile != null ? srcFile.getFileName() : null;
-                String destFilename = destFile != null ? destFile.getFileName() : null;
-                logger.error(String.format("Failed to convert from %s to %s the error was: %s", srcFilename, destFilename, e.getMessage()));
+                logger.error("Failed to convert from {} to RBD image {} the error was: {}", srcFilename, rbdDestPath, maskRbdKey(e.getMessage()));
                 newDisk = null;
+                if (destCreatedByCopy) {
+                    removeRbdImageQuietly(destPool, name);
+                }
             } catch (RadosException e) {
                 logger.error("A Ceph RADOS operation failed (" + e.getReturnValue() + "). The error was: " + e.getMessage());
                 newDisk = null;
+                if (destCreatedByCopy) {
+                    removeRbdImageQuietly(destPool, name);
+                }
             } catch (RbdException e) {
                 logger.error("A Ceph RBD operation failed (" + e.getReturnValue() + "). The error was: " + e.getMessage());
                 newDisk = null;
+                if (destCreatedByCopy) {
+                    removeRbdImageQuietly(destPool, name);
+                }
             }
         } else {
             /**
@@ -1698,6 +1967,99 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
         return newDisk;
     }
 
+    /**
+     * Copies an encrypted volume to another pool. The data is read through the encryption of the source and written
+     * through the encryption of the destination, which is created up front: an RBD image gets a native librbd LUKS2
+     * header, a volume on a file based pool is a qemu LUKS encrypted QCOW2 file. Copying the encrypted data as is
+     * would not do: the destination may need another kind of encryption than the source, and an encrypted RBD clone
+     * reads the data it inherits from its (plaintext) parent unencrypted. Any backing chain of the source (an RBD
+     * parent or a QCOW2 backing file) is flattened into the destination.
+     */
+    private KVMPhysicalDisk copyEncryptedPhysicalDisk(KVMPhysicalDisk disk, String name, KVMStoragePool destPool, int timeout,
+            byte[] srcPassphrase, byte[] dstPassphrase) {
+        KVMStoragePool srcPool = disk.getPool();
+        boolean srcOnRbd = srcPool.getType() == StoragePoolType.RBD;
+        boolean destOnRbd = destPool.getType() == StoragePoolType.RBD;
+        // the size of the disk as seen by the Instance: the LUKS2 header of an RBD image is carved out of the image
+        long guestSize = srcOnRbd ? disk.getVirtualSize() - LUKS2_HEADER_RESERVE_BYTES : disk.getVirtualSize();
+        logger.debug("Copying encrypted volume {} from pool {} to {} in pool {}, with a size of {}", disk.getPath(), srcPool.getUuid(),
+                name, destPool.getUuid(), toHumanReadableSize(guestSize));
+
+        KVMPhysicalDisk newDisk = destPool.createPhysicalDisk(name, destOnRbd ? PhysicalDiskFormat.RAW : PhysicalDiskFormat.QCOW2,
+                Storage.ProvisioningType.THIN, destOnRbd ? guestSize + LUKS2_HEADER_RESERVE_BYTES : guestSize, dstPassphrase);
+
+        List<Path> cephAuthFiles = new ArrayList<>();
+        try (KeyFile srcKeyFile = new KeyFile(srcPassphrase); KeyFile destKeyFile = new KeyFile(dstPassphrase)) {
+            QemuImageOptions srcImageOpts = encryptedImageOptions(srcPool, disk.getName(), disk.getPath(),
+                    disk.getFormat() == PhysicalDiskFormat.QCOW2 ? PhysicalDiskFormat.QCOW2 : PhysicalDiskFormat.LUKS, SRC_LUKS_SECRET_ID, cephAuthFiles);
+            srcImageOpts.setImageOptsFlag(true);
+            QemuImageOptions destImageOpts = encryptedImageOptions(destPool, name, newDisk.getPath(), PhysicalDiskFormat.QCOW2,
+                    DEST_LUKS_SECRET_ID, cephAuthFiles);
+
+            QemuImgFile srcFile = new QemuImgFile(disk.getPath(), srcOnRbd ? PhysicalDiskFormat.RAW : disk.getFormat());
+            List<QemuObject> secrets = List.of(createSecretObject(SRC_LUKS_SECRET_ID, srcKeyFile), createSecretObject(DEST_LUKS_SECRET_ID, destKeyFile));
+            new QemuImg(timeout).convert(srcFile, null, null, null, secrets, srcImageOpts, destImageOpts, null, false, false, false, false, null, null);
+        } catch (IOException | QemuImgException | LibvirtException e) {
+            logger.error("Failed to copy encrypted volume {} to {} in pool {}: {}", disk.getPath(), name, destPool.getUuid(), e.getMessage());
+            try {
+                destPool.deletePhysicalDisk(name, destOnRbd ? Storage.ImageFormat.RAW : Storage.ImageFormat.QCOW2);
+            } catch (Exception ex) {
+                logger.warn("Failed to remove {} from pool {} after the failed copy: {}", name, destPool.getUuid(), ex.getMessage());
+            }
+            throw new CloudRuntimeException(String.format("Failed to copy encrypted volume %s to %s", disk.getPath(), name), e);
+        } finally {
+            for (Path file : cephAuthFiles) {
+                try {
+                    Files.deleteIfExists(file);
+                } catch (IOException e) {
+                    logger.warn("Failed to remove temporary file {}: {}", file, e.getMessage());
+                }
+            }
+        }
+
+        newDisk.setFormat(destOnRbd ? PhysicalDiskFormat.RAW : PhysicalDiskFormat.QCOW2);
+        newDisk.setVirtualSize(guestSize);
+        newDisk.setQemuEncryptFormat(destOnRbd ? QemuObject.EncryptFormat.LUKS2 : QemuObject.EncryptFormat.LUKS);
+        return newDisk;
+    }
+
+    /**
+     * qemu image options addressing an encrypted volume: an RBD image (with librbd LUKS2 encryption, authenticated through
+     * a temporary ceph.conf and keyring that are added to {@code cephAuthFiles}) or a file of the given format.
+     */
+    private QemuImageOptions encryptedImageOptions(KVMStoragePool pool, String rbdImage, String filePath, PhysicalDiskFormat fileFormat,
+            String secretId, List<Path> cephAuthFiles) throws IOException {
+        if (pool.getType() != StoragePoolType.RBD) {
+            return new QemuImageOptions(fileFormat, filePath, secretId);
+        }
+        Path keyring = Files.createTempFile("cs-ceph-", ".keyring", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+        cephAuthFiles.add(keyring);
+        Files.writeString(keyring, "[client." + pool.getAuthUserName() + "]\n\tkey = " + pool.getAuthSecret() + "\n");
+        Path conf = Files.createTempFile("cs-ceph-", ".conf", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+        cephAuthFiles.add(conf);
+        String monHost = RbdUtils.getRbdMonitors(pool.getSourceHost(), pool.getSourcePort());
+        Files.writeString(conf, "[global]\nmon_host = " + monHost + "\nkeyring = " + keyring + "\n");
+
+        Map<String, String> options = new HashMap<>();
+        options.put("driver", "rbd");
+        options.put("pool", pool.getSourceDir());
+        options.put("image", rbdImage);
+        options.put("conf", conf.toString());
+        if (pool.getAuthUserName() != null) {
+            options.put("user", pool.getAuthUserName());
+        }
+        options.put("encrypt.format", CryptSetup.LuksType.LUKS2.toString());
+        options.put("encrypt.key-secret", secretId);
+        return new QemuImageOptions(options);
+    }
+
+    private QemuObject createSecretObject(String secretId, KeyFile keyFile) {
+        Map<QemuObject.ObjectParameter, String> params = new EnumMap<>(QemuObject.ObjectParameter.class);
+        params.put(QemuObject.ObjectParameter.ID, secretId);
+        params.put(QemuObject.ObjectParameter.FILE, keyFile.toString());
+        return new QemuObject(QemuObject.ObjectType.SECRET, params);
+    }
+
     @Override
     public boolean refresh(KVMStoragePool pool) {
         LibvirtStoragePool libvirtPool = (LibvirtStoragePool)pool;
@@ -1721,7 +2083,19 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
     }
 
     private void deleteVol(LibvirtStoragePool pool, StorageVol vol) throws LibvirtException {
-        vol.delete(0);
+        /**
+         * RBD volumes can have snapshots, and libvirt refuses to remove a volume while
+         * they exist. VIR_STORAGE_VOL_DELETE_WITH_SNAPSHOTS tells the RBD storage backend
+         * to unprotect and remove any snapshots before removing the volume itself.
+         *
+         * libvirt-java has no named constant for this flag (added upstream in libvirt 1.2.20,
+         * commit 3c7590e0a4), so it's passed as a raw flag value here.
+         */
+        int flags = 0;
+        if (pool.getType() == StoragePoolType.RBD) {
+            flags |= VIR_STORAGE_VOL_DELETE_WITH_SNAPSHOTS;
+        }
+        vol.delete(flags);
     }
 
 
