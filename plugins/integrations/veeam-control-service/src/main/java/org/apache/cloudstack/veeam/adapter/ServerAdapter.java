@@ -410,7 +410,7 @@ public class ServerAdapter extends ManagerBase {
             }
             if (System.nanoTime() > deadline) {
                 logger.warn("Timed out waiting for {} completion after {}s", job, getElapsedSeconds(start));
-                throw new AsyncJobFailedException(job.getUuid(), String.format(
+                throw new AsyncJobPendingException(job.getUuid(), String.format(
                         "Timed out waiting for job %s to complete after %ds, the job may still be running in the background",
                         job.getUuid(), getElapsedSeconds(start)));
             }
@@ -420,7 +420,7 @@ public class ServerAdapter extends ManagerBase {
                 sleepMillis = Math.min(5000, sleepMillis + 500);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new AsyncJobFailedException(job.getUuid(), String.format(
+                throw new AsyncJobPendingException(job.getUuid(), String.format(
                         "Interrupted while waiting for job %s to complete after %ds, the job may still be running in the background",
                         job.getUuid(), getElapsedSeconds(start)));
             }

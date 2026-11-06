@@ -656,7 +656,7 @@ public class ServerAdapterTest {
         when(job.getUuid()).thenReturn("job-uuid");
         when(asyncJobDao.findByIdIncludingRemoved(3L)).thenReturn(job);
 
-        AsyncJobFailedException e = assertThrows(AsyncJobFailedException.class, () -> serverAdapter.waitForJobCompletion(3L, 0L));
+        AsyncJobFailedException e = assertThrows(AsyncJobPendingException.class, () -> serverAdapter.waitForJobCompletion(3L, 0L));
         assertEquals("job-uuid", e.getJobUuid());
         assertTrue(e.getMessage().contains("Timed out waiting for job job-uuid to complete after 0s"));
         assertTrue(e.getMessage().contains("may still be running in the background"));
@@ -671,7 +671,7 @@ public class ServerAdapterTest {
 
         Thread.currentThread().interrupt();
         try {
-            AsyncJobFailedException e = assertThrows(AsyncJobFailedException.class, () -> serverAdapter.waitForJobCompletion(4L, 60000L));
+            AsyncJobFailedException e = assertThrows(AsyncJobPendingException.class, () -> serverAdapter.waitForJobCompletion(4L, 60000L));
             assertTrue(e.getMessage().contains("Interrupted while waiting for job job-uuid"));
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {
