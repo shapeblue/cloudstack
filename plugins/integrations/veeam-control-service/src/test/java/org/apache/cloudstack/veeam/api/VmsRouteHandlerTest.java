@@ -606,7 +606,7 @@ public class VmsRouteHandlerTest extends RouteHandlerTestSupport {
     }
 
     @Test
-    public void testHandleDelete_AsyncReturnsAcceptedWithoutBody() throws Exception {
+    public void testHandleDelete_AsyncWithoutJobReturnsAcceptedWithoutBody() throws Exception {
         for (String async : new String[] {"true", "1"}) {
             for (String path : new String[] {"/api/vms/vm-1", "/api/vms/vm-1/diskattachments/disk-1",
                     "/api/vms/vm-1/snapshots/snap-1", "/api/vms/vm-1/checkpoints/chk-1", "/api/vms/vm-1/nics/nic-1"}) {
@@ -624,6 +624,27 @@ public class VmsRouteHandlerTest extends RouteHandlerTestSupport {
                 assertEquals("Expected empty body for " + path, "", delete.body());
             }
         }
+    }
+
+    @Test
+    public void testHandleDelete_AsyncWithJobReturnsAcceptedWithPendingJob() throws Exception {
+        final VmsRouteHandler handler = new VmsRouteHandler();
+        handler.serverAdapter = mock(org.apache.cloudstack.veeam.adapter.ServerAdapter.class);
+        when(handler.serverAdapter.instanceExists("vm-1")).thenReturn(true);
+        final VmAction action = new VmAction();
+        action.setJob(Ref.of("/ovirt-engine/api/jobs/job-1", "job-1"));
+        action.setStatus("pending");
+        action.setVm(new Vm());
+        when(handler.serverAdapter.deleteInstance("vm-1", true, true)).thenReturn(action);
+
+        final ResponseCapture delete = newResponse();
+        handler.handle(newRequest("DELETE", Map.of("async", "true"), null, null), delete.response, "/api/vms/vm-1",
+                Negotiation.OutFormat.JSON, newServlet());
+
+        verify(delete.response).setStatus(202);
+        assertContains(delete.body(), "\"status\":\"pending\"");
+        assertContains(delete.body(), "/api/jobs/job-1");
+        assertFalse(delete.body().contains("\"vm\""));
     }
 
     @Test

@@ -1564,7 +1564,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()));
+            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()), async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to delete VM: " + e.getMessage(), e);
         }
@@ -1590,7 +1590,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()));
+            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()), async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to start VM: " + e.getMessage(), e);
         }
@@ -1617,7 +1617,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()));
+            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()), async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to stop VM: " + e.getMessage(), e);
         }
@@ -1644,7 +1644,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()));
+            return AsyncJobJoinVOToJobConverter.toVmAction(jobVo, userVmJoinDao.findById(vo.getId()), async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to shutdown VM: " + e.getMessage(), e);
         }
@@ -1853,7 +1853,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            return AsyncJobJoinVOToJobConverter.toAction(jobVo);
+            return AsyncJobJoinVOToJobConverter.toAction(jobVo, async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to delete disk: " + e.getMessage(), e);
         }
@@ -2144,7 +2144,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            action = AsyncJobJoinVOToJobConverter.toAction(jobVo);
+            action = AsyncJobJoinVOToJobConverter.toAction(jobVo, async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to delete snapshot: " + e.getMessage(), e);
         }
@@ -2173,7 +2173,7 @@ public class ServerAdapter extends ManagerBase {
             if (!async) {
                 waitForJobCompletion(jobVo);
             }
-            action = AsyncJobJoinVOToJobConverter.toAction(jobVo);
+            action = AsyncJobJoinVOToJobConverter.toAction(jobVo, async);
         } catch (Exception e) {
             throw new CloudRuntimeException("Failed to revert to snapshot: " + e.getMessage(), e);
         }

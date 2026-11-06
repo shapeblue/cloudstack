@@ -1276,7 +1276,9 @@ public class ServerAdapterTest {
         ServerAdapter adapter = spyAdapterForDiskDeletion(jobVo);
 
         try (MockedStatic<ComponentContext> ignored = Mockito.mockStatic(ComponentContext.class)) {
-            assertEquals("job-uuid", adapter.deleteDisk("vol-uuid", true).getJob().getId());
+            ResourceAction action = adapter.deleteDisk("vol-uuid", true);
+            assertEquals("job-uuid", action.getJob().getId());
+            assertEquals("pending", action.getStatus());
         }
 
         verify(adapter, Mockito.never()).waitForJobCompletion(any(AsyncJobJoinVO.class));

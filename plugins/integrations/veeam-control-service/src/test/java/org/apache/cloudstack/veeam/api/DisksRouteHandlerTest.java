@@ -127,7 +127,7 @@ public class DisksRouteHandlerTest extends RouteHandlerTestSupport {
     }
 
     @Test
-    public void testHandleDelete_AsyncReturnsAcceptedWithoutBody() throws Exception {
+    public void testHandleDelete_AsyncWithoutJobReturnsAcceptedWithoutBody() throws Exception {
         final DisksRouteHandler handler = new DisksRouteHandler();
         handler.serverAdapter = mock(org.apache.cloudstack.veeam.adapter.ServerAdapter.class);
 
@@ -138,6 +138,24 @@ public class DisksRouteHandlerTest extends RouteHandlerTestSupport {
         verify(handler.serverAdapter).deleteDisk("disk-1", true);
         verify(delete.response).setStatus(202);
         assertEquals("", delete.body());
+    }
+
+    @Test
+    public void testHandleDelete_AsyncWithJobReturnsAcceptedWithPendingJob() throws Exception {
+        final DisksRouteHandler handler = new DisksRouteHandler();
+        handler.serverAdapter = mock(org.apache.cloudstack.veeam.adapter.ServerAdapter.class);
+        final ResourceAction action = new ResourceAction();
+        action.setJob(Ref.of("/ovirt-engine/api/jobs/job-1", "job-1"));
+        action.setStatus("pending");
+        when(handler.serverAdapter.deleteDisk("disk-1", true)).thenReturn(action);
+
+        final ResponseCapture delete = newResponse();
+        handler.handle(newRequest("DELETE", Map.of("async", "true"), null, null), delete.response, "/api/disks/disk-1",
+                Negotiation.OutFormat.JSON, newServlet());
+
+        verify(delete.response).setStatus(202);
+        assertContains(delete.body(), "\"status\":\"pending\"");
+        assertContains(delete.body(), "\"id\":\"job-1\"");
     }
 
     @Test
