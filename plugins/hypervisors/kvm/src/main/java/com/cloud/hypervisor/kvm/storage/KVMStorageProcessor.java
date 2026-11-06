@@ -421,7 +421,8 @@ public class KVMStorageProcessor implements StorageProcessor {
                     StoragePoolType.PowerFlex,
                     StoragePoolType.Linstor,
                     StoragePoolType.FiberChannel,
-                    StoragePoolType.CLVM).contains(primaryPool.getType())) {
+                    StoragePoolType.CLVM,
+                    StoragePoolType.NVMeTCP).contains(primaryPool.getType())) {
                     newTemplate.setFormat(ImageFormat.RAW);
                 } else {
                     newTemplate.setFormat(ImageFormat.QCOW2);
@@ -454,7 +455,8 @@ public class KVMStorageProcessor implements StorageProcessor {
 
     public static String derivePath(PrimaryDataStoreTO primaryStore, DataTO destData, Map<String, String> details) {
         String path = null;
-        if (primaryStore.getPoolType() == StoragePoolType.FiberChannel) {
+        if (primaryStore.getPoolType() == StoragePoolType.FiberChannel
+                || primaryStore.getPoolType() == StoragePoolType.NVMeTCP) {
             path = destData.getPath();
         } else {
             path = details != null ? details.get("managedStoreTarget") : null;
@@ -2095,7 +2097,15 @@ public class KVMStorageProcessor implements StorageProcessor {
             String diskPath = disk.getPath();
             String snapshotPath = diskPath + File.separator + snapshotName;
             SnapshotObjectTO newSnapshot = new SnapshotObjectTO();
-            if (DomainInfo.DomainState.VIR_DOMAIN_RUNNING.equals(state) && !primaryPool.isExternalSnapshot()) {
+            boolean isClvmNgIncremental = primaryPool.getType() == StoragePoolType.CLVM_NG && snapshotTO.isKvmIncrementalSnapshot();
+            if (isClvmNgIncremental && secondaryPool == null) {
+                String errorMsg = String.format("Incremental snapshots for CLVM_NG require secondary storage. " +
+                        "Please configure secondary storage or disable incremental snapshots for volume [%s].", volume.getName());
+                logger.error(errorMsg);
+                return new CreateObjectAnswer(errorMsg);
+            }
+            boolean isLiveClvmNgIncremental = isClvmNgIncremental && (DomainInfo.DomainState.VIR_DOMAIN_RUNNING.equals(state) || DomainInfo.DomainState.VIR_DOMAIN_PAUSED.equals(state));
+            if ((DomainInfo.DomainState.VIR_DOMAIN_RUNNING.equals(state) && !primaryPool.isExternalSnapshot()) || isLiveClvmNgIncremental) {
                 if (snapshotTO.isKvmIncrementalSnapshot()) {
                     newSnapshot = takeIncrementalVolumeSnapshotOfRunningVm(snapshotTO, primaryPool, secondaryPool, imageStoreTo != null ? imageStoreTo.getUrl() : null, snapshotName, volume, vm, conn, cmd.getWait());
                 } else {
@@ -2109,13 +2119,7 @@ public class KVMStorageProcessor implements StorageProcessor {
                         newSnapshot.setPhysicalSize(snapshotSize);
                     }
                 } else if (primaryPool.getType() == StoragePoolType.CLVM || primaryPool.getType() == StoragePoolType.CLVM_NG) {
-                    if (primaryPool.getType() == StoragePoolType.CLVM_NG && snapshotTO.isKvmIncrementalSnapshot()) {
-                        if (secondaryPool == null) {
-                            String errorMsg = String.format("Incremental snapshots for CLVM_NG require secondary storage. " +
-                                    "Please configure secondary storage or disable incremental snapshots for volume [%s].", volume.getName());
-                            logger.error(errorMsg);
-                            return new CreateObjectAnswer(errorMsg);
-                        }
+                    if (isClvmNgIncremental) {
                         logger.info("Taking incremental snapshot of CLVM_NG volume [{}] using QCOW2 backup to secondary storage.", volume.getName());
                         newSnapshot = takeIncrementalVolumeSnapshotOfStoppedVm(snapshotTO, primaryPool, secondaryPool,
                                 imageStoreTo.getUrl(), snapshotName, volume, conn, cmd.getWait());
@@ -3513,7 +3517,8 @@ public class KVMStorageProcessor implements StorageProcessor {
                 StoragePoolType.PowerFlex,
                 StoragePoolType.Linstor,
                 StoragePoolType.FiberChannel,
-                StoragePoolType.CLVM).contains(poolType)) {
+                StoragePoolType.CLVM,
+                StoragePoolType.NVMeTCP).contains(poolType)) {
             return ImageFormat.RAW;
         } else {
             return ImageFormat.QCOW2;
