@@ -138,6 +138,9 @@ public interface KVMStoragePool {
 
     String getStorageNodeId();
 
+    /**
+     * @return true if the heartbeat of the host is on going, false if it is stopped definitely, null if it can not be told
+     */
     Boolean hasHeartBeat(HAStoragePool pool, HostTO host);
 
     Boolean hasVmActivity(HAStoragePool pool, HostTO host, Duration activityScriptTimeout, String volumeUUIDListString, String vmActivityCheckPath, long duration);

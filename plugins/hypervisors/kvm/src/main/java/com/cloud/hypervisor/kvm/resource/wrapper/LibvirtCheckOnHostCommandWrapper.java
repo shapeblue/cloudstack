@@ -52,7 +52,10 @@ public final class LibvirtCheckOnHostCommandWrapper extends CommandWrapper<Check
         final Future<Boolean> future = executors.submit(ha);
         try {
             final Boolean hasHeartBeat = future.get();
-            if (hasHeartBeat) {
+            if (hasHeartBeat == null) {
+                // not a dead host: the management server can ask another host
+                return new CheckOnHostAnswer(command, (Boolean) null, "Unable to tell whether the heart is beating");
+            } else if (hasHeartBeat) {
                 return new CheckOnHostAnswer(command, true, "Heart is beating");
             } else {
                 return new CheckOnHostAnswer(command, false, "Heart is not beating");

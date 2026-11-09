@@ -372,6 +372,39 @@ public class LibvirtStoragePoolTest extends TestCase {
         }
     }
 
+    private Boolean heartBeatResult(LibvirtStoragePool pool, String scriptName, String scriptResult, String scriptLine) {
+        HostTO host = getHost("10.0.0.5", "5d3a7b0e-1c2f-4a8e-9b61-0c9e1f4d2a77-LibvirtComputingResource");
+        try (MockedStatic<Script> script = Mockito.mockStatic(Script.class);
+             MockedConstruction<Script> ignored = Mockito.mockConstruction(Script.class,
+                     (cmd, context) -> Mockito.when(cmd.execute(Mockito.any(OutputInterpreter.OneLineParser.class), Mockito.any())).thenAnswer(invocation -> {
+                         OutputInterpreter.OneLineParser parser = invocation.getArgument(0);
+                         parser.interpret(new java.io.BufferedReader(new java.io.StringReader(scriptLine)));
+                         return scriptResult;
+                     }))) {
+            script.when(() -> Script.findScript(Mockito.any(), Mockito.eq(scriptName))).thenReturn("/scripts/" + scriptName);
+
+            return pool.hasHeartBeat(Mockito.mock(HAStoragePool.class), host);
+        }
+    }
+
+    @Test
+    public void testHeartBeatOfRbdIsNotToldIfTheScriptCanNotTell() {
+        // the script exits with 2, so its output is the result
+        assertNull(heartBeatResult(getRbdPool("cephuser", "cephkey"), "kvmheartbeat_rbd.py", "=====> Unable to read the RADOS object <======", ""));
+    }
+
+    @Test
+    public void testHeartBeatOfRbdIsDeadOrAliveIfTheScriptSays() {
+        assertFalse(heartBeatResult(getRbdPool("cephuser", "cephkey"), "kvmheartbeat_rbd.py", null, "=====> Considering host as DEAD because last write <======"));
+        assertTrue(heartBeatResult(getRbdPool("cephuser", "cephkey"), "kvmheartbeat_rbd.py", null, "=====> ALIVE <====="));
+    }
+
+    @Test
+    public void testHeartBeatOfOtherPoolsIsAliveIfTheScriptFails() {
+        // as before: the scripts of these pools are not changed
+        assertTrue(heartBeatResult(getPool(StoragePoolType.NetworkFilesystem), "kvmheartbeat.sh", "some error", ""));
+    }
+
     private Script heartBeatIsReadWith(LibvirtStoragePool pool, String scriptName) {
         HostTO host = getHost("10.0.0.5", "5d3a7b0e-1c2f-4a8e-9b61-0c9e1f4d2a77-LibvirtComputingResource");
         try (MockedStatic<Script> script = Mockito.mockStatic(Script.class);

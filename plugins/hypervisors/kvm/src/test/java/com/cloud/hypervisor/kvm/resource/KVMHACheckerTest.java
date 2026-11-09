@@ -20,6 +20,7 @@
 package com.cloud.hypervisor.kvm.resource;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -55,7 +56,7 @@ public class KVMHACheckerTest {
         when(host.getPrivateNetwork()).thenReturn(network);
     }
 
-    private KVMStoragePool mockPool(String uuid, boolean hasHeartBeat) {
+    private KVMStoragePool mockPool(String uuid, Boolean hasHeartBeat) {
         KVMStoragePool pool = mock(KVMStoragePool.class);
         when(pool.getUuid()).thenReturn(uuid);
         lenient().when(pool.hasHeartBeat(any(), any())).thenReturn(hasHeartBeat);
@@ -70,15 +71,42 @@ public class KVMHACheckerTest {
         return haPools;
     }
 
-    private boolean hasHeartBeat(boolean reportIfHeartBeatFailedForOneStoragePool, KVMStoragePool... pools) {
+    private Boolean hasHeartBeat(boolean reportIfHeartBeatFailedForOneStoragePool, KVMStoragePool... pools) {
         return new KVMHAChecker(haPools(pools), host, reportIfHeartBeatFailedForOneStoragePool).hasHeartBeat();
     }
 
     @Test
     public void testHostWithoutStoragePoolsToCheckIsNotDead() {
         // e.g. a neighbour whose agent is not upgraded yet and monitors no pool: it can not tell, so it must not say that the host is dead
-        assertTrue(hasHeartBeat(true));
-        assertTrue(hasHeartBeat(false));
+        assertNull(hasHeartBeat(true));
+        assertNull(hasHeartBeat(false));
+    }
+
+    @Test
+    public void testHostWhichPoolsCanNotTellIsNotDeadNorAlive() {
+        // e.g. Ceph can not be reached from this host: the answer is not determined, so that another host can be asked
+        assertNull(hasHeartBeat(true, mockPool("a", null)));
+        assertNull(hasHeartBeat(false, mockPool("a", null), mockPool("b", null)));
+    }
+
+    @Test
+    public void testHostWithHeartBeatOnOnePoolIsAliveWhateverTheOthersTell() {
+        assertTrue(hasHeartBeat(true, mockPool("a", true), mockPool("b", null)));
+        assertTrue(hasHeartBeat(false, mockPool("a", null), mockPool("b", true)));
+        assertTrue(hasHeartBeat(false, mockPool("a", false), mockPool("b", null), mockPool("c", true)));
+    }
+
+    @Test
+    public void testHostIsNotToldIfThePoolsWhichCanTellAreDeadButOneCanNot() {
+        // only the pools which can tell are dead, so the host is dead only if the one which can not tell would not outvote them
+        assertNull(hasHeartBeat(false, mockPool("a", false), mockPool("b", null)));
+        assertNull(hasHeartBeat(false, mockPool("a", null), mockPool("b", false)));
+    }
+
+    @Test
+    public void testHostIsDeadIfOnePoolIsDeadAndThatIsReportedEvenIfAnotherCanNotTell() {
+        assertFalse(hasHeartBeat(true, mockPool("a", null), mockPool("b", false)));
+        assertFalse(hasHeartBeat(true, mockPool("a", false), mockPool("b", null)));
     }
 
     @Test

@@ -3144,8 +3144,9 @@ public class LibvirtComputingResourceTest {
         final Answer answer = wrapper.execute(command, libvirtComputingResourceMock);
         assertTrue(answer.getResult());
         assertTrue(answer instanceof CheckOnHostAnswer);
-        // the host monitors no storage pool, so it can not tell: it must not say that the host is dead
-        assertTrue(((CheckOnHostAnswer)answer).isAlive());
+        // the host monitors no storage pool, so it can not tell: it must not say that the host is dead, nor that it is alive
+        assertFalse(((CheckOnHostAnswer)answer).isDetermined());
+        assertFalse(((CheckOnHostAnswer)answer).isAlive());
 
         verify(libvirtComputingResourceMock, times(1)).getMonitor();
     }

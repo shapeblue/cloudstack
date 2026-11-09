@@ -533,6 +533,13 @@ public class LibvirtStoragePool implements KVMStoragePool {
 
         logger.debug("Checking heart beat for host {} with KVMHAChecker [{command=\"{}\", result: \"{}\", log: \"{}\", pool: \"{}\"}].", heartBeatHostId, cmd.toString(), result, parsedLine, pool.getPoolIp());
 
+        if (result != null && StoragePoolType.RBD.equals(type)) {
+            // the script could not tell (e.g. Ceph can not be reached, or there is no heartbeat of the host), which does not
+            // say that the host is dead, nor that it is alive
+            logger.debug("Checking heart beat for host {} with KVMHAChecker command [{}] could not tell whether the host is alive: {}", heartBeatHostId, cmd.toString(), result);
+            return null;
+        }
+
         if (result == null && parsedLine.contains("DEAD")) {
             logger.warn("Checking heart beat for host {} with KVMHAChecker command [{}] returned [{}]. The host is considered dead, which may trigger HA actions, such as fencing it and restarting its VMs on other hosts.", heartBeatHostId, cmd.toString(), parsedLine);
             return false;
