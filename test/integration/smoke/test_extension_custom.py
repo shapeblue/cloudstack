@@ -498,7 +498,7 @@ class TestExtensions(cloudstackTestCase):
                 self.cleanup.pop(idx)
                 break
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_01_extension_vm_lifecycle(self):
         self.virtual_machine = VirtualMachine.create(
             self.apiclient,
@@ -528,7 +528,7 @@ class TestExtensions(cloudstackTestCase):
             "VM content exist event after expunge"
         )
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_02_run_custom_action(self):
         name = 'testaction'
         details = [{}]
@@ -585,7 +585,7 @@ class TestExtensions(cloudstackTestCase):
             "Action response details not match"
         )
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_03_run_invalid_custom_action(self):
         name = 'invalidaction'
         self.custom_action = ExtensionCustomAction.create(
