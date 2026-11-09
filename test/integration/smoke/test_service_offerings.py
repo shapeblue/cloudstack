@@ -361,7 +361,7 @@ class TestCreateServiceOffering(cloudstackTestCase):
         tags=[
             "advanced",
             "smoke",
-            "basic"],
+            "basic", "sg"],
         required_hardware="false")
     def test_06_create_service_offering_lease_enabled(self):
         """
@@ -412,7 +412,7 @@ class TestCreateServiceOffering(cloudstackTestCase):
         tags=[
             "advanced",
             "smoke",
-            "basic"],
+            "basic", "sg"],
         required_hardware="false")
     def test_07_create_service_offering_without_lease_disabled_feature(self):
         """
@@ -457,7 +457,7 @@ class TestCreateServiceOffering(cloudstackTestCase):
         tags=[
             "advanced",
             "smoke",
-            "basic"],
+            "basic", "sg"],
         required_hardware="false")
     def test_08_create_service_offering_lease_disabled(self):
         """
@@ -931,7 +931,7 @@ class TestServiceOfferings(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_05_disk_offering_strictness_true(self):
         """Test to see change service offering is not possible when disk offering strictness is set to true
         """
@@ -1019,7 +1019,7 @@ class TestServiceOfferings(cloudstackTestCase):
                        e.exception)
         return
 
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_06_disk_offering_strictness_false(self):
         """Test to see change service offering is possible when disk offering strictness is set to false
         """

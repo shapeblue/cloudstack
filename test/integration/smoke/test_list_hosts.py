@@ -47,7 +47,7 @@ class TestListHosts(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListHosts, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_hosts_no_filter(self):
         """Test list hosts with no filter"""
         hosts = Host.list(self.apiclient)
@@ -61,7 +61,7 @@ class TestListHosts(cloudstackTestCase):
             "Length of host response should greater than 0"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_hosts_clusterid_filter(self):
         """Test list hosts with clusterid filter"""
         hosts = Host.list(self.apiclient, clusterid=self.cluster.id)
@@ -83,7 +83,7 @@ class TestListHosts(cloudstackTestCase):
         with self.assertRaises(Exception):
             hosts = Host.list(self.apiclient, clusterid="invalidclusterid")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_hosts_hahost_filter(self):
         """Test list hosts with hahost filter"""
         configs = Configurations.list(
@@ -143,7 +143,7 @@ class TestListHosts(cloudstackTestCase):
                 "Length of host response should be equal to the length of hosts"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_hosts_hypervisor_filter(self):
         """Test list hosts with hypervisor filter"""
         hosts = Host.list(self.apiclient, hypervisor=self.hypervisor)
@@ -174,7 +174,7 @@ class TestListHosts(cloudstackTestCase):
             "Length of host response should be equal to the length of hosts"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_05_list_hosts_id_filter(self):
         """Test list hosts with id filter"""
         hosts = Host.list(self.apiclient, id=self.hosts[0].id)
@@ -196,7 +196,7 @@ class TestListHosts(cloudstackTestCase):
         with self.assertRaises(Exception):
             hosts = Host.list(self.apiclient, id="invalidid")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_06_list_hosts_keyword_filter(self):
         """Test list hosts with keyword filter"""
         hosts = Host.list(self.apiclient, keyword=self.hosts[0].name)
@@ -222,7 +222,7 @@ class TestListHosts(cloudstackTestCase):
             "Host response should be None"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_07_list_hosts_name_filter(self):
         """Test list hosts with name filter"""
         hosts = Host.list(self.apiclient, name=self.hosts[0].name)
@@ -248,7 +248,7 @@ class TestListHosts(cloudstackTestCase):
             "Host response should be None"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_08_list_hosts_podid_filter(self):
         """Test list hosts with podid filter"""
         hosts = Host.list(self.apiclient, podid=self.hosts[0].podid)
@@ -270,7 +270,7 @@ class TestListHosts(cloudstackTestCase):
         with self.assertRaises(Exception):
             hosts = Host.list(self.apiclient, podid="invalidpodid")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_09_list_hosts_resourcestate_filter(self):
         """Test list hosts with resourcestate filter"""
         hosts = Host.list(self.apiclient, resourcestate=self.hosts[0].resourcestate)
@@ -296,7 +296,7 @@ class TestListHosts(cloudstackTestCase):
             "Host response should be None"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_10_list_hosts_state_filter(self):
         """Test list hosts with state filter"""
         hosts = Host.list(self.apiclient, state=self.hosts[0].state)
@@ -322,7 +322,7 @@ class TestListHosts(cloudstackTestCase):
             "Host response should be None"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_11_list_hosts_type_filter(self):
         """Test list hosts with type filter"""
         hosts = Host.list(self.apiclient, type=self.hosts[0].type)
@@ -348,7 +348,7 @@ class TestListHosts(cloudstackTestCase):
             "Host response should be None"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_12_list_hosts_zoneid_filter(self):
         """Test list hosts with zoneid filter"""
         hosts = Host.list(self.apiclient, zoneid=self.zone.id)

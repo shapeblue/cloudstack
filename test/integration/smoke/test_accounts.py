@@ -2199,7 +2199,7 @@ class TestMoveUser(cloudstackTestCase):
     def tearDown(self):
         super(TestMoveUser,self).tearDownClass()
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs", "sg"], required_hardware="false")
     def test_move_user_to_accountID(self):
 
         self.user.move(self.api_client, dest_accountid=self.account2.id)
@@ -2211,7 +2211,7 @@ class TestMoveUser(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs", "sg"], required_hardware="false")
     def test_move_user_to_account_name(self):
 
         self.user.move(self.api_client, dest_account=self.account2.name)
@@ -2223,7 +2223,7 @@ class TestMoveUser(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs", "sg"], required_hardware="false")
     def test_move_user_to_different_domain(self):
         domain2 = Domain.create(self.api_client,
                                 self.testdata["domain"],
@@ -2246,7 +2246,7 @@ class TestMoveUser(cloudstackTestCase):
 
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs", "sg"], required_hardware="false")
     def test_move_user_incorrect_account_id(self):
 
         try:
@@ -2257,7 +2257,7 @@ class TestMoveUser(cloudstackTestCase):
             self.fail("moving to non-existing account should not be possible, failing")
         return
 
-    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs"], required_hardware="false")
+    @attr(tags=["domains", "advanced", "advancedns", "simulator","dvs", "sg"], required_hardware="false")
     def test_move_user_incorrect_account_name(self):
 
         try:

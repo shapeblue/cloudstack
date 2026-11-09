@@ -182,7 +182,7 @@ class TestRAMCPUResourceAccounting(cloudstackTestCase):
         amount = response[0].resourcecount
         return amount
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_01_so_removal_resource_update(self):
 
         self.service_offering_it_1 = ServiceOffering.create(

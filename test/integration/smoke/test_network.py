@@ -2031,7 +2031,7 @@ class TestSharedNetwork(cloudstackTestCase):
             host.hypervisor.lower())
         self.assertEqual(len(result) > 0 and result[0] == ipaddress, isExist, "ip %s verification failed" % ipaddress)
 
-    @attr(tags=["advanced", "shared"])
+    @attr(tags=["advanced", "shared", "sg"])
     def test_01_deployVMInSharedNetwork(self):
         if self.hv.lower() == 'simulator':
             self.skipTest("Hypervisor is simulator - skipping Test..")
@@ -2066,7 +2066,7 @@ class TestSharedNetwork(cloudstackTestCase):
         # expunge VM
         VirtualMachine.delete(self.virtual_machine, self.apiclient, expunge=True)
 
-    @attr(tags=["advanced", "shared"])
+    @attr(tags=["advanced", "shared", "sg"])
     def test_02_verifyRouterIpAfterNetworkRestart(self):
         if self.hv.lower() == 'simulator':
             self.skipTest("Hypervisor is simulator - skipping Test..")
@@ -2093,7 +2093,7 @@ class TestSharedNetwork(cloudstackTestCase):
             host = self.get_router_host(router)
             self.verify_ip_address_in_router(router, host, routerIp, "eth0", True)
 
-    @attr(tags=["advanced", "shared"])
+    @attr(tags=["advanced", "shared", "sg"])
     def test_03_destroySharedNetwork(self):
         if self.hv.lower() == 'simulator':
             self.skipTest("Hypervisor is simulator - skipping Test..")

@@ -59,7 +59,7 @@ class TestRestConfigurationSettings(cloudstackTestCase):
         super(TestRestConfigurationSettings, self).tearDown()
         return
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_01_test_settings_for_domain(self):
         """
         1. Get the default value for the setting in domain scope
@@ -119,7 +119,7 @@ class TestRestConfigurationSettings(cloudstackTestCase):
                          str(configs[0].value),
                          "Failed to reset the value")
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_02_test_settings_for_account(self):
         """
         1. Get the default value for the setting in account scope
@@ -184,7 +184,7 @@ class TestRestConfigurationSettings(cloudstackTestCase):
                          str(configs[0].value),
                          "Failed to reset the value")
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_03_test_settings_for_cluster(self):
         """
         1. Get the default value for the setting in cluster scope
@@ -247,7 +247,7 @@ class TestRestConfigurationSettings(cloudstackTestCase):
                          str(configs[0].value),
                          "Failed to reset the value")
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_04_test_settings_for_storage(self):
         """
         1. Get the default value for the setting in storage scope
@@ -310,7 +310,7 @@ class TestRestConfigurationSettings(cloudstackTestCase):
                          (configs[0].value),
                          "Failed to reset the value for storage pool")
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_05_test_settings_for_zone(self):
         """
         1. Get the default value for the setting in zone scope

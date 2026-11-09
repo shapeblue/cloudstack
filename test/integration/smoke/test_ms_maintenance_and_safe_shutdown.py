@@ -96,7 +96,7 @@ class TestMSMaintenanceAndSafeShutdown(cloudstackTestCase):
                 active_servers.append(server.serviceip)
         return active_servers
 
-    @attr(tags=["advanced", "smoke"])
+    @attr(tags=["advanced", "smoke", "sg"])
     def test_01_prepare_and_cancel_maintenance(self):
         active_management_servers = self.getActiveManagementServers()
         if len(active_management_servers) <= 1:
@@ -140,7 +140,7 @@ class TestMSMaintenanceAndSafeShutdown(cloudstackTestCase):
             project = self.run_async_cmd()
             self.cleanup.append(project)
 
-    @attr(tags=["advanced", "smoke"])
+    @attr(tags=["advanced", "smoke", "sg"])
     def test_02_prepare_and_cancel_shutdown(self):
         try :
             prepare_for_shutdown_cmd = prepareForShutdown.prepareForShutdownCmd()
@@ -163,7 +163,7 @@ class TestMSMaintenanceAndSafeShutdown(cloudstackTestCase):
             project = self.run_async_cmd()
             self.cleanup.append(project)
 
-    @attr(tags=["advanced", "smoke"])
+    @attr(tags=["advanced", "smoke", "sg"])
     def test_03_trigger_shutdown(self):
         try :
             cmd = triggerShutdown.triggerShutdownCmd()

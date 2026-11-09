@@ -412,7 +412,7 @@ class TestIpv4Routing(cloudstackTestCase):
                 self.fail("The frr config (%s) should not exist but is found in the VR !!!" % config["config"])
         self.message("The frr config look good so far.")
 
-    @attr(tags=['advanced'], required_hardware=False)
+    @attr(tags=['advanced', "sg"], required_hardware=False)
     def test_01_zone_subnet(self):
         """ Test for subnet for zone"""
         """
@@ -581,7 +581,7 @@ class TestIpv4Routing(cloudstackTestCase):
             "The subnet %s should be removed for network %s" % (network_cidr, isolated_network.name)
         )
 
-    @attr(tags=['advanced'], required_hardware=False)
+    @attr(tags=['advanced', "sg"], required_hardware=False)
     def test_03_create_subnets_for_guest_network(self):
         """ Test for subnets for guest network with cidr/cidrsize"""
         """
@@ -689,7 +689,7 @@ class TestIpv4Routing(cloudstackTestCase):
             "The subnet should be removed for isolated_network %s" % isolated_network.name
         )
 
-    @attr(tags=['advanced'], required_hardware=False)
+    @attr(tags=['advanced', "sg"], required_hardware=False)
     def test_05_create_vpc_routed_mode_with_cidrsize(self):
         """ Test for Routed VPC with cidrsize"""
         """
@@ -836,7 +836,7 @@ class TestIpv4Routing(cloudstackTestCase):
             templateid=self.template.id)
         self._cleanup.append(test_vpc_vm)
 
-    @attr(tags=['advanced'], required_hardware=False)
+    @attr(tags=['advanced', "sg"], required_hardware=False)
     def test_08_vpc_and_tier_failed_cases(self):
         """ Test for VPC/tier with Routed mode (some failed cases)"""
         """
@@ -1103,7 +1103,7 @@ class TestIpv4Routing(cloudstackTestCase):
         # 14. Test VM1 in VR2-VPC (ping/ssh should fail)
         self.verifyPingFromRouter(vpc_router, test_network_vm, expected=False)
 
-    @attr(tags=['advanced'], required_hardware=False)
+    @attr(tags=['advanced', "sg"], required_hardware=False)
     def test_10_bgp_peers(self):
         """ Test for BGP peers"""
         """
@@ -1586,7 +1586,7 @@ class TestIpv4Routing(cloudstackTestCase):
         self.verifyFrrConf(vpc_router, frr_configs)
 
 
-    @attr(tags=['advanced'], required_hardware=False)
+    @attr(tags=['advanced', "sg"], required_hardware=False)
     def test_13_asn_ranges(self):
         """ Test for ASN ranges"""
         """

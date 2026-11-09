@@ -32,7 +32,7 @@ class TestUpdateConfigWithScope(cloudstackTestCase):
     def setUp(self):
         self.apiClient = self.testClient.getApiClient()
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_UpdateConfigParamWithScope(self):
         """
         test update configuration setting at zone level scope
@@ -102,7 +102,7 @@ class TestListConfigurations(cloudstackTestCase):
     def tearDown(self):
         super(TestListConfigurations, self).tearDown()
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_01_list_configs(self):
         """
         test list configuration setting at global level
@@ -144,7 +144,7 @@ class TestListConfigurations(cloudstackTestCase):
         self.assertEqual(listConfigurationsResponse[0].type, 'String', "Wrong type for the config")
         self.assertEqual(listConfigurationsResponse[0].defaultvalue, 'http://localhost:8080/client/api', "Wrong default value for the config")
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_02_list_config_parent(self):
         """
         test list configuration setting parent
@@ -167,7 +167,7 @@ class TestListConfigurations(cloudstackTestCase):
         self.assertNotEqual(len(listConfigurationsResponse), 0, "Check if the list configurations API returns a non-empty response")
         self.assertEqual(listConfigurationsResponse[0].parent, 'cloud.kubernetes.service.enabled', "Wrong parent for the config")
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_03_config_groups(self):
         """
         test list configuration groups
@@ -188,7 +188,7 @@ class TestListConfigurations(cloudstackTestCase):
         self.assertNotEqual(len(listConfigurationsResponse), 0, "Check if the list configurations API returns a non-empty response")
         self.debug("Total %d configurations for group %s, subgroup %s" % (len(listConfigurationsResponse), group, subgroup))
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_UpdateCommandsTimeoutConfigParamWithValidValue(self):
         """
         test update configuration setting for commands.timeout with valid value
@@ -212,7 +212,7 @@ class TestListConfigurations(cloudstackTestCase):
         self.assertEqual(configParam.value, updateConfigurationResponse.value, "Check if the update API returned is the same as the one we got in the list API")
 
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_UpdateCommandsTimeoutConfigParamWithInvalidValue(self):
         """
         Test update configuration setting for commands.timeout with invalid valid value

@@ -32,7 +32,7 @@ class TestHumanReadableLogs(cloudstackTestCase):
         self.mgtSvrDetails = self.config.__dict__["mgtSvr"][0].__dict__
 
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_01_disableHumanReadableLogs(self):
         """
         Test log file output after disabling human readable sizes feature
@@ -54,7 +54,7 @@ class TestHumanReadableLogs(cloudstackTestCase):
         result = sshClient.runCommand(command)
         self.assertTrue(result['status'] == "FAILED")
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="false")
     def test_02_enableHumanReadableLogs(self):
         """
         Test log file output after enabling human readable sizes feature

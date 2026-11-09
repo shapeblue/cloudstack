@@ -88,7 +88,7 @@ class TestListDiskOfferings(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListDiskOfferings, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_disk_offerings_id_filter(self):
         """ Test list disk offerings with id filter
         """
@@ -113,7 +113,7 @@ class TestListDiskOfferings(cloudstackTestCase):
         disk_offerings = DiskOffering.list(self.apiclient, id=-1)
         self.assertIsNone(disk_offerings, "List disk offerings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_disk_offerings_name_filter(self):
         """ Test list disk offerings with name filter
         """
@@ -139,7 +139,7 @@ class TestListDiskOfferings(cloudstackTestCase):
             "List disk offerings should return the disk offering requested"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_disk_offerings_zoneid_filter(self):
         """ Test list disk offerings with zoneid filter
         """
@@ -174,7 +174,7 @@ class TestListDiskOfferings(cloudstackTestCase):
 
             self.assertEqual(len(disk_offerings_zone_1) - len(disk_offerings_zone_2), 1)
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_disk_offerings_domainid_filter(self):
         """ Test list disk offerings with domainid filter
         """
@@ -213,7 +213,7 @@ class TestListDiskOfferings(cloudstackTestCase):
         disk_offerings = DiskOffering.list(self.apiclient, domainid=-1)
         self.assertIsNone(disk_offerings, "List disk offerings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_05_list_disk_offerings_encrypted_filter(self):
         """ Test list disk offerings with encrypted filter
         """
@@ -249,7 +249,7 @@ class TestListDiskOfferings(cloudstackTestCase):
                 "List disk offerings should return the disk offering requested"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_06_list_disk_offerings_keyword_filter(self):
         """ Test list disk offerings with keyword filter
         """
@@ -277,7 +277,7 @@ class TestListDiskOfferings(cloudstackTestCase):
         disk_offerings = DiskOffering.list(self.apiclient, keyword="random")
         self.assertIsNone(disk_offerings, "List disk offerings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_07_list_disk_offering_isrecursive_filter(self):
         """ Test list disk offerings with isrecursive parameter
         """
@@ -303,7 +303,7 @@ class TestListDiskOfferings(cloudstackTestCase):
             "List disk offerings response has incorrect length"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_08_list_disk_offering_no_filter(self):
         """ Test list disk offerings with no filters
         """

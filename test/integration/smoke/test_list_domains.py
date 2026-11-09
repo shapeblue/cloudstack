@@ -67,7 +67,7 @@ class TestListDomains(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListDomains, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_domains_id_filter(self):
         """ Test list domains with id filter
         """
@@ -93,7 +93,7 @@ class TestListDomains(cloudstackTestCase):
         with self.assertRaises(Exception):
             Domain.list(self.apiclient, id=-1)
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_domains_name_filter(self):
         """ Test list domains with name filter
         """
@@ -118,7 +118,7 @@ class TestListDomains(cloudstackTestCase):
         domains = Domain.list(self.apiclient, name="non-existent-domain")
         self.assertIsNone(domains, "List Domain response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_domains_listall_filter(self):
         """ Test list domains with listall parameter
         """
@@ -152,7 +152,7 @@ class TestListDomains(cloudstackTestCase):
             "Check if list domains returns valid domain"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_domains_level_filter(self):
         """ Test list domains with level filter
         """
@@ -198,7 +198,7 @@ class TestListDomains(cloudstackTestCase):
             "List Domain response has incorrect length"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_05_list_domains_no_filter(self):
         """ Test list domains with no filter
         """

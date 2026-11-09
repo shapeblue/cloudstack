@@ -66,7 +66,7 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_01_disable_account_settings_for_domain(self):
         """Disable account settings for domain
 
@@ -190,7 +190,7 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
 
         return
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_02_enable_account_settings_for_domain(self):
         """Enable account settings for domain
 
@@ -376,7 +376,7 @@ class TestDedicatePublicIPRange(cloudstackTestCase):
 
         return
 
-    @attr(tags=["advanced", "advancedsg"], required_hardware="false")
+    @attr(tags=["advanced", "advancedsg", "sg"], required_hardware="false")
     def test_03_enable_account_settings_for_domain(self):
         """Enable account settings for domain
 

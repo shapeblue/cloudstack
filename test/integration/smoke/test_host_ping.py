@@ -84,7 +84,7 @@ class TestHostPing(cloudstackTestCase):
             "advanced",
             "advancedns",
             "smoke",
-            "basic"],
+            "basic", "sg"],
         required_hardware="true")
     def test_01_host_ping_on_alert(self):
         listHost = Host.list(

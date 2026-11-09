@@ -77,7 +77,7 @@ class TestListAccounts(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListAccounts, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_accounts_accounttype_filter(self):
         """Test listing accounts with accounttype filter
         """
@@ -131,7 +131,7 @@ class TestListAccounts(cloudstackTestCase):
             "Check for list response return valid data"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_accounts_domainid_filter(self):
         """Test listing accounts with domainid filter
         """
@@ -165,7 +165,7 @@ class TestListAccounts(cloudstackTestCase):
         )
         self.assertIsNone(list_account_response, "Check for list response return valid data")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_accounts_id_filter(self):
         """Test listing accounts with id filter
         """
@@ -207,7 +207,7 @@ class TestListAccounts(cloudstackTestCase):
             "Expected account name and actual account name should be same"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_accounts_name_filter(self):
         """Test listing accounts with name filter
         """
@@ -251,7 +251,7 @@ class TestListAccounts(cloudstackTestCase):
             "Expected account name and actual account name should be same"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_05_list_accounts_state_filter(self):
         """Test listing accounts with state filter
         """
@@ -295,7 +295,7 @@ class TestListAccounts(cloudstackTestCase):
             "Expected account name and actual account name should be same"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_06_list_accounts_keyword_filter(self):
         """Test listing accounts with keyword filter
         """
@@ -329,7 +329,7 @@ class TestListAccounts(cloudstackTestCase):
             "Expected account name and actual account name should be same"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_07_list_accounts_with_listall_filters(self):
         """Test listing accounts with listall filters
         """
@@ -361,7 +361,7 @@ class TestListAccounts(cloudstackTestCase):
             "List Account response has incorrect length"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_08_list_accounts_with_no_filters(self):
         """Test listing accounts with no filters
         """

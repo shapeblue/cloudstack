@@ -464,7 +464,7 @@ class TestKubernetesCluster(cloudstackTestCase):
     def tearDown(self):
         super(TestKubernetesCluster, self).tearDown()
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_01_invalid_upgrade_kubernetes_cluster(self):
         """Test to check for failure while tying to upgrade a Kubernetes cluster to a lower version
@@ -491,7 +491,7 @@ class TestKubernetesCluster(cloudstackTestCase):
         self.verifyKubernetesClusterUpgrade(k8s_cluster, self.kubernetes_version_v2.id)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_02_upgrade_kubernetes_cluster(self):
         """Test to deploy a new Kubernetes cluster and upgrade it to newer version
@@ -515,7 +515,7 @@ class TestKubernetesCluster(cloudstackTestCase):
         self.verifyKubernetesClusterUpgrade(k8s_cluster, self.kubernetes_version_v2.id)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_03_deploy_and_scale_kubernetes_cluster(self):
         """Test to deploy a new Kubernetes cluster and check for failure while tying to scale it
@@ -549,7 +549,7 @@ class TestKubernetesCluster(cloudstackTestCase):
         self.debug("Kubernetes cluster with ID: %s successfully downscaled" % k8s_cluster.id)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_04_autoscale_kubernetes_cluster(self):
         """Test to enable autoscaling a Kubernetes cluster
@@ -575,7 +575,7 @@ class TestKubernetesCluster(cloudstackTestCase):
             self.fail("Failed to autoscale Kubernetes cluster due to: %s" % e)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_05_basic_lifecycle_kubernetes_cluster(self):
         """Test to deploy a new Kubernetes cluster
@@ -606,7 +606,7 @@ class TestKubernetesCluster(cloudstackTestCase):
         return
 
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_06_delete_kubernetes_cluster(self):
         """Test to delete an existing Kubernetes cluster
@@ -683,7 +683,7 @@ class TestKubernetesCluster(cloudstackTestCase):
         k8s_cluster = None
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_11_test_unmanaged_cluster_lifecycle(self):
         """Test all operations on unmanaged Kubernetes cluster
 
@@ -743,7 +743,7 @@ class TestKubernetesCluster(cloudstackTestCase):
         self.deleteKubernetesClusterAndVerify(cluster.id)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_12_test_deploy_cluster_different_offerings_per_node_type(self):
         """Test creating a CKS cluster with different offerings per node type
 

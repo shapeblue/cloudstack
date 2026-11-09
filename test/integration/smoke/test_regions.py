@@ -64,7 +64,7 @@ class TestRegions(cloudstackTestCase):
             msg="Region creation failed"
         )
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     def test_createRegion(self):
         """ Test for create region
         """
@@ -96,14 +96,14 @@ class TestRegions(cloudstackTestCase):
             "listRegion response does not match with region endpoint created"
         )
 
-    @attr(tags=["simulator", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["simulator", "basic", "advanced", "sg"], required_hardware="false")
     def test_createRegionWithExistingRegionId(self):
         """Test for duplicate checks on region id
         """
         self.services["region"]["regionname"] = random_gen()  # alter region name but not id
         self.assertRaises(Exception, Region.create, self.apiclient, self.services["region"])
 
-    @attr(tags=["simulator", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["simulator", "basic", "advanced", "sg"], required_hardware="false")
     def test_createRegionWithExistingRegionName(self):
         """Test for duplicate checks on region name
         """
@@ -112,7 +112,7 @@ class TestRegions(cloudstackTestCase):
         self.services["region"]["regionendpoint"] = "http://region" + str(random_int) + ":8080/client"
         self.assertRaises(Exception, Region.create, self.apiclient, self.services["region"])
 
-    @attr(tags=["simulator", "basic", "advanced"], required_hardware="false")
+    @attr(tags=["simulator", "basic", "advanced", "sg"], required_hardware="false")
     def test_updateRegion(self):
         """ Test for update Region
         """

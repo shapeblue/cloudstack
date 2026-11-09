@@ -114,7 +114,7 @@ class TestResourceNames(cloudstackTestCase):
     def tearDown(self):
         super(TestResourceNames, self).tearDown()
 
-    @attr(tags=["advanced", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_deploy_vm(self):
         """Test for deploy virtual machine
         """
@@ -163,7 +163,7 @@ class TestResourceNames(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["advanced", "smoke", "basic"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "basic", "sg"], required_hardware="true")
     def test_02_create_volume(self):
         """Test for create volume
         """
@@ -207,7 +207,7 @@ class TestResourceNames(cloudstackTestCase):
             "Check virtual machine display name in listVirtualMachines"
         )
 
-    @attr(tags=["advanced", "smoke", "basic"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "basic", "sg"], required_hardware="true")
     def test_03_register_template(self):
         """Test for register template
         """
@@ -254,7 +254,7 @@ class TestResourceNames(cloudstackTestCase):
             "Check template displaytext in response"
         )
 
-    @attr(tags=["advanced", "smoke", "basic"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "basic", "sg"], required_hardware="true")
     def test_04_register_iso(self):
         """Test for register ISO
         """

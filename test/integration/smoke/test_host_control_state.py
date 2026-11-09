@@ -165,7 +165,7 @@ class TestHostControlState(cloudstackTestCase):
                          state,
                          msg="host control state should be %s, but it is %s" % (state, vm.hostcontrolstate))
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     def test_uservm_host_control_state(self):
         """ Verify host control state for user vm """
         # 1. verify hostcontrolstate = Enabled
@@ -200,7 +200,7 @@ class TestHostControlState(cloudstackTestCase):
             self.enable_host(host_id)
             self.verify_uservm_host_control_state(self.vm.id, "Enabled")
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     def test_ssvm_host_control_state(self):
         """ Verify host control state for systemvm """
         # 1. verify hostcontrolstate = Enabled
@@ -228,7 +228,7 @@ class TestHostControlState(cloudstackTestCase):
         self.enable_host(host_id)
         self.verify_ssvm_host_control_state(ssvm.id, "Enabled")
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     def test_router_host_control_state(self):
         """ Verify host control state for router """
         # 1. verify hostcontrolstate = Enabled
@@ -368,7 +368,7 @@ class TestAutoEnableDisableHost(cloudstackTestCase):
         response = self.apiclient.updateHost(cmd)
         self.assertEqual(response.resourcestate, "Enabled" if enable else "Disabled")
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     @skipTestIf("hypervisorNotSupported")
     def test_01_auto_enable_disable_kvm_host(self):
         """Test to auto-enable and auto-disable a KVM host based on health check results
@@ -398,7 +398,7 @@ class TestAutoEnableDisableHost(cloudstackTestCase):
 
         self.wait_until_host_is_in_state(selected_host.id, "Enabled", 5, 200)
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     @skipTestIf("hypervisorNotSupported")
     def test_02_disable_host_overrides_auto_enable_kvm_host(self):
         """Test to override the auto-enabling of a KVM host by an administrator
@@ -437,7 +437,7 @@ class TestAutoEnableDisableHost(cloudstackTestCase):
         self.remove_host_health_check(selected_host.ipaddress, username, password)
         self.update_host_allocation_state(selected_host.id, True)
 
-    @attr(tags=["basic", "advanced"], required_hardware="false")
+    @attr(tags=["basic", "advanced", "sg"], required_hardware="false")
     @skipTestIf("hypervisorNotSupported")
     def test_03_enable_host_does_not_override_auto_disable_kvm_host(self):
         """Test to override the auto-disabling of a KVM host by an administrator

@@ -125,7 +125,7 @@ class TestKubernetesSupportedVersion(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_01_add_delete_kubernetes_supported_version(self):
         """Test to add a new Kubernetes supported version
 
@@ -192,7 +192,7 @@ class TestKubernetesSupportedVersion(cloudstackTestCase):
 
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_02_add_unsupported_kubernetes_supported_version(self):
         """Test to trying to add a new unsupported Kubernetes supported version
 
@@ -212,7 +212,7 @@ class TestKubernetesSupportedVersion(cloudstackTestCase):
             self.debug("Unsupported version error check successful, API failure: %s" % e)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_03_add_invalid_kubernetes_supported_version(self):
         """Test to trying to add a new unsupported Kubernetes supported version
 

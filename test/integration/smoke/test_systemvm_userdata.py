@@ -363,7 +363,7 @@ echo "User data script ran successfully on {vm_type_display_name}" > /tmp/userda
         )
 
     @attr(
-        tags=["advanced", "advancedns", "smoke", "basic", "sg"],
+        tags=["advanced", "advancedns", "smoke", "basic"],
         required_hardware="true",
     )
     def test_3_userdata_on_vr(self):

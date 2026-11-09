@@ -50,7 +50,7 @@ class TestListStoragePools(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListStoragePools, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_storage_pools_clusterid_filter(self):
         """ Test list storage pools by clusterid filter
         """
@@ -86,7 +86,7 @@ class TestListStoragePools(cloudstackTestCase):
                     "Invalid cluster id should only return zone-wide pools"
                 )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_storage_pools_id_filter(self):
         """ Test list storage pools by id filter
         """
@@ -119,7 +119,7 @@ class TestListStoragePools(cloudstackTestCase):
             "Response should be empty when invalid cluster id is passed"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_storage_pools_ipaddress_filter(self):
         """ Test list storage pools by ipaddress filter
         """
@@ -153,7 +153,7 @@ class TestListStoragePools(cloudstackTestCase):
             "Response should be empty when invalid ip address is passed"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_storage_pools_keyword_filter(self):
         """ Test list storage pools by keyword filter
         """
@@ -187,7 +187,7 @@ class TestListStoragePools(cloudstackTestCase):
             "Response should be empty when invalid keyword is passed"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_05_list_storage_pools_name_filter(self):
         """ Test list storage pools by name filter
         """
@@ -221,7 +221,7 @@ class TestListStoragePools(cloudstackTestCase):
             "Response should be empty when invalid name is passed"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_06_list_storage_pools_path_filter(self):
         """ Test list storage pools by path filter
         """
@@ -255,7 +255,7 @@ class TestListStoragePools(cloudstackTestCase):
             "Response should be empty when invalid path is passed"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_07_list_storage_pools_podid_filter(self):
         """ Test list storage pools by podid filter
         """
@@ -293,7 +293,7 @@ class TestListStoragePools(cloudstackTestCase):
                     "Invalid pod id should only return zone-wide pools"
                 )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_08_list_storage_pools_scope_filter(self):
         """ Test list storage pools by scope filter
         """
@@ -323,7 +323,7 @@ class TestListStoragePools(cloudstackTestCase):
                 scope="invalid"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_09_list_storage_pools_status_filter(self):
         """ Test list storage pools by status filter
         """
@@ -353,7 +353,7 @@ class TestListStoragePools(cloudstackTestCase):
                 status="invalid"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_10_list_storage_pools_zoneid_filter(self):
         """ Test list storage pools by zoneid filter
         """
@@ -386,7 +386,7 @@ class TestListStoragePools(cloudstackTestCase):
             "Response should be empty when invalid zone id is passed"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_11_list_storage_pools_no_filter(self):
         """ Test list storage pools with no filter
         """

@@ -93,7 +93,7 @@ class TestGlobalACLs(cloudstackTestCase):
     def tearDown(self):
         super(TestGlobalACLs, self).tearDown()
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_create_global_acl(self):
         """ Test create global ACL as a normal user, domain admin and root admin users.
         """
@@ -167,7 +167,7 @@ class TestGlobalACLs(cloudstackTestCase):
 
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_create_acl_rule(self):
         """ Test to create ACL rule as a normal user, domain admin and root admin users.
         """
@@ -187,7 +187,7 @@ class TestGlobalACLs(cloudstackTestCase):
 
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_delete_acl_rule(self):
         """ Test to delete ACL rule as a normal user, domain admin and root admin users.
         """
@@ -218,7 +218,7 @@ class TestGlobalACLs(cloudstackTestCase):
         return
 
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_delete_global_acl(self):
         """ Test delete global ACL as a normal user, domain admin and root admin users.
         """

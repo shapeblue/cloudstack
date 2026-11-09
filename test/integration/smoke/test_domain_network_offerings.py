@@ -275,7 +275,6 @@ class TestDomainsNetworkOfferings(cloudstackTestCase):
         tags=[
             "advanced",
             "eip",
-            "sg",
             "advancedns",
             "smoke"],
         required_hardware="false")

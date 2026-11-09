@@ -309,7 +309,7 @@ class TestExtensions(cloudstackTestCase):
             self.assertIn(k, updated_details, f"Key '{k}' should be present in updated details")
             self.assertEqual(v, updated_details[k], f"Value for key '{k}' should be '{v}'")
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_05_register_unregister_extension(self):
         self.create_cluster()
         self.extension = Extension.create(
@@ -328,7 +328,7 @@ class TestExtensions(cloudstackTestCase):
         self.assertTrue(resource_found, "Registered resource not found")
         self.extension.unregister(self.apiclient, self.cluster.id, 'Cluster')
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_06_register_extension_already_fail(self):
         self.create_cluster()
         self.extension = Extension.create(
@@ -349,7 +349,7 @@ class TestExtensions(cloudstackTestCase):
             self.fail(f"Same cluster: {cluster.id} registered with two extensions")
         except CloudstackAPIException: pass
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_07_delete_extension_registered_resource_fail(self):
         self.create_cluster()
         self.extension = Extension.create(
@@ -399,7 +399,7 @@ class TestExtensions(cloudstackTestCase):
         )[0]
         self.assertTrue(ext.pathready, "Path not ready")
 
-    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
+    @attr(tags=["devcloud", "advanced", "advancedns", "smoke", "basic"], required_hardware="false")
     def test_09_extension_deploy_vm(self):
         self.create_cluster()
         self.extension = Extension.create(

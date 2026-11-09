@@ -129,7 +129,7 @@ class TestSnapshotRootDisk(cloudstackTestCase):
         return
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_01_snapshot_root_disk(self):
         """Test Snapshot Root Disk
         """
@@ -227,7 +227,7 @@ class TestSnapshotRootDisk(cloudstackTestCase):
         return
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_02_list_snapshots_with_removed_data_store(self):
         """Test listing volume snapshots with removed data stores
         """
@@ -488,7 +488,7 @@ class TestSnapshotStandaloneBackup(cloudstackTestCase):
         super(TestSnapshotStandaloneBackup, self).tearDown()
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_01_snapshot_to_volume(self):
         """Test creating volume from snapshot
         """
@@ -524,7 +524,7 @@ class TestSnapshotStandaloneBackup(cloudstackTestCase):
         )
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_02_snapshot_to_template(self):
         """Test creating volume from snapshot
         """

@@ -132,7 +132,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
     def tearDown(self):
         super(TestRegisteredUserdata, self).tearDown()
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg'], required_hardware=False)
+    @attr(tags=['advanced', 'simulator', 'basic'], required_hardware=False)
     def test_CRUD_operations_userdata(self):
         """Test register, list, update operations on userdata
             1. Register a userdata
@@ -168,7 +168,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
             id=self.userdata1.userdata.id
         )
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg'], required_hardware=True)
+    @attr(tags=['advanced', 'simulator', 'basic'], required_hardware=True)
     def test_deploy_vm_with_registered_userdata(self):
         """Test deploy VM with registered userdata
             1. Register a userdata
@@ -291,7 +291,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
                 continue
         return
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg'], required_hardware=True)
+    @attr(tags=['advanced', 'simulator', 'basic'], required_hardware=True)
     def test_deploy_vm_with_registered_userdata_with_params(self):
         """Test deploy VM with registered userdata with variables
             1. Register a userdata having variables
@@ -402,7 +402,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
             "Failed to match userdata"
         )
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg'], required_hardware=False)
+    @attr(tags=['advanced', 'simulator', 'basic'], required_hardware=False)
     def test_link_and_unlink_userdata_to_template(self):
         """Test link and unlink of userdata to a template
             1. Register a userdata
@@ -451,7 +451,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
             "Check userdata id in template response is None"
         )
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg'], required_hardware=True)
+    @attr(tags=['advanced', 'simulator', 'basic'], required_hardware=True)
     def test_deploy_vm_with_registered_userdata_with_override_policy_allow(self):
         """Test deploy VM with registered userdata with variables
             1. Register two userdata, one to link to template and another to pass while deploying VM
@@ -578,7 +578,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
             "Failed to match userdata"
         )
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg'], required_hardware=True)
+    @attr(tags=['advanced', 'simulator', 'basic'], required_hardware=True)
     def test_deploy_vm_with_registered_userdata_with_override_policy_append(self):
         """Test deploy VM with registered userdata with variables
             1. Register two userdata, one to link to template and another to pass while deploying VM
@@ -724,7 +724,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
             "Failed to find cloud-config userdata in append result"
         )
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg', 'testnow'], required_hardware=True)
+    @attr(tags=['advanced', 'simulator', 'basic', 'testnow'], required_hardware=True)
     def test_deploy_vm_with_registered_userdata_with_override_policy_deny(self):
         """Test deploy VM with registered userdata with variables
             1. Register two userdata, one to link to template and another to pass while deploying VM
@@ -778,7 +778,7 @@ class TestRegisteredUserdata(cloudstackTestCase):
             templateid=self.template.id
         )
 
-    @attr(tags=['advanced', 'simulator', 'basic', 'sg', 'testnow'], required_hardware=True)
+    @attr(tags=['advanced', 'simulator', 'basic', 'testnow'], required_hardware=True)
     def test_user_userdata_crud(self):
         """Test following operations as a normal user:
             1. Register userdata

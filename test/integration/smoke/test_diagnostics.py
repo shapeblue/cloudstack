@@ -166,7 +166,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             cmd_response.exitcode,
             'Check diagnostics command returns a non-zero exit code')
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_03_ping_in_ssvm_success(self):
         '''
         Test Ping command execution in SSVM
@@ -202,7 +202,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             'Failed to run remote Ping in SSVM'
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_04_ping_in_ssvm_failure(self):
         '''
         Test Ping command execution in SSVM
@@ -242,7 +242,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             'Failed to run remote Ping in SSVM'
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_05_ping_in_cpvm_success(self):
         '''
         Test Ping command execution in CPVM
@@ -278,7 +278,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             'Failed to run remote Ping in CPVM'
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_06_ping_in_cpvm_failure(self):
         '''
         Test Ping command execution in CPVM
@@ -352,7 +352,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             cmd_response.exitcode,
             'Failed to run remote Arping in VR')
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_08_arping_in_ssvm(self):
         '''
         Test Arping command execution in SSVM
@@ -389,7 +389,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             'Failed to run remote Arping in SSVM'
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_09_arping_in_cpvm(self):
         '''
         Test Arping command execution in CPVM
@@ -460,7 +460,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             cmd_response.exitcode,
             'Failed to run remote Traceroute in VR')
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_11_traceroute_in_ssvm(self):
         '''
         Test Traceroute command execution in SSVM
@@ -497,7 +497,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             'Failed to run remote Traceroute in SSVM'
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_12_traceroute_in_cpvm(self):
         '''
         Test Traceroute command execution in CPVMM
@@ -606,7 +606,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             msg="Failed to create valid download url response"
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_15_retrieve_ssvm_default_files(self):
         list_ssvm_response = list_ssvms(
             self.apiclient,
@@ -636,7 +636,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             msg="Failed to create valid download url response"
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_16_retrieve_ssvm_single_file(self):
         list_ssvm_response = list_ssvms(
             self.apiclient,
@@ -667,7 +667,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             msg="Failed to create valid download url response"
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_17_retrieve_cpvm_default_files(self):
         list_cpvm_response = list_ssvms(
             self.apiclient,
@@ -697,7 +697,7 @@ class TestRemoteDiagnostics(cloudstackTestCase):
             msg="Failed to create valid download url response"
         )
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="true")
     def test_18_retrieve_cpvm_single_file(self):
         list_cpvm_response = list_ssvms(
             self.apiclient,

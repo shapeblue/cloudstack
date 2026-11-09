@@ -170,13 +170,13 @@ class TestVnfTemplates(cloudstackTestCase):
                 retries = retries - 1
         raise Exception("Template download failed exception.")
 
-    @attr(tags=["advanced"], required_hardware="false")
+    @attr(tags=["advanced", "sg"], required_hardware="false")
     def test_01_register_vnf_template(self):
         """Test register VNF template
         """
         self.ensureVnfTemplateExists()
 
-    @attr(tags=["advanced"], required_hardware="false")
+    @attr(tags=["advanced", "sg"], required_hardware="false")
     def test_02_list_vnf_template(self):
         """Test list VNF template
         """
@@ -199,7 +199,7 @@ class TestVnfTemplates(cloudstackTestCase):
         else:
             self.fail("Failed to get VNF templates by listVnfTemplates API")
 
-    @attr(tags=["advanced"], required_hardware="false")
+    @attr(tags=["advanced", "sg"], required_hardware="false")
     def test_03_edit_vnf_template(self):
         """Test edit VNF template
         """
@@ -322,7 +322,7 @@ class TestVnfTemplates(cloudstackTestCase):
         )
         self.cleanup.append(self.vnf_appliance)
 
-    @attr(tags=["advanced"], required_hardware="false")
+    @attr(tags=["advanced", "sg"], required_hardware="false")
     def test_05_delete_vnf_template(self):
         """Test delete VNF template
         """

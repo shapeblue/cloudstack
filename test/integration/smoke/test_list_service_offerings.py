@@ -99,7 +99,7 @@ class TestListServiceOfferings(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListServiceOfferings, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_service_offerings_cpunumber_filter(self):
         """Test list service offerings with cpunumber filter
         """
@@ -130,7 +130,7 @@ class TestListServiceOfferings(cloudstackTestCase):
         )
         self.assertIsNone(service_offerings, "List ServiceOfferings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_service_offerings_cpuspeed_filter(self):
         """Test list service offerings with cpuspeed filter
         """
@@ -161,7 +161,7 @@ class TestListServiceOfferings(cloudstackTestCase):
         )
         self.assertIsNone(service_offerings, "List ServiceOfferings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_service_offerings_memory_filter(self):
         """Test list service offerings with memory filter
         """
@@ -192,7 +192,7 @@ class TestListServiceOfferings(cloudstackTestCase):
         )
         self.assertIsNone(service_offerings, "List ServiceOfferings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_service_offerings_domainid_filter(self):
         """Test list service offerings with domainid filter
         """
@@ -226,7 +226,7 @@ class TestListServiceOfferings(cloudstackTestCase):
                 "List ServiceOfferings response has incorrect domainid"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_05_list_service_offerings_encryptroot_filter(self):
         """Test list service offerings with encryptroot filter
         """
@@ -269,7 +269,7 @@ class TestListServiceOfferings(cloudstackTestCase):
                 "List ServiceOfferings response has incorrect encryptroot"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_06_list_service_offerings_id_filter(self):
         """Test list service offerings with id filter
         """
@@ -308,7 +308,7 @@ class TestListServiceOfferings(cloudstackTestCase):
         )
         self.assertIsNone(service_offerings, "List ServiceOfferings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_07_list_service_offerings_isrecursive_filter(self):
         """Test list service offerings with isrecursive filter
         """
@@ -342,7 +342,7 @@ class TestListServiceOfferings(cloudstackTestCase):
             "List ServiceOfferings response is empty"
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_08_list_service_offerings_issystem_filter(self):
         """Test list service offerings with issystem filter
         """
@@ -386,7 +386,7 @@ class TestListServiceOfferings(cloudstackTestCase):
                 "List ServiceOfferings response has incorrect issystem"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_09_list_service_offerings_keyword_filter(self):
         """Test list service offerings with keyword filter
         """
@@ -425,7 +425,7 @@ class TestListServiceOfferings(cloudstackTestCase):
         )
         self.assertIsNone(service_offerings, "List ServiceOfferings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_10_list_service_offerings_name_filter(self):
         """Test list service offerings with name filter
         """
@@ -484,7 +484,7 @@ class TestListServiceOfferings(cloudstackTestCase):
         )
         self.assertIsNone(service_offerings, "List ServiceOfferings response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_11_list_service_offerings_systemvmtype_filter(self):
         """Test list service offerings with systemvmtype filter
         """
@@ -519,7 +519,7 @@ class TestListServiceOfferings(cloudstackTestCase):
                 "List ServiceOfferings response has incorrect systemvmtype"
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_12_list_service_offerings_zoneid_filter(self):
         """Test list service offerings with zoneid filter
         """

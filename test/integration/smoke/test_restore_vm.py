@@ -70,7 +70,7 @@ class TestRestoreVM(cloudstackTestCase):
         super(TestRestoreVM, cls).tearDownClass()
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_01_restore_vm(self):
         """Test restore virtual machine
         """
@@ -107,7 +107,7 @@ class TestRestoreVM(cloudstackTestCase):
         old_root_vol = Volume.list(self.apiclient, id=old_root_vol.id)
         self.assertEqual(old_root_vol, None, "Old volume should be deleted")
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_02_restore_vm_with_disk_offering(self):
         """Test restore virtual machine
         """
@@ -146,7 +146,7 @@ class TestRestoreVM(cloudstackTestCase):
         old_root_vol = Volume.list(self.apiclient, id=old_root_vol.id)
         self.assertEqual(old_root_vol, None, "Old volume should be deleted")
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_03_restore_vm_with_disk_offering_custom_size(self):
         """Test restore virtual machine
         """
@@ -184,7 +184,7 @@ class TestRestoreVM(cloudstackTestCase):
             self.assertEqual(old_root_vol.state, "Destroy", "Old volume should be in Destroy state")
             Volume.delete(old_root_vol, self.apiclient)
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_04_restore_vm_allocated_root(self):
         """Test restore virtual machine with root disk in allocated state
         """

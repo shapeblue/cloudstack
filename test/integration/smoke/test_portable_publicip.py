@@ -65,7 +65,7 @@ class TestPortablePublicIPRange(cloudstackTestCase):
     def tearDown(self):
         super(TestPortablePublicIPRange,self).tearDown()
 
-    @attr(tags = ["basic", "advanced",  "portablepublicip"], required_hardware="false")
+    @attr(tags = ["basic", "advanced",  "portablepublicip", "sg"], required_hardware="false")
     def test_createPortablePublicIPRange(self):
         """ Test to create a portable public ip range
         """

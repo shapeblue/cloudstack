@@ -71,7 +71,7 @@ class TestDeployVmWithUserData(cloudstackTestCase):
     def setup(self):
         self.hypervisor = self.testClient.getHypervisorInfo()
 
-    @attr(tags=["devcloud", "basic", "advanced", "post"], required_hardware="true")
+    @attr(tags=["devcloud", "basic", "advanced", "post", "sg"], required_hardware="true")
     def test_deployvm_userdata_post(self):
         """Test userdata as POST, size > 2k
         """
@@ -96,7 +96,7 @@ class TestDeployVmWithUserData(cloudstackTestCase):
         self.assertTrue(vm.id == str(deployVmResponse.id), "Vm deployed is different from the test")
         self.assertTrue(vm.state == "Running", "VM is not in Running state")
 
-    @attr(tags=["devcloud", "basic", "advanced"], required_hardware="true")
+    @attr(tags=["devcloud", "basic", "advanced", "sg"], required_hardware="true")
     def test_deployvm_userdata(self):
         """Test userdata as GET, size > 2k
         """

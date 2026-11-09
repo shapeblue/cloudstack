@@ -115,7 +115,7 @@ class TestGatewayOnSharedNetwork(cloudstackTestCase):
         self.debug(f"tearing down test in TestGatewayOnSharedNetwork")
         super(TestGatewayOnSharedNetwork, self).tearDown()
 
-    @attr(tags=["advanced", "advancedns"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "sg"], required_hardware="false")
     def test_updating_nics_on_two_shared_networks(self):
         """
         Test updating vm nics on two shared networks

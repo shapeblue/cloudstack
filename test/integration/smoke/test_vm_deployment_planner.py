@@ -83,7 +83,7 @@ class TestVMDeploymentPlanner(cloudstackTestCase):
         cmd.id = vm_id
         return self.apiclient.destroyVirtualMachine(cmd)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_01_deploy_vm_on_specific_host(self):
         hosts = Host.list(
             self.apiclient,
@@ -101,7 +101,7 @@ class TestVMDeploymentPlanner(cloudstackTestCase):
 
         self.destroy_vm(vm.id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_02_deploy_vm_on_specific_cluster(self):
 
         # Select deployment cluster
@@ -136,7 +136,7 @@ class TestVMDeploymentPlanner(cloudstackTestCase):
         )
         self.destroy_vm(vm.id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_03_deploy_vm_on_specific_pod(self):
         pods = Pod.list(
             self.apiclient,
@@ -173,7 +173,7 @@ class TestVMDeploymentPlanner(cloudstackTestCase):
         )
         self.destroy_vm(vm.id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_04_deploy_vm_on_host_override_pod_and_cluster(self):
 
         # Optional parameters pod, cluster and host
@@ -211,7 +211,7 @@ class TestVMDeploymentPlanner(cloudstackTestCase):
 
         self.destroy_vm(vm.id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_05_deploy_vm_on_cluster_override_pod(self):
 
         # Optional parameters pod, cluster and host

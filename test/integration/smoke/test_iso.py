@@ -662,24 +662,24 @@ class TestCreateISOWithChecksum(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_01_create_iso_with_checksum_sha1(self):
         iso = self.registerIso(self.iso)
         self.download(self.apiclient, iso.id)
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_02_create_iso_with_checksum_sha256(self):
         self.iso.checksum = "{SHA-256}" + self.sha256
         iso = self.registerIso(self.iso)
         self.download(self.apiclient, iso.id)
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_03_create_iso_with_checksum_md5(self):
         self.iso.checksum = "{md5}" + self.md5
         iso = self.registerIso(self.iso)
         self.download(self.apiclient, iso.id)
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_01_1_create_iso_with_checksum_sha1_negative(self):
         self.iso.checksum = "{sha-1}" + "someInvalidValue"
         iso = self.registerIso(self.iso)
@@ -692,7 +692,7 @@ class TestCreateISOWithChecksum(cloudstackTestCase):
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under iso download ")
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_02_1_create_iso_with_checksum_sha256_negative(self):
         self.iso.checksum = "{SHA-256}" + "someInvalidValue"
         iso = self.registerIso(self.iso)
@@ -705,7 +705,7 @@ class TestCreateISOWithChecksum(cloudstackTestCase):
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under iso download ")
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_03_1_create_iso_with_checksum_md5_negative(self):
         self.iso.checksum = "{md5}" + "someInvalidValue"
         iso = self.registerIso(self.iso)
@@ -718,7 +718,7 @@ class TestCreateISOWithChecksum(cloudstackTestCase):
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under iso download ")
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_04_create_iso_with_no_checksum(self):
         self.iso.checksum = None
         iso = self.registerIso(self.iso)

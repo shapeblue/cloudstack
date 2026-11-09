@@ -245,7 +245,7 @@ class TestMultipleVolumeAttach(cloudstackTestCase):
                   str(e))
             return FAILED
 
-    @attr(tags = ["advanced", "advancedns", "basic", "blob"], required_hardware="true")
+    @attr(tags = ["advanced", "advancedns", "basic", "blob", "sg"], required_hardware="true")
     def test_attach_multiple_volumes(self):
         """Attach multiple Volumes simultaneously to a Running VM
         """
@@ -310,7 +310,7 @@ class TestMultipleVolumeAttach(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "basic", "bla"], required_hardware="true")
+    @attr(tags = ["advanced", "advancedns", "basic", "bla", "sg"], required_hardware="true")
     def test_attach_and_distribute_multiple_volumes(self):
         """
         Test volume distribution over storages

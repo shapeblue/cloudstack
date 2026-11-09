@@ -137,7 +137,7 @@ class TestListVolumes(cloudstackTestCase):
     def tearDownClass(cls):
         super(TestListVolumes, cls).tearDownClass()
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_01_list_volumes_account_domain_filter(self):
         """Test listing Volumes with account & domain filter
         """
@@ -174,7 +174,7 @@ class TestListVolumes(cloudstackTestCase):
             "ListVolumes response expected 1 Volume, received %s" % len(list_volume_response)
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_02_list_volumes_diskofferingid_filter(self):
         """Test listing Volumes with diskofferingid filter
         """
@@ -195,7 +195,7 @@ class TestListVolumes(cloudstackTestCase):
             "ListVolumes response expected 2 Volumes, received %s" % len(list_volume_response)
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_03_list_volumes_id_filter(self):
         """Test listing Volumes with id filter
         """
@@ -219,7 +219,7 @@ class TestListVolumes(cloudstackTestCase):
             "ListVolumes response expected Volume with id %s, received %s" % (self.vol_1.id, list_volume_response[0].id)
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_04_list_volumes_ids_filter(self):
         """Test listing Volumes with ids filter
         """
@@ -278,7 +278,7 @@ class TestListVolumes(cloudstackTestCase):
             "ListVolumes response expected 3 Volumes, received %s" % len(list_volume_response)
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_06_list_volumes_keyword_filter(self):
         """Test listing Volumes with keyword filter
         """
@@ -354,7 +354,7 @@ class TestListVolumes(cloudstackTestCase):
             "ListVolumes response expected more than 3 Volumes, received %s" % len(list_volumes_response)
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_09_list_volumes_name_filter(self):
         """Test listing Volumes with name filter
         """
@@ -384,7 +384,7 @@ class TestListVolumes(cloudstackTestCase):
                 self.vol_1.name, list_volume_response[0].name)
         )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_10_list_volumes_podid_filter(self):
         """Test listing Volumes with podid filter
         """
@@ -405,7 +405,7 @@ class TestListVolumes(cloudstackTestCase):
         self.assertIn(self.vol_1.id, [volume.id for volume in list_volume_response],
                       "ListVolumes response expected Volume with id %s" % self.vol_1.id)
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_11_list_volumes_state_filter(self):
         """Test listing Volumes with state filter
         """
@@ -443,7 +443,7 @@ class TestListVolumes(cloudstackTestCase):
         self.assertEqual(self.vol_2.id, list_volume_response[0].id,
                          "ListVolumes response expected Volume with id %s" % self.vol_3.id)
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_12_list_volumes_storageid_filter(self):
         """Test listing Volumes with storageid filter
         """
@@ -464,7 +464,7 @@ class TestListVolumes(cloudstackTestCase):
         self.assertIn(self.vol_1.id, [volume.id for volume in list_volume_response],
                       "ListVolumes response expected Volume with id %s" % self.vol_1.id)
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_13_list_volumes_type_filter(self):
         """Test listing Volumes with type filter
         """
@@ -502,7 +502,7 @@ class TestListVolumes(cloudstackTestCase):
         self.assertNotIn(list_volume_response[0].id, [self.vol_1.id, self.vol_2.id],
                          "ListVolumes response expected ROOT Volume")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_14_list_volumes_virtualmachineid_filter(self):
         """Test listing Volumes with virtualmachineid filter
         """
@@ -523,7 +523,7 @@ class TestListVolumes(cloudstackTestCase):
         self.assertIn(self.vol_1.id, [volume.id for volume in list_volume_response],
                       "ListVolumes response expected Volume with id %s" % self.vol_1.id)
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_15_list_volumes_zoneid_filter(self):
         """Test listing Volumes with zoneid filter
         """
@@ -548,7 +548,7 @@ class TestListVolumes(cloudstackTestCase):
             )
             self.assertIsNone(list_volume_response, "List Volume response is not None")
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_16_list_volumes_tags_filter(self):
         """Test listing Volumes with tags filter
         """
@@ -594,7 +594,7 @@ class TestListVolumes(cloudstackTestCase):
             )
 
 
-    @attr(tags=["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_17_list_volumes_no_filter(self):
         """Test listing Volumes with no filter
         """

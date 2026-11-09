@@ -262,7 +262,7 @@ class TestDeployVirtioSCSIVM(cloudstackTestCase):
         self.logger.debug("xml is: \n\n%s\n\n" % (stdout))
         return stdout
 
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_01_verify_libvirt(self):
         """Test that libvirt properly created domain with scsi controller
         """
@@ -273,7 +273,7 @@ class TestDeployVirtioSCSIVM(cloudstackTestCase):
 
         self.verifyVirshState(2)
 
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_02_verify_libvirt_after_restart(self):
         """ Verify that libvirt settings are as expected after a VM stop / start
         """
@@ -285,7 +285,7 @@ class TestDeployVirtioSCSIVM(cloudstackTestCase):
         self.virtual_machine.start(self.apiclient)
         self.verifyVirshState(2)
 
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_03_verify_libvirt_attach_disk(self):
         """ Verify that libvirt settings are expected after a disk add
         """
@@ -318,7 +318,7 @@ class TestDeployVirtioSCSIVM(cloudstackTestCase):
 
         self.verifyGuestState(3)
 
-    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
     def test_05_change_vm_ostype_restart(self):
         """ Update os type to Ubuntu, change vm details rootdiskController
             explicitly to scsi.

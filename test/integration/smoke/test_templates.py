@@ -121,24 +121,24 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
             raise Exception("Warning: Exception during cleanup : %s" % e)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_02_create_template_with_checksum_sha1(self):
         template = self.registerTemplate(self.test_template)
         self.download(self.apiclient, template.id)
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_03_create_template_with_checksum_sha256(self):
         self.test_template.checksum = "{SHA-256}" + self.sha256
         template = self.registerTemplate(self.test_template)
         self.download(self.apiclient, template.id)
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_04_create_template_with_checksum_md5(self):
         self.test_template.checksum = "{md5}" + self.md5
         template = self.registerTemplate(self.test_template)
         self.download(self.apiclient, template.id)
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_02_1_create_template_with_checksum_sha1_negative(self):
         self.test_template.checksum = "{sha-1}" + "someInvalidValue"
         template = self.registerTemplate(self.test_template)
@@ -151,7 +151,7 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under template download ")
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_03_1_create_template_with_checksum_sha256_negative(self):
         self.test_template.checksum = "{SHA-256}" + "someInvalidValue"
         template = self.registerTemplate(self.test_template)
@@ -164,7 +164,7 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under template download ")
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_04_1_create_template_with_checksum_md5_negative(self):
         self.test_template.checksum = "{md5}" + "someInvalidValue"
         template = self.registerTemplate(self.test_template)
@@ -177,7 +177,7 @@ class TestCreateTemplateWithChecksum(cloudstackTestCase):
         else:
             self.fail("Negative Test Failed - Exception DID NOT Occurred Under template download ")
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_05_create_template_with_no_checksum(self):
         self.test_template.checksum = None
         template = self.registerTemplate(self.test_template)
@@ -350,7 +350,7 @@ class TestCreateTemplate(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "sg"], required_hardware="false")
     def test_CreateTemplateWithDuplicateName(self):
         """Test when createTemplate is used to create templates having the same name all of them get
         different unique names so that the templates with same name does not get deleted during template sync"""
@@ -394,7 +394,7 @@ class TestCreateTemplate(cloudstackTestCase):
                             "unique names are different")
 
 
-    @attr(tags = ["advanced", "advancedns", "smoke"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "sg"], required_hardware="false")
     def test_01_create_template(self):
         """Test create public & private template
         """
@@ -1264,7 +1264,7 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
     def tearDown(self):
         super(TestCreateTemplateWithDirectDownload, self).tearDown()
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_01_register_template_direct_download_flag(self):
         """
         Register a template using Direct Download flag
@@ -1293,7 +1293,7 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
                          )
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_02_deploy_vm_from_direct_download_template(self):
         """
         Deploy a VM from a Direct Download registered template
@@ -1310,7 +1310,7 @@ class TestCreateTemplateWithDirectDownload(cloudstackTestCase):
         self.cleanup.append(virtual_machine)
         return
 
-    @attr(tags=["advanced", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "smoke", "sg"], required_hardware="true")
     def test_03_deploy_vm_wrong_checksum(self):
         """
         Deploy a VM from a Direct Download registered template with wrong checksum

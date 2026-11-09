@@ -152,7 +152,7 @@ class TestMetrics(cloudstackTestCase):
     def tearDown(self):
         super(TestMetrics, self).tearDown()
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_hosts_metrics(self):
 
         cmd = listHostsMetrics.listHostsMetricsCmd()
@@ -166,7 +166,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_clusters_metrics(self):
 
         cmd = listClustersMetrics.listClustersMetricsCmd()
@@ -183,7 +183,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_zones_metrics(self):
         cmd = listZonesMetrics.listZonesMetricsCmd()
         cmd.id = self.zone.id
@@ -228,15 +228,15 @@ class TestMetrics(cloudstackTestCase):
         self.assertTrue(hasattr(lvmm, 'networkread'))
         self.assertTrue(hasattr(lvmm, 'networkwrite'))
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_vms_metrics_admin(self):
         self.run_list_vm_metrics_test(False)
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_vms_metrics_user(self):
         self.run_list_vm_metrics_test(True)
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_pstorage_metrics(self):
         #list StoragePools
         sp = self.apiclient.listStoragePools(listStoragePools.listStoragePoolsCmd())[0]
@@ -252,7 +252,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_volumes_metrics(self):
         volume = Volume.create(
             self.apiclient,
@@ -279,7 +279,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_infrastructure_metrics(self):
         cmd = listInfrastructure.listInfrastructureCmd()
         li = self.apiclient.listInfrastructure(cmd)
@@ -310,7 +310,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "bla"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "bla", "sg"], required_hardware="false")
     def test_list_management_server_metrics(self):
         cmd = listManagementServersMetrics.listManagementServersMetricsCmd()
         listMSMs = self.apiclient.listManagementServersMetrics(cmd)
@@ -402,7 +402,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_usage_server_metrics(self):
         cmd = listUsageServerMetrics.listUsageServerMetricsCmd()
         metrics = self.apiclient.listUsageServerMetrics(cmd)
@@ -425,7 +425,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="false")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="false")
     def test_list_db_metrics(self):
         cmd = listDbMetrics.listDbMetricsCmd()
         metrics = self.apiclient.listDbMetrics(cmd)
@@ -459,7 +459,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="true")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_list_vms_metrics_history(self):
         #deploy VM
@@ -487,7 +487,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="true")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_list_system_vms_metrics_history(self):
         cmd = listSystemVmsUsageHistory.listSystemVmsUsageHistoryCmd()
@@ -503,7 +503,7 @@ class TestMetrics(cloudstackTestCase):
 
         return
 
-    @attr(tags = ["advanced", "advancedns", "smoke", "basic"], required_hardware="true")
+    @attr(tags = ["advanced", "advancedns", "smoke", "basic", "sg"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_list_volumes_metrics_history(self):
         #deploy VM

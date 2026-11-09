@@ -80,7 +80,7 @@ class TestUsageEvents(cloudstackTestCase):
     def tearDown(self):
         super(TestUsageEvents,self).tearDown()
 
-    @attr(tags=["advanced", "basic"], required_hardware="true")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="true")
     def test_01_positive_tests_usage(self):
         """ Check events in usage_events table when VM creation fails
 

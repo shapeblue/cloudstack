@@ -139,7 +139,7 @@ class TestVMSchedule(cloudstackTestCase):
     def tearDown(self):
         super(TestVMSchedule, self).tearDown()
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_01_vmschedule_create(self):
         """Test VM Schedule Creation in cron format and validate responses"""
 
@@ -233,7 +233,7 @@ class TestVMSchedule(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_02_vmschedule_create_parameter_exceptions(self):
         """Test VM Schedule Creation exceptions with invalid parameters"""
 
@@ -319,7 +319,7 @@ class TestVMSchedule(cloudstackTestCase):
             )
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_03_vmschedule_update(self):
         """Test VM Schedule Update in cron format and validate responses"""
 
@@ -404,7 +404,7 @@ class TestVMSchedule(cloudstackTestCase):
         )
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_04_vmschedule_update_parameter_exceptions(self):
         """Test VM Schedule Update exceptions with invalid parameters"""
 
@@ -494,7 +494,7 @@ class TestVMSchedule(cloudstackTestCase):
 
         return
 
-    @attr(tags=["advanced", "basic"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "sg"], required_hardware="false")
     def test_05_vmschedule_test_e2e(self):
         # Validate the following
         # 1. Create 2 VM Schedules - start and stop

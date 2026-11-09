@@ -161,7 +161,7 @@ class TestUnmanageKvmVM(cloudstackTestCase):
         return vm_response
 
 
-    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_01_unmanage_vm_cycle_persistent_domain(self):
         """
@@ -334,7 +334,7 @@ class TestUnmanageKvmVM(cloudstackTestCase):
 
 
 
-    @attr(tags=["advanced", "advancedns", "smoke", "sg"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke"], required_hardware="true")
     @skipTestIf("hypervisorNotSupported")
     def test_02_unmanage_stopped_vm_cycle_persistent_domain(self):
         """

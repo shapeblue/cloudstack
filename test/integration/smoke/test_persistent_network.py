@@ -322,7 +322,7 @@ class TestL2PersistentNetworks(cloudstackTestCase):
     This test verifies that on creation of an L2 network with network offering with isPersistent flag
     set to true the corresponding network resources are created without having to deploy a VM - VR created
     '''
-    @attr(tags=["advanced", "l2", "persistent", "network"], required_hardware="false")
+    @attr(tags=["advanced", "l2", "persistent", "network", "sg"], required_hardware="false")
     def test_02_L2_persistent_network(self):
         network_vlan = 90
         network = Network.create(
@@ -348,7 +348,7 @@ class TestL2PersistentNetworks(cloudstackTestCase):
 
         self.validate_persistent_network_resources_created_on_host(network_vlan)
 
-    @attr(tags=["advanced", "l2", "persistent", "network"], required_hardware="false")
+    @attr(tags=["advanced", "l2", "persistent", "network", "sg"], required_hardware="false")
     def test_03_deploy_and_destroy_VM_and_verify_network_resources_persist(self):
         network_vlan = 99
         network = Network.create(

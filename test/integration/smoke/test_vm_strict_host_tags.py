@@ -108,7 +108,7 @@ class TestVMDeploymentPlannerStrictTags(cloudstackTestCase):
                                      templateid=template_id, serviceofferingid=service_offering_id,
                                      hostid=destination_id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_01_deploy_vm_on_specific_host_without_strict_tags(self):
         self.updateConfiguration("vm.strict.host.tags", "")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -118,7 +118,7 @@ class TestVMDeploymentPlannerStrictTags(cloudstackTestCase):
         self.cleanup.append(vm)
         self.assertEqual(self.host_h1.id, vm.hostid, "VM instance was not deployed on target host ID")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_02_deploy_vm_on_any_host_without_strict_tags(self):
         self.updateConfiguration("vm.strict.host.tags", "")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -128,7 +128,7 @@ class TestVMDeploymentPlannerStrictTags(cloudstackTestCase):
         self.cleanup.append(vm)
         self.assertIsNotNone(vm, "VM instance was not deployed")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_03_deploy_vm_on_specific_host_with_strict_tags_success(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "false")
@@ -144,7 +144,7 @@ class TestVMDeploymentPlannerStrictTags(cloudstackTestCase):
         self.cleanup.append(vm)
         self.assertEqual(self.host_h1.id, vm.hostid, "VM instance was not deployed on target host ID")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_04_deploy_vm_on_any_host_with_strict_tags_success(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "false")
@@ -160,7 +160,7 @@ class TestVMDeploymentPlannerStrictTags(cloudstackTestCase):
         self.cleanup.append(vm)
         self.assertEqual(self.host_h1.id, vm.hostid, "VM instance was not deployed on target host ID")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_05_deploy_vm_on_specific_host_with_strict_tags_failure(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -180,7 +180,7 @@ class TestVMDeploymentPlannerStrictTags(cloudstackTestCase):
         except Exception as e:
             self.assertTrue("Cannot deploy VM, destination host" in str(e))
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_06_deploy_vm_on_any_host_with_strict_tags_failure(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -276,7 +276,7 @@ class TestScaleVMStrictTags(cloudstackTestCase):
                                      templateid=template_id, serviceofferingid=service_offering_id,
                                      hostid=destination_id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_01_scale_vm_strict_tags_success(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -292,7 +292,7 @@ class TestScaleVMStrictTags(cloudstackTestCase):
         self.assertEqual(scaled_vm.serviceofferingid, self.service_offering_h2.id, "VM was not scaled")
         self.assertEqual(self.host_h1.id, scaled_vm.hostid, "VM was not scaled")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_02_scale_vm_strict_tags_failure(self):
         if self.host_h1:
             Host.update(self.apiclient, id=self.host_h1.id, hosttags="h1,t1,v1")
@@ -396,7 +396,7 @@ class TestRestoreVMStrictTags(cloudstackTestCase):
                                      templateid=template_id, serviceofferingid=service_offering_id,
                                      hostid=destination_id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_01_restore_vm_strict_tags_success(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -410,7 +410,7 @@ class TestRestoreVMStrictTags(cloudstackTestCase):
         restored_vm = VirtualMachine.list(self.apiclient, id=vm.id, listall=True)[0]
         self.assertEqual(restored_vm.templateid, self.template_t2.id, "VM was not restored")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_02_restore_vm_strict_tags_failure(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -520,7 +520,7 @@ class TestMigrateVMStrictTags(cloudstackTestCase):
                                      templateid=template_id, serviceofferingid=service_offering_id,
                                      hostid=destination_id)
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_01_migrate_vm_strict_tags_success(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
@@ -536,7 +536,7 @@ class TestMigrateVMStrictTags(cloudstackTestCase):
         migrated_vm = VirtualMachine.list(self.apiclient, id=vm.id, listall=True)[0]
         self.assertEqual(migrated_vm.hostid, self.host_h2.id, "VM was not migratd")
 
-    @attr(tags=["advanced", "advancedns", "ssh", "smoke"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "ssh", "smoke", "sg"], required_hardware="false")
     def test_02_migrate_vm_strict_tags_failure(self):
         self.updateConfiguration("vm.strict.host.tags", "v1,v2")
         self.updateConfiguration("vm.strict.resource.limit.host.tag.check", "true")
