@@ -89,9 +89,21 @@ public class KVMStoragePoolManagerTest {
     }
 
     @Test
-    public void testPoolsAreDeletedWithDetailsAsBefore() {
+    public void testNfsPoolIsDeletedWithoutDetails() {
+        // the delete without the details unmounts the pool
+        when(adaptor.deleteStoragePool(POOL_UUID)).thenReturn(true);
+
+        assertTrue(manager.deleteStoragePool(StoragePoolType.NetworkFilesystem, POOL_UUID, details));
+
+        verify(monitor).removeStoragePool(POOL_UUID);
+        verify(adaptor).deleteStoragePool(POOL_UUID);
+        verify(adaptor, never()).deleteStoragePool(eq(POOL_UUID), any());
+    }
+
+    @Test
+    public void testRbdAndSharedMountPointPoolsAreDeletedWithDetailsAsBefore() {
         // the delete which takes the details does not destroy the libvirt pool, which the VMs may still use, e.g. in maintenance of the pool
-        for (StoragePoolType type : new StoragePoolType[] {StoragePoolType.NetworkFilesystem, StoragePoolType.RBD, StoragePoolType.SharedMountPoint}) {
+        for (StoragePoolType type : new StoragePoolType[] {StoragePoolType.RBD, StoragePoolType.SharedMountPoint}) {
             reset(adaptor, monitor);
             when(adaptor.deleteStoragePool(POOL_UUID, details)).thenReturn(true);
 
