@@ -746,6 +746,8 @@ class TestVolumes(cloudstackTestCase):
                 "Check if the root volume resized appropriately"
             )
 
+        self.resize_root_volume()
+
         # start the vm if it is on xenserver
 
         if hosts[0].hypervisor == "XenServer":
@@ -977,12 +979,36 @@ class TestVolumes(cloudstackTestCase):
             "Check if the data volume resized appropriately"
         )
 
+        self.resize_root_volume()
+
         # start the vm if it is on xenserver
 
         if hosts[0].hypervisor == "XenServer":
             self.virtual_machine.start(self.apiClient)
             time.sleep(30)
         return
+
+    def resize_root_volume(self):
+        """Grow the ROOT volume of the VM by one GB, on any primary storage type."""
+        root = self.wait_for_attributes_and_return_root_vol()
+        new_size_gb = int(math.ceil(float(root.size) / (1024 ** 3))) + 1
+        self.debug("Resize ROOT volume (ID: %s) to %d GB" % (root.id, new_size_gb))
+
+        cmd = resizeVolume.resizeVolumeCmd()
+        cmd.id = root.id
+        cmd.size = new_size_gb
+        self.apiClient.resizeVolume(cmd)
+
+        def root_resized():
+            vols = Volume.list(self.apiClient, id=root.id, listall=True)
+            if isinstance(vols, list) and len(vols) > 0:
+                vol = vols[0]
+                if int(vol.size) == new_size_gb * (1024 ** 3) and vol.state == 'Ready':
+                    return True, vol
+            return False, None
+
+        res, _ = wait_until(5, 36, root_resized)
+        self.assertTrue(res, "Check if the ROOT volume resized appropriately")
 
     def wait_for_attributes_and_return_root_vol(self):
         def checkVolumeResponse():
