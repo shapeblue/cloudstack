@@ -2187,6 +2187,15 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
             throw new CloudRuntimeException("KMS failure while setting up volume encryption: " + e.getMessage(), e);
         }
     }
+    @Override
+    public void setUpVolumeEncryption(long volumeId, DiskOffering diskOffering) {
+        if (diskOffering == null || !diskOffering.getEncrypt()) {
+            return;
+        }
+        VolumeVO volume = _volsDao.findById(volumeId);
+        setPassphraseForVolumeEncryption(volume, getKmsKeyFromVolume(volume), volume.getAccountId());
+    }
+
     private VolumeVO setPassphraseForVolumeEncryption(VolumeVO volume, KMSKeyVO kmsKey, Long callerAccountId) {
         // If volume already has encryption set up, return it
         if (volume.getKmsWrappedKeyId() != null || volume.getPassphraseId() != null) {
