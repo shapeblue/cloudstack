@@ -327,6 +327,9 @@ class TestVnfTemplates(cloudstackTestCase):
         """Test delete VNF template
         """
         self.ensureVnfTemplateExists()
+        # The template may still be downloading when test_04 is not run
+        # (it is not selected with -a tags=sg); wait for it before deleting.
+        self.ensureVnfTemplateDownloaded()
 
         self.vnf_template.delete(self.user_apiclient)
 
