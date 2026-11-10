@@ -107,7 +107,7 @@ class TestRouterServices(cloudstackTestCase):
     def tearDown(self):
         super(TestRouterServices, self).tearDown()
 
-    @attr(tags=["advanced", "basic", "sg", "smoke"], required_hardware="true")
+    @attr(tags=["advanced", "basic", "smoke"], required_hardware="true")
     def test_01_router_internal_basic(self):
         """Test router internal basic zone
         """
