@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `c21efafa2aa` on `4.23.0-ceph` (70 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `a31484402a9` on `4.23.0-ceph` (81 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -93,6 +93,17 @@ Range: `6fd8ddabe73` .. `c21efafa2aa` on `4.23.0-ceph` (70 commits, oldest first
 | 68 | `9c697f2ae73` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: check first that the Python bindings of librados and librbd are installed in the RBD HA scripts | on the PR branch as `bbe5c928997` |
 | 69 | `6098adadf9c` | [#14320](https://github.com/apache/cloudstack/pull/14320) | packaging: suggest, instead of require, the Python bindings of librados and librbd | on the PR branch as `e3d603c3291` |
 | 70 | `c21efafa2aa` | [#11931](https://github.com/apache/cloudstack/pull/11931) | test: address review comments on the Ceph smoke tests | on the PR branch as `9b1c126806d` |
+| 71 | `63c8e61b956` | [#14132](https://github.com/apache/cloudstack/pull/14132) | kvm: delete primary-only RBD snapshots before the volume (PR 14132) | on the PR branch as `f7204210698` |
+| 72 | `bda6e38094c` | [#14320](https://github.com/apache/cloudstack/pull/14320) | KVM HA on Ceph: address review findings | on the PR branch as `fe48966d52b` |
+| 73 | `14fd38f5882` | [#14623](https://github.com/apache/cloudstack/pull/14623) | kvm: refresh the RBD pool when resizing a volume libvirt has not cached (PR 14623) | not my PR; on its branch as `cf319a098e3` |
+| 74 | `3180b613569` | [#14623](https://github.com/apache/cloudstack/pull/14623) | smoke: resize the ROOT volume in the TestVolumes resize tests | test related to 14623; not on the PR branch |
+| 75 | `27adc3ddd09` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: print the libvirt version of two errors as major.minor.release | on the PR branch as `a85fdac8b97` |
+| 76 | `d5f985a794b` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: refuse a live migration into an encrypted RBD volume on libvirt older than 10.1.0 | on the PR branch as `0ab90302c24` |
+| 77 | `3b0fb2522ba` | [#14386](https://github.com/apache/cloudstack/pull/14386) | nas: tell the user why a restore of an Instance from a backup failed | on the PR branch as `546e10db1b9` |
+| 78 | `311fd21c9cc` | [#14386](https://github.com/apache/cloudstack/pull/14386) | nas: check for volume snapshots on RBD before restoring an Instance from a backup | on the PR branch as `947d3794bb5`; its duplicate import is removed by `687cb587fa9` on the same branch |
+| 79 | `8f7f8e2fbdd` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: delete RBD and SharedMountPoint pools with their details again | on the PR branch as `9e50a474668` (adapted to its base) |
+| 80 | `a3d030b3e45` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: allow a RBD heartbeat to be as old as a write which the agent lets take | on the PR branch as `b5a699dc811` |
+| 81 | `a31484402a9` | (none yet) | kvm: let a host which can not tell the state of a host leave it to the others | for a PR to be created later |
 
 ## PRs
 
@@ -109,6 +120,7 @@ Range: `6fd8ddabe73` .. `c21efafa2aa` on `4.23.0-ceph` (70 commits, oldest first
 | [#14402](https://github.com/apache/cloudstack/pull/14402) | utils,kvm: build every Ceph monitor list with RbdUtils | main | weizhouapache |
 | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: live volume migration on Ceph RBD, and between RBD, NFS, SharedMountPoint and local pools | main | weizhouapache |
 | [#14132](https://github.com/apache/cloudstack/pull/14132) | kvm: delete primary-only RBD snapshots before the volume | 4.22 | weizhouapache |
+| [#14623](https://github.com/apache/cloudstack/pull/14623) | kvm: refresh the RBD pool when resizing a volume libvirt has not cached | 4.22 | bhouse-nexthop |
 | [#13877](https://github.com/apache/cloudstack/pull/13877) | backport: Incremental NAS backup support for KVM (#13074) | 4.22 | abh1sar (merged) |
 | [#14188](https://github.com/apache/cloudstack/pull/14188) | kvm: look RBD volumes up through librbd instead of refreshing the whole pool | 4.22 | bhouse-nexthop (merged) |
 | [#13922](https://github.com/apache/cloudstack/pull/13922) | kvm: restore backups into the volume they were taken from | 4.22 | calvix (merged) |
@@ -116,10 +128,12 @@ Range: `6fd8ddabe73` .. `c21efafa2aa` on `4.23.0-ceph` (70 commits, oldest first
 
 ## Notes
 
-- PR [#14132](https://github.com/apache/cloudstack/pull/14132) has no commit in this range.
+- PR [#14132](https://github.com/apache/cloudstack/pull/14132) has commit 71.
 - Commit 50 is owned by [#14402](https://github.com/apache/cloudstack/pull/14402) (RbdUtils); its three copies were pushed to the heads of PRs 14402, 14320 and 14386.
-- PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52 and 55 to 59. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
-- Commits 53, 54, 68 and 69 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320) (Host HA on Ceph).
-- Commits 61, 62 and 64 to 67 belong to PR [#14386](https://github.com/apache/cloudstack/pull/14386) (incremental NAS backup of RBD volumes).
+- PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52, 55 to 59, 75 and 76. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
+- Commits 53, 54, 68, 69, 72, 79 and 80 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320) (Host HA on Ceph).
+- Commits 61, 62, 64 to 67, 77 and 78 belong to PR [#14386](https://github.com/apache/cloudstack/pull/14386) (incremental NAS backup of RBD volumes).
 - Commit 70 holds the review fixes of PR [#11931](https://github.com/apache/cloudstack/pull/11931) (smoke tests on Ceph).
+- Commits 73 and 74 are about PR [#14623](https://github.com/apache/cloudstack/pull/14623) (resizing an RBD volume), which is not mine; commit 74 is a smoke test for it.
+- Commit 81 is for a PR which is not created yet.
 - Commit 51 maps the commits and belongs to no PR. Later commits that only update this file are not listed.
