@@ -118,8 +118,8 @@ class TestVMWareStoragePolicies(cloudstackTestCase):
             "advanced",
             "eip",
             "advancedns",
-            "basic",
-            "sg"],
+            "basic"
+            ],
         required_hardware="true")
     def test_01_import_storage_policies(self):
         """Test VMWare storage policies

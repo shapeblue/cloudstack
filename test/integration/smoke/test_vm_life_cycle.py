@@ -1952,7 +1952,7 @@ class TestVAppsVM(cloudstackTestCase):
                 msg="VM NIC(InstanceID: {}) network mismatch, expected = {}, result = {}".format(nic_network["nic"], nic_network["network"], nic.networkid)
             )
 
-    @attr(tags=["advanced", "advancedns", "smoke", "sg", "dev"], required_hardware="false")
+    @attr(tags=["advanced", "advancedns", "smoke", "dev"], required_hardware="false")
     @skipTestIf("hypervisorNotSupported")
     def test_01_vapps_vm_cycle(self):
         """

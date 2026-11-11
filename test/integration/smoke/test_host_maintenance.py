@@ -298,8 +298,7 @@ class TestHostMaintenance(TestHostMaintenanceBase):
             "advancedns",
             "smoke",
             "basic",
-            "eip",
-            "sg"],
+            "eip"],
         required_hardware="true")
     def test_01_cancel_host_maintenace_with_no_migration_jobs(self):
         """
@@ -351,8 +350,7 @@ class TestHostMaintenance(TestHostMaintenanceBase):
             "advancedns",
             "smoke",
             "basic",
-            "eip",
-            "sg"],
+            "eip"],
         required_hardware="true")
     def test_02_cancel_host_maintenace_with_migration_jobs(self):
         """
@@ -415,8 +413,7 @@ class TestHostMaintenance(TestHostMaintenanceBase):
             "advancedns",
             "smoke",
             "basic",
-            "eip",
-            "sg"],
+            "eip"],
         required_hardware="true")
     def test_03_cancel_host_maintenace_with_migration_jobs_failure(self):
         """
@@ -635,7 +632,7 @@ class TestHostMaintenanceAgents(TestHostMaintenanceBase):
         self.cleanup.append(vm)
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke", "basic", "eip", "sg"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "eip"], required_hardware="true")
     def test_01_cancel_host_maintenance_ssh_enabled_agent_connected(self):
         """
         Test cancel maintenance when: 'kvm.ssh.to.agent' = true, agent state = 'Up'
@@ -660,7 +657,7 @@ class TestHostMaintenanceAgents(TestHostMaintenanceBase):
             self.fail(e)
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["boris", "advancedns", "smoke", "basic", "eip", "sg"], required_hardware="true")
+    @attr(tags=["boris", "advancedns", "smoke", "basic", "eip"], required_hardware="true")
     def test_02_cancel_host_maintenance_ssh_enabled_agent_disconnected(self):
         """
         Test cancel maintenance when: 'kvm.ssh.to.agent' = true, agent state != 'Up'
@@ -696,7 +693,7 @@ class TestHostMaintenanceAgents(TestHostMaintenanceBase):
             self.fail(e)
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke", "basic", "eip", "sg"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "eip"], required_hardware="true")
     def test_03_cancel_host_maintenance_ssh_disabled_agent_connected(self):
         """
         Test cancel maintenance when: 'kvm.ssh.to.agent' = false, agent state = 'Up'
@@ -721,7 +718,7 @@ class TestHostMaintenanceAgents(TestHostMaintenanceBase):
             self.fail(e)
 
     @skipTestIf("hypervisorNotSupported")
-    @attr(tags=["advanced", "advancedns", "smoke", "basic", "eip", "sg"], required_hardware="true")
+    @attr(tags=["advanced", "advancedns", "smoke", "basic", "eip"], required_hardware="true")
     def test_04_cancel_host_maintenance_ssh_disabled_agent_disconnected(self):
         """
         Test cancel maintenance when: 'kvm.ssh.to.agent' = false, agent state != 'Up'
