@@ -293,7 +293,7 @@ class TestDirectDownloadTemplates(cloudstackTestCase):
         return vm
 
     @skipTestIf("storageKvmNotAvailable")
-    @attr(tags=["advanced", "basic", "eip", "advancedns", "sg"], required_hardware="false")
+    @attr(tags=["advanced", "basic", "eip", "advancedns"], required_hardware="false")
     def test_01_deploy_vm_from_direct_download_template(self):
         """Test Deploy VM from direct download template on NFS, RBD, local storage and shared mount point
         """
