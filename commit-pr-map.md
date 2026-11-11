@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `a31484402a9` on `4.23.0-ceph` (81 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `923d4347a3f` on `4.23.0-ceph` (84 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -64,7 +64,7 @@ Range: `6fd8ddabe73` .. `a31484402a9` on `4.23.0-ceph` (81 commits, oldest first
 | 39 | `1635bf004e0` | [#13877](https://github.com/apache/cloudstack/pull/13877) | kvm: test the NAS take-backup arguments with StringUtils and CollectionUtils | per the author: follow-up to the incremental NAS backup code from abh1sar's 4.22 backport (no commit title matches) |
 | 40 | `a9505139484` | [#14386](https://github.com/apache/cloudstack/pull/14386) | nasbackup: carry the backup method separately from the mode |  |
 | 41 | `c521e4c7c35` | [#14402](https://github.com/apache/cloudstack/pull/14402) | utils: add RbdUtils for the Ceph monitors of an RBD pool | owner is 14402; also stacked in 14320, 14386 and 14426 (as `efe1db7cd1f`) |
-| 42 | `3472c0cece7` | [#14402](https://github.com/apache/cloudstack/pull/14402) | kvm: build every Ceph monitor list with RbdUtils |  |
+| 42 | `3472c0cece7` | [#14402](https://github.com/apache/cloudstack/pull/14402) | kvm: build every Ceph monitor list with RbdUtils | owner is 14402; also on the branch of [#14386](https://github.com/apache/cloudstack/pull/14386) as `0ddd97b01ba`, so that the IPv6 monitor test of `7473aa17f97` passes there |
 | 43 | `a4fc4945c67` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: build the storage pool's Ceph monitors with RbdUtils |  |
 | 44 | `91ee2e4cc71` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: tell a missing object apart from an unreachable cluster in the RBD HA scripts |  |
 | 45 | `2dab8b2d86b` | [#14386](https://github.com/apache/cloudstack/pull/14386) | Add ceph-common as dependencies |  |
@@ -104,6 +104,9 @@ Range: `6fd8ddabe73` .. `a31484402a9` on `4.23.0-ceph` (81 commits, oldest first
 | 79 | `8f7f8e2fbdd` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: delete RBD and SharedMountPoint pools with their details again | on the PR branch as `9e50a474668` (adapted to its base) |
 | 80 | `a3d030b3e45` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: allow a RBD heartbeat to be as old as a write which the agent lets take | on the PR branch as `b5a699dc811` |
 | 81 | `a31484402a9` | (none yet) | kvm: let a host which can not tell the state of a host leave it to the others | for a PR to be created later |
+| 82 | `8a07911b181` | [#14667](https://github.com/apache/cloudstack/pull/14667) | server: encrypt a volume created on a storage pool with an encrypted disk offering (PR 14667) | PR 14667 is on the 4.22 branch `4.22-encrypt-volume-on-pool`; this is its copy on `4.23.0-ceph` |
+| 83 | `db039802d0f` | [#14386](https://github.com/apache/cloudstack/pull/14386) | nas: address the second review of the RBD incremental backups | on the PR branch as `7473aa17f97`; its conflicts with the freeze and thaw helpers of that branch (`qemu_agent_command`, `thaw_guest`) are resolved by keeping them and adding the guest state file, trap, lock and timeouts on top |
+| 84 | `923d4347a3f` | [#14386](https://github.com/apache/cloudstack/pull/14386) | test: release the public IP of each Instance the NAS backup tests create | on the PR branch as `3fbf52603e3`; also adds `release_publicIP()` to `tools/marvin/marvin/lib/common.py` |
 
 ## PRs
 
@@ -119,6 +122,7 @@ Range: `6fd8ddabe73` .. `a31484402a9` on `4.23.0-ceph` (81 commits, oldest first
 | [#14393](https://github.com/apache/cloudstack/pull/14393) | kvm: remove the partial RBD image when a template copy fails | 4.22 | weizhouapache |
 | [#14402](https://github.com/apache/cloudstack/pull/14402) | utils,kvm: build every Ceph monitor list with RbdUtils | main | weizhouapache |
 | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: live volume migration on Ceph RBD, and between RBD, NFS, SharedMountPoint and local pools | main | weizhouapache |
+| [#14667](https://github.com/apache/cloudstack/pull/14667) | server: encrypt a volume created on a storage pool with an encrypted disk offering | 4.22 | weizhouapache |
 | [#14132](https://github.com/apache/cloudstack/pull/14132) | kvm: delete primary-only RBD snapshots before the volume | 4.22 | weizhouapache |
 | [#14623](https://github.com/apache/cloudstack/pull/14623) | kvm: refresh the RBD pool when resizing a volume libvirt has not cached | 4.22 | bhouse-nexthop |
 | [#13877](https://github.com/apache/cloudstack/pull/13877) | backport: Incremental NAS backup support for KVM (#13074) | 4.22 | abh1sar (merged) |
@@ -132,8 +136,10 @@ Range: `6fd8ddabe73` .. `a31484402a9` on `4.23.0-ceph` (81 commits, oldest first
 - Commit 50 is owned by [#14402](https://github.com/apache/cloudstack/pull/14402) (RbdUtils); its three copies were pushed to the heads of PRs 14402, 14320 and 14386.
 - PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52, 55 to 59, 75 and 76. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
 - Commits 53, 54, 68, 69, 72, 79 and 80 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320) (Host HA on Ceph).
-- Commits 61, 62, 64 to 67, 77 and 78 belong to PR [#14386](https://github.com/apache/cloudstack/pull/14386) (incremental NAS backup of RBD volumes).
+- Commits 61, 62, 64 to 67, 77, 78, 83 and 84 belong to PR [#14386](https://github.com/apache/cloudstack/pull/14386) (incremental NAS backup of RBD volumes).
 - Commit 70 holds the review fixes of PR [#11931](https://github.com/apache/cloudstack/pull/11931) (smoke tests on Ceph).
 - Commits 73 and 74 are about PR [#14623](https://github.com/apache/cloudstack/pull/14623) (resizing an RBD volume), which is not mine; commit 74 is a smoke test for it.
+- The head of the branch of PR [#14386](https://github.com/apache/cloudstack/pull/14386) is `7473aa17f97`. The last three commits on it are `3fbf52603e3` (commit 84), `0ddd97b01ba` (commit 42, the change of #14402 which its IPv6 monitor test needs) and `7473aa17f97` (commit 83), pushed to `weizhouapache/24-incremental-backup-rbd-volume-on-nas`.
 - Commit 81 is for a PR which is not created yet.
+- Commit 82 belongs to PR [#14667](https://github.com/apache/cloudstack/pull/14667), whose base is 4.22.
 - Commit 51 maps the commits and belongs to no PR. Later commits that only update this file are not listed.
