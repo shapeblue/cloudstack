@@ -27,7 +27,8 @@ from marvin.cloudstackAPI import (recoverVirtualMachine,
                                   migrateVirtualMachine,
                                   migrateVirtualMachineWithVolume,
                                   listNics,
-                                  listVolumes)
+                                  listVolumes,
+                                  listSecurityGroups)
 from marvin.lib.utils import *
 
 from marvin.lib.base import (Account,
@@ -42,7 +43,8 @@ from marvin.lib.base import (Account,
                              Volume,
                              DiskOffering,
                              NetworkOffering,
-                             Network)
+                             Network,
+                             SecurityGroup)
 from marvin.lib.common import (get_domain,
                                get_zone,
                                get_suitable_test_template,
@@ -760,6 +762,25 @@ class TestVMLifeCycle(cloudstackTestCase):
         cmd.id = iso.id
         cmd.virtualmachineid = self.virtual_machine.id
         self.apiclient.attachIso(cmd)
+
+        # On an SG zone the VM sits on a shared network and gets the
+        # account's default security group, which allows no inbound SSH.
+        # Open port 22 on that group before connecting.
+        sg_cmd = listSecurityGroups.listSecurityGroupsCmd()
+        sg_cmd.account = self.account.name
+        sg_cmd.domainid = self.account.domainid
+        sg_cmd.securitygroupname = "default"
+        default_sgs = self.apiclient.listSecurityGroups(sg_cmd)
+        if default_sgs:
+            try:
+                SecurityGroup({"id": default_sgs[0].id}).authorize(
+                    self.apiclient,
+                    self.services["ingress_rule"],
+                    account=self.account.name,
+                    domainid=self.account.domainid
+                )
+            except Exception as e:
+                self.debug("SSH ingress rule not added (may already exist): %s" % e)
 
         try:
             ssh_client = self.virtual_machine.get_ssh_client()
