@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `8b74e7dd7bc` on `4.23.0-ceph` (87 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `1b49b8937f3` on `4.23.0-ceph` (88 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -110,6 +110,7 @@ Range: `6fd8ddabe73` .. `8b74e7dd7bc` on `4.23.0-ceph` (87 commits, oldest first
 | 85 | `0226587e764` | [#13977](https://github.com/apache/cloudstack/pull/13977) | vmware-base: fix template copy from secondary to primary (#13977) | squash of the three commits of the PR (`729906f5fb1`, `6e75c5f3184`, `0cb82c3b551` on its branch); the PR is merged, base 4.20 |
 | 86 | `260f3ab798f` | [#14693](https://github.com/apache/cloudstack/pull/14693) | kvm: resolve RBD disks of unmanaged instances without a mount lookup (PR 14693) | on the PR branch as `1d34b1ff148` (same patch) |
 | 87 | `8b74e7dd7bc` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: do not copy a qcow2 file into a RAW destination | on the PR branch as `7d2f283302e`; RBD to legacy CLVM migration left a qcow2 file in the LV |
+| 88 | `1b49b8937f3` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: read the qcow2 copy of a volume on secondary storage as qcow2 | on the PR branch as `3432be9b94a`; follow-up of commit 87 |
 
 ## PRs
 
@@ -139,7 +140,7 @@ Range: `6fd8ddabe73` .. `8b74e7dd7bc` on `4.23.0-ceph` (87 commits, oldest first
 
 - PR [#14132](https://github.com/apache/cloudstack/pull/14132) has commit 71.
 - Commit 50 is owned by [#14402](https://github.com/apache/cloudstack/pull/14402) (RbdUtils); its three copies were pushed to the heads of PRs 14402, 14320 and 14386.
-- PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52, 55 to 59, 75, 76 and 87. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
+- PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52, 55 to 59, 75, 76, 87 and 88. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
 - Commits 53, 54, 68, 69, 72, 79 and 80 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320) (Host HA on Ceph).
 - Commits 61, 62, 64 to 67, 77, 78, 83 and 84 belong to PR [#14386](https://github.com/apache/cloudstack/pull/14386) (incremental NAS backup of RBD volumes).
 - Commit 70 holds the review fixes of PR [#11931](https://github.com/apache/cloudstack/pull/11931) (smoke tests on Ceph).
