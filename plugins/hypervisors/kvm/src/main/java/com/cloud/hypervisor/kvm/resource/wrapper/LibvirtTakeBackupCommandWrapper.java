@@ -19,7 +19,6 @@
 
 package com.cloud.hypervisor.kvm.resource.wrapper;
 
-import com.amazonaws.util.CollectionUtils;
 import com.cloud.agent.api.Answer;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
 import com.cloud.hypervisor.kvm.storage.KVMPhysicalDisk;
@@ -33,6 +32,9 @@ import com.cloud.utils.script.Script;
 import org.apache.cloudstack.backup.BackupAnswer;
 import org.apache.cloudstack.backup.TakeBackupCommand;
 import org.apache.cloudstack.storage.to.PrimaryDataStoreTO;
+import org.apache.cloudstack.utils.rbd.RbdBackupGuestManager;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +44,8 @@ import java.util.Objects;
 @ResourceWrapper(handles = TakeBackupCommand.class)
 public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCommand, Answer, LibvirtComputingResource> {
     private static final Integer EXIT_CLEANUP_FAILED = 20;
+    // nasbackup.sh found another backup of the VM running: that one may hold the guest, so leave it alone.
+    private static final Integer EXIT_BACKUP_IN_PROGRESS = 21;
     // nasbackup.sh prints this on stdout when it could not proceed as an incremental and
     // completed a full backup instead; the orchestrator then records the backup as a full.
     private static final String INCREMENTAL_FALLBACK_MARKER = "INCREMENTAL_FALLBACK=true";
@@ -51,6 +55,13 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
     // Incremental feature disabled: plain full backup with no QEMU bitmap/checkpoint and no
     // chain metadata. Matches nasbackup.sh's "legacy-full" mode (make_checkpoint=0).
     private static final String MODE_LEGACY_FULL = "legacy-full";
+
+    // Backup methods, orthogonal to the mode. qcow2 is the push-mode path with QEMU dirty bitmaps,
+    // also assumed when the management server sends none. rbd is the Ceph-native path: it anchors
+    // each cycle on an `rbd snap` and exports the delta with `rbd export-diff`, so bitmapNew and
+    // bitmapParent carry RBD snapshot names rather than QEMU bitmap names, and nothing is rebased.
+    private static final String METHOD_QCOW2 = "qcow2";
+    private static final String METHOD_RBD = "rbd";
 
     @Override
     public Answer execute(TakeBackupCommand command, LibvirtComputingResource libvirtComputingResource) {
@@ -92,7 +103,10 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
 
         if (result.first() != 0) {
             logger.debug("Failed to take VM backup: " + result.second());
-            BackupAnswer answer = new BackupAnswer(command, false, result.second().trim());
+            if (METHOD_RBD.equals(command.getMethod()) && !EXIT_BACKUP_IN_PROGRESS.equals(result.first())) {
+                releaseGuestOfFailedRbdBackup(vmName);
+            }
+            BackupAnswer answer = new BackupAnswer(command, false, StringUtils.trimToEmpty(result.second()));
             if (EXIT_CLEANUP_FAILED.equals(result.first())) {
                 logger.debug("Backup cleanup failed");
                 answer.setNeedsCleanup(true);
@@ -104,7 +118,7 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
         // parent checkpoint can't be re-registered) and signals it with INCREMENTAL_FALLBACK
         // on stdout. Detect it, then strip the marker line before parsing the backup size.
         String rawStdout = result.second();
-        boolean incrementalFallback = rawStdout.contains(INCREMENTAL_FALLBACK_MARKER);
+        boolean incrementalFallback = StringUtils.contains(rawStdout, INCREMENTAL_FALLBACK_MARKER);
         String stdout = stripMarkerLines(rawStdout).trim();
         long backupSize = parseBackupSize(stdout, diskPaths);
 
@@ -117,9 +131,23 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
         return answer;
     }
 
+    protected RbdBackupGuestManager guestManager() {
+        return new RbdBackupGuestManager();
+    }
+
+    /**
+     * The RBD method freezes or pauses the guest while it takes its snapshots. A script which is
+     * killed because the backup timed out, or which fails at the wrong moment, cannot be relied on to
+     * undo that: SIGKILL runs no trap. Release the guest here, but only if the script says in its state
+     * file that it was the one holding it, so a VM which an operator paused is left alone.
+     */
+    private void releaseGuestOfFailedRbdBackup(String vmName) {
+        guestManager().releaseGuest(vmName);
+    }
+
     /** Remove nasbackup.sh's stdout signalling marker lines so they don't pollute size parsing. */
     private String stripMarkerLines(String stdout) {
-        if (stdout == null || stdout.isEmpty()) {
+        if (StringUtils.isBlank(stdout)) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
@@ -151,21 +179,25 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
                 "-m", Objects.nonNull(mountOptions) ? mountOptions : "",
                 "-p", backupPath,
                 "-q", command.getQuiesce() != null && command.getQuiesce() ? "true" : "false",
-                "-d", diskPaths.isEmpty() ? "" : String.join(",", diskPaths)
+                "-d", CollectionUtils.isEmpty(diskPaths) ? "" : String.join(",", diskPaths)
         ));
-        if (mode != null && !mode.isEmpty()) {
+        if (StringUtils.isNotBlank(mode)) {
             argv.add("-M");
             argv.add(mode);
         }
-        if (bitmapNew != null && !bitmapNew.isEmpty()) {
+        if (StringUtils.isNotBlank(command.getMethod())) {
+            argv.add("--method");
+            argv.add(command.getMethod());
+        }
+        if (StringUtils.isNotBlank(bitmapNew)) {
             argv.add("--bitmap-new");
             argv.add(bitmapNew);
         }
-        if (bitmapParent != null && !bitmapParent.isEmpty()) {
+        if (StringUtils.isNotBlank(bitmapParent)) {
             argv.add("--bitmap-parent");
             argv.add(bitmapParent);
         }
-        if (parentPaths != null && !parentPaths.isEmpty()) {
+        if (CollectionUtils.isNotEmpty(parentPaths)) {
             argv.add("--parent-paths");
             argv.add(String.join(",", parentPaths));
         }
@@ -181,48 +213,86 @@ public class LibvirtTakeBackupCommandWrapper extends CommandWrapper<TakeBackupCo
      */
     private String validateBackupArgs(TakeBackupCommand command) {
         String mode = command.getMode();
-        if (mode == null || mode.isEmpty()) {
-            return null; // legacy full-only — no extra args expected
+        String method = StringUtils.defaultIfBlank(command.getMethod(), METHOD_QCOW2);
+        if (METHOD_RBD.equals(method)) {
+            return validateRbdBackupArgs(command, mode);
+        }
+        if (!METHOD_QCOW2.equals(method)) {
+            return "Unknown backup method: " + method;
+        }
+        if (StringUtils.isBlank(mode)) {
+            return null; // legacy full-only, no extra args expected
         }
         if (MODE_INCREMENTAL.equals(mode)) {
-            if (command.getBitmapNew() == null || command.getBitmapNew().isEmpty()) {
+            if (StringUtils.isBlank(command.getBitmapNew())) {
                 return "incremental mode requires bitmapNew";
             }
-            if (command.getBitmapParent() == null || command.getBitmapParent().isEmpty()) {
+            if (StringUtils.isBlank(command.getBitmapParent())) {
                 return "incremental mode requires bitmapParent";
             }
-            if (command.getParentPaths() == null || command.getParentPaths().isEmpty()) {
+            if (CollectionUtils.isEmpty(command.getParentPaths())) {
                 return "incremental mode requires parentPaths";
             }
             return null;
         }
         if (MODE_FULL.equals(mode)) {
-            if (command.getBitmapNew() == null || command.getBitmapNew().isEmpty()) {
+            if (StringUtils.isBlank(command.getBitmapNew())) {
                 return "full mode requires bitmapNew (the bitmap to create for the next incremental)";
             }
             return null;
         }
         if (MODE_LEGACY_FULL.equals(mode)) {
-            return null; // feature-off full backup — no bitmap or chain args expected
+            return null; // feature-off full backup, no bitmap or chain args expected
         }
         return "Unknown backup mode: " + mode;
+    }
+
+    /**
+     * An RBD chain anchors each cycle on an {@code rbd snap} whose name travels in bitmapNew, and
+     * an incremental diffs it against the previous anchor in bitmapParent. No parent file paths:
+     * the diff stream is replayed on restore rather than rebased onto its parent.
+     */
+    private String validateRbdBackupArgs(TakeBackupCommand command, String mode) {
+        if (!MODE_FULL.equals(mode) && !MODE_INCREMENTAL.equals(mode)) {
+            return "Unknown backup mode for the rbd method: " + mode;
+        }
+        if (command.getBitmapNew() == null || command.getBitmapNew().isEmpty()) {
+            return mode + " mode requires bitmapNew (the RBD snapshot to create as the chain anchor)";
+        }
+        if (MODE_INCREMENTAL.equals(mode)
+                && (command.getBitmapParent() == null || command.getBitmapParent().isEmpty())) {
+            return "incremental mode requires bitmapParent (the RBD snapshot to diff against)";
+        }
+        if (command.getVolumePaths() == null || command.getVolumePaths().isEmpty()) {
+            return mode + " mode requires the VM's volume paths";
+        }
+        return null;
     }
 
     /**
      * Sum the per-disk size lines emitted by nasbackup.sh. Single-volume mode emits one
      * line containing just the byte count; multi-volume mode emits one line per disk
      * whose first whitespace-separated token is the byte count.
+     *
+     * <p>Lines that do not start with a number are skipped rather than aborting the parse: the
+     * script's stdout also carries whatever the mount produced, and losing an otherwise complete
+     * backup over a stray warning line would be worse than reporting a size of 0.</p>
      */
     private long parseBackupSize(String stdout, List<String> diskPaths) {
         long backupSize = 0L;
-        if (CollectionUtils.isNullOrEmpty(diskPaths)) {
+        if (CollectionUtils.isEmpty(diskPaths)) {
             List<String> outputLines = Arrays.asList(stdout.split("\n"));
             if (!outputLines.isEmpty()) {
                 backupSize = Long.parseLong(outputLines.get(outputLines.size() - 1).trim());
             }
         } else {
             for (String line : stdout.split("\n")) {
-                backupSize = backupSize + Long.parseLong(line.split(" ")[0].trim());
+                String sizeToken = line.trim().split("\\s+")[0];
+                if (!sizeToken.matches("\\d+")) {
+                    logger.debug("Ignoring non-size line in nasbackup.sh output: {}", line);
+                    continue;
+                }
+                backupSize = backupSize + Long.parseLong(sizeToken);
             }
         }
         return backupSize;

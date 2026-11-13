@@ -131,7 +131,14 @@ public class KVMHostActivityChecker extends AdapterBase implements ActivityCheck
             Answer answer = agentMgr.easySend(host.getId(), cmd);
             if (answer != null) {
                 if (answer.getResult()) {
-                    hostStatus = ((CheckOnHostAnswer)answer).isAlive() ? Status.Up : Status.Down;
+                    CheckOnHostAnswer checkAnswer = (CheckOnHostAnswer)answer;
+                    if (checkAnswer.isDetermined()) {
+                        hostStatus = checkAnswer.isAlive() ? Status.Up : Status.Down;
+                    } else {
+                        // it answered, but it could not tell whether its heart is beating (e.g. it monitors no storage pool)
+                        logger.debug("{} could not tell its status, details: {}.", host.toString(), answer.getDetails());
+                        hostStatus = Status.Up;
+                    }
                 } else {
                     logger.debug("{} is not active according to itself, details: {}.", host.toString(), answer.getDetails());
                     hostStatus = Status.Down;
@@ -164,7 +171,10 @@ public class KVMHostActivityChecker extends AdapterBase implements ActivityCheck
                 logger.debug("Investigating {} via neighboring {}.", host.toString(), neighbor.toString());
                 Answer answer = agentMgr.easySend(neighbor.getId(), cmd);
                 if (answer != null) {
-                    if (answer.getResult()) {
+                    if (answer.getResult() && !((CheckOnHostAnswer)answer).isDetermined()) {
+                        // e.g. the neighbour monitors no storage pool: another neighbour may know
+                        logger.debug("Neighboring {} could not tell the status of the investigated {}, details: {}.", neighbor.toString(), host.toString(), answer.getDetails());
+                    } else if (answer.getResult()) {
                         hostStatusFromNeighbour = ((CheckOnHostAnswer)answer).isAlive() ? Status.Up : Status.Down;
                         logger.debug("Neighboring {} returned status [{}] for the investigated {}.", neighbor.toString(), hostStatusFromNeighbour, host.toString());
                         if (hostStatusFromNeighbour == Status.Up) {

@@ -109,6 +109,11 @@ public interface VolumeOrchestrationService {
 
     StoragePool findChildDataStoreInDataStoreCluster(DataCenter dc, Pod pod, Long clusterId, Long hostId, VirtualMachine vm, Long datastoreClusterId);
 
+    /**
+     * Sets up the encryption of a volume if its disk offering is encrypted and the volume has none yet.
+     */
+    void setUpVolumeEncryption(long volumeId, DiskOffering diskOffering);
+
     VolumeInfo createVolumeFromSnapshot(Volume volume, Snapshot snapshot, UserVm vm) throws StorageUnavailableException;
 
     Volume migrateVolume(Volume volume, StoragePool destPool) throws StorageUnavailableException;
@@ -183,10 +188,12 @@ public interface VolumeOrchestrationService {
      */
     DiskProfile importVolume(Type type, String name, DiskOffering offering, Long sizeInBytes, Long minIops, Long maxIops,
                              Long zoneId, HypervisorType hypervisorType, VirtualMachine vm, VirtualMachineTemplate template,
-                             Account owner, Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo);
+                             Account owner, Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo,
+                             Storage.ImageFormat format);
 
     DiskProfile updateImportedVolume(Type type, DiskOffering offering, VirtualMachine vm, VirtualMachineTemplate template,
-                                     Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo, DiskProfile diskProfile);
+                                     Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo, DiskProfile diskProfile,
+                                     Storage.ImageFormat format);
 
     /**
      * Unmanage VM volumes

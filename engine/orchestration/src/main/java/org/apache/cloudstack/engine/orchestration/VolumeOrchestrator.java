@@ -2187,6 +2187,15 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
             throw new CloudRuntimeException("KMS failure while setting up volume encryption: " + e.getMessage(), e);
         }
     }
+    @Override
+    public void setUpVolumeEncryption(long volumeId, DiskOffering diskOffering) {
+        if (diskOffering == null || !diskOffering.getEncrypt()) {
+            return;
+        }
+        VolumeVO volume = _volsDao.findById(volumeId);
+        setPassphraseForVolumeEncryption(volume, getKmsKeyFromVolume(volume), volume.getAccountId());
+    }
+
     private VolumeVO setPassphraseForVolumeEncryption(VolumeVO volume, KMSKeyVO kmsKey, Long callerAccountId) {
         // If volume already has encryption set up, return it
         if (volume.getKmsWrappedKeyId() != null || volume.getPassphraseId() != null) {
@@ -2626,7 +2635,8 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
     @Override
     public DiskProfile importVolume(Type type, String name, DiskOffering offering, Long sizeInBytes, Long minIops, Long maxIops,
                                     Long zoneId, HypervisorType hypervisorType, VirtualMachine vm, VirtualMachineTemplate template, Account owner,
-                                    Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo) {
+                                    Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo,
+                                    ImageFormat format) {
         if (sizeInBytes == null) {
             sizeInBytes = offering.getDiskSize();
         }
@@ -2665,7 +2675,9 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
             vol.setDisplayVolume(userVm.isDisplayVm());
         }
 
-        vol.setFormat(getSupportedImageFormatForCluster(hypervisorType));
+        // The format the hypervisor actually reported for the existing image wins; pools such as RBD
+        // hold raw images even though QCOW2 is the cluster default for KVM.
+        vol.setFormat(format != null ? format : getSupportedImageFormatForCluster(hypervisorType));
         vol.setPoolId(poolId);
         vol.setPoolType(poolType);
         vol.setPath(path);
@@ -2677,7 +2689,8 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
 
     @Override
     public DiskProfile updateImportedVolume(Type type, DiskOffering offering, VirtualMachine vm, VirtualMachineTemplate template,
-                                    Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo, DiskProfile diskProfile) {
+                                    Long deviceId, Long poolId, Storage.StoragePoolType poolType, String path, String chainInfo, DiskProfile diskProfile,
+                                    ImageFormat format) {
 
         VolumeVO vol = _volsDao.findById(diskProfile.getVolumeId());
         if (vm != null) {
@@ -2709,7 +2722,9 @@ public class VolumeOrchestrator extends ManagerBase implements VolumeOrchestrati
             vol.setDisplayVolume(userVm.isDisplayVm());
         }
 
-        vol.setFormat(getSupportedImageFormatForCluster(vm.getHypervisorType()));
+        // The format the hypervisor actually reported for the existing image wins; pools such as RBD
+        // hold raw images even though QCOW2 is the cluster default for KVM.
+        vol.setFormat(format != null ? format : getSupportedImageFormatForCluster(vm.getHypervisorType()));
         vol.setPoolId(poolId);
         vol.setPoolType(poolType);
         vol.setPath(path);
