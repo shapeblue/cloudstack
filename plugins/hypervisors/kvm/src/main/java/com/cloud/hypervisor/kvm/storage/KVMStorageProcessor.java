@@ -3393,6 +3393,12 @@ public class KVMStorageProcessor implements StorageProcessor {
         return new DirectDownloadAnswer(true, template.getSize(), template.getName());
     }
 
+    /** CLVM and CLVM_NG volumes are named after the logical volume, without a file extension. */
+    protected String generateVolumeName(StoragePoolType poolType, ImageFormat format) {
+        String volumeName = UUID.randomUUID().toString();
+        return ClvmPoolManager.isClvmPoolType(poolType) ? volumeName : volumeName + "." + format.getFileExtension();
+    }
+
     @Override
     public Answer copyVolumeFromPrimaryToPrimary(CopyCommand cmd) {
         final DataTO srcData = cmd.getSrcTO();
@@ -3446,8 +3452,7 @@ public class KVMStorageProcessor implements StorageProcessor {
             } else {
                 PhysicalDiskFormat destPoolDefaultFormat = destPool.getDefaultFormat();
                 destFormat = getFormat(destPoolDefaultFormat);
-                final String volumeName = UUID.randomUUID().toString();
-                destVolumeName = volumeName + "." + destFormat.getFileExtension();
+                destVolumeName = generateVolumeName(destPrimaryStore.getPoolType(), destFormat);
 
                 // Update path in the command for reconciliation
                 if (StringUtils.isBlank(destVolumePath)) {
