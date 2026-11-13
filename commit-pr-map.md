@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `1b49b8937f3` on `4.23.0-ceph` (88 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `5ec0fe3e628` on `4.23.0-ceph` (96 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -111,6 +111,14 @@ Range: `6fd8ddabe73` .. `1b49b8937f3` on `4.23.0-ceph` (88 commits, oldest first
 | 86 | `260f3ab798f` | [#14693](https://github.com/apache/cloudstack/pull/14693) | kvm: resolve RBD disks of unmanaged instances without a mount lookup (PR 14693) | on the PR branch as `1d34b1ff148` (same patch) |
 | 87 | `8b74e7dd7bc` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: do not copy a qcow2 file into a RAW destination | on the PR branch as `7d2f283302e`; RBD to legacy CLVM migration left a qcow2 file in the LV |
 | 88 | `1b49b8937f3` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: read the qcow2 copy of a volume on secondary storage as qcow2 | on the PR branch as `3432be9b94a`; follow-up of commit 87 |
+| 89 | `c56f388bbe8` | [#14426](https://github.com/apache/cloudstack/pull/14426) | smoke: skip the encrypted RBD hot-plug tests on hosts with libvirt older than 10.1.0 | on the PR branch as `adfd56b1824`; libvirt older than 10.1.0 cannot attach an encrypted RBD volume to, or live migrate it for, a running Instance |
+| 90 | `03b2e59437e` | [#14426](https://github.com/apache/cloudstack/pull/14426) | Add CLVM pool types to the bypass sec store list | on the PR branch as `7078487815a`; authored by Pearl1594; the volume is copied from primary to primary, an offline migration NFS, CLVM_NG, RBD, CLVM_NG, NFS did not touch secondary storage |
+| 91 | `3bb6bf5f72e` | [#14426](https://github.com/apache/cloudstack/pull/14426) | Fix NPE when cleaning up dest volumes of a failed live migration with volumes | on the PR branch as `2017b007f76`; handlePostMigration already expunged the destination volumes, the finally block then hit a NullPointerException in the volume object |
+| 92 | `b3c94b2cc6c` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: live migrate Instances with their volumes between RBD, NFS, SharedMountPoint and local pools | on the PR branch as `7e832c49ac4`; moves `StoragePoolInformation` to the api module |
+| 93 | `76d7d42824f` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: live migrate Instances with their volumes from RBD to CLVM and CLVM_NG pools | on the PR branch as `f46e8d8fb1c`; follow-up of commit 92 |
+| 94 | `0e1d594884d` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: monitor a storage pool for HA again if it is not deleted | on the PR branch as `392ce052755` (adapted to its base: `removeStoragePool` here, `unregisterStoragePool` there); review of the PR by Copilot |
+| 95 | `29e65611716` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: give the Ceph key to the HA scripts only with its user | on the PR branch as `4398ac1b970`; review of the PR by Copilot |
+| 96 | `5ec0fe3e628` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: report why the Ceph cluster could not be used by the RBD HA scripts | on the PR branch as `183c5a94c96`; review of the PR by Copilot |
 
 ## PRs
 
@@ -140,8 +148,8 @@ Range: `6fd8ddabe73` .. `1b49b8937f3` on `4.23.0-ceph` (88 commits, oldest first
 
 - PR [#14132](https://github.com/apache/cloudstack/pull/14132) has commit 71.
 - Commit 50 is owned by [#14402](https://github.com/apache/cloudstack/pull/14402) (RbdUtils); its three copies were pushed to the heads of PRs 14402, 14320 and 14386.
-- PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52, 55 to 59, 75, 76, 87 and 88. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
-- Commits 53, 54, 68, 69, 72, 79 and 80 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320) (Host HA on Ceph).
+- PR [#14426](https://github.com/apache/cloudstack/pull/14426) (live volume migration) has commits 19, 20, 52, 55 to 59, 75, 76 and 87 to 93. They are on its branch `24-ceph-volumes-migrations`, which also carries `efe1db7cd1f` (RbdUtils, row 41).
+- Commits 53, 54, 68, 69, 72, 79, 80 and 94 to 96 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320) (Host HA on Ceph). The head of its branch is `183c5a94c96`: the last three commits on it are `392ce052755` (commit 94), `4398ac1b970` (commit 95) and `183c5a94c96` (commit 96), pushed to `weizhouapache/24-kvm-ha-on-ceph`. Commit 81 is not on it.
 - Commits 61, 62, 64 to 67, 77, 78, 83 and 84 belong to PR [#14386](https://github.com/apache/cloudstack/pull/14386) (incremental NAS backup of RBD volumes).
 - Commit 70 holds the review fixes of PR [#11931](https://github.com/apache/cloudstack/pull/11931) (smoke tests on Ceph).
 - Commits 73 and 74 are about PR [#14623](https://github.com/apache/cloudstack/pull/14623) (resizing an RBD volume), which is not mine; commit 74 is a smoke test for it.
