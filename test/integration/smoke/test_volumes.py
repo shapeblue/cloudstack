@@ -17,6 +17,7 @@
 """ BVT tests for Volumes
 """
 import os
+import re
 import tempfile
 import time
 import math
@@ -1389,6 +1390,7 @@ class TestVolumeEncryption(cloudstackTestCase):
         # 3. Create Data Volume using the disk offering with encrypt true
         # 4. Verify Data Volume
         """
+        self.skip_if_rbd_encrypted_hotplug_unsupported()
 
         virtual_machine = VirtualMachine.create(
             self.apiclient,
@@ -1527,6 +1529,7 @@ class TestVolumeEncryption(cloudstackTestCase):
         # Resize is folded into this test (reusing its VM and volume) rather than a separate
         # test, since spinning up another VM just for resize coverage would cost a lot more time.
         """
+        self.skip_if_rbd_encrypted_hotplug_unsupported()
 
         virtual_machine = VirtualMachine.create(
             self.apiclient,
@@ -1727,6 +1730,7 @@ class TestVolumeEncryption(cloudstackTestCase):
         # 5. After every migration, verify the volumes are on the expected pool, still encrypted
         #    (natively by librbd), and that the guest reads back the data it wrote
         """
+        self.skip_if_rbd_encrypted_hotplug_unsupported()
 
         if self.storage_pool_type != "RBD":
             self.skipTest("Skipping test as it requires RBD storage pools")
@@ -1848,6 +1852,21 @@ class TestVolumeEncryption(cloudstackTestCase):
             # reserved out of the volume's own size, so the guest sees size - header.
             vol_sz = vol_sz - (16 << 20)
         return str(vol_sz)
+
+    def skip_if_rbd_encrypted_hotplug_unsupported(self):
+        """libvirt < 10.1.0 cannot hot-plug an encrypted RBD volume into a running VM
+        (the agent refuses it), so the tests that do so are skipped on such hosts"""
+        if self.storage_pool_type != "RBD":
+            return
+        hosts = Host.list(self.apiclient, zoneid=self.zone.id, type='Routing', hypervisor='KVM', state='Up') or []
+        for host in hosts:
+            ssh_client = SshClient(host=host.ipaddress, port=22, user=self.hostConfig['username'],
+                                   passwd=self.hostConfig['password'])
+            out = ssh_client.execute("virsh version | awk '/Using library/{print $NF}'")
+            version = [int(v) for v in re.findall(r'\d+', (out[-1] if out else "0.0.0"))[:3]]
+            if version < [10, 1, 0]:
+                self.skipTest("Skipping test: libvirt %s on host %s cannot attach an encrypted RBD volume "
+                              "to a running VM (libvirt 10.1.0 is required)" % (".".join(map(str, version)), host.name))
 
     def does_host_with_encryption_support_exists(self):
         hosts = Host.list(
