@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `5ec0fe3e628` on `4.23.0-ceph` (96 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `79ce0e30167` on `4.23.0-ceph` (111 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -119,6 +119,21 @@ Range: `6fd8ddabe73` .. `5ec0fe3e628` on `4.23.0-ceph` (96 commits, oldest first
 | 94 | `0e1d594884d` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: monitor a storage pool for HA again if it is not deleted | on the PR branch as `392ce052755` (adapted to its base: `removeStoragePool` here, `unregisterStoragePool` there); review of the PR by Copilot |
 | 95 | `29e65611716` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: give the Ceph key to the HA scripts only with its user | on the PR branch as `4398ac1b970`; review of the PR by Copilot |
 | 96 | `5ec0fe3e628` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: report why the Ceph cluster could not be used by the RBD HA scripts | on the PR branch as `183c5a94c96`; review of the PR by Copilot |
+| 97 | `5b59245d049` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: keep a storage pool which is not deleted known to the manager | on the PR branch as `815dc35dfc1` |
+| 98 | `37b942f9f0b` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: note that the margin of the heartbeat age covers one write | on the PR branch as `f0e5e68b76e` |
+| 99 | `24b60dab54a` | [#14426](https://github.com/apache/cloudstack/pull/14426) | Expunge a dest volume already in Destroy without resending DestroyRequested | on the PR branch as `a8deec42431` |
+| 100 | `a203afe6c3a` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: refuse a migration into an encrypted RBD volume the destination can't hot-plug | on the PR branch as `8805188e6ec` |
+| 101 | `f44747384ed` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: set the correct LUKS encryption engine when migrating a volume across pool types | on the PR branch as `5f1beb6e88a` |
+| 102 | `8778726588f` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: compensate for the LUKS2 header when sizing the destination of a full-clone volume migration | on the PR branch as `ea6951b81f3` |
+| 103 | `7ddbc814c62` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: persist the correct LUKS encryption format when migrating a volume across pool types | on the PR branch as `6054119cd34` |
+| 104 | `60b54a687a0` | [#14426](https://github.com/apache/cloudstack/pull/14426) | KVM: size a full-clone migration destination from the source's actual size, not its declared size | on the PR branch as `104d6e1c572` |
+| 105 | `73793624731` | [#14725](https://github.com/apache/cloudstack/pull/14725) | KVM: create an encrypted RBD volume with room for its LUKS2 header | on the PR branch as `848d8d84f96`; cherry-picked (not merged) onto [#14426](https://github.com/apache/cloudstack/pull/14426) as `1b67ec9e70c` |
+| 106 | `a6067f25e50` | [#14725](https://github.com/apache/cloudstack/pull/14725) | KVM: size the destination of a volume migration to an encrypted RBD volume by what the Instance sees | reworks `createFullCloneVolume()` and the single-volume live migration path (commits 102 and 104) to size from the header-aware creation of commit 105; also touches [#14426](https://github.com/apache/cloudstack/pull/14426)'s migration code; on the latter's branch as `8f74d860e99`, not yet on 14725's own branch |
+| 107 | `018e8f1f7d5` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvm: wait for a late heartbeat before reporting a host as dead | on the PR branch as `e86a60413db` |
+| 108 | `8e1775121d2` | [#14320](https://github.com/apache/cloudstack/pull/14320) | KVM HA on RBD: an empty volume list is DEAD only if the heartbeat is stale | on the PR branch as `afd9caf4240` |
+| 109 | `de42fc9a626` | [#14725](https://github.com/apache/cloudstack/pull/14725) | kvm: copy into a staging RBD image and rename it when the copy is complete | folded into `0c8c503ff25` on the PR branch, which also fixes mon_host without a port; cherry-picked (not merged) onto [#14426](https://github.com/apache/cloudstack/pull/14426) as `f8aff731b47` (still bundled with the mon_host fix there) |
+| 110 | `cfe0dc508df` | [#14725](https://github.com/apache/cloudstack/pull/14725) | kvm: restore the template size after a lost race, resize a clone to the requested size | on the PR branch as `d3521a77a47`; cherry-picked (not merged) onto [#14426](https://github.com/apache/cloudstack/pull/14426) as `df4295a54c1` |
+| 111 | `79ce0e30167` | [#14426](https://github.com/apache/cloudstack/pull/14426) | Keep the passphrase of the source volume when a migration cleanup runs | on the PR branch as `8b626acb126` |
 
 ## PRs
 
@@ -138,6 +153,7 @@ Range: `6fd8ddabe73` .. `5ec0fe3e628` on `4.23.0-ceph` (96 commits, oldest first
 | [#14132](https://github.com/apache/cloudstack/pull/14132) | kvm: delete primary-only RBD snapshots before the volume | 4.22 | weizhouapache |
 | [#14623](https://github.com/apache/cloudstack/pull/14623) | kvm: refresh the RBD pool when resizing a volume libvirt has not cached | 4.22 | bhouse-nexthop |
 | [#14693](https://github.com/apache/cloudstack/pull/14693) | kvm: resolve RBD disks of unmanaged instances without a mount lookup | 4.22 | weizhouapache |
+| [#14725](https://github.com/apache/cloudstack/pull/14725) | KVM: create an encrypted RBD volume with room for its LUKS2 header | main | weizhouapache |
 | [#13977](https://github.com/apache/cloudstack/pull/13977) | vmware-base: fix template copy from secondary to primary | 4.20 | weizhouapache (merged) |
 | [#13877](https://github.com/apache/cloudstack/pull/13877) | backport: Incremental NAS backup support for KVM (#13074) | 4.22 | abh1sar (merged) |
 | [#14188](https://github.com/apache/cloudstack/pull/14188) | kvm: look RBD volumes up through librbd instead of refreshing the whole pool | 4.22 | bhouse-nexthop (merged) |
@@ -158,3 +174,6 @@ Range: `6fd8ddabe73` .. `5ec0fe3e628` on `4.23.0-ceph` (96 commits, oldest first
 - Commit 82 belongs to PR [#14667](https://github.com/apache/cloudstack/pull/14667), whose base is 4.22.
 - Commit 85 belongs to PR [#13977](https://github.com/apache/cloudstack/pull/13977) (merged, base 4.20) and commit 86 to PR [#14693](https://github.com/apache/cloudstack/pull/14693) (base 4.22).
 - Commit 51 maps the commits and belongs to no PR. Later commits that only update this file are not listed.
+- Commits 97, 98, 107 and 108 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320); its branch head is now `afd9caf4240` (commit 108), with `e86a60413db` (107), `f0e5e68b76e` (98) and `815dc35dfc1` (97) right before it.
+- Commits 99 to 104 and 111 belong to PR [#14426](https://github.com/apache/cloudstack/pull/14426). Its branch head is now `338ed672399` (a PR-branch-only fixup, not on `4.23.0-ceph`: the Assert import that conflict resolution of commit 105 there left out): before it, in order, `8b626acb126` (111), `8f74d860e99` (106), `df4295a54c1` (110), `f8aff731b47` (109), `1b67ec9e70c` (105), `104d6e1c572` (104), `6054119cd34` (103), `ea6951b81f3` (102), `5f1beb6e88a` (101), `8805188e6ec` (100), `a8deec42431` (99, unchanged since the last update of this file).
+- Commits 105, 106, 109 and 110 belong to PR [#14725](https://github.com/apache/cloudstack/pull/14725) (creating an encrypted RBD volume with room for its LUKS2 header). Its own branch head is `d3521a77a47` (commit 110): `0c8c503ff25` (commit 109, bundled with an unrelated mon_host fix not on `4.23.0-ceph`) and `848d8d84f96` (commit 105) come before it. Commit 106 is not on 14725's own branch (it depends on 14426's migration code too); all four were cherry-picked, not merged, onto 14426's branch (see above), since 14725's branch is based on a much newer point of `main` and merging it would have pulled in hundreds of unrelated files.
