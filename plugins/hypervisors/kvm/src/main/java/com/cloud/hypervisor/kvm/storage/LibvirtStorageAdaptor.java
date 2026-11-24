@@ -1993,15 +1993,17 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
              */
             logger.debug("The source image is not RBD, but the destination is. We will convert into RBD format 2");
             String rbdDestPath = destPool.getSourceDir() + "/" + name;
-            // Only an image created by this copy may be removed again when the copy fails
+            // The copy is made into an image no other operation knows, which is renamed when it is complete: the rename
+            // fails if the image exists, so an image created by another operation is neither overwritten nor removed
+            String stagingName = name + ".copy-" + UUID.randomUUID();
             boolean destCreatedByCopy = false;
             try {
                 srcFile = new QemuImgFile(sourcePath, sourceFormat);
-                String rbdDestFile = KVMPhysicalDisk.RBDStringBuilder(destPool, rbdDestPath);
-                destFile = new QemuImgFile(rbdDestFile, destFormat);
+                String rbdStagingPath = destPool.getSourceDir() + "/" + stagingName;
+                destFile = new QemuImgFile(KVMPhysicalDisk.RBDStringBuilder(destPool, rbdStagingPath), destFormat);
 
                 if (rbdImageExists(destPool, name)) {
-                    // qemu-img can't convert into an existing image, and it can't be told if it is complete, so don't touch it
+                    // don't touch it: qemu-img can't tell if the existing image is complete
                     logger.error("RBD image {} already exists, it will not be overwritten by the copy of {}", rbdDestPath, srcFile.getFileName());
                     return null;
                 }
@@ -2012,22 +2014,21 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                 logger.debug("Successfully converted source image " + srcFile.getFileName() + " to RBD image " + rbdDestPath);
 
                 /* We have to stat the RBD image to see how big it became afterwards */
-                Rados r = new Rados(destPool.getAuthUserName());
-                r.confSet("mon_host", RbdUtils.getRbdMonitors(destPool.getSourceHost(), destPool.getSourcePort()));
-                r.confSet("key", destPool.getAuthSecret());
-                r.confSet("client_mount_timeout", "30");
-                r.connect();
+                Rados r = connectToCeph(destPool);
                 logger.debug("Successfully connected to Ceph cluster at " + r.confGet("mon_host"));
 
                 IoCTX io = r.ioCtxCreate(destPool.getSourceDir());
                 Rbd rbd = new Rbd(io);
 
-                RbdImage image = rbd.open(name);
+                RbdImage image = rbd.open(stagingName);
                 RbdImageInfo rbdInfo = image.stat();
                 newDisk.setSize(rbdInfo.size);
                 newDisk.setVirtualSize(rbdInfo.size);
                 logger.debug("After copy the resulting RBD image " + rbdDestPath + " is " + toHumanReadableSize(rbdInfo.size) + " bytes long");
                 rbd.close(image);
+                // fails, and leaves the image of the other operation alone, if it has been created in the meantime
+                rbd.rename(stagingName, name);
+                destCreatedByCopy = false;
 
                 r.ioCtxDestroy(io);
             } catch (QemuImgException | LibvirtException e) {
@@ -2035,19 +2036,19 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
                 logger.error("Failed to convert from {} to RBD image {} the error was: {}", srcFilename, rbdDestPath, maskRbdKey(e.getMessage()));
                 newDisk = null;
                 if (destCreatedByCopy) {
-                    removeRbdImageQuietly(destPool, name);
+                    removeRbdImageQuietly(destPool, stagingName);
                 }
             } catch (RadosException e) {
                 logger.error("A Ceph RADOS operation failed (" + e.getReturnValue() + "). The error was: " + e.getMessage());
                 newDisk = null;
                 if (destCreatedByCopy) {
-                    removeRbdImageQuietly(destPool, name);
+                    removeRbdImageQuietly(destPool, stagingName);
                 }
             } catch (RbdException e) {
                 logger.error("A Ceph RBD operation failed (" + e.getReturnValue() + "). The error was: " + e.getMessage());
                 newDisk = null;
                 if (destCreatedByCopy) {
-                    removeRbdImageQuietly(destPool, name);
+                    removeRbdImageQuietly(destPool, stagingName);
                 }
             }
         } else {
