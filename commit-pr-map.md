@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `79ce0e30167` on `4.23.0-ceph` (111 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `c6509c040ff` on `4.23.0-ceph` (114 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -134,6 +134,9 @@ Range: `6fd8ddabe73` .. `79ce0e30167` on `4.23.0-ceph` (111 commits, oldest firs
 | 109 | `de42fc9a626` | [#14725](https://github.com/apache/cloudstack/pull/14725) | kvm: copy into a staging RBD image and rename it when the copy is complete | folded into `0c8c503ff25` on the PR branch, which also fixes mon_host without a port; cherry-picked (not merged) onto [#14426](https://github.com/apache/cloudstack/pull/14426) as `f8aff731b47` (still bundled with the mon_host fix there) |
 | 110 | `cfe0dc508df` | [#14725](https://github.com/apache/cloudstack/pull/14725) | kvm: restore the template size after a lost race, resize a clone to the requested size | on the PR branch as `d3521a77a47`; cherry-picked (not merged) onto [#14426](https://github.com/apache/cloudstack/pull/14426) as `df4295a54c1` |
 | 111 | `79ce0e30167` | [#14426](https://github.com/apache/cloudstack/pull/14426) | Keep the passphrase of the source volume when a migration cleanup runs | on the PR branch as `8b626acb126` |
+| 112 | `a5d4ca19901` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: use connectToCeph everywhere a Rados client to Ceph is built | on the PR branch as `c6a45fa318f` |
+| 113 | `e132dacb958` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: drop KVMStorageProcessor.radosConnect, call connectToCeph directly | on the PR branch as `23c0d339464` |
+| 114 | `c6509c040ff` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: remove unused RBD test imports/constants left over after cherry-pick | not on the PR branch: a checkstyle fixup needed only here, since `4.23.0-ceph`'s `KVMStorageProcessorTest.java` had no other RBD-mock tests left after resolving commit 113's cherry-pick conflict |
 
 ## PRs
 
@@ -153,7 +156,7 @@ Range: `6fd8ddabe73` .. `79ce0e30167` on `4.23.0-ceph` (111 commits, oldest firs
 | [#14132](https://github.com/apache/cloudstack/pull/14132) | kvm: delete primary-only RBD snapshots before the volume | 4.22 | weizhouapache |
 | [#14623](https://github.com/apache/cloudstack/pull/14623) | kvm: refresh the RBD pool when resizing a volume libvirt has not cached | 4.22 | bhouse-nexthop |
 | [#14693](https://github.com/apache/cloudstack/pull/14693) | kvm: resolve RBD disks of unmanaged instances without a mount lookup | 4.22 | weizhouapache |
-| [#14725](https://github.com/apache/cloudstack/pull/14725) | KVM: create an encrypted RBD volume with room for its LUKS2 header | main | weizhouapache |
+| [#14725](https://github.com/apache/cloudstack/pull/14725) | KVM: create an encrypted RBD volume with room for its LUKS2 header | main | weizhouapache (closed; folded into #14426) |
 | [#13977](https://github.com/apache/cloudstack/pull/13977) | vmware-base: fix template copy from secondary to primary | 4.20 | weizhouapache (merged) |
 | [#13877](https://github.com/apache/cloudstack/pull/13877) | backport: Incremental NAS backup support for KVM (#13074) | 4.22 | abh1sar (merged) |
 | [#14188](https://github.com/apache/cloudstack/pull/14188) | kvm: look RBD volumes up through librbd instead of refreshing the whole pool | 4.22 | bhouse-nexthop (merged) |
@@ -175,5 +178,5 @@ Range: `6fd8ddabe73` .. `79ce0e30167` on `4.23.0-ceph` (111 commits, oldest firs
 - Commit 85 belongs to PR [#13977](https://github.com/apache/cloudstack/pull/13977) (merged, base 4.20) and commit 86 to PR [#14693](https://github.com/apache/cloudstack/pull/14693) (base 4.22).
 - Commit 51 maps the commits and belongs to no PR. Later commits that only update this file are not listed.
 - Commits 97, 98, 107 and 108 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320); its branch head is now `afd9caf4240` (commit 108), with `e86a60413db` (107), `f0e5e68b76e` (98) and `815dc35dfc1` (97) right before it.
-- Commits 99 to 104 and 111 belong to PR [#14426](https://github.com/apache/cloudstack/pull/14426). Its branch head is now `338ed672399` (a PR-branch-only fixup, not on `4.23.0-ceph`: the Assert import that conflict resolution of commit 105 there left out): before it, in order, `8b626acb126` (111), `8f74d860e99` (106), `df4295a54c1` (110), `f8aff731b47` (109), `1b67ec9e70c` (105), `104d6e1c572` (104), `6054119cd34` (103), `ea6951b81f3` (102), `5f1beb6e88a` (101), `8805188e6ec` (100), `a8deec42431` (99, unchanged since the last update of this file).
-- Commits 105, 106, 109 and 110 belong to PR [#14725](https://github.com/apache/cloudstack/pull/14725) (creating an encrypted RBD volume with room for its LUKS2 header). Its own branch head is `d3521a77a47` (commit 110): `0c8c503ff25` (commit 109, bundled with an unrelated mon_host fix not on `4.23.0-ceph`) and `848d8d84f96` (commit 105) come before it. Commit 106 is not on 14725's own branch (it depends on 14426's migration code too); all four were cherry-picked, not merged, onto 14426's branch (see above), since 14725's branch is based on a much newer point of `main` and merging it would have pulled in hundreds of unrelated files.
+- Commits 99 to 104, 111, 112 and 113 belong to PR [#14426](https://github.com/apache/cloudstack/pull/14426). Its branch head is now `23c0d339464` (commit 113): before it, in order, `c6a45fa318f` (112), `ed3c92debaf` (a merge of `apache/main`, not listed as its own row), `8b626acb126` (111), `8f74d860e99` (106), `df4295a54c1` (110), `f8aff731b47` (109), `1b67ec9e70c` (105), `104d6e1c572` (104), `6054119cd34` (103), `ea6951b81f3` (102), `5f1beb6e88a` (101), `8805188e6ec` (100), `a8deec42431` (99). The `338ed672399` fixup (a PR-branch-only Assert import left out by commit 105's conflict resolution there) is further back on the branch, before the `apache/main` merge. Commit 114 is a `4.23.0-ceph`-only checkstyle fixup, not on the PR branch.
+- Commits 105, 106, 109 and 110 originated on PR [#14725](https://github.com/apache/cloudstack/pull/14725) (creating an encrypted RBD volume with room for its LUKS2 header). Its own branch head was `d3521a77a47` (commit 110): `0c8c503ff25` (commit 109, bundled with an unrelated mon_host fix not on `4.23.0-ceph`) and `848d8d84f96` (commit 105) came before it. Commit 106 was never on 14725's own branch (it depends on 14426's migration code too); all four were cherry-picked onto 14426's branch (see above), since 14725's branch was based on a much newer point of `main` and merging it would have pulled in hundreds of unrelated files. PR #14725 has since been closed and its content folded entirely into [#14426](https://github.com/apache/cloudstack/pull/14426).
