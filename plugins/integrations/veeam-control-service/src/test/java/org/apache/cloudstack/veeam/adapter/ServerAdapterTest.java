@@ -1547,4 +1547,90 @@ public class ServerAdapterTest {
             assertEquals("Failed to remove NIC: Unable to remove nic from VM, it is the default nic", e.getMessage());
         }
     }
+
+    private static final String WORKER_VM_USER_DATA = "write_files:\n"
+            + "  - path: /tmp/network_config.yml\n"
+            + "    content: |\n"
+            + "      interfaces:\n"
+            + "        - ipv4:\n"
+            + "            enabled: true\n"
+            + "            dhcp: false\n"
+            + "            address:\n"
+            + "              - ip: 192.168.1.25\n";
+
+    private static Vm newVmCreateRequest(final String customScript) {
+        final Vm request = new Vm();
+        request.setName("worker_vm");
+        request.setMemory(String.valueOf(1024L * 1024L * 1024L));
+        final org.apache.cloudstack.veeam.api.dto.Cpu cpu = new org.apache.cloudstack.veeam.api.dto.Cpu();
+        cpu.setTopology(new org.apache.cloudstack.veeam.api.dto.Topology(2, 1, 1));
+        request.setCpu(cpu);
+        request.setCluster(org.apache.cloudstack.veeam.api.dto.Ref.of("/api/clusters/cluster-uuid", "cluster-uuid"));
+        if (customScript != null) {
+            final Vm.Initialization initialization = new Vm.Initialization();
+            initialization.setCustomScript(customScript);
+            request.setInitialization(initialization);
+        }
+        return request;
+    }
+
+    @Test
+    public void testSaveInstanceAdditionalDetails_WorkerVmSavesIpAndNoRestoreConfig() {
+        final ServerAdapter adapter = Mockito.spy(serverAdapter);
+        final com.cloud.uservm.UserVm vm = mock(com.cloud.uservm.UserVm.class);
+        when(vm.getId()).thenReturn(42L);
+
+        adapter.saveInstanceAdditionalDetails(newVmCreateRequest(WORKER_VM_USER_DATA), vm);
+
+        verify(vmInstanceDetailsDao).addDetail(42L, "worker.vm.ip", "192.168.1.25", false);
+        verify(adapter, never()).saveInstanceRestoreConfig(any(), any());
+    }
+
+    @Test
+    public void testSaveInstanceAdditionalDetails_WorkerVmWithoutIpSavesNothing() {
+        final ServerAdapter adapter = Mockito.spy(serverAdapter);
+
+        adapter.saveInstanceAdditionalDetails(newVmCreateRequest("#cloud-config\nruncmd: []\n"),
+                mock(com.cloud.uservm.UserVm.class));
+
+        Mockito.verifyNoInteractions(vmInstanceDetailsDao);
+        verify(adapter, never()).saveInstanceRestoreConfig(any(), any());
+    }
+
+    @Test
+    public void testSaveInstanceAdditionalDetails_RegularVmSavesRestoreConfig() {
+        final ServerAdapter adapter = Mockito.spy(serverAdapter);
+        final Vm request = newVmCreateRequest(null);
+        final com.cloud.uservm.UserVm vm = mock(com.cloud.uservm.UserVm.class);
+        doNothing().when(adapter).saveInstanceRestoreConfig(request, vm);
+
+        adapter.saveInstanceAdditionalDetails(request, vm);
+
+        verify(adapter).saveInstanceRestoreConfig(request, vm);
+        Mockito.verifyNoInteractions(vmInstanceDetailsDao);
+    }
+
+    @Test
+    public void testCreateInstance_WorkerVmSavesWorkerVmIp() {
+        final ServerAdapter adapter = Mockito.spy(serverAdapter);
+        final Vm request = newVmCreateRequest(WORKER_VM_USER_DATA);
+        final com.cloud.dc.ClusterVO cluster = mock(com.cloud.dc.ClusterVO.class);
+        when(cluster.getDataCenterId()).thenReturn(1L);
+        when(cluster.getId()).thenReturn(5L);
+        when(clusterDao.findByUuid("cluster-uuid")).thenReturn(cluster);
+        when(dataCenterDao.findById(1L)).thenReturn(mock(DataCenterVO.class));
+        final Account owner = mock(Account.class);
+        doReturn(owner).when(adapter).getOwnerForInstanceCreation(request);
+        doReturn(new Ternary<Long, String, Long>(1L, "admin", null)).when(adapter).getOwnerDetailsForInstanceCreation(owner);
+        doReturn(null).when(adapter).getGuestOsForInstance(request);
+        final com.cloud.uservm.UserVm vm = mock(com.cloud.uservm.UserVm.class);
+        when(vm.getId()).thenReturn(42L);
+        final Vm created = new Vm();
+        doReturn(new Pair<>(created, vm)).when(adapter).createInstance(any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), Mockito.anyInt(), Mockito.anyInt(), any(), any(), any(), any(), any(), any());
+
+        assertEquals(created, adapter.createInstance(request));
+
+        verify(vmInstanceDetailsDao).addDetail(42L, "worker.vm.ip", "192.168.1.25", false);
+    }
 }
