@@ -41,6 +41,7 @@ import org.apache.cloudstack.veeam.api.dto.Ref;
 import org.apache.cloudstack.veeam.api.dto.Tag;
 import org.apache.cloudstack.veeam.api.dto.Topology;
 import org.apache.cloudstack.veeam.api.dto.Vm;
+import org.apache.cloudstack.veeam.utils.OvirtOsTypeMapper;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -128,7 +129,7 @@ public final class UserVmJoinVOToVmConverter {
         cpu.setTopology(new Topology(src.getCpu(), 1, 1));
         dst.setCpu(cpu);
         Os os = new Os();
-        os.setType(Os.inferTypeFromOsName(src.getGuestOsDisplayName()));
+        os.setType(OvirtOsTypeMapper.getOsType(src.getGuestOsDisplayName()));
         Os.Boot boot = new Os.Boot();
         boot.setDevices(NamedList.of("device", List.of("hd")));
         os.setBoot(boot);

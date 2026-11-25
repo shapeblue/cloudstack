@@ -78,4 +78,21 @@ public class OvfXmlUtilTest {
         assertEquals("02:01:00:cf:00:05", result.first());
         assertEquals("10.1.1.40", result.second());
     }
+
+    @Test
+    public void testInferOsDescription_UsesOsTypeFamily() {
+        assertEquals("linux", OvfXmlUtil.inferOsDescription(vmWithOsType("rhel_9x64")));
+        assertEquals("linux", OvfXmlUtil.inferOsDescription(vmWithOsType("debian_9")));
+        assertEquals("windows", OvfXmlUtil.inferOsDescription(vmWithOsType("windows_2012R2x64")));
+        assertEquals("other", OvfXmlUtil.inferOsDescription(vmWithOsType("freebsdx64")));
+        assertEquals("other", OvfXmlUtil.inferOsDescription(new Vm()));
+    }
+
+    private static Vm vmWithOsType(final String type) {
+        final Os os = new Os();
+        os.setType(type);
+        final Vm vm = new Vm();
+        vm.setOs(os);
+        return vm;
+    }
 }

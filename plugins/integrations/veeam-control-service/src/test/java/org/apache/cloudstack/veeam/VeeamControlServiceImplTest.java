@@ -161,7 +161,7 @@ public class VeeamControlServiceImplTest {
 
         final ConfigKey<?>[] keys = service.getConfigKeys();
 
-        assertEquals(12, keys.length);
+        assertEquals(13, keys.length);
         assertEquals(KEY_ENABLED, keys[0].key());
     }
 

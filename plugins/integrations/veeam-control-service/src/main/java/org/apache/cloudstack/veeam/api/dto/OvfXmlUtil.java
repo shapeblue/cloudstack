@@ -40,6 +40,7 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
+import org.apache.cloudstack.veeam.utils.OvirtOsTypeMapper;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -962,21 +963,9 @@ public class OvfXmlUtil {
         return "";
     }
 
-    private static String inferOsDescription(Vm vm) {
-        if (vm.getOs() == null) {
-            return "other";
-        }
-        String t = vm.getOs().getType();
-        if (StringUtils.isBlank(t)) {
-            return "other";
-        }
-        if (t.toLowerCase(Locale.ROOT).contains("win")) {
-            return "windows";
-        }
-        if (t.toLowerCase(Locale.ROOT).contains("linux")) {
-            return "linux";
-        }
-        return t;
+    protected static String inferOsDescription(Vm vm) {
+        final String type = vm.getOs() == null ? null : vm.getOs().getType();
+        return OvirtOsTypeMapper.getFamily(type).name().toLowerCase(Locale.ROOT);
     }
 
     private static String inferNetworkName(Nic nic) {

@@ -152,6 +152,7 @@ public class VeeamControlServiceImpl extends ManagerBase implements VeeamControl
                 InstanceEncryptVolumes,
                 AllowedClientCidrs,
                 JobWaitTimeout,
+                GuestOsTypeOverrides,
                 DeveloperLogs
         };
     }

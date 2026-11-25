@@ -67,6 +67,13 @@ public interface VeeamControlService extends PluggableService, Configurable {
             "job to complete. When it elapses the request fails, but the job keeps running in the background and " +
             "may still complete. Values of 0 or less fall back to the default.", true);
 
+    ConfigKey<String> GuestOsTypeOverrides = new ConfigKey<>("Advanced", String.class,
+            "integration.veeam.control.guest.os.type.overrides",
+            "", "Overrides for the oVirt OS type (os.type) reported to Veeam for Instances, as semicolon-separated " +
+            "'<guest OS display name>=<oVirt OS type>' entries, e.g. 'VMware Photon (64 bit)=other_linux'. Guest OS " +
+            "names are matched case-insensitively; Instances with other guest OS types use the built-in mapping. " +
+            "Valid OS types are the keys in oVirt's osinfo-defaults.properties that Veeam recognizes.", true);
+
     ConfigKey<Boolean> DeveloperLogs = new ConfigKey<>("Developer", Boolean.class, "integration.veeam.control.developer.logs",
             "false", "Enable verbose logging for development and troubleshooting purposes. " +
             "Logs will include detailed information about API requests, responses, and internal operations.", false);
