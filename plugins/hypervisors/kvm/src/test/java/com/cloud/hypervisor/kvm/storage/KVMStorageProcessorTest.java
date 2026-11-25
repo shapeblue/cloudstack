@@ -18,11 +18,6 @@
  */
 package com.cloud.hypervisor.kvm.storage;
 
-import com.ceph.rados.IoCTX;
-import com.ceph.rados.Rados;
-import com.ceph.rbd.Rbd;
-import com.ceph.rbd.RbdException;
-import com.ceph.rbd.RbdImage;
 import com.cloud.exception.InternalErrorException;
 import com.cloud.hypervisor.kvm.resource.LibvirtComputingResource;
 import com.cloud.hypervisor.kvm.resource.LibvirtDomainXMLParser;
@@ -122,11 +117,6 @@ public class KVMStorageProcessorTest {
 
     private static final String directDownloadTemporaryPath = "/var/lib/libvirt/images/dd";
     private static final long templateSize = 80000L;
-
-    private static final String RBD_POOL_NAME = "cloudstack";
-    private static final String RBD_IMAGE_NAME = "b7a1f0a9-0f0e-4a1a-9a35-1c1a2e0f1b5e";
-    private static final String SNAPSHOT_NAME = "8f1c1f0b-9d3e-4c2a-8a3d-6f0b2c9e1d47";
-    private static final long SNAPSHOT_SIZE = 196624L;
 
     private AutoCloseable closeable;
 
