@@ -235,6 +235,7 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.UserVmDao;
+import com.cloud.vm.dao.VMInstanceDao;
 import com.cloud.vm.dao.VMInstanceDetailsDao;
 import com.cloud.vm.snapshot.VMSnapshotVO;
 import com.cloud.vm.snapshot.dao.VMSnapshotDao;
@@ -250,6 +251,8 @@ public class ServerAdapter extends ManagerBase {
     private static final String WORKER_VM_GUEST_OS = "Rocky Linux 9";
     private static final String WORKER_VM_IP_DETAIL = "worker.vm.ip";
     private static final String RESTORE_CONFIG = "restore.config";
+    private static final String VM_NAME_IN_USE_MESSAGE =
+            "Cannot add VM. The VM name is already in use, please choose a unique name and try again.";
 
     @Inject
     AccountService accountService;
@@ -280,6 +283,9 @@ public class ServerAdapter extends ManagerBase {
 
     @Inject
     UserVmJoinDao userVmJoinDao;
+
+    @Inject
+    VMInstanceDao vmInstanceDao;
 
     @Inject
     VMInstanceDetailsDao vmInstanceDetailsDao;
@@ -1031,6 +1037,29 @@ public class ServerAdapter extends ManagerBase {
         sharedFSService.updateSharedFSPostRestore(sharedFS.getId(), volume.getId());
     }
 
+    /**
+     * For a same location restore, checks the host name against the networks of the NICs in the request's OVF
+     * before the Instance is created. CloudStack requires host names to be unique within a network, so a conflict
+     * would otherwise only fail the later NIC attach. Other restores may attach NICs to different networks, so
+     * they are left to CloudStack's own check at NIC attach.
+     */
+    protected void checkInstanceNameUniqueInRestoreNetworks(final Vm request, final String hostName, final long zoneId) {
+        if (!request.isSameLocationRestore()) {
+            return;
+        }
+        final String config = OvfXmlUtil.getConfigMetadataXml(request, logger);
+        for (String networkId : OvfXmlUtil.getVmNicNetworkIdsFromConfig(config, logger)) {
+            final NetworkVO network = networkDao.findByUuid(networkId);
+            if (network == null || network.getDataCenterId() != zoneId) {
+                continue;
+            }
+            if (vmInstanceDao.listDistinctHostNames(network.getId()).contains(hostName)) {
+                throw new CloudRuntimeException(String.format("%s Network %s already has an Instance with host name: %s",
+                        VM_NAME_IN_USE_MESSAGE, network.getName(), hostName));
+            }
+        }
+    }
+
     protected Pair<String, String> getValidatedInstanceNicDetails(final String config, final NetworkVO network) {
         if (ObjectUtils.anyNull(config, network) || StringUtils.isBlank(config)) {
             return new Pair<>(null, null);
@@ -1484,6 +1513,7 @@ public class ServerAdapter extends ManagerBase {
         if (zone == null) {
             throw new InvalidParameterValueException("DataCenter could not be determined for the request");
         }
+        checkInstanceNameUniqueInRestoreNetworks(request, name, zone.getId());
         Integer cpu = null;
         try {
             cpu = Integer.valueOf(request.getCpu().getTopology().getSockets());

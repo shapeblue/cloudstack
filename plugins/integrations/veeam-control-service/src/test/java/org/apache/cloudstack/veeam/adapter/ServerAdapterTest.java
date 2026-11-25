@@ -131,6 +131,7 @@ import com.cloud.vm.UserVmVO;
 import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.dao.NicDao;
 import com.cloud.vm.dao.UserVmDao;
+import com.cloud.vm.dao.VMInstanceDao;
 import com.cloud.vm.dao.VMInstanceDetailsDao;
 import com.cloud.vm.snapshot.dao.VMSnapshotDao;
 
@@ -150,6 +151,7 @@ public class ServerAdapterTest {
     @Mock NetworkDao networkDao;
     @Mock UserVmDao userVmDao;
     @Mock UserVmJoinDao userVmJoinDao;
+    @Mock VMInstanceDao vmInstanceDao;
     @Mock VMInstanceDetailsDao vmInstanceDetailsDao;
     @Mock VolumeDao volumeDao;
     @Mock VolumeJoinDao volumeJoinDao;
@@ -1632,5 +1634,94 @@ public class ServerAdapterTest {
         assertEquals(created, adapter.createInstance(request));
 
         verify(vmInstanceDetailsDao).addDetail(42L, "worker.vm.ip", "192.168.1.25", false);
+    }
+
+    private static final String OVF_NETWORK_ID = "6aff2178-a323-4148-a592-edbd47b93229";
+
+    private Vm newRestoreRequest(final boolean regenerateIds) throws Exception {
+        final String ovf;
+        try (java.io.InputStream in = getClass().getClassLoader().getResourceAsStream("test-ovf.xml")) {
+            ovf = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        final Vm.Initialization.Configuration configuration = new Vm.Initialization.Configuration();
+        configuration.setType("ovf");
+        configuration.setData(ovf);
+        final Vm.Initialization initialization = new Vm.Initialization();
+        initialization.setConfiguration(configuration);
+        initialization.setRegenerateIds(regenerateIds);
+        final Vm request = newVmCreateRequest(null);
+        request.setInitialization(initialization);
+        return request;
+    }
+
+    private NetworkVO mockNetwork(final long id, final long zoneId) {
+        final NetworkVO network = mock(NetworkVO.class);
+        when(network.getId()).thenReturn(id);
+        when(network.getName()).thenReturn("Internet");
+        when(network.getDataCenterId()).thenReturn(zoneId);
+        return network;
+    }
+
+    @Test
+    public void testCheckInstanceNameUniqueInRestoreNetworks_SameLocationConflictThrows() throws Exception {
+        final NetworkVO network = mockNetwork(10L, 1L);
+        when(networkDao.findByUuid(OVF_NETWORK_ID)).thenReturn(network);
+        when(vmInstanceDao.listDistinctHostNames(10L)).thenReturn(List.of("other-vm", "restored-vm"));
+
+        final CloudRuntimeException e = assertThrows(CloudRuntimeException.class,
+                () -> serverAdapter.checkInstanceNameUniqueInRestoreNetworks(newRestoreRequest(false), "restored-vm", 1L));
+
+        assertTrue(e.getMessage().startsWith("Cannot add VM. The VM name is already in use"));
+        assertTrue(e.getMessage().endsWith("Network Internet already has an Instance with host name: restored-vm"));
+    }
+
+    @Test
+    public void testCheckInstanceNameUniqueInRestoreNetworks_SameLocationWithoutConflictPasses() throws Exception {
+        final NetworkVO network = mockNetwork(10L, 1L);
+        when(networkDao.findByUuid(OVF_NETWORK_ID)).thenReturn(network);
+        when(vmInstanceDao.listDistinctHostNames(10L)).thenReturn(List.of("other-vm"));
+
+        serverAdapter.checkInstanceNameUniqueInRestoreNetworks(newRestoreRequest(false), "restored-vm", 1L);
+
+        verify(vmInstanceDao).listDistinctHostNames(10L);
+    }
+
+    @Test
+    public void testCheckInstanceNameUniqueInRestoreNetworks_NewLocationRestoreIsNotChecked() throws Exception {
+        serverAdapter.checkInstanceNameUniqueInRestoreNetworks(newRestoreRequest(true), "restored-vm", 1L);
+
+        Mockito.verifyNoInteractions(networkDao, vmInstanceDao);
+    }
+
+    @Test
+    public void testCheckInstanceNameUniqueInRestoreNetworks_UnknownOrOtherZoneNetworkIsSkipped() throws Exception {
+        serverAdapter.checkInstanceNameUniqueInRestoreNetworks(newRestoreRequest(false), "restored-vm", 1L);
+        final NetworkVO otherZoneNetwork = mock(NetworkVO.class);
+        when(otherZoneNetwork.getDataCenterId()).thenReturn(2L);
+        when(networkDao.findByUuid(OVF_NETWORK_ID)).thenReturn(otherZoneNetwork);
+        serverAdapter.checkInstanceNameUniqueInRestoreNetworks(newRestoreRequest(false), "restored-vm", 1L);
+
+        Mockito.verifyNoInteractions(vmInstanceDao);
+    }
+
+    @Test
+    public void testCreateInstance_SameLocationNameConflictFailsBeforeCreation() throws Exception {
+        final ServerAdapter adapter = Mockito.spy(serverAdapter);
+        final Vm request = newRestoreRequest(false);
+        request.setName("restored_vm");
+        final com.cloud.dc.ClusterVO cluster = mock(com.cloud.dc.ClusterVO.class);
+        when(cluster.getDataCenterId()).thenReturn(1L);
+        when(clusterDao.findByUuid("cluster-uuid")).thenReturn(cluster);
+        final DataCenterVO zone = mock(DataCenterVO.class);
+        when(zone.getId()).thenReturn(1L);
+        when(dataCenterDao.findById(1L)).thenReturn(zone);
+        final NetworkVO network = mockNetwork(10L, 1L);
+        when(networkDao.findByUuid(OVF_NETWORK_ID)).thenReturn(network);
+        when(vmInstanceDao.listDistinctHostNames(10L)).thenReturn(List.of("restored-vm"));
+
+        assertThrows(CloudRuntimeException.class, () -> adapter.createInstance(request));
+
+        verify(adapter, never()).createInstance(any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                Mockito.anyInt(), Mockito.anyInt(), any(), any(), any(), any(), any(), any());
     }
 }

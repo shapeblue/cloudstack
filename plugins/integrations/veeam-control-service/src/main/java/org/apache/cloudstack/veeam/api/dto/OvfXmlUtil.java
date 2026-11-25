@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -57,6 +58,9 @@ import com.cloud.api.query.vo.UserVmJoinVO;
 import com.cloud.utils.Pair;
 
 public class OvfXmlUtil {
+    private static final String CLOUDSTACK_NICS_XPATH = "//*[local-name()='Section' and @*[local-name()='type']='ovf:CloudStackMetadata_Type']"
+            + "/*[local-name()='CloudStack']/*[local-name()='Nics']/*[local-name()='Nic']";
+
 
     private static final String NS_OVF = "http://schemas.dmtf.org/ovf/envelope/1/";
     private static final String NS_RASD = "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData";
@@ -564,6 +568,34 @@ public class OvfXmlUtil {
         }
     }
 
+    /**
+     * Returns the network IDs of the NICs recorded in the CloudStack metadata section of the configuration.
+     */
+    public static List<String> getVmNicNetworkIdsFromConfig(String xmlConfig, Logger logger) {
+        final List<String> networkIds = new ArrayList<>();
+        if (StringUtils.isBlank(xmlConfig)) {
+            return networkIds;
+        }
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(true);
+            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Document doc = db.parse(new ByteArrayInputStream(xmlConfig.getBytes(StandardCharsets.UTF_8)));
+            XPath xpath = XPathFactory.newInstance().newXPath();
+            NodeList nicNodes = (NodeList) xpath.evaluate(CLOUDSTACK_NICS_XPATH, doc, XPathConstants.NODESET);
+            for (int i = 0; nicNodes != null && i < nicNodes.getLength(); i++) {
+                String networkId = xpathString(xpath, nicNodes.item(i), "./*[local-name()='NetworkId']/text()");
+                if (StringUtils.isNotBlank(networkId) && !networkIds.contains(networkId)) {
+                    networkIds.add(networkId);
+                }
+            }
+        } catch (ParserConfigurationException | XPathExpressionException | IOException | SAXException e) {
+            logger.error("Failed to parse VM configuration XML to retrieve NIC network IDs: {}", e.getMessage());
+        }
+        return networkIds;
+    }
+
     public static Pair<String, String> getVmNicDetailFromStoredConfig(String xmlConfig, String networkId, Logger logger) {
         if (StringUtils.isAnyBlank(xmlConfig, networkId)) {
             return new Pair<>(null, null);
@@ -580,7 +612,7 @@ public class OvfXmlUtil {
 
             // Preferred format: CloudStack metadata section with CloudStack/Nics/Nic records.
             NodeList nicNodes = (NodeList) xpath.evaluate(
-                    "//*[local-name()='Section' and @*[local-name()='type']='ovf:CloudStackMetadata_Type']/*[local-name()='CloudStack']/*[local-name()='Nics']/*[local-name()='Nic']",
+                    CLOUDSTACK_NICS_XPATH,
                     doc,
                     XPathConstants.NODESET
             );

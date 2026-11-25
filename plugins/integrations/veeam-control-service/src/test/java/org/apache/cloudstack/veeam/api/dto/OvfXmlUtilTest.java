@@ -95,4 +95,19 @@ public class OvfXmlUtilTest {
         vm.setOs(os);
         return vm;
     }
+
+    @Test
+    public void testGetVmNicNetworkIdsFromConfig() throws Exception {
+        String ovfXml;
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("test-ovf.xml")) {
+            ovfXml = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        final Logger logger = mock(Logger.class);
+
+        assertEquals(java.util.List.of("6aff2178-a323-4148-a592-edbd47b93229"),
+                OvfXmlUtil.getVmNicNetworkIdsFromConfig(ovfXml, logger));
+        assertTrue(OvfXmlUtil.getVmNicNetworkIdsFromConfig(configuration, logger).isEmpty());
+        assertTrue(OvfXmlUtil.getVmNicNetworkIdsFromConfig(null, logger).isEmpty());
+        assertTrue(OvfXmlUtil.getVmNicNetworkIdsFromConfig("<not-xml", logger).isEmpty());
+    }
 }
