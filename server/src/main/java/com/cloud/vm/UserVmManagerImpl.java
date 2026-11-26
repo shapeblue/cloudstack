@@ -7001,8 +7001,9 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         if (volume != null) {
             if (!isSnapshot
                     && (volume.getDataStore() == null
-                    || !ScopeType.ZONE.equals(volume.getDataStore().getScope().getScopeType()))) {
-                throw new InvalidParameterValueException("Deployment of virtual machine is supported only for Zone-wide storage pools");
+                    || (!ScopeType.ZONE.equals(volume.getDataStore().getScope().getScopeType())
+                        && !ScopeType.CLUSTER.equals(volume.getDataStore().getScope().getScopeType())))) {
+                throw new InvalidParameterValueException("Deployment of virtual machine is supported only for Zone-wide or Cluster-wide storage pools");
             }
             checkIfVolumeTemplateIsTheSameAsTheProvided(volume, templateId);
             if (volume.getInstanceId() != null && !isSnapshot) {
@@ -9875,6 +9876,15 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             }
             if (host == null && hypervisorType == HypervisorType.VMware) {
                 throw new InvalidParameterValueException("Unable to import virtual machine with invalid host");
+            }
+            if (template == null) {
+                throw new InvalidParameterValueException("Unable to import virtual machine without a template");
+            }
+
+            // Ensure template details are loaded so that commitUserVm can copy them into the VM's details map
+            if (template instanceof VMTemplateVO) {
+                VMTemplateVO vmTemplateVO = (VMTemplateVO) template;
+                _templateDao.loadDetails(vmTemplateVO);
             }
 
             final long id = _vmDao.getNextInSequence(Long.class, "id");
