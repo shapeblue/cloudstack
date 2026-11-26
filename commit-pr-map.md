@@ -19,7 +19,7 @@
 
 # Commit to apache/cloudstack PR mapping
 
-Range: `6fd8ddabe73` .. `c6509c040ff` on `4.23.0-ceph` (114 commits, oldest first). No commit of the first 49 was changed.
+Range: `6fd8ddabe73` .. `e1e833d7279` on `4.23.0-ceph` (119 commits, oldest first). No commit of the first 49 was changed.
 
 | # | Commit | PR | Subject | Note |
 |---|---|---|---|---|
@@ -52,6 +52,7 @@ Range: `6fd8ddabe73` .. `c6509c040ff` on `4.23.0-ceph` (114 commits, oldest firs
 | 27 | `0771561166f` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvmvmactivity_rbd.sh: do not depend on python3, and tell failures from a DEAD host |  |
 | 28 | `3f603969bb0` | [#14320](https://github.com/apache/cloudstack/pull/14320) | kvmvmactivity_rbd.sh: do not decide on an activity state which could not be saved |  |
 | 29 | `ced2070ccdb` | [#14386](https://github.com/apache/cloudstack/pull/14386) | KVM: support incremental NAS backups of RBD volumes |  |
+| [#14873](https://github.com/apache/cloudstack/pull/14873) | RBD/NAS: address review comments | main | weizhouapache |
 | 30 | `0c1c243801c` | [#14386](https://github.com/apache/cloudstack/pull/14386) | test: run the NAS backup smoke test on a cloud-init template |  |
 | 31 | `d970fcbf131` | [#14386](https://github.com/apache/cloudstack/pull/14386) | test: validate a whole backup chain, including across a mid-chain delete |  |
 | 32 | `700d5900f04` | [#14386](https://github.com/apache/cloudstack/pull/14386) | test: verify the guest of a VM created from a backup, not just that it boots |  |
@@ -137,6 +138,11 @@ Range: `6fd8ddabe73` .. `c6509c040ff` on `4.23.0-ceph` (114 commits, oldest firs
 | 112 | `a5d4ca19901` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: use connectToCeph everywhere a Rados client to Ceph is built | on the PR branch as `c6a45fa318f` |
 | 113 | `e132dacb958` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: drop KVMStorageProcessor.radosConnect, call connectToCeph directly | on the PR branch as `23c0d339464` |
 | 114 | `c6509c040ff` | [#14426](https://github.com/apache/cloudstack/pull/14426) | kvm: remove unused RBD test imports/constants left over after cherry-pick | not on the PR branch: a checkstyle fixup needed only here, since `4.23.0-ceph`'s `KVMStorageProcessorTest.java` had no other RBD-mock tests left after resolving commit 113's cherry-pick conflict |
+| 115 | `514fad4230b` | [#14873](https://github.com/apache/cloudstack/pull/14873) | nas: restore an RBD image to its own size after replaying the diff chain | on the PR branch as `12d3e925024` |
+| 116 | `661264f0e2c` | [#14873](https://github.com/apache/cloudstack/pull/14873) | nas: do not fail on an Instance whose last host was removed | on the PR branch as `9bfecd6e67f` |
+| 117 | `2c3a0ccba97` | [#14873](https://github.com/apache/cloudstack/pull/14873) | nas: keep the cephx key out of the log of the anchor removal | on the PR branch as `1c42878d4d1` |
+| 118 | `4ca99b89d02` | [#14873](https://github.com/apache/cloudstack/pull/14873) | nas: always resume an Instance once a suspend was attempted | on the PR branch as `7e79e351c6a` |
+| 119 | `e1e833d7279` | [#14873](https://github.com/apache/cloudstack/pull/14873) | nas: undo a killed RBD backup: release the guest, drop the anchor, unmount the NAS | on the PR branch as `c7b86789d4d`; `nasbackup.sh` differs: the thaw block here keeps the inline `virsh qemu-agent-command` form, as `thaw_guest` and `qemu_agent_command` are not on this branch |
 
 ## PRs
 
@@ -180,3 +186,4 @@ Range: `6fd8ddabe73` .. `c6509c040ff` on `4.23.0-ceph` (114 commits, oldest firs
 - Commits 97, 98, 107 and 108 belong to PR [#14320](https://github.com/apache/cloudstack/pull/14320); its branch head is now `afd9caf4240` (commit 108), with `e86a60413db` (107), `f0e5e68b76e` (98) and `815dc35dfc1` (97) right before it.
 - Commits 99 to 104, 111, 112 and 113 belong to PR [#14426](https://github.com/apache/cloudstack/pull/14426). Its branch head is now `23c0d339464` (commit 113): before it, in order, `c6a45fa318f` (112), `ed3c92debaf` (a merge of `apache/main`, not listed as its own row), `8b626acb126` (111), `8f74d860e99` (106), `df4295a54c1` (110), `f8aff731b47` (109), `1b67ec9e70c` (105), `104d6e1c572` (104), `6054119cd34` (103), `ea6951b81f3` (102), `5f1beb6e88a` (101), `8805188e6ec` (100), `a8deec42431` (99). The `338ed672399` fixup (a PR-branch-only Assert import left out by commit 105's conflict resolution there) is further back on the branch, before the `apache/main` merge. Commit 114 is a `4.23.0-ceph`-only checkstyle fixup, not on the PR branch.
 - Commits 105, 106, 109 and 110 originated on PR [#14725](https://github.com/apache/cloudstack/pull/14725) (creating an encrypted RBD volume with room for its LUKS2 header). Its own branch head was `d3521a77a47` (commit 110): `0c8c503ff25` (commit 109, bundled with an unrelated mon_host fix not on `4.23.0-ceph`) and `848d8d84f96` (commit 105) came before it. Commit 106 was never on 14725's own branch (it depends on 14426's migration code too); all four were cherry-picked onto 14426's branch (see above), since 14725's branch was based on a much newer point of `main` and merging it would have pulled in hundreds of unrelated files. PR #14725 has since been closed and its content folded entirely into [#14426](https://github.com/apache/cloudstack/pull/14426).
+- Commits 115 to 119 belong to PR [#14873](https://github.com/apache/cloudstack/pull/14873) (review fixes of #14386, which was merged before they were handled). Its branch head is `c7b86789d4d` (commit 119), with `1c42878d4d1` (117), `9bfecd6e67f` (116) and `12d3e925024` (115) before it. The five commits were cherry-picked onto this branch without any other change, except commit 119's thaw block.
